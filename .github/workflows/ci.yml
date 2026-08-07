@@ -43,12 +43,17 @@ jobs:
           GITLEAKS_ENABLE_COMMENTS: 'false'
       - name: Scan with gitleaks CLI (Dependabot branches)
         if: ${{ startsWith(github.head_ref, 'dependabot/') }}
+        env:
+          # Match gitleaks-action PR mode: only commits on the PR, not full history
+          # (full history still surfaces pre-allowlist noise like old client keys).
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           VER=8.28.0
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" \
             | tar -xz gitleaks
-          ./gitleaks detect --source . --config .gitleaks.toml --verbose --redact
+          ./gitleaks detect --source . --config .gitleaks.toml --verbose --redact \
+            --log-opts="${BASE_SHA}..HEAD"
 
   legal-pages:
     name: Legal pages match their source
