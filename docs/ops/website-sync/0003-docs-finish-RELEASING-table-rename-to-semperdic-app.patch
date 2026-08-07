@@ -1,0 +1,25 @@
+From 1973285d12f1534eb2ff9d3250a245059c3c89e9 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Fri, 7 Aug 2026 07:01:50 +0000
+Subject: [PATCH 3/3] docs: finish RELEASING table rename to semperdic-app
+
+---
+ RELEASING.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/RELEASING.md b/RELEASING.md
+index 7442381..bbb1acf 100644
+--- a/RELEASING.md
++++ b/RELEASING.md
+@@ -43,7 +43,7 @@ The private app repository builds the signed APK. **This repo does not auto-publ
+ 
+ | Step | Where |
+ |------|--------|
+-| Sign APK | Private IndicVisionDIC `release.yml` |
++| Sign APK | Private `semperdic/semperdic-app` `release.yml` |
+ | Host APK + site | This repo → GitHub Releases + GitHub Pages |
+ | Store listing | Google Play Console |
+ | Customer Q&A / bugs | This repo Discussions / Issues |
+-- 
+2.43.0
+

@@ -1,0 +1,587 @@
+From 49af8df0a3a4614cf45431351cbdc1bbd6eec40b Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Fri, 7 Aug 2026 06:58:08 +0000
+Subject: [PATCH 1/3] docs: sync manual and privacy with semperdic-app tip
+
+Refresh CONTENT-SYNC for semperdic-app, live App Links, and Aug VSG UX.
+Update getting-started, analysis, sweeps-results, exports-manage, FAQ,
+troubleshooting, and privacy from OPERATING_MANUAL / legal. Refresh
+screenshot WebPs from app docs images; note lattice/Home stills still
+predate Save graph / scrub / Only-in-cloud chrome.
+---
+ docs/CONTENT-SYNC.md                    | 31 +++++++-----
+ public/manual/screenshots/README.md     | 14 +++++-
+ src/components/Figure.astro             |  2 +-
+ src/pages/manual/analysis.astro         |  6 ++-
+ src/pages/manual/exports-manage.astro   | 37 ++++++++++++---
+ src/pages/manual/faq.astro              | 14 +++++-
+ src/pages/manual/getting-started.astro  | 18 +++++--
+ src/pages/manual/sweeps-results.astro   | 63 ++++++++++++++++++++++---
+ src/pages/privacy.astro                 | 48 +++++++++++++++----
+ src/pages/support/troubleshooting.astro | 48 +++++++++++++++++--
+ 10 files changed, 237 insertions(+), 44 deletions(-)
+
+diff --git a/docs/CONTENT-SYNC.md b/docs/CONTENT-SYNC.md
+index f2f06e8..717e3c1 100644
+--- a/docs/CONTENT-SYNC.md
++++ b/docs/CONTENT-SYNC.md
+@@ -1,12 +1,13 @@
+ # Content sync — website ↔ app
+ 
+ This site documents the Semper Android app, whose source lives in the separate
+-`IndicVisionDIC` repo. The site duplicates app behaviour by hand, so facts drift.
+-This page is the map: which website page mirrors which part of the app, and the
+-exact facts that must stay identical. Check it whenever you touch app-behaviour
+-copy, and re-check it when the app changes.
++[`semperdic/semperdic-app`](https://github.com/semperdic/semperdic-app) repository.
++The site duplicates app behaviour by hand, so facts drift. This page is the map:
++which website page mirrors which part of the app, and the exact facts that must
++stay identical. Check it whenever you touch app-behaviour copy, and re-check it
++when the app changes.
+ 
+-The app's source of truth is **`IndicVisionDIC/docs/OPERATING_MANUAL.md`** (the
++The app's source of truth is **`semperdic-app/docs/OPERATING_MANUAL.md`** (the
+ operating manual, "OM" below), backed by **`docs/app/WORKFLOWS.md`** for
+ per-screen behaviour. Where the two disagree, verify against **code**, not docs.
+ 
+@@ -14,17 +15,17 @@ per-screen behaviour. Where the two disagree, verify against **code**, not docs.
+ 
+ | Website page | Mirrors (app) |
+ |---|---|
+-| `src/pages/manual/getting-started.astro` | OM §1 What it does, §2 Getting in, §3 Images it accepts (incl. video) |
+-| `src/pages/manual/analysis.astro` | OM §4 Running an analysis, §5 Parameters, §6 Region of interest |
+-| `src/pages/manual/sweeps-results.astro` | OM §7 Sweeps, §8 Reading results |
+-| `src/pages/manual/exports-manage.astro` | OM §9 Exports, §10 Managing analyses |
++| `src/pages/manual/getting-started.astro` | OM §1 What it does, §2 Getting in (incl. Forgot password App Link, email-link sign-in, crash-report opt-in), §3 Images (incl. video) |
++| `src/pages/manual/analysis.astro` | OM §4 Running an analysis (incl. **Paste params** / Reset), §5 Parameters, §6 Region of interest |
++| `src/pages/manual/sweeps-results.astro` | OM §7 Sweeps (lattice scroll, View / Save graph, Isolate/Highlight, scrub slider, pinch/pan, copy params), §8 Reading results |
++| `src/pages/manual/exports-manage.astro` | OM §9 Exports, §10 Managing analyses (Only in cloud, storage tools, transfer progress, Your data exports) |
+ | `src/pages/manual/faq.astro` | Conceptual questions — no single OM section |
+ | `src/pages/support/troubleshooting.astro` | OM §11 Troubleshooting table + `res/values/strings.xml` messages |
+ | `src/pages/learn/dic.astro` | OM §1 + Appendix B glossary |
+ | `src/pages/learn/glossary.astro` | OM Appendix B |
+ | `src/pages/learn/parameters.astro` | OM §5 + Appendix A |
+ | `src/pages/download.astro` | `app/build.gradle.kts` (minSdk/ABI/version), OM §2 |
+-| `src/pages/privacy.astro` | OM §2, §10 + `backend/` auth/data behaviour |
++| `src/pages/privacy.astro` | OM §2, §10 + app `docs/legal/*` + live Firebase Hosting `/privacy/` and `/terms/` |
+ 
+ ## Facts that must match — and where they are enforced in code
+ 
+@@ -49,6 +50,7 @@ named.
+ | Package ID | `com.indicvision.semper` | `app/build.gradle.kts` (`applicationId`) |
+ | Support email | `support@indicvision.com` | `src/site.config.json` here; `strings.xml` there |
+ | Animation playback floor | Android 9+ | OM §8 |
++| Full privacy / terms (canonical) | Firebase Hosting on `indicvision-dic-app-auth` | app `docs/legal/*.md` → `firebase-hosting/public/{privacy,terms}/` |
+ 
+ ### Exact on-screen messages (Troubleshooting page)
+ 
+@@ -66,12 +68,15 @@ spell it "speckle"** — do not propagate the typo.
+ 
+ ## Do NOT document (built but unreachable)
+ 
+-Per `IndicVisionDIC/docs/app/WORKFLOWS.md §11`, these exist in code but are not
++Per `semperdic-app/docs/app/WORKFLOWS.md` §11, these exist in code but are not
+ reachable by users. Keep them off the site so they don't creep back in:
+ 
+ - Circle / ellipse / freeform ROI — only **Rect** and **Square** are exposed.
+ - A convergence-view plot — never built; only line-cut plots exist.
+ - Replayable coach marks — they show once and cannot be replayed.
+ - A dedicated restore screen — the empty-state "Restore" just opens Settings.
+-- Email sign-in link is code-complete but blocked on Digital Asset Links
+-  verification; treat email/password + Google as the live sign-in paths.
++
++**Live (do document):** Google sign-in, email/password, **email sign-in links**,
++and **Forgot password** App Links — Digital Asset Links for
++`com.indicvision.semper` are deployed on the auth Hosting site. Treat all of
++those as supported paths.
+diff --git a/public/manual/screenshots/README.md b/public/manual/screenshots/README.md
+index d042a17..ae06a70 100644
+--- a/public/manual/screenshots/README.md
++++ b/public/manual/screenshots/README.md
+@@ -1,6 +1,6 @@
+ # Manual screenshots
+ 
+-Real Semper device captures from `IndicVisionDIC/docs/images/`, exported to WebP
++Real Semper device captures from `semperdic-app/docs/images/`, exported to WebP
+ (source captures are 460×1022 phone frames).
+ 
+ | File | OM source | Used on |
+@@ -14,3 +14,15 @@ Real Semper device captures from `IndicVisionDIC/docs/images/`, exported to WebP
+ Keep filenames stable. After replacing a file, re-export to WebP (quality ~82)
+ and bump `FIGURE_CACHE` in `src/components/Figure.astro`. `Figure` references use
+ the `.webp` name and pass intrinsic `width`/`height` to reserve layout space.
++
++## Re-capture owed (app tip ahead of stills)
++
++As of the 2026-08-07 app tip, prose documents UX that these stills do **not**
++yet show:
++
++- Lattice: pinned **Save graph · View** bar, scrub slider under the plot,
++  Isolate/Highlight, colour-matched nodes, scrollable layout
++- Home: **Only in cloud** badge and determinate restore/upload progress on rows
++
++Until fresh device captures replace `result-lattice.webp` / `home.webp`, page
++captions call out the gap so readers are not misled by the photo alone.
+diff --git a/src/components/Figure.astro b/src/components/Figure.astro
+index 156e012..9df4ff5 100644
+--- a/src/components/Figure.astro
++++ b/src/components/Figure.astro
+@@ -15,7 +15,7 @@ interface Props {
+ 
+ const { src, alt, caption, phone = false, wide = false, width, height } = Astro.props;
+ /** Bump when replacing Manual figures so CDNs/browsers drop stale SVG bodies. */
+-const FIGURE_CACHE = '20260804a';
++const FIGURE_CACHE = '20260807a';
+ const baseHref = src.startsWith('http') ? src : withBase(src.startsWith('/') ? src : `/${src}`);
+ const href = `${baseHref}${baseHref.includes('?') ? '&' : '?'}v=${FIGURE_CACHE}`;
+ ---
+diff --git a/src/pages/manual/analysis.astro b/src/pages/manual/analysis.astro
+index 0b38309..61b797c 100644
+--- a/src/pages/manual/analysis.astro
++++ b/src/pages/manual/analysis.astro
+@@ -92,7 +92,11 @@ import { withBase } from '../../lib/github';
+           <strong>Single</strong> or <strong>Sweep</strong> — Single solves every frame once. Sweep
+           solves one frame across many parameter combinations.
+         </li>
+-        <li><strong>Advanced parameters</strong> — subset, step, strain window, kernel.</li>
++        <li>
++          <strong>Advanced parameters</strong> — subset, step, strain window, kernel. If you copied a
++          combination from a sweep lattice, a <strong>Paste params</strong> chip appears beside
++          <strong>Reset</strong> and fills all three in one tap (the screen scrolls them into view).
++        </li>
+       </ol>
+       <p>Then tap <strong>Compute</strong>.</p>
+ 
+diff --git a/src/pages/manual/exports-manage.astro b/src/pages/manual/exports-manage.astro
+index d573f70..0488770 100644
+--- a/src/pages/manual/exports-manage.astro
++++ b/src/pages/manual/exports-manage.astro
+@@ -21,7 +21,7 @@ import { withBase } from '../../lib/github';
+       <Figure
+         src="/manual/screenshots/home.webp"
+         alt="Semper Home screen listing analyses"
+-        caption="Home is where you open, rename, delete, and sync analyses."
++        caption="Home is where you open, rename, delete, and sync analyses. Rows show upload state; current builds also surface restore progress and Only in cloud when local frames were freed."
+         phone
+         width={460}
+         height={1022}
+@@ -79,7 +79,9 @@ import { withBase } from '../../lib/github';
+         >
+         (match quality) to drop poorly correlated points. For a paper, export
+         <strong>Everything</strong> and keep it with your raw images — inputs, fields and parameters in
+-        one archive is what makes the result reproducible.
++        one archive is what makes the result reproducible. Sweep lattices also have their own
++        <strong>Save graph</strong> annotated PNG (see
++        <a href={withBase('/manual/sweeps-results')}>Sweeps &amp; results</a>).
+       </p>
+ 
+       <h3>Managing analyses</h3>
+@@ -95,10 +97,16 @@ import { withBase } from '../../lib/github';
+         only</strong> (keeping the backup) or <strong>everywhere</strong>. A deleted backup has a
+         <strong>5-second Undo</strong>.
+       </p>
++      <p>
++        <span class="lead-label">Deleting on this device only is not losing it.</span> The row stays
++        on Home, badged <strong>Only in cloud</strong>, and tapping it offers to download the
++        analysis back before opening it. Freeing space is a reversible decision.
++      </p>
+       <div class="callout">
+-        <span class="lead-label">No notifications, anywhere.</span> Background uploads, restores and
+-        deletes report nothing until you come back to the app — a quiet screen does not mean nothing is
+-        happening.
++        <span class="lead-label">Transfers are honest about progress and failure.</span> Uploads and
++        restores keep running if you leave the screen (with a system notification), and while you
++        are on Home they show a progress bar on the row. Success is quiet. A backup or restore that
++        fails for good raises a dialog or Home message explaining why — you are not left guessing.
+       </div>
+       <p>
+         <span class="lead-label">If it fails:</span> hit the analysis limit? It is not a paywall —
+@@ -111,7 +119,24 @@ import { withBase } from '../../lib/github';
+       <h3>Useful Settings</h3>
+       <ul>
+         <li><strong>Max frames</strong> — 10–150, default 50</li>
+-        <li><strong>Save to cloud</strong> — queue uploads when online</li>
++        <li>
++          <strong>Save to cloud</strong> — queue uploads when online; <strong>Wi-Fi only</strong>
++          holds them until Wi-Fi
++        </li>
++        <li>
++          <strong>Analyses data management</strong> — local and cloud rows together; back up,
++          restore, or delete per row
++        </li>
++        <li>
++          <strong>Storage</strong> —
++          <strong>Free up space</strong> (drop local frames of backed-up analyses → Only in cloud),
++          <strong>Clear cache</strong>, and an <strong>Auto-free budget</strong> slider (0–64 GB)
++        </li>
++        <li>
++          <strong>Your data</strong> — <strong>Export my data</strong> (ZIP of everything on this
++          phone), <strong>Download my cloud account data</strong>, account delete, and
++          <strong>Send crash reports</strong> (opt-in)
++        </li>
+         <li>
+           <strong>Help &amp; support</strong> — Manual, community, and email for private account
+           issues
+diff --git a/src/pages/manual/faq.astro b/src/pages/manual/faq.astro
+index b3c67ec..85a1d98 100644
+--- a/src/pages/manual/faq.astro
++++ b/src/pages/manual/faq.astro
+@@ -42,7 +42,19 @@ const faqs = [
+   },
+   {
+     q: 'Can I use Semper results in a paper?',
+-    a: 'Yes. Export “Everything”, quote the VSG with any strain value, and keep the archive with your raw images — inputs, fields, and parameters together are what make the result reproducible.',
++    a: 'Yes. Export “Everything”, quote the VSG with any strain value, and keep the archive with your raw images — inputs, fields, and parameters together are what make the result reproducible. From a sweep you can also Save graph for an annotated lattice plot PNG.',
++  },
++  {
++    q: 'I forgot my password — do I leave the app?',
++    a: 'No. Forgot password mails a link that reopens Semper on a set-new-password form (same password rules). Email sign-in links work the same way once App Links are verified.',
++  },
++  {
++    q: 'Does Semper send crash reports?',
++    a: 'Only if you opt in. After the beta notice on first run you are asked once; you can change it later under Settings → Your data → Send crash reports. Declining is the default. Reports never include your images or results.',
++  },
++  {
++    q: 'How do I reuse parameters from a sweep?',
++    a: 'On the lattice plot, double-tap the value readout to copy that combination’s subset, step, and strain window. Start a new single-setting analysis and tap Paste params on step 2.',
+   },
+   {
+     q: 'Something went wrong — where do I look?',
+diff --git a/src/pages/manual/getting-started.astro b/src/pages/manual/getting-started.astro
+index 6ab27cf..cf68c43 100644
+--- a/src/pages/manual/getting-started.astro
++++ b/src/pages/manual/getting-started.astro
+@@ -75,14 +75,16 @@ import { withBase } from '../../lib/github';
+       </p>
+       <p><span class="lead-label">In the app:</span></p>
+       <ol>
+-        <li>Sign in with Google or email.</li>
++        <li>Sign in with Google or email (password, or an emailed sign-in link).</li>
+         <li>
+           Email passwords need 8+ characters with upper and lower case, a digit, and a special
+           character. Use <strong>Generate secure password</strong> if you want one filled in.
++          <strong>Forgot password</strong> mails a link that reopens the app on a set-new-password
++          form — you never leave the app to reset.
+         </li>
+         <li>
+           After email sign-up, open the verification link, then sign in. Until you verify, sign-in
+-          is refused.
++          is refused and a fresh link is sent each time you try.
+         </li>
+         <li>
+           New accounts show <strong>Pending approval</strong>. Support is emailed automatically.
+@@ -93,6 +95,16 @@ import { withBase } from '../../lib/github';
+           refresh by itself.
+         </li>
+       </ol>
++      <p>
++        Google and email-link sign-ins already prove the address, so they skip the password step.
++      </p>
++      <div class="callout">
++        <span class="lead-label">Crash reports are opt-in.</span> After the beta notice on first run
++        the app asks once whether it may send crash diagnostics. Nothing is collected unless you say
++        yes, and you can change your mind under
++        <strong>Settings → Your data → Send crash reports</strong>. Reports never include your
++        images or measurement results.
++      </div>
+       <p>
+         Auth, storage, and erasure:
+         <a href={withBase('/privacy')}>Privacy</a>.
+@@ -100,7 +112,7 @@ import { withBase } from '../../lib/github';
+       <Figure
+         src="/manual/screenshots/home.webp"
+         alt="Semper Home screen listing analyses with upload badges and add button"
+-        caption="Home lists your analyses. Tap to open, long-press to select, + to start a new one."
++        caption="Home lists your analyses. Tap to open, long-press to select, pull down to sync, + to start a new one. Upload badges and (on current builds) restore progress or Only in cloud appear on rows when relevant."
+         phone
+         width={460}
+         height={1022}
+diff --git a/src/pages/manual/sweeps-results.astro b/src/pages/manual/sweeps-results.astro
+index c316eb5..c201597 100644
+--- a/src/pages/manual/sweeps-results.astro
++++ b/src/pages/manual/sweeps-results.astro
+@@ -64,7 +64,11 @@ import { withBase } from '../../lib/github';
+           </tr>
+         </tbody>
+       </table>
+-      <p>Start at 3 × 3. Look for the VSG where the curves stop separating.</p>
++      <p>
++        Start at 3 × 3. The sweep varies the <strong>strain window</strong> directly; VSG is still
++        what you quote — it is shown per node — but it is derived
++        (<code>(window − 1) × step + 1</code>). Look for the VSG where the curves stop separating.
++      </p>
+       <Figure
+         src="/manual/vsg.svg"
+         alt="VSG formula diagram"
+@@ -77,18 +81,65 @@ import { withBase } from '../../lib/github';
+       <h3>Result lattice</h3>
+       <Figure
+         src="/manual/screenshots/result-lattice.webp"
+-        alt="Sweep result lattice with filled and hollow nodes"
+-        caption="Filled dots solved. Hollow rings were skipped — tap a hollow node for the reason."
++        alt="Sweep result lattice with filled and hollow nodes, line-cut plot, scrub slider, and pinned Save graph and View actions"
++        caption="Filled dots solved; hollow rings were skipped (tap one for the reason). Current builds also pin Save graph and View at the bottom with a scrub slider under the plot — re-capture this shot after those land on your build."
+         phone
+         width={460}
+         height={1022}
+       />
++      <p class="plain">
++        The screen is built for one thumb: lattice, then controls, then the plot scroll together,
++        while <strong>Save graph</strong> and <strong>View</strong> stay pinned at the bottom.
++      </p>
++
++      <h4 class="minor">Choosing a combination</h4>
+       <ul>
+-        <li>Tap — highlight that curve</li>
+-        <li>Double-tap or long-press — open that result</li>
+-        <li>Exx / Eyy / Exy — switch strain component</li>
++        <li>
++          <strong>Tap</strong> a node, or use the <strong>‹ · ›</strong> stepper above the plot to
++          walk solved nodes. The chip between the arrows names the current one.
++        </li>
++        <li>
++          <strong>Double-tap</strong> or <strong>long-press</strong> a node — opens that result. So
++          does <strong>View</strong>.
++        </li>
++        <li>Tapping a hollow node explains why that combination was skipped.</li>
+       </ul>
+ 
++      <h4 class="minor">Reading the plot</h4>
++      <ul>
++        <li>
++          <strong>Isolate</strong> (default) shows only the selected combination.
++          <strong>Highlight</strong> draws all of them, with the selected one at full strength.
++        </li>
++        <li>
++          <strong>Drag across the plot</strong> — a guide follows your finger and prints the value.
++          The <strong>scrub slider</strong> under the plot does the same and stays in sync (easier
++          one-handed).
++        </li>
++        <li>
++          <strong>Pinch to zoom</strong>, two-finger drag to pan, <strong>double-tap</strong> to
++          reset zoom. Zoom survives stepping to another node; changing Exx / Eyy / Exy resets it.
++        </li>
++        <li>The <strong>Exx / Eyy / Exy</strong> selector switches component.</li>
++      </ul>
++
++      <h4 class="minor">Taking the answer with you</h4>
++      <ul>
++        <li>
++          <strong>Double-tap the readout</strong> to copy that combination&apos;s subset, step and
++          strain window. Start a new single-setting analysis and a <strong>Paste params</strong>
++          chip on step 2 fills them in.
++        </li>
++        <li>
++          <strong>Save graph</strong> writes an annotated PNG: study header, fit-to-data plot, and a
++          colour legend. On-screen zoom is not baked into the file.
++        </li>
++      </ul>
++      <p>
++        If every combination fails, you still land on the lattice (all nodes hollow).
++        <strong>View</strong> and <strong>Save graph</strong> are disabled until something solves.
++      </p>
++
+       <h3>Reading results</h3>
+       <p class="plain">
+         The viewer opens on a looping animation of the whole sequence, then lets you step through
+diff --git a/src/pages/privacy.astro b/src/pages/privacy.astro
+index d2a4197..da423f1 100644
+--- a/src/pages/privacy.astro
++++ b/src/pages/privacy.astro
+@@ -3,6 +3,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
+ import { SUPPORT_EMAIL, withBase } from '../lib/github';
+ 
+ const mail = `mailto:${SUPPORT_EMAIL}`;
++const fullPrivacy = 'https://indicvision-dic-app-auth.firebaseapp.com/privacy/';
++const fullTerms = 'https://indicvision-dic-app-auth.firebaseapp.com/terms/';
+ ---
+ 
+ <BaseLayout
+@@ -22,8 +24,21 @@ const mail = `mailto:${SUPPORT_EMAIL}`;
+     </ul>
+ 
+     <div class="prose">
++      <div class="callout">
++        <span class="lead-label">Full policies live with the app.</span> The complete Privacy Policy
++        and Terms of Service (last updated 5 Aug 2026) are published on the auth host the app links
++        from About:
++        <a href={fullPrivacy} rel="noopener noreferrer">Privacy Policy</a>
++        ·
++        <a href={fullTerms} rel="noopener noreferrer">Terms of Service</a>.
++        This page is a plain-language summary for the website.
++      </div>
++
+       <h3 id="authentication">Authentication</h3>
+-      <p>Sign in with Google or email and password.</p>
++      <p>
++        Sign in with Google, email and password, or an emailed sign-in link.
++        <strong>Forgot password</strong> mails a link that reopens the app on a set-new-password form.
++      </p>
+       <p>
+         Email passwords need 8+ characters with upper and lower case, a digit, and a special
+         character. <strong>Generate secure password</strong> can fill one in.
+@@ -42,7 +57,7 @@ const mail = `mailto:${SUPPORT_EMAIL}`;
+       </p>
+       <p>
+         To delete your account, open Settings → Your data. Semper re-checks identity on the sign-in
+-        screen first.
++        screen first (password, Google, or emailed link).
+       </p>
+       <p>
+         After you confirm, it erases cloud backup, this device&apos;s data, and the sign-in, then
+@@ -61,14 +76,17 @@ const mail = `mailto:${SUPPORT_EMAIL}`;
+       </p>
+       <p>
+         A backup is the analysis package you already computed (frames and results). Account and
+-        device metadata live with the backend.
++        device metadata live with the backend. Image bytes are uploaded by the device to org storage
++        — not processed by the API.
+       </p>
+       <p>
+-        Image bytes are not processed by the API. The client uploads them to org storage.
++        Settings → Analyses data management lists local and cloud rows. You can back up, restore, or
++        delete per row. Home can show <strong>Only in cloud</strong> rows after Free up space; tap to
++        download them back.
+       </p>
+       <p>
+-        Settings → Analyses data management lists local and cloud rows. You can back up, restore, or
+-        delete per row.
++        <strong>Your data</strong> also offers <strong>Export my data</strong> (everything on this
++        phone) and <strong>Download my cloud account data</strong> (the server&apos;s copy).
+       </p>
+ 
+       <h3 id="data-policy">Data policy</h3>
+@@ -82,6 +100,10 @@ const mail = `mailto:${SUPPORT_EMAIL}`;
+         <li>
+           Analysis backups when cloud backup is on (frames and results you choose to sync).
+         </li>
++        <li>
++          Crash and error diagnostics <strong>only if you opt in</strong> (off by default; never
++          includes images or results). Change under Settings → Your data → Send crash reports.
++        </li>
+         <li>
+           Support mail you send — the app can attach account, device id, app version, and phone
+           model.
+@@ -91,12 +113,15 @@ const mail = `mailto:${SUPPORT_EMAIL}`;
+       <ul>
+         <li>Sign-in, email verification, and admin approval.</li>
+         <li>Optional backup and restore.</li>
++        <li>Fixing crashes when you have opted in.</li>
+         <li>Private account support.</li>
+       </ul>
+       <p><strong>Your controls</strong></p>
+       <ul>
+         <li>Leave cloud backup off. No new uploads are queued.</li>
++        <li>Leave crash reports off (the default).</li>
+         <li>Delete local only, cloud backup only, or everywhere — read the dialog.</li>
++        <li>Export phone data or download your cloud account data from Settings → Your data.</li>
+         <li>Delete the account to erase cloud copy, device data, and sign-in.</li>
+         <li>Email <a href={mail}>{SUPPORT_EMAIL}</a> for private account issues.</li>
+       </ul>
+@@ -104,6 +129,7 @@ const mail = `mailto:${SUPPORT_EMAIL}`;
+         Community posts (Q&amp;A, bugs, features) go to GitHub. That content follows GitHub&apos;s
+         terms, not this backup path.
+       </p>
++      <p>Semper does not use generative AI providers.</p>
+ 
+       <h3 id="privacy-policy">Privacy policy</h3>
+       <p>
+@@ -122,8 +148,14 @@ const mail = `mailto:${SUPPORT_EMAIL}`;
+         Correlation runs on device. Optional cloud backup stores what you sync so you can restore
+         it — not so the cloud can re-run DIC.
+       </p>
+-      <p>Material changes to this page will be posted here.</p>
+-      <p>Last updated: 3 Aug 2026.</p>
++      <p>
++        Canonical text:
++        <a href={fullPrivacy} rel="noopener noreferrer">Privacy Policy</a>
++        and
++        <a href={fullTerms} rel="noopener noreferrer">Terms of Service</a>.
++      </p>
++      <p>Material changes to this summary will be posted here.</p>
++      <p>Last updated: 5 Aug 2026.</p>
+     </div>
+   </section>
+ </BaseLayout>
+diff --git a/src/pages/support/troubleshooting.astro b/src/pages/support/troubleshooting.astro
+index 6b7f5c4..25368a4 100644
+--- a/src/pages/support/troubleshooting.astro
++++ b/src/pages/support/troubleshooting.astro
+@@ -80,7 +80,15 @@ const groups: Group[] = [
+           'Use 8+ characters with upper and lower case, a digit, and a special character.',
+           'Or tap Generate secure password to have a strong one filled in and revealed so you can save it.',
+         ],
+-        why: 'A forgotten password is reset through Firebase’s own page, which the app cannot reach directly.',
++      },
++      {
++        symptom: 'I forgot my password',
++        meaning: 'You can reset it without leaving the app.',
++        fix: [
++          'Tap Forgot password on the sign-in screen. Semper emails a reset link.',
++          'Open the link on this device — App Links reopen the app on a set-new-password form with the same password rules.',
++        ],
++        why: 'When App Links are verified, the link stays in-app instead of falling through to a browser page.',
+       },
+       {
+         msg: 'Could not verify account securely.',
+@@ -264,7 +272,39 @@ const groups: Group[] = [
+           'You may be offline, on mobile data with Wi-Fi-only uploads set, or have cloud backup off.',
+           'Connect to Wi-Fi, or check Settings → Cloud backup.',
+         ],
+-        why: 'There are no notifications for background work — a quiet screen does not mean the upload failed.',
++        why: 'While a transfer runs you should see a system notification and, on Home, a progress bar on the row. Pending alone means it has not started the upload yet.',
++      },
++      {
++        symptom: 'Badge shows Failed',
++        meaning: 'The backup ended for good — device conflict, analysis too large, or out of memory.',
++        fix: [
++          'Tap the badge — the dialog names why and offers Try again.',
++        ],
++      },
++      {
++        symptom: 'Row says Only in cloud',
++        meaning:
++          'Local frames were freed (by you via Free up space, or by the auto-free budget). The cloud backup is still there.',
++        fix: [
++          'Tap the row — Semper offers to download the analysis back before opening it.',
++        ],
++      },
++      {
++        symptom: 'Restore never arrived / Restore failed',
++        meaning: 'The backup could not be restored (deleted, wrong account, or a hard failure).',
++        fix: [
++          'Check Home and Settings → Analyses data management for the failure message.',
++          'On a flaky network the transfer retries; a permanent failure says so instead of spinning forever.',
++        ],
++      },
++      {
++        symptom: 'Phone out of space',
++        meaning: 'Analyses and cache are filling storage.',
++        fix: [
++          'Settings → Storage → Free up space (drops local frames of backed-up analyses).',
++          'Consider setting an Auto-free budget (0–64 GB) so the app reclaims space at start-up.',
++          'Clear cache removes regenerable previews and exports waiting to be shared.',
++        ],
+       },
+       {
+         msg: 'Analysis limit reached',
+@@ -279,14 +319,14 @@ const groups: Group[] = [
+         msg: 'Data no longer on this device',
+         meaning: 'This analysis was cleaned up locally.',
+         fix: [
+-          'If it was synced, the files are still in your cloud folder — restore it from Settings → Analyses data management.',
++          'If it was synced, the files are still in your cloud folder — restore it from Settings → Analyses data management, or tap an Only in cloud row on Home to download it back.',
+         ],
+       },
+       {
+         symptom: 'Deleting my account opened the sign-in screen',
+         meaning: 'This is expected — that is where your identity is confirmed before erasure.',
+         fix: [
+-          'Sign in the way you normally do to confirm; your address is filled in and cannot be changed.',
++          'Sign in the way you normally do (password, Google, or emailed link) to confirm; your address is filled in and cannot be changed.',
+           'Back out and nothing is deleted. If the cloud cannot be reached, nothing is deleted at all.',
+         ],
+       },
+-- 
+2.43.0
+

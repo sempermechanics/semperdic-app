@@ -1,0 +1,26 @@
+From eb8418b2448d97029eb32593354200014b8e8231 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Fri, 7 Aug 2026 06:58:28 +0000
+Subject: [PATCH 2/3] docs: point website RELEASING at semperdic-app
+
+Replace stale IndicVisionDIC repo name in the public release checklist.
+---
+ RELEASING.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/RELEASING.md b/RELEASING.md
+index 5bde73b..7442381 100644
+--- a/RELEASING.md
++++ b/RELEASING.md
+@@ -4,7 +4,7 @@ The private app repository builds the signed APK. **This repo does not auto-publ
+ 
+ ## Checklist
+ 
+-1. **Build** a signed release APK from the private IndicVisionDIC Release workflow (or local release assemble).
++1. **Build** a signed release APK from the private `semperdic/semperdic-app` Release workflow (or local release assemble).
+ 2. **Host the APK** (pick one):
+    - **Preferred:** create a GitHub Release on this repo and attach the APK; copy the asset URL.
+    - Or place a small APK under `public/downloads/` (avoid committing large binaries long-term).
+-- 
+2.43.0
+
