@@ -1,0 +1,414 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { SUPPORT_EMAIL, issueNewUrl, withBase } from '../../lib/github';
+
+const mail = `mailto:${SUPPORT_EMAIL}`;
+
+// Each entry is keyed by the words a user actually sees — the exact on-screen
+// message where there is one (`msg`), otherwise the symptom. Sources: the app's
+// docs/source/OPERATING_MANUAL.md §11 and app res/values/strings.xml. Messages are quoted
+// verbatim so phone-find / Ctrl-F matches what is on the screen.
+interface Entry {
+  msg?: string;
+  symptom?: string;
+  meaning: string;
+  fix: string[];
+  why?: string;
+}
+interface Group {
+  id: string;
+  title: string;
+  intro?: string;
+  entries: Entry[];
+}
+
+const groups: Group[] = [
+  {
+    id: 'installing',
+    title: 'Installing & opening',
+    entries: [
+      {
+        symptom: 'Play says the app is not compatible, or the APK will not install',
+        meaning:
+          'Your phone does not meet the app’s requirements. Semper needs Android 7.0 or newer and a 64-bit ARM (arm64-v8a) processor.',
+        fix: [
+          'Check Settings → About phone for your Android version — it must be 7.0 or newer.',
+          'Most phones from the last several years are arm64. Older 32-bit or Intel/x86 devices and many low-cost tablets are not supported.',
+          'There is no iPhone version — Semper is Android only.',
+        ],
+      },
+      {
+        msg: 'A critical system error occurred during startup.',
+        meaning: 'The app hit an error before it could open.',
+        fix: [
+          'Force-stop the app and reopen it.',
+          'Make sure it is fully updated (or reinstall the latest build).',
+          'If it keeps happening, email support with your phone model and Android version.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'signing-in',
+    title: 'Signing in & approval',
+    intro:
+      'Accounts need admin approval, not just sign-up. Most sign-in surprises come from that or from email verification.',
+    entries: [
+      {
+        symptom: 'Sign-in is refused right after I signed up with email',
+        meaning: 'Your email address is not verified yet.',
+        fix: [
+          'Open the verification link in the email the app sent when you signed up.',
+          'Return to the app and sign in again. A fresh link is sent each time you try before verifying.',
+        ],
+        why: 'Google and email-link sign-ins skip this — they already prove the address.',
+      },
+      {
+        symptom: 'Still on Pending approval',
+        meaning:
+          'An admin has to approve new accounts, and the screen never updates on its own.',
+        fix: [
+          'Tap Check status — it does not poll, so nothing changes until you press it.',
+          'Support is emailed automatically when your account is created, so you do not have to ask to be noticed. Tap Request access if you want to add context.',
+          'If it has been a while, email support and mention the account address.',
+        ],
+      },
+      {
+        symptom: 'Password rejected when creating an account',
+        meaning: 'The password does not meet the policy.',
+        fix: [
+          'Use 8+ characters with upper and lower case, a digit, and a special character.',
+          'Or tap Generate secure password to have a strong one filled in and revealed so you can save it.',
+        ],
+      },
+      {
+        symptom: 'I forgot my password',
+        meaning: 'You can reset it without leaving the app.',
+        fix: [
+          'Tap Forgot password on the sign-in screen. Semper emails a reset link.',
+          'Open the link on this device — App Links reopen the app on a set-new-password form with the same password rules.',
+        ],
+        why: 'When App Links are verified, the link stays in-app instead of falling through to a browser page.',
+      },
+      {
+        msg: 'Could not verify account securely.',
+        meaning: 'The app could not confirm your account with the server, usually a connection issue.',
+        fix: [
+          'Check your connection and try again.',
+          'If you are offline, note that first-time sign-in needs a network — offline use only works on a device that was approved before.',
+        ],
+      },
+      {
+        msg: 'Network error. Try again.',
+        meaning: 'A request did not reach the server.',
+        fix: [
+          'Check Wi-Fi or mobile data and retry.',
+          'Import and solving work offline; only sign-in, approval checks and uploads need a network.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'loading',
+    title: 'Loading images & video',
+    entries: [
+      {
+        symptom: 'A run is blocked with a message about image size',
+        meaning: 'One frame is a different pixel size from the reference.',
+        fix: [
+          'Every frame must match the reference’s pixel dimensions exactly.',
+          'Re-export the odd frame at the same resolution, or drop it.',
+        ],
+      },
+      {
+        symptom: 'Next stays greyed out on step 1',
+        meaning: 'You are missing a reference frame, or you have no deformed frames.',
+        fix: ['Load at least one reference and one deformed frame, then Next turns on.'],
+      },
+      {
+        msg: 'Failed to decode RAW image.',
+        meaning: 'A RAW or DNG file could not be read.',
+        fix: [
+          'Import RAW and DNG through Files, not Photos.',
+          'If it still fails, convert the frame to PNG or TIFF and load that.',
+        ],
+      },
+      {
+        msg: 'Failed to load reference image. Please try another file.',
+        meaning: 'The reference frame could not be opened.',
+        fix: [
+          'Pick a different reference file.',
+          'Prefer PNG or TIFF; a corrupt or unusual file can fail to decode.',
+        ],
+      },
+      {
+        symptom: 'Low-texture warning naming a bigger subset',
+        meaning: 'Your speckle pattern is weak for this region — the match may be unreliable.',
+        fix: [
+          'Treat it as feedback on the pattern, not just a slider tip.',
+          'Accept the larger subset it suggests, or re-shoot with a finer, higher-contrast speckle.',
+        ],
+      },
+      {
+        msg: 'Could not read this video.',
+        meaning: 'The video file could not be opened for sampling.',
+        fix: ['Try a standard MP4, or export the frames as images and load those instead.'],
+      },
+      {
+        msg: 'Could not extract enough frames from this segment.',
+        meaning: 'The time segment and frame rate you chose do not yield enough frames.',
+        fix: [
+          'Widen the time segment, or raise the sampling frame rate.',
+          'Watch the live frame-count estimate on the sampling sheet before confirming.',
+        ],
+      },
+      {
+        symptom: 'Only the first N frames loaded',
+        meaning: 'The Max frames cap dropped the extras.',
+        fix: [
+          'Raise Max frames in Settings → Analysis preferences (10–150, default 50).',
+          'Or split a long sequence into more than one analysis.',
+        ],
+      },
+      {
+        symptom: 'Frames ran in the wrong order',
+        meaning: 'The badge order on step 1 was not the capture order.',
+        fix: [
+          'On step 1, use Sort — by Name, by Date (capture time then EXIF), or drag manually.',
+          'Set the order before you Compute; it cannot be undone afterward, so re-run to fix it.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'setup',
+    title: 'Setting up a run',
+    entries: [
+      {
+        symptom: '“ROI too small”',
+        meaning: 'The region of interest is smaller than a single subset, so nothing can be matched.',
+        fix: ['Enlarge the ROI, or shrink the subset size in Advanced parameters.'],
+      },
+    ],
+  },
+  {
+    id: 'during-a-run',
+    title: 'During a run',
+    entries: [
+      {
+        msg:
+          'Analysis stopped: convergence fell below 50% on 2 consecutive frames. The images may have decorrelated due to change in spackle pattern or moved out of view.',
+        meaning:
+          'The images decorrelated — two frames in a row could not be matched well, so Semper stopped rather than grind through the rest. This is a short run, not a failed one.',
+        fix: [
+          'The frames solved before the stop are kept as a valid shorter analysis — open them from Home.',
+          'For the later frames, the deformation was too large, the pattern was damaged, or the specimen moved out of view. Re-shoot with smaller load steps or a more robust speckle.',
+        ],
+        why: 'The message names the frame and image it gave up on. A 50-frame test that stopped at frame 40 still gives you frames 1–39.',
+      },
+      {
+        symptom: 'Engine failure: feature detection',
+        meaning: 'The reference and deformed pair could not be correlated at all.',
+        fix: [
+          'Check you paired the right reference with the right deformed frames.',
+          'A too-weak or damaged pattern also causes this — improve the speckle.',
+        ],
+      },
+      {
+        symptom: 'Engine failure: ROI',
+        meaning: 'The region was too small or fully masked by erased holes.',
+        fix: ['Enlarge the ROI, or remove some of the erased holes.'],
+      },
+      {
+        symptom: 'The run vanished — the app closed mid-analysis',
+        meaning: 'Android killed the app while it was solving. A run has no resume.',
+        fix: [
+          'Keep the app in the foreground and the screen on while a run works.',
+          'Run it again; close other heavy apps first so the system does not reclaim memory.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'reading',
+    title: 'Reading results',
+    entries: [
+      {
+        symptom: 'Frames look incomparable — a late frame looks like an early one',
+        meaning:
+          'The colour scale is Auto, which rescales every frame separately, so colours do not mean the same thing across frames.',
+        fix: [
+          'Watch the summary animation — it already puts every frame on one whole-sequence scale.',
+          'Or tap the colour bar and set a fixed min/max; bounds are remembered per field.',
+        ],
+      },
+      {
+        symptom: 'Summary still says “Rendering”',
+        meaning: 'A long analysis takes a while to render five fields into an animation.',
+        fix: ['The individual frames are usable meanwhile — enter them with Next and come back.'],
+      },
+      {
+        symptom: 'Summary shows one frame instead of looping',
+        meaning: 'Animation playback needs Android 9 or newer.',
+        fix: [
+          'On Android 8 or older you get the first frame and a note; the exported GIFs still animate.',
+        ],
+      },
+      {
+        symptom: 'Sweep skipped nodes — some lattice dots are hollow',
+        meaning: 'Those subset × window combinations do not fit — usually a big subset in a small ROI.',
+        fix: ['Tap a hollow node for its exact reason. Enlarge the ROI or narrow the ranges.'],
+      },
+    ],
+  },
+  {
+    id: 'sync-backup-quota',
+    title: 'Sync, backup & quota',
+    entries: [
+      {
+        symptom: 'Upload badge stuck on Pending',
+        meaning: 'The backup is waiting for the right conditions.',
+        fix: [
+          'You may be offline, on mobile data with Wi-Fi-only uploads set, or have cloud backup off.',
+          'Connect to Wi-Fi, or check Settings → Cloud backup.',
+        ],
+        why: 'While a transfer runs you should see a system notification and, on Home, a progress bar on the row. Pending alone means it has not started the upload yet.',
+      },
+      {
+        symptom: 'Badge shows Failed',
+        meaning: 'The backup ended for good — device conflict, analysis too large, or out of memory.',
+        fix: [
+          'Tap the badge — the dialog names why and offers Try again.',
+        ],
+      },
+      {
+        symptom: 'Row says Only in cloud',
+        meaning:
+          'Local frames were freed (by you via Free up space, or by the auto-free budget). The cloud backup is still there.',
+        fix: [
+          'Tap the row — Semper offers to download the analysis back before opening it.',
+        ],
+      },
+      {
+        symptom: 'Restore never arrived / Restore failed',
+        meaning: 'The backup could not be restored (deleted, wrong account, or a hard failure).',
+        fix: [
+          'Check Home and Settings → Analyses data management for the failure message.',
+          'On a flaky network the transfer retries; a permanent failure says so instead of spinning forever.',
+        ],
+      },
+      {
+        symptom: 'Phone out of space',
+        meaning: 'Analyses and cache are filling storage.',
+        fix: [
+          'Settings → Storage → Free up space (drops local frames of backed-up analyses).',
+          'Consider setting an Auto-free budget (0–64 GB) so the app reclaims space at start-up.',
+          'Clear cache removes regenerable previews and exports waiting to be shared.',
+        ],
+      },
+      {
+        msg: 'Analysis limit reached',
+        meaning:
+          'You have hit the maximum saved analyses on your account. This is not a paywall — it is a per-account quota.',
+        fix: [
+          'Delete an analysis you no longer need and tap Re-check limit.',
+          'Or email support to request a higher limit.',
+        ],
+      },
+      {
+        msg: 'Data no longer on this device',
+        meaning: 'This analysis was cleaned up locally.',
+        fix: [
+          'If it was synced, the files are still in your cloud folder — restore it from Settings → Analyses data management, or tap an Only in cloud row on Home to download it back.',
+        ],
+      },
+      {
+        symptom: 'Deleting my account opened the sign-in screen',
+        meaning: 'This is expected — that is where your identity is confirmed before erasure.',
+        fix: [
+          'Sign in the way you normally do (password, Google, or emailed link) to confirm; your address is filled in and cannot be changed.',
+          'Back out and nothing is deleted. If the cloud cannot be reached, nothing is deleted at all.',
+        ],
+      },
+    ],
+  },
+];
+---
+
+<BaseLayout
+  title="Troubleshooting"
+  description="Find the exact message Semper showed you, what it means, and what to do — from install to export."
+  path="/support/troubleshooting"
+>
+  <section class="section" style="padding-top: 3rem">
+    <p class="crumb">
+      <a href={withBase('/support')}>← Support</a>
+    </p>
+    <h2>Troubleshooting</h2>
+    <p class="sub">
+      Look up the message Semper showed you, or the symptom, and see what it means and what to do. Use
+      your browser’s find (Ctrl-F, or the phone menu) to search the exact words on your screen.
+    </p>
+
+    <nav class="privacy-toc" aria-label="Troubleshooting sections">
+      {groups.map((g) => <a href={`#${g.id}`}>{g.title}</a>)}
+      <a href="#nothing-matches">Nothing here matches</a>
+    </nav>
+
+    <div class="prose">
+      {
+        groups.map((g) => (
+          <section id={g.id}>
+            <h3>{g.title}</h3>
+            {g.intro && <p class="detail">{g.intro}</p>}
+            <div class="trouble">
+              {g.entries.map((e) => (
+                <article class="trouble-item">
+                  <span class="msg">
+                    <span class="msg-label">{e.msg ? 'On screen' : 'Symptom'}</span>
+                    {e.msg ?? e.symptom}
+                  </span>
+                  <p><strong>What it means.</strong> {e.meaning}</p>
+                  <p style="margin:0"><strong>What to do:</strong></p>
+                  <ol class="fix">
+                    {e.fix.map((step) => (
+                      <li>{step}</li>
+                    ))}
+                  </ol>
+                  {e.why && (
+                    <p class="why">
+                      <strong>Why:</strong> {e.why}
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        ))
+      }
+
+      <section id="nothing-matches">
+        <h3>Nothing here matches</h3>
+        <div class="callout">
+          <span class="lead-label">Two good next steps.</span> For a how-to question, ask the
+          community — someone may have hit the same thing. For anything about your account, quota, or
+          private data, email support.
+        </div>
+        <div class="cta-row">
+          <a class="btn btn-primary" href={withBase('/community/q-a')}>Ask the community</a>
+          <a class="btn btn-ghost" href={issueNewUrl('bug_report.yml')} rel="noopener noreferrer">
+            Report a bug
+          </a>
+          <a class="btn btn-ghost" href={mail}>Email support</a>
+        </div>
+        <p class="detail" style="margin-top: 1rem">
+          Whichever you choose, include your <strong>app version</strong> (Settings → About), your
+          <strong>device and Android version</strong>, and — for a wrong result — the
+          <strong>Settings used</strong> sheet or an exported PDF/CSV. In the app,
+          <strong>Email support</strong> attaches your account, device ID, app version and phone model
+          for you.
+        </p>
+      </section>
+    </div>
+  </section>
+</BaseLayout>

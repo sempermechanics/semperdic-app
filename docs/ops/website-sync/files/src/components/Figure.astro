@@ -1,0 +1,34 @@
+---
+import { withBase } from '../lib/github';
+
+interface Props {
+  src: string;
+  alt: string;
+  caption: string;
+  phone?: boolean;
+  /** Wide schematic diagram — pans horizontally on narrow screens. */
+  wide?: boolean;
+  /** Intrinsic pixel dimensions, so space is reserved before the image loads. */
+  width?: number;
+  height?: number;
+}
+
+const { src, alt, caption, phone = false, wide = false, width, height } = Astro.props;
+/** Bump when replacing Manual figures so CDNs/browsers drop stale SVG bodies. */
+const FIGURE_CACHE = '20260807b';
+const baseHref = src.startsWith('http') ? src : withBase(src.startsWith('/') ? src : `/${src}`);
+const href = `${baseHref}${baseHref.includes('?') ? '&' : '?'}v=${FIGURE_CACHE}`;
+---
+
+<figure class:list={['figure', phone && 'figure--phone', wide && 'figure--wide']}>
+  {
+    wide ? (
+      <div class="figure-scroll">
+        <img src={href} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
+      </div>
+    ) : (
+      <img src={href} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
+    )
+  }
+  <figcaption><strong>Figure.</strong> {caption}</figcaption>
+</figure>

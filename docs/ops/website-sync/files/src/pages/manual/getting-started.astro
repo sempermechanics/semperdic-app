@@ -1,0 +1,185 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Figure from '../../components/Figure.astro';
+import ManualPager from '../../components/ManualPager.astro';
+import { withBase } from '../../lib/github';
+---
+
+<BaseLayout
+  title="Getting started"
+  description="What Semper does, signing in, and image requirements."
+  path="/manual/getting-started"
+>
+  <section class="section" style="padding-top: 3rem">
+    <p class="crumb">
+      <a href={withBase('/manual')}>← Manual</a>
+    </p>
+    <h2>Getting started</h2>
+    <p class="sub">What the app returns, how accounts work, and which frames you can load.</p>
+
+    <div class="prose">
+      <h3>What it does</h3>
+      <p class="plain">
+        You give Semper photos of a speckled surface before and during loading; it gives you back maps
+        of how far every point moved and how much it stretched.
+      </p>
+      <p class="detail">
+        In DIC terms: one
+        <strong><a class="term" href={withBase('/learn/glossary#reference')}>reference</a></strong>
+        frame (undeformed) and several
+        <strong><a class="term" href={withBase('/learn/glossary#deformed-frame')}>deformed</a></strong>
+        frames (one per load step). It matches small windows called
+        <strong><a class="term" href={withBase('/learn/glossary#subset')}>subsets</a></strong> on a
+        grid and returns five maps per frame. New to this? Start with
+        <a href={withBase('/learn/dic')}>How DIC works</a>.
+      </p>
+      <Figure
+        src="/manual/pipeline.svg"
+        alt="Pipeline from reference and deformed frames to displacement and strain fields"
+        caption="Inputs on the left, matching on the phone, five output fields on the right."
+        wide
+        width={760}
+        height={250}
+      />
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Meaning</th>
+            <th>Unit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>U</strong>, <strong>V</strong></td>
+            <td>Horizontal / vertical displacement</td>
+            <td>px</td>
+          </tr>
+          <tr>
+            <td><strong>Exx</strong>, <strong>Eyy</strong>, <strong>Exy</strong></td>
+            <td>Normal and shear strain</td>
+            <td>mε (millistrain)</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <span class="lead-label">Two things to know up front:</span> displacements are in
+        <strong>pixels</strong> — Semper does not apply a mm scale, so convert with your own factor.
+        And everything runs <strong>on the phone</strong>; optional cloud backup only stores the
+        results you already computed, it never re-runs the analysis.
+      </div>
+
+      <h3>Getting in</h3>
+      <p class="plain">
+        Signing up is not enough — an admin has to approve your account before you can use the app.
+      </p>
+      <p><span class="lead-label">In the app:</span></p>
+      <ol>
+        <li>Sign in with Google or email (password, or an emailed sign-in link).</li>
+        <li>
+          Email passwords need 8+ characters with upper and lower case, a digit, and a special
+          character. Use <strong>Generate secure password</strong> if you want one filled in.
+          <strong>Forgot password</strong> mails a link that reopens the app on a set-new-password
+          form — you never leave the app to reset.
+        </li>
+        <li>
+          After email sign-up, open the verification link, then sign in. Until you verify, sign-in
+          is refused and a fresh link is sent each time you try.
+        </li>
+        <li>
+          New accounts show <strong>Pending approval</strong>. Support is emailed automatically.
+        </li>
+        <li>Optional: tap <strong>Request access</strong> to add context in email.</li>
+        <li>
+          After an admin approves you, tap <strong>Check status</strong>. The screen does not
+          refresh by itself.
+        </li>
+      </ol>
+      <p>
+        Google and email-link sign-ins already prove the address, so they skip the password step.
+      </p>
+      <div class="callout">
+        <span class="lead-label">Crash reports are opt-in.</span> After the beta notice on first run
+        the app asks once whether it may send crash diagnostics. Nothing is collected unless you say
+        yes, and you can change your mind under
+        <strong>Settings → Your data → Send crash reports</strong>. Reports never include your
+        images or measurement results.
+      </div>
+      <p>
+        Auth, storage, and erasure:
+        <a href={withBase('/privacy')}>Privacy</a>.
+      </p>
+      <Figure
+        src="/manual/screenshots/home.webp"
+        alt="Semper Home screen listing analyses with upload badges and add button"
+        caption="Home lists your analyses. Tap to open, long-press to select, pull down to sync, + to start a new one. Rows show upload state; newer builds also show restore progress or Only in cloud when local frames were freed."
+        phone
+        width={460}
+        height={1022}
+      />
+      <p>
+        <span class="lead-label">If it fails:</span> offline use is fine if this device was approved
+        before — import and solve work without a network, and uploads wait until you are online. Still
+        stuck on sign-in or approval? See
+        <a href={withBase('/support/troubleshooting#signing-in')}>Troubleshooting · signing in</a>.
+      </p>
+
+      <h3>Images it accepts</h3>
+      <p class="plain">
+        Load a set of still photos, or a single video that Semper samples into frames for you.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Rule</th>
+            <th>If it fails</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Every frame matches the reference pixel size</td>
+            <td>Blocking error — you cannot run</td>
+          </tr>
+          <tr>
+            <td>At least one reference and one deformed frame</td>
+            <td><strong>Next</strong> stays off</td>
+          </tr>
+          <tr>
+            <td>At most <em>Max frames</em> (default 50)</td>
+            <td>Extras are dropped, with a toast</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Prefer <strong>PNG</strong> or <strong>TIFF</strong>. JPEG works but Semper warns:
+        compression damages the intensity gradients correlation needs.
+      </p>
+      <p>
+        RAW and DNG import only through <strong>Files</strong>, not Photos.
+      </p>
+      <p>
+        On import, Semper measures your speckle. A weak pattern shows a low-texture warning and
+        suggests a larger subset.
+      </p>
+
+      <h3>Starting from a video</h3>
+      <p class="plain">
+        Pick a video instead of photos and Semper pulls the frames out for you — no need to export
+        stills first.
+      </p>
+      <p class="detail">
+        When you choose a video, a sampling sheet opens: set the <strong>frame rate</strong> to sample
+        at and the <strong>time segment</strong> to cover, and it shows a live estimate of how many
+        frames you will get. The <strong>first frame becomes the reference</strong>, the rest become
+        deformed frames in capture order.
+      </p>
+      <p>
+        The same <strong>Max frames</strong> cap applies (default 50) — if a segment would exceed it,
+        the count is capped and the app notes it. Raise the limit in
+        <strong>Settings → Analysis preferences</strong> if you need more.
+      </p>
+    </div>
+
+    <ManualPager next={{ href: '/manual/analysis', label: 'Running an analysis' }} />
+  </section>
+</BaseLayout>

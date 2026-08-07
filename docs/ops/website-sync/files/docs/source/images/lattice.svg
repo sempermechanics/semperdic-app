@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" width="760" height="300" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <rect x="0" y="0" width="760" height="300" rx="10" fill="#ffffff" stroke="#d8dee4"/>
+  <text x="24" y="30" font-size="13" font-weight="600" fill="#1f2328">Each node is one full solve. Tap one to follow its curve.</text>
+
+  <!-- axes -->
+  <line x1="70" y1="240" x2="330" y2="240" stroke="#9aa4ae" stroke-width="1.5"/>
+  <line x1="70" y1="240" x2="70" y2="70" stroke="#9aa4ae" stroke-width="1.5"/>
+  <text x="200" y="264" text-anchor="middle" font-size="11" fill="#656d76">subset size →</text>
+  <text x="40" y="155" text-anchor="middle" font-size="11" fill="#656d76" transform="rotate(-90 40 155)">VSG size →</text>
+
+  <!-- nodes -->
+  <g>
+    <circle cx="110" cy="200" r="7" fill="#0288d1"/>
+    <circle cx="170" cy="200" r="7" fill="#0288d1"/>
+    <circle cx="230" cy="200" r="7" fill="#0288d1"/>
+    <circle cx="290" cy="200" r="7" fill="#0288d1"/>
+
+    <circle cx="110" cy="150" r="7" fill="#0288d1"/>
+    <circle cx="170" cy="150" r="9" fill="#0288d1"/>
+    <circle cx="170" cy="150" r="14" fill="none" stroke="#0288d1" stroke-width="2"/>
+    <circle cx="230" cy="150" r="7" fill="#0288d1"/>
+    <circle cx="290" cy="150" r="7" fill="#0288d1"/>
+
+    <circle cx="110" cy="100" r="7" fill="#0288d1"/>
+    <circle cx="170" cy="100" r="7" fill="#0288d1"/>
+    <circle cx="230" cy="100" r="7" fill="none" stroke="#d64545" stroke-width="2"/>
+    <circle cx="290" cy="100" r="7" fill="none" stroke="#d64545" stroke-width="2"/>
+  </g>
+
+  <text x="196" y="134" font-size="10" fill="#0288d1" font-weight="600">focused</text>
+  <text x="248" y="88" font-size="10" fill="#d64545">skipped</text>
+
+  <!-- plot -->
+  <rect x="386" y="62" width="350" height="180" rx="8" fill="#f6f8fa" stroke="#d8dee4"/>
+  <text x="404" y="84" font-size="12" font-weight="600" fill="#1f2328">Strain along the cut</text>
+
+  <path d="M410 200 C 460 196, 500 150, 560 140 S 660 178, 716 190" fill="none" stroke="#0288d1" stroke-width="2.5"/>
+  <path d="M410 204 C 460 202, 500 172, 560 165 S 660 192, 716 198" fill="none" stroke="#9aa4ae" stroke-width="1.5" opacity="0.7"/>
+  <path d="M410 208 C 460 206, 500 186, 560 182 S 660 200, 716 204" fill="none" stroke="#9aa4ae" stroke-width="1.5" opacity="0.7"/>
+
+  <line x1="560" y1="96" x2="560" y2="222" stroke="#0288d1" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <circle cx="560" cy="140" r="3.5" fill="#0288d1"/>
+  <text x="404" y="232" font-size="10" fill="#656d76">drag to scrub — the readout gives (x, y) for every curve</text>
+
+  <text x="24" y="286" font-size="11" fill="#656d76">Look for the VSG where the curves stop separating: below it you resolve the gradient, above it you smooth it away.</text>
+</svg>

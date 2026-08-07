@@ -1,0 +1,208 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Figure from '../../components/Figure.astro';
+import ManualPager from '../../components/ManualPager.astro';
+import { withBase } from '../../lib/github';
+---
+
+<BaseLayout
+  title="Sweeps & results"
+  description="Parameter sweeps and reading Semper result fields."
+  path="/manual/sweeps-results"
+>
+  <section class="section" style="padding-top: 3rem">
+    <p class="crumb">
+      <a href={withBase('/manual')}>← Manual</a>
+    </p>
+    <h2>Sweeps &amp; results</h2>
+    <p class="sub">Why to sweep, how to read the lattice, and how to inspect field maps.</p>
+
+    <div class="prose">
+      <h3>Why sweep</h3>
+      <p class="plain">
+        A sweep re-solves one frame at many smoothing settings, so you can pick a strain value that
+        holds steady instead of one that just happens to fall out of a single setting.
+      </p>
+      <p class="detail">
+        Strain is computed from displacement, so it depends on how much you smooth. A small
+        <a class="term" href={withBase('/learn/glossary#vsg')}>virtual strain gauge (VSG)</a>
+        keeps peaks but adds noise; a large VSG smooths peaks away. A
+        <strong><a class="term" href={withBase('/learn/glossary#sweep')}>sweep</a></strong> solves one
+        deformed frame across many subset × window combinations so you can see where the answer stops
+        changing.
+      </p>
+      <p>
+        <span class="lead-label">Why it matters:</span> good DIC practice asks you to show that
+        reported strain is not an accident of one VSG choice.
+      </p>
+
+      <h3>Setting up a sweep</h3>
+      <p><span class="lead-label">In the app:</span> on step 3, set ranges and sample counts.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Control</th>
+            <th>Range</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Subset range</td>
+            <td>15–121, odd</td>
+          </tr>
+          <tr>
+            <td>Strain window range</td>
+            <td>5–101, odd</td>
+          </tr>
+          <tr>
+            <td>Step denominator</td>
+            <td>2–9 (step = subset ÷ n, never below 1 px)</td>
+          </tr>
+          <tr>
+            <td>Samples per axis</td>
+            <td>1–8 (runtime is the product)</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Start at 3 × 3. The sweep varies the <strong>strain window</strong> directly; VSG is still
+        what you quote — it is shown per node — but it is derived
+        (<code>(window − 1) × step + 1</code>). Look for the VSG where the curves stop separating.
+      </p>
+      <Figure
+        src="/manual/vsg.svg"
+        alt="VSG formula diagram"
+        caption="Each lattice node reports its VSG. Quote that number with your strain maps."
+        wide
+        width={760}
+        height={270}
+      />
+
+      <h3>Result lattice</h3>
+      <Figure
+        src="/manual/screenshots/result-lattice.webp"
+        alt="Sweep result lattice with filled and hollow nodes, line-cut plot, scrub slider, and pinned Save graph and View actions"
+        caption="Filled dots solved; hollow rings were skipped (tap one for the reason). This still shows the older View results footer; current builds pin Save graph and View with a scrub slider under the plot (see below)."
+        phone
+        width={460}
+        height={1022}
+      />
+      <p class="plain">
+        The screen is built for one thumb: lattice, then controls, then the plot scroll together,
+        while <strong>Save graph</strong> and <strong>View</strong> stay pinned at the bottom.
+      </p>
+
+      <h4 class="minor">Choosing a combination</h4>
+      <ul>
+        <li>
+          <strong>Tap</strong> a node, or use the <strong>‹ · ›</strong> stepper above the plot to
+          walk solved nodes. The chip between the arrows names the current one.
+        </li>
+        <li>
+          <strong>Double-tap</strong> or <strong>long-press</strong> a node — opens that result. So
+          does <strong>View</strong>.
+        </li>
+        <li>Tapping a hollow node explains why that combination was skipped.</li>
+      </ul>
+
+      <h4 class="minor">Reading the plot</h4>
+      <ul>
+        <li>
+          <strong>Isolate</strong> (default) shows only the selected combination.
+          <strong>Highlight</strong> draws all of them, with the selected one at full strength.
+        </li>
+        <li>
+          <strong>Drag across the plot</strong> — a guide follows your finger and prints the value.
+          The <strong>scrub slider</strong> under the plot does the same and stays in sync (easier
+          one-handed).
+        </li>
+        <li>
+          <strong>Pinch to zoom</strong>, two-finger drag to pan, <strong>double-tap</strong> to
+          reset zoom. Zoom survives stepping to another node; changing Exx / Eyy / Exy resets it.
+        </li>
+        <li>The <strong>Exx / Eyy / Exy</strong> selector switches component.</li>
+      </ul>
+
+      <h4 class="minor">Taking the answer with you</h4>
+      <ul>
+        <li>
+          <strong>Double-tap the readout</strong> to copy that combination&apos;s subset, step and
+          strain window. Start a new single-setting analysis and a <strong>Paste params</strong>
+          chip on step 2 fills them in.
+        </li>
+        <li>
+          <strong>Save graph</strong> writes an annotated PNG: study header, fit-to-data plot, and a
+          colour legend. On-screen zoom is not baked into the file.
+        </li>
+      </ul>
+      <p>
+        If every combination fails, you still land on the lattice (all nodes hollow).
+        <strong>View</strong> and <strong>Save graph</strong> are disabled until something solves.
+      </p>
+
+      <h3>Reading results</h3>
+      <p class="plain">
+        The viewer opens on a looping animation of the whole sequence, then lets you step through
+        frame by frame and probe individual points.
+      </p>
+      <Figure
+        src="/manual/screenshots/result-viewer.webp"
+        alt="Results viewer with U field map, Inspect tools, and max mean min strip"
+        caption="Field tabs along the top. Inspect, X/Y, and Max/Min below the map."
+        phone
+        width={460}
+        height={1022}
+      />
+      <p class="detail">
+        Tabs switch the field. Pinch to zoom, drag to pan; both survive a field change. The strip under
+        the image shows max, mean, and min. <strong>Next</strong> enters the individual frames;
+        <strong>Prev</strong> on frame 1 returns to the animation. Type a number in the small field and
+        press <strong>Go</strong> to jump straight to a frame — useful at 150 frames. On a sweep each
+        frame is a parameter combination, labelled like <code>S15 · St5 · W13 · VSG 61</code>.
+      </p>
+
+      <h4 class="minor">Why it opens on an animation</h4>
+      <p>
+        <span class="lead-label">In the app:</span> the colour scale defaults to <strong>Auto</strong>,
+        which rescales every frame on its own — so a late frame can look exactly like an early one, and
+        frames are <em>not</em> comparable by eye when you scrub.
+      </p>
+      <p>
+        The summary animation fixes this: it puts <strong>every frame on one colour scale</strong> —
+        the range covering the whole sequence — which is the honest way to watch strain grow. To
+        compare frames yourself, tap the scale bar and set a fixed min/max instead.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Tool</th>
+            <th>Does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Inspect</td>
+            <td>Probe location and value under your finger</td>
+          </tr>
+          <tr>
+            <td>X, Y</td>
+            <td>Jump the probe to typed coordinates</td>
+          </tr>
+          <tr>
+            <td>Max/Min</td>
+            <td>Mark extrema with values and positions</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        The ⓘ <strong>Settings used</strong> sheet is provenance. Changing settings later never
+        rewrites an old result.
+      </p>
+    </div>
+
+    <ManualPager
+      prev={{ href: '/manual/analysis', label: 'Running an analysis' }}
+      next={{ href: '/manual/exports-manage', label: 'Exports & manage' }}
+    />
+  </section>
+</BaseLayout>

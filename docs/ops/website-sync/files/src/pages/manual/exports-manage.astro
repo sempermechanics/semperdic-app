@@ -1,0 +1,155 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Figure from '../../components/Figure.astro';
+import ManualPager from '../../components/ManualPager.astro';
+import { withBase } from '../../lib/github';
+---
+
+<BaseLayout
+  title="Exports & managing analyses"
+  description="Export Semper results and manage analyses on Home."
+  path="/manual/exports-manage"
+>
+  <section class="section" style="padding-top: 3rem">
+    <p class="crumb">
+      <a href={withBase('/manual')}>← Manual</a>
+    </p>
+    <h2>Exports &amp; managing analyses</h2>
+    <p class="sub">Share results, keep the Home list tidy, and use Settings that affect runs.</p>
+
+    <div class="prose">
+      <Figure
+        src="/manual/screenshots/home.webp"
+        alt="Semper Home screen listing analyses"
+        caption="Home is where you open, rename, delete, and sync analyses. Rows show upload state; newer builds also surface restore progress and Only in cloud when local frames were freed."
+        phone
+        width={460}
+        height={1022}
+      />
+
+      <h3>Exports</h3>
+      <p class="plain">
+        Share gives you six formats — a single annotated image, all fields, animations, a PDF report,
+        the raw CSV, or everything zipped together.
+      </p>
+      <p>
+        <span class="lead-label">In the app:</span> open <strong>Share</strong>. Every chooser can
+        <strong>Save to Files</strong>.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Export</th>
+            <th>Contents</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Result photo</td>
+            <td>One annotated PNG of the current field and frame</td>
+          </tr>
+          <tr>
+            <td>All field photos</td>
+            <td>Five PNGs for this frame, zipped</td>
+          </tr>
+          <tr>
+            <td>Field animations (GIF)</td>
+            <td>Five looping GIFs on a whole-sequence scale, zipped</td>
+          </tr>
+          <tr>
+            <td>PDF report</td>
+            <td>Every frame plus a telemetry page</td>
+          </tr>
+          <tr>
+            <td>CSV data</td>
+            <td>
+              <code>x_px,y_px,u_px,v_px,exx,eyy,exy,znssd</code> — sweeps add subset, step, window
+            </td>
+          </tr>
+          <tr>
+            <td>Everything (.zip)</td>
+            <td>Photos + animations + fields + CSV + PDF</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        <span class="lead-label">Why it matters:</span> build on the CSV. Coordinates and
+        displacements are image pixels; filter on <code
+          ><a class="term" href={withBase('/learn/glossary#znssd')}>znssd</a></code
+        >
+        (match quality) to drop poorly correlated points. For a paper, export
+        <strong>Everything</strong> and keep it with your raw images — inputs, fields and parameters in
+        one archive is what makes the result reproducible. Sweep lattices also have their own
+        <strong>Save graph</strong> annotated PNG (see
+        <a href={withBase('/manual/sweeps-results')}>Sweeps &amp; results</a>).
+      </p>
+
+      <h3>Managing analyses</h3>
+      <p class="plain">
+        Home is your library: tap to open, long-press to select, rename or delete, and pull down to
+        sync. <strong>+</strong> starts a new analysis.
+      </p>
+
+      <h4 class="minor">Deleting — read the dialog</h4>
+      <p>
+        With no cloud copy, delete removes the analysis from the phone and that is that. If a
+        <strong>backup exists</strong>, the dialog instead asks <em>where</em>: <strong>on this device
+        only</strong> (keeping the backup) or <strong>everywhere</strong>. A deleted backup has a
+        <strong>5-second Undo</strong>.
+      </p>
+      <p>
+        <span class="lead-label">Deleting on this device only is not losing it.</span> The row stays
+        on Home, badged <strong>Only in cloud</strong>, and tapping it offers to download the
+        analysis back before opening it. Freeing space is a reversible decision.
+      </p>
+      <div class="callout">
+        <span class="lead-label">Transfers are honest about progress and failure.</span> Uploads and
+        restores keep running if you leave the screen (with a system notification), and while you
+        are on Home they show a progress bar on the row. Success is quiet. A backup or restore that
+        fails for good raises a dialog or Home message explaining why — you are not left guessing.
+      </div>
+      <p>
+        <span class="lead-label">If it fails:</span> hit the analysis limit? It is not a paywall —
+        email support or delete an analysis and tap <strong>Re-check</strong>. Full list of messages in
+        <a href={withBase('/support/troubleshooting#sync-backup-quota')}
+          >Troubleshooting · sync, backup &amp; quota</a
+        >.
+      </p>
+
+      <h3>Useful Settings</h3>
+      <ul>
+        <li><strong>Max frames</strong> — 10–150, default 50</li>
+        <li>
+          <strong>Save to cloud</strong> — queue uploads when online; <strong>Wi-Fi only</strong>
+          holds them until Wi-Fi
+        </li>
+        <li>
+          <strong>Analyses data management</strong> — local and cloud rows together; back up,
+          restore, or delete per row
+        </li>
+        <li>
+          <strong>Storage</strong> —
+          <strong>Free up space</strong> (drop local frames of backed-up analyses → Only in cloud),
+          <strong>Clear cache</strong>, and an <strong>Auto-free budget</strong> slider (0–64 GB)
+        </li>
+        <li>
+          <strong>Your data</strong> — <strong>Export my data</strong> (ZIP of everything on this
+          phone), <strong>Download my cloud account data</strong>, account delete, and
+          <strong>Send crash reports</strong> (opt-in)
+        </li>
+        <li>
+          <strong>Help &amp; support</strong> — Manual, community, and email for private account
+          issues
+        </li>
+      </ul>
+      <p>
+        Cloud backup and account erasure: <a href={withBase('/privacy')}>Privacy</a>.
+      </p>
+    </div>
+
+    <ManualPager
+      prev={{ href: '/manual/sweeps-results', label: 'Sweeps & results' }}
+      next={{ href: '/manual/faq', label: 'FAQ' }}
+    />
+  </section>
+</BaseLayout>

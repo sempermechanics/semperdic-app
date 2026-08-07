@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 250" width="760" height="250" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <rect x="0" y="0" width="760" height="250" rx="10" fill="#ffffff" stroke="#d8dee4"/>
+  <text x="24" y="32" font-size="13" font-weight="600" fill="#1f2328">The virtual strain gauge is the distance one strain value covers.</text>
+  <text x="24" y="52" font-size="11" fill="#656d76">Strain comes from fitting displacement over neighbouring grid points, not from a single point.</text>
+
+  <!-- grid points row -->
+  <g fill="#0288d1">
+    <circle cx="90" cy="120" r="4"/><circle cx="150" cy="120" r="4"/><circle cx="210" cy="120" r="4"/>
+    <circle cx="270" cy="120" r="4"/><circle cx="330" cy="120" r="4"/><circle cx="390" cy="120" r="4"/>
+    <circle cx="450" cy="120" r="4"/>
+  </g>
+  <line x1="70" y1="120" x2="480" y2="120" stroke="#d8dee4" stroke-width="1"/>
+
+  <!-- highlighted window: 5 points -->
+  <rect x="138" y="100" width="252" height="40" rx="6" fill="#e8f4fb" stroke="#0288d1" stroke-dasharray="4 3"/>
+  <text x="264" y="94" text-anchor="middle" font-size="11" font-weight="600" fill="#0288d1">strain window = 5 points</text>
+
+  <!-- step bracket -->
+  <path d="M90 152 h60" stroke="#656d76" stroke-width="1.5"/>
+  <path d="M90 148 v8 M150 148 v8" stroke="#656d76" stroke-width="1.5"/>
+  <text x="120" y="170" text-anchor="middle" font-size="11" fill="#656d76">step</text>
+
+  <!-- vsg span -->
+  <path d="M150 196 h240" stroke="#d64545" stroke-width="2"/>
+  <path d="M150 190 v12 M390 190 v12" stroke="#d64545" stroke-width="2"/>
+  <text x="270" y="216" text-anchor="middle" font-size="12" font-weight="600" fill="#d64545">VSG footprint</text>
+
+  <!-- formula -->
+  <rect x="510" y="86" width="226" height="106" rx="8" fill="#f6f8fa" stroke="#d8dee4"/>
+  <text x="528" y="112" font-size="12" font-weight="600" fill="#1f2328">VSG = (window − 1) × step + 1</text>
+  <text x="528" y="136" font-size="11" fill="#656d76">Here: (5 − 1) × step + 1</text>
+  <text x="528" y="158" font-size="11" fill="#656d76">Quote the VSG in a paper —</text>
+  <text x="528" y="174" font-size="11" fill="#656d76">it is what a sweep varies.</text>
+
+  <text x="24" y="238" font-size="11" fill="#656d76">Wider window: smoother strain, less local detail. Narrower: more detail, more noise.</text>
+</svg>

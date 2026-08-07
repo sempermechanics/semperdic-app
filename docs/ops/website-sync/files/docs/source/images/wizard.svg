@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 200" width="760" height="200" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <rect x="0" y="0" width="760" height="200" rx="10" fill="#ffffff" stroke="#d8dee4"/>
+
+  <defs>
+    <marker id="w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#9aa4ae"/>
+    </marker>
+  </defs>
+
+  <rect x="22" y="62" width="132" height="60" rx="8" fill="#e8f4fb" stroke="#0288d1"/>
+  <text x="88" y="86" text-anchor="middle" font-size="12" font-weight="600" fill="#1f2328">1 · Load frames</text>
+  <text x="88" y="104" text-anchor="middle" font-size="11" fill="#656d76">and set their order</text>
+
+  <path d="M158 92 h28" stroke="#9aa4ae" stroke-width="1.5" marker-end="url(#w)"/>
+
+  <rect x="190" y="62" width="132" height="60" rx="8" fill="#e8f4fb" stroke="#0288d1"/>
+  <text x="256" y="86" text-anchor="middle" font-size="12" font-weight="600" fill="#1f2328">2 · Settings</text>
+  <text x="256" y="104" text-anchor="middle" font-size="11" fill="#656d76">ROI + mode</text>
+
+  <!-- single path -->
+  <path d="M326 82 h96" stroke="#9aa4ae" stroke-width="1.5" marker-end="url(#w)"/>
+  <text x="374" y="74" text-anchor="middle" font-size="10" fill="#656d76">single</text>
+
+  <!-- sweep path -->
+  <path d="M326 108 h30 v34 h60" stroke="#9aa4ae" stroke-width="1.5" fill="none" marker-end="url(#w)"/>
+  <text x="374" y="136" text-anchor="middle" font-size="10" fill="#656d76">sweep</text>
+
+  <rect x="420" y="126" width="132" height="46" rx="8" fill="#fff8e6" stroke="#e0b040" stroke-dasharray="4 3"/>
+  <text x="486" y="146" text-anchor="middle" font-size="12" font-weight="600" fill="#1f2328">3 · Sweep setup</text>
+  <text x="486" y="162" text-anchor="middle" font-size="11" fill="#656d76">ranges + samples</text>
+
+  <rect x="426" y="60" width="120" height="44" rx="8" fill="#f6f8fa" stroke="#d8dee4"/>
+  <text x="486" y="87" text-anchor="middle" font-size="12" font-weight="600" fill="#1f2328">Run</text>
+
+  <path d="M552 82 h30" stroke="#9aa4ae" stroke-width="1.5" marker-end="url(#w)"/>
+  <path d="M552 149 h14 v-46 h16" stroke="#9aa4ae" stroke-width="1.5" fill="none" marker-end="url(#w)"/>
+
+  <rect x="586" y="40" width="150" height="44" rx="8" fill="#eef6ec" stroke="#7fb069"/>
+  <text x="661" y="60" text-anchor="middle" font-size="12" font-weight="600" fill="#1f2328">Result viewer</text>
+  <text x="661" y="76" text-anchor="middle" font-size="10" fill="#656d76">fields, probes, export</text>
+
+  <rect x="586" y="104" width="150" height="44" rx="8" fill="#eef6ec" stroke="#7fb069"/>
+  <text x="661" y="124" text-anchor="middle" font-size="12" font-weight="600" fill="#1f2328">Result lattice</text>
+  <text x="661" y="140" text-anchor="middle" font-size="10" fill="#656d76">then the viewer</text>
+
+  <text x="22" y="184" font-size="11" fill="#656d76">Step 3 appears only in sweep mode — the toolbar reads “Step 2 of 2” or “Step 2 of 3”.</text>
+</svg>
