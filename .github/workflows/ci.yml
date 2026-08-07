@@ -20,25 +20,29 @@ jobs:
     name: Secret scan (full history)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # pull-requests:read needed by gitleaks-action on pull_request events.
     permissions:
       contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      # Dependabot PRs do not receive Actions secrets (fork-like). Prefer
-      # Settings → Dependabot → Secrets → GITLEAKS_LICENSE so the org action
-      # can run; until then use the free CLI so the gate still scans.
+      # Dependabot branches: no Actions secrets (fork-like) and the org
+      # gitleaks-action also 403s the PR commits API under Dependabot's
+      # token. Key off head_ref (not actor) so rebases by humans/bots still
+      # take the CLI path. Prefer also setting Dependabot secret
+      # GITLEAKS_LICENSE if you later want the action on those PRs.
       - name: Scan repository and Git history
-        if: github.actor != 'dependabot[bot]'
+        if: ${{ !startsWith(github.head_ref, 'dependabot/') }}
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
           GITLEAKS_CONFIG: .gitleaks.toml
           GITLEAKS_ENABLE_COMMENTS: 'false'
-      - name: Scan with gitleaks CLI (Dependabot)
-        if: github.actor == 'dependabot[bot]'
+      - name: Scan with gitleaks CLI (Dependabot branches)
+        if: ${{ startsWith(github.head_ref, 'dependabot/') }}
         run: |
           set -euo pipefail
           VER=8.28.0
