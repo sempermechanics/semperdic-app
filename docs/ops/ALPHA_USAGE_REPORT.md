@@ -16,7 +16,7 @@ Device: Pixel 3
 | 3 | Sweep (small) | 2026-08-08T05:54:45Z | 2026-08-08T05:56:06Z | *(pending query)* | | | Synced but **incomplete zip** (csv/reports/processed missing). Fix [#31](https://github.com/semperdic/semperdic-app/pull/31); re-upload after beta |
 | 4 | Restore | 2026-08-08T09:43:18Z | 2026-08-08T09:49:27Z | *(pending query)* | | | **Done** on beta.13 (~6m). Row byte progress + open after download |
 | 5 | Delete backup | 2026-08-08T09:50:07Z | 2026-08-08T09:50:37Z | *(pending query)* | | — | **Done** (~30s) |
-| 6 | Heavy PLC band | 2026-08-08T09:51:21Z | | | | | `start:6` — `AAA5083_H111 - PLC band` import → analyze → wait synced |
+| 6 | Heavy PLC band | 2026-08-08T09:51:21Z | | | | | **Blocked** — analysis finished; backup/open failed with **too large** (likely Pixel 3 OOM on bundle/reports, or HTTP 413) |
 
 ## Blockers / gate
 
@@ -81,5 +81,5 @@ Cloud agent has no `gcloud` credentials in this environment — opClass counts n
 - Chunked restore (survive 60s gateway): #33 → **v1.0-beta8**
 - Corrupt zip / size-validate chunks: #34 → **v1.0-beta.9**
 - Atomic Session.zip + terminal corrupt restore: https://github.com/semperdic/semperdic-app/pull/35
-- Device phase: #6 in progress — `start:6` @ `09:51:21Z`; await `done:6` when upload badge **synced**
+- Device phase: #6 blocked — analysis OK; backup/viewer **too large** @ ~10:32Z. Need logcat (`cloud_backup_failed_too_large` / OOM / HTTP 413).
 - Cloud agent has no ADB to the laptop Pixel 3; use human-driven checklist in ALPHA_USAGE_METERING.md.
