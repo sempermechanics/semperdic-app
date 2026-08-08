@@ -14,7 +14,7 @@ Device: Pixel 3
 | 1 | Warm Home sync | 2026-08-08T04:35:21Z | 2026-08-08T04:35:45Z | *(pending query)* | | — | Done (pre–beta.6) |
 | 2 | Single (small) | 2026-08-08T05:52:38Z | 2026-08-08T05:53:44Z | *(pending query)* | | | Done (`dine:2`→`done:2`). ~66s window — confirm badge **synced** on device |
 | 3 | Sweep (small) | 2026-08-08T05:54:45Z | 2026-08-08T05:56:06Z | *(pending query)* | | | Synced but **incomplete zip** (csv/reports/processed missing). Fix [#31](https://github.com/semperdic/semperdic-app/pull/31); re-upload after beta |
-| 4 | Restore | 2026-08-08T09:43:18Z | | | | | `start:4` @ beta.13 — restore **re-uploaded** COMPLETED session; watch row % |
+| 4 | Restore | 2026-08-08T09:43:18Z | 2026-08-08T09:49:27Z | *(pending query)* | | | **Done** on beta.13 (~6m). Row byte progress + open after download |
 | 5 | Delete backup |  |  |  |  | — |  |
 | 6 | Heavy PLC band |  |  |  |  |  | `AAA5083_H111 - PLC band` |
 
@@ -54,6 +54,7 @@ PROJECT_ID=... USER_UID=... FRESHNESS=3h ./scripts/meter_alpha_usage.sh
 - beta8 fail: `ZipException: invalid distance too far back` on `198866b594a94fb3b8542b1dd6a5e222` @ local `12:40:25` — truncated/mismatched chunk finalized as Session.zip. Fix [#34](https://github.com/semperdic/semperdic-app/pull/34).
 - beta.9 fail: same ZipException @ local `13:10:22` (r8 `40fd61e0…`) — size/sha path passed; **object on Drive is corrupt**. Fix [#35](https://github.com/semperdic/semperdic-app/pull/35) (atomic zip + terminal failure). Re-upload or restore a different session.
 - Retry `start:4`: `2026-08-08T09:43:18Z` on **v1.0-beta.13** (#36 STORED + round-trip, #37 row progress, #38 byte %). Prefer session re-uploaded after STORED beta.
+- `done:4`: `2026-08-08T09:49:27Z` — restore succeeded (~6m window). opClass counts still pending laptop query.
 
 Cloud agent has no `gcloud` credentials in this environment — opClass counts need a local/laptop query or secrets wired later.
 
@@ -67,5 +68,5 @@ Cloud agent has no `gcloud` credentials in this environment — opClass counts n
 - Chunked restore (survive 60s gateway): #33 → **v1.0-beta8**
 - Corrupt zip / size-validate chunks: #34 → **v1.0-beta.9**
 - Atomic Session.zip + terminal corrupt restore: https://github.com/semperdic/semperdic-app/pull/35
-- Device phase: #4 in progress — `start:4` @ `09:43:18Z` on beta.13; await `done:4`
+- Device phase: #4 **done** (`09:43:18Z`–`09:49:27Z`); next `start:5` Delete backup
 - Cloud agent has no ADB to the laptop Pixel 3; use human-driven checklist in ALPHA_USAGE_METERING.md.
