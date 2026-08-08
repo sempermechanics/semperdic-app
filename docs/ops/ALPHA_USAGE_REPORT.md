@@ -12,7 +12,7 @@ Device: Pixel 3
 | # | Scenario | Start UTC | End UTC | opClass counts | Notable paths | Frames / files | Notes (Drive vs Cloud Run) |
 |---|---|---|---|---|---|---|---|
 | 1 | Warm Home sync | 2026-08-08T04:35:21Z | 2026-08-08T04:35:45Z | *(pending query)* | | — | Done (pre–beta.6) |
-| 2 | Single (small) | 2026-08-08T05:52:38Z | | | | | **In progress** — require beta.6; watch for synced badge, no Drive 400 |
+| 2 | Single (small) | 2026-08-08T05:52:38Z | 2026-08-08T05:53:44Z | *(pending query)* | | | Done (`dine:2`→`done:2`). ~66s window — confirm badge **synced** on device |
 | 3 | Sweep (small) |  |  |  |  |  |  |
 | 4 | Restore |  |  |  |  |  | Cloud Run egress |
 | 5 | Delete backup |  |  |  |  | — |  |
@@ -32,17 +32,19 @@ Paste `gcloud logging read` / `scripts/meter_alpha_usage.sh` snippets here.
 ### Matrix #2 window
 
 - Start: `2026-08-08T05:52:38Z`
-- End: *(await `done:2`)*
+- End: `2026-08-08T05:53:44Z`
 
 ```bash
-# After done:2 — set USER_UID / PROJECT_ID, then filter the window above.
 PROJECT_ID=... USER_UID=... FRESHNESS=3h ./scripts/meter_alpha_usage.sh
+# Filter rows to [05:52:38Z, 05:53:44Z] for scenario #2.
 ```
+
+Cloud agent has no `gcloud` credentials in this environment — opClass counts need a local/laptop query or secrets wired later.
 
 ## Phase 1 status (automated)
 
-- Metering docs PR: https://github.com/semperdic/semperdic-app/pull/20
+- Metering docs: https://github.com/semperdic/semperdic-app/pull/29
 - Branch: `cursor/alpha-release-usage-metering-819b`
-- Upload URI fix: https://github.com/semperdic/semperdic-app/pull/28 → **merged**; release **v1.0-beta.6**
-- Device phase: matrix **#2 Single** started 2026-08-08T05:52:38Z (tester: logged in + `start:2`)
+- Upload URI fix: https://github.com/semperdic/semperdic-app/pull/28 → merged; release **v1.0-beta.6**
+- Device phase: matrix **#2 Single** ended 2026-08-08T05:53:44Z; next **#3 Sweep** when tester says `start:3`
 - Cloud agent has no ADB to the laptop Pixel 3; use human-driven checklist in ALPHA_USAGE_METERING.md.
