@@ -3,7 +3,7 @@
 Date (UTC): 2026-08-08  
 API project: *(fill from deploy)*  
 Backend revision (must include `opClass`): *(confirm before counting)*  
-App version / tag: **v1.0-beta.13** (#36 STORED zip, #37 home download UX, #38 byte progress)
+App version / tag: **v1.0-beta.13+** (retest #6 after [#39](https://github.com/semperdic/semperdic-app/pull/39) clear-temp + viewer OOM)
 Tester uid: *(from Firebase / logs)*  
 Device: Pixel 3  
 
@@ -16,14 +16,14 @@ Device: Pixel 3
 | 3 | Sweep (small) | 2026-08-08T05:54:45Z | 2026-08-08T05:56:06Z | *(pending query)* | | | Synced but **incomplete zip** (csv/reports/processed missing). Fix [#31](https://github.com/semperdic/semperdic-app/pull/31); re-upload after beta |
 | 4 | Restore | 2026-08-08T09:43:18Z | 2026-08-08T09:49:27Z | *(pending query)* | | | **Done** on beta.13 (~6m). Row byte progress + open after download |
 | 5 | Delete backup | 2026-08-08T09:50:07Z | 2026-08-08T09:50:37Z | *(pending query)* | | — | **Done** (~30s) |
-| 6 | Heavy PLC band | 2026-08-08T09:51:21Z | | | | | **Blocked** — analysis finished; backup/open failed with **too large** (likely Pixel 3 OOM on bundle/reports, or HTTP 413) |
+| 6 | Heavy PLC band | 2026-08-08T12:22:00Z | 2026-08-08T12:40:00Z | *(pending query)* | | `AAA5083_H111 - PLC band` | **Done** — viewer OK, backup OK, clear temp OK (~18m). Prior attempt @ 09:51Z blocked (OOM / too large); fixed by [#39](https://github.com/semperdic/semperdic-app/pull/39) |
 
 ## Blockers / gate
 
 - [ ] Backend with `opClass` deployed
-- [x] Beta APK installed (target **v1.0-beta.13**)
+- [x] Beta APK installed (includes [#39](https://github.com/semperdic/semperdic-app/pull/39) for #6 pass)
 - [x] Tester confirmed **logged in**
-- [x] PLC-band images on device *(assumed for start:6)*
+- [x] PLC-band images on device
 
 ## Raw query notes
 
