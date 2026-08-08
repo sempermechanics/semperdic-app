@@ -14,7 +14,7 @@ Device: Pixel 3
 | 1 | Warm Home sync | 2026-08-08T04:35:21Z | 2026-08-08T04:35:45Z | *(pending query)* | | — | Done (pre–beta.6) |
 | 2 | Single (small) | 2026-08-08T05:52:38Z | 2026-08-08T05:53:44Z | *(pending query)* | | | Done (`dine:2`→`done:2`). ~66s window — confirm badge **synced** on device |
 | 3 | Sweep (small) | 2026-08-08T05:54:45Z | 2026-08-08T05:56:06Z | *(pending query)* | | | Done (~81s). Confirm badge **synced** |
-| 4 | Restore | 2026-08-08T05:56:47Z | | | | | **In progress** — restore one cloud-only / freed session (Cloud Run egress) |
+| 4 | Restore | 2026-08-08T05:56:47Z | | | | | **Blocked** — `accd2126…` empty HTTP 500 on `/content` (gateway/CR 60s). Fix [#30](https://github.com/semperdic/semperdic-app/pull/30) |
 | 5 | Delete backup |  |  |  |  | — |  |
 | 6 | Heavy PLC band |  |  |  |  |  | `AAA5083_H111 - PLC band` |
 
