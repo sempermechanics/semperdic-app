@@ -48,8 +48,9 @@ PROJECT_ID=... USER_UID=... FRESHNESS=3h ./scripts/meter_alpha_usage.sh
 
 - Prior (blocked): `2026-08-08T05:56:47Z` — empty HTTP 500 on `accd2126407344f881bcc8753b492004`
 - Retry start: `2026-08-08T06:46:02Z`
-- End: *(await `done:4`)*
-- Prefer a **small** COMPLETED cloud session (not the incomplete sweep zip from #3)
+- Retry fail: local `2026-08-08 12:16:18` — empty HTTP 500 on `88967dd77a8247c09bf43a8ed0b1479a` (same `HTTP 500:` / DicRestoreWorker RETRY shape)
+- Root cause: Deploy Backend success only updated **staging**; phone → **API Gateway → production** still on ~60s open-ended `/content` kill. Gateway api-config not refreshed.
+- Fix: [#33](https://github.com/semperdic/semperdic-app/pull/33) 1 MiB Range chunks + deploy **production** + recreate gateway api-config. Confirm phone is on post-#33 beta (beta.7 APK download count was 0 at diagnosis).
 
 Cloud agent has no `gcloud` credentials in this environment — opClass counts need a local/laptop query or secrets wired later.
 
@@ -60,5 +61,6 @@ Cloud agent has no `gcloud` credentials in this environment — opClass counts n
 - Upload URI fix: #28 → **v1.0-beta.6+**
 - Restore timeout / Range-resume: #30 → merged; Cloud Run deploy success `06:26Z`; **v1.0-beta.7**
 - Incomplete Session.zip: #31 → **v1.0-beta.7**
-- Device phase: matrix **#4 Restore** retry started `2026-08-08T06:46:02Z` (`start:4`)
+- Chunked restore (survive 60s gateway): https://github.com/semperdic/semperdic-app/pull/33
+- Device phase: #4 still blocked — need #33 beta + production Cloud Run + gateway api-config
 - Cloud agent has no ADB to the laptop Pixel 3; use human-driven checklist in ALPHA_USAGE_METERING.md.
