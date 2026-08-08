@@ -3,7 +3,7 @@
 Date (UTC): 2026-08-08  
 API project: *(fill from deploy)*  
 Backend revision (must include `opClass`): *(confirm before counting)*  
-App version / tag: **v1.0-beta.7** (#28 URI map, #30 restore timeout/Range-resume, #31 complete Session.zip)  
+App version / tag: **v1.0-beta8** (#33 chunked Range); next needs [#34](https://github.com/semperdic/semperdic-app/pull/34)  
 Tester uid: *(from Firebase / logs)*  
 Device: Pixel 3  
 
@@ -14,14 +14,14 @@ Device: Pixel 3
 | 1 | Warm Home sync | 2026-08-08T04:35:21Z | 2026-08-08T04:35:45Z | *(pending query)* | | — | Done (pre–beta.6) |
 | 2 | Single (small) | 2026-08-08T05:52:38Z | 2026-08-08T05:53:44Z | *(pending query)* | | | Done (`dine:2`→`done:2`). ~66s window — confirm badge **synced** on device |
 | 3 | Sweep (small) | 2026-08-08T05:54:45Z | 2026-08-08T05:56:06Z | *(pending query)* | | | Synced but **incomplete zip** (csv/reports/processed missing). Fix [#31](https://github.com/semperdic/semperdic-app/pull/31); re-upload after beta |
-| 4 | Restore | 2026-08-08T06:46:02Z | | | | | **Blocked again** — `88967dd7…` empty HTTP 500 @ `12:16:18` local. Only staging got CR 300s; gateway still 60s. Chunked Range [#33](https://github.com/semperdic/semperdic-app/pull/33) |
+| 4 | Restore | 2026-08-08T06:46:02Z | | | | | beta8: download ok → **ZipException invalid distance** on `198866b5…` @ `12:40:25` (corrupt zip). Fix [#34](https://github.com/semperdic/semperdic-app/pull/34) |
 | 5 | Delete backup |  |  |  |  | — |  |
 | 6 | Heavy PLC band |  |  |  |  |  | `AAA5083_H111 - PLC band` |
 
 ## Blockers / gate
 
 - [ ] Backend with `opClass` deployed
-- [x] Beta APK installed (target **v1.0-beta.7**)
+- [x] Beta APK installed (target **v1.0-beta8**; need build with #34)
 - [x] Tester confirmed **logged in**
 - [ ] PLC-band images on device
 
@@ -50,7 +50,8 @@ PROJECT_ID=... USER_UID=... FRESHNESS=3h ./scripts/meter_alpha_usage.sh
 - Retry start: `2026-08-08T06:46:02Z`
 - Retry fail: local `2026-08-08 12:16:18` — empty HTTP 500 on `88967dd77a8247c09bf43a8ed0b1479a` (same `HTTP 500:` / DicRestoreWorker RETRY shape)
 - Root cause: Deploy Backend success only updated **staging**; phone → **API Gateway → production** still on ~60s open-ended `/content` kill. Gateway api-config not refreshed.
-- Fix: [#33](https://github.com/semperdic/semperdic-app/pull/33) 1 MiB Range chunks + deploy **production** + recreate gateway api-config. Confirm phone is on post-#33 beta (beta.7 APK download count was 0 at diagnosis).
+- Fix: [#33](https://github.com/semperdic/semperdic-app/pull/33) 1 MiB Range chunks (in beta8).
+- beta8 fail: `ZipException: invalid distance too far back` on `198866b594a94fb3b8542b1dd6a5e222` @ local `12:40:25` — truncated/mismatched chunk finalized as Session.zip. Fix [#34](https://github.com/semperdic/semperdic-app/pull/34).
 
 Cloud agent has no `gcloud` credentials in this environment — opClass counts need a local/laptop query or secrets wired later.
 
@@ -61,6 +62,7 @@ Cloud agent has no `gcloud` credentials in this environment — opClass counts n
 - Upload URI fix: #28 → **v1.0-beta.6+**
 - Restore timeout / Range-resume: #30 → merged; Cloud Run deploy success `06:26Z`; **v1.0-beta.7**
 - Incomplete Session.zip: #31 → **v1.0-beta.7**
-- Chunked restore (survive 60s gateway): https://github.com/semperdic/semperdic-app/pull/33
-- Device phase: #4 still blocked — need #33 beta + production Cloud Run + gateway api-config
+- Chunked restore (survive 60s gateway): #33 → **v1.0-beta8**
+- Corrupt zip / size-validate chunks: https://github.com/semperdic/semperdic-app/pull/34
+- Device phase: #4 blocked on corrupt zip — install post-#34 beta, then `start:4`
 - Cloud agent has no ADB to the laptop Pixel 3; use human-driven checklist in ALPHA_USAGE_METERING.md.
