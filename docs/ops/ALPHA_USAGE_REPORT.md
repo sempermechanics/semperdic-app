@@ -47,7 +47,10 @@ PROJECT_ID=... USER_UID=... FRESHNESS=3h ./scripts/meter_alpha_usage.sh
 ### Matrix #4 window
 
 - Start: `2026-08-08T05:56:47Z`
-- End: *(await `done:4`)*
+- End: *(blocked — empty HTTP 500 on Session.zip proxy)*
+- Session: `accd2126407344f881bcc8753b492004`
+- Log: `Restore … failed; will retry` / `HTTP 500:` (empty detail) / `DicRestoreWorker` RETRY
+- Fix PR: https://github.com/semperdic/semperdic-app/pull/30 (300s content deadline + Range-resume 5xx). Needs backend+gateway deploy and new beta.
 
 Cloud agent has no `gcloud` credentials in this environment — opClass counts need a local/laptop query or secrets wired later.
 
@@ -56,5 +59,6 @@ Cloud agent has no `gcloud` credentials in this environment — opClass counts n
 - Metering docs: https://github.com/semperdic/semperdic-app/pull/29
 - Branch: `cursor/alpha-release-usage-metering-819b`
 - Upload URI fix: https://github.com/semperdic/semperdic-app/pull/28 → merged; release **v1.0-beta.6**
-- Device phase: matrix **#4 Restore** started 2026-08-08T05:56:47Z (tester: `start:4`)
+- Restore timeout fix: https://github.com/semperdic/semperdic-app/pull/30
+- Device phase: matrix **#4 Restore** blocked on empty HTTP 500; pause until #30 deployed + beta
 - Cloud agent has no ADB to the laptop Pixel 3; use human-driven checklist in ALPHA_USAGE_METERING.md.
