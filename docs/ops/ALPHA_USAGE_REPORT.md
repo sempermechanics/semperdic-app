@@ -14,7 +14,7 @@ Device: Pixel 3
 | 1 | Warm Home sync | 2026-08-08T04:35:21Z | 2026-08-08T04:35:45Z | *(pending query)* | | — | Done (pre–beta.6) |
 | 2 | Single (small) | 2026-08-08T05:52:38Z | 2026-08-08T05:53:44Z | *(pending query)* | | | Done (`dine:2`→`done:2`). ~66s window — confirm badge **synced** on device |
 | 3 | Sweep (small) | 2026-08-08T05:54:45Z | 2026-08-08T05:56:06Z | *(pending query)* | | | Synced but **incomplete zip** (csv/reports/processed missing). Fix [#31](https://github.com/semperdic/semperdic-app/pull/31); re-upload after beta |
-| 4 | Restore | 2026-08-08T06:46:02Z | | | | | **In progress** (retry on beta.7). Prior attempt `05:56:47Z` empty HTTP 500 on `accd2126…` |
+| 4 | Restore | 2026-08-08T06:46:02Z | | | | | **Blocked again** — `88967dd7…` empty HTTP 500 @ `12:16:18` local. Only staging got CR 300s; gateway still 60s. Chunked Range [#33](https://github.com/semperdic/semperdic-app/pull/33) |
 | 5 | Delete backup |  |  |  |  | — |  |
 | 6 | Heavy PLC band |  |  |  |  |  | `AAA5083_H111 - PLC band` |
 
