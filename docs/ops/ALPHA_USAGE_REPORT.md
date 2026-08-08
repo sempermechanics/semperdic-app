@@ -15,7 +15,7 @@ Device: Pixel 3
 | 2 | Single (small) | 2026-08-08T05:52:38Z | 2026-08-08T05:53:44Z | *(pending query)* | | | Done (`dine:2`→`done:2`). ~66s window — confirm badge **synced** on device |
 | 3 | Sweep (small) | 2026-08-08T05:54:45Z | 2026-08-08T05:56:06Z | *(pending query)* | | | Synced but **incomplete zip** (csv/reports/processed missing). Fix [#31](https://github.com/semperdic/semperdic-app/pull/31); re-upload after beta |
 | 4 | Restore | 2026-08-08T09:43:18Z | 2026-08-08T09:49:27Z | *(pending query)* | | | **Done** on beta.13 (~6m). Row byte progress + open after download |
-| 5 | Delete backup |  |  |  |  | — |  |
+| 5 | Delete backup | 2026-08-08T09:50:07Z | | | | — | `start:5` — delete one cloud-backed row |
 | 6 | Heavy PLC band |  |  |  |  |  | `AAA5083_H111 - PLC band` |
 
 ## Blockers / gate
@@ -58,6 +58,11 @@ PROJECT_ID=... USER_UID=... FRESHNESS=3h ./scripts/meter_alpha_usage.sh
 
 Cloud agent has no `gcloud` credentials in this environment — opClass counts need a local/laptop query or secrets wired later.
 
+### Matrix #5 window
+
+- Start: `2026-08-08T09:50:07Z`
+- Action: delete one cloud-backed analysis (prefer a small synced row)
+
 ## Phase 1 status (automated)
 
 - Metering docs: https://github.com/semperdic/semperdic-app/pull/29
@@ -68,5 +73,5 @@ Cloud agent has no `gcloud` credentials in this environment — opClass counts n
 - Chunked restore (survive 60s gateway): #33 → **v1.0-beta8**
 - Corrupt zip / size-validate chunks: #34 → **v1.0-beta.9**
 - Atomic Session.zip + terminal corrupt restore: https://github.com/semperdic/semperdic-app/pull/35
-- Device phase: #4 **done** (`09:43:18Z`–`09:49:27Z`); next `start:5` Delete backup
+- Device phase: #5 in progress — `start:5` @ `09:50:07Z`; await `done:5`
 - Cloud agent has no ADB to the laptop Pixel 3; use human-driven checklist in ALPHA_USAGE_METERING.md.
