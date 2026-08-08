@@ -14,7 +14,7 @@ Device: Pixel 3
 | 1 | Warm Home sync | 2026-08-08T04:35:21Z | 2026-08-08T04:35:45Z | *(pending query)* | | — | Done (pre–beta.6) |
 | 2 | Single (small) | 2026-08-08T05:52:38Z | 2026-08-08T05:53:44Z | *(pending query)* | | | Done (`dine:2`→`done:2`). ~66s window — confirm badge **synced** on device |
 | 3 | Sweep (small) | 2026-08-08T05:54:45Z | 2026-08-08T05:56:06Z | *(pending query)* | | | Synced but **incomplete zip** (csv/reports/processed missing). Fix [#31](https://github.com/semperdic/semperdic-app/pull/31); re-upload after beta |
-| 4 | Restore | 2026-08-08T06:46:02Z | | | | | beta.9: same ZipException on `198866b5…` @ `13:10:22` — **Drive zip corrupt** (upload truncate). Fix [#35](https://github.com/semperdic/semperdic-app/pull/35); re-upload / other session | | | | | beta8: download ok → **ZipException invalid distance** on `198866b5…` @ `12:40:25` (corrupt zip). Fix [#34](https://github.com/semperdic/semperdic-app/pull/34) |
+| 4 | Restore | 2026-08-08T06:46:02Z | | | | | beta.9: ZipException on `198866b5…` @ `13:10:22` — **Drive zip corrupt**. Fix [#35](https://github.com/semperdic/semperdic-app/pull/35); re-upload / other session |
 | 5 | Delete backup |  |  |  |  | — |  |
 | 6 | Heavy PLC band |  |  |  |  |  | `AAA5083_H111 - PLC band` |
 
