@@ -67,9 +67,11 @@ Cloud agent has no `gcloud` credentials in this environment — opClass counts n
 
 ### Matrix #6 window
 
-- Start: `2026-08-08T09:51:21Z`
+- Prior (blocked): `2026-08-08T09:51:21Z` — analysis OK; backup/viewer **too large** / ResultViewer OOM; clear-temp meter mismatch. Fix [#39](https://github.com/semperdic/semperdic-app/pull/39).
+- Retry start: `2026-08-08T12:22:00Z`
 - Dataset: `AAA5083_H111 - PLC band`
-- Actions: full import → single analysis → wait Home badge **synced**
+- Actions: full import → single analysis → Result viewer → wait Home badge **synced** → Settings clear temp
+- `done:6` (~`2026-08-08T12:40:00Z`): **viewer OK**, **backup OK**, **clear temp OK**. opClass counts pending laptop query.
 
 ## Phase 1 status (automated)
 
@@ -81,5 +83,6 @@ Cloud agent has no `gcloud` credentials in this environment — opClass counts n
 - Chunked restore (survive 60s gateway): #33 → **v1.0-beta8**
 - Corrupt zip / size-validate chunks: #34 → **v1.0-beta.9**
 - Atomic Session.zip + terminal corrupt restore: https://github.com/semperdic/semperdic-app/pull/35
-- Device phase: #6 blocked — analysis OK; backup/viewer **too large** @ ~10:32Z. Need logcat (`cloud_backup_failed_too_large` / OOM / HTTP 413).
+- Clear temp + ResultViewer OOM: [#39](https://github.com/semperdic/semperdic-app/pull/39)
+- Device phase: **matrix complete** (1–6 device actions). opClass / Drive byte counts still need laptop `gcloud` query.
 - Cloud agent has no ADB to the laptop Pixel 3; use human-driven checklist in ALPHA_USAGE_METERING.md.
