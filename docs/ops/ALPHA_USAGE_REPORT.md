@@ -13,7 +13,7 @@ Device: Pixel 3
 |---|---|---|---|---|---|---|---|
 | 1 | Warm Home sync | 2026-08-08T04:35:21Z | 2026-08-08T04:35:45Z | *(pending query)* | | — | Done (pre–beta.6) |
 | 2 | Single (small) | 2026-08-08T05:52:38Z | 2026-08-08T05:53:44Z | *(pending query)* | | | Done (`dine:2`→`done:2`). ~66s window — confirm badge **synced** on device |
-| 3 | Sweep (small) | 2026-08-08T05:54:45Z | | | | | **In progress** — small ranges → lattice → View → wait upload synced |
+| 3 | Sweep (small) | 2026-08-08T05:54:45Z | 2026-08-08T05:56:06Z | *(pending query)* | | | Done (~81s). Confirm badge **synced** |
 | 4 | Restore |  |  |  |  |  | Cloud Run egress |
 | 5 | Delete backup |  |  |  |  | — |  |
 | 6 | Heavy PLC band |  |  |  |  |  | `AAA5083_H111 - PLC band` |
@@ -42,7 +42,7 @@ PROJECT_ID=... USER_UID=... FRESHNESS=3h ./scripts/meter_alpha_usage.sh
 ### Matrix #3 window
 
 - Start: `2026-08-08T05:54:45Z`
-- End: *(await `done:3`)*
+- End: `2026-08-08T05:56:06Z`
 
 Cloud agent has no `gcloud` credentials in this environment — opClass counts need a local/laptop query or secrets wired later.
 
@@ -51,5 +51,5 @@ Cloud agent has no `gcloud` credentials in this environment — opClass counts n
 - Metering docs: https://github.com/semperdic/semperdic-app/pull/29
 - Branch: `cursor/alpha-release-usage-metering-819b`
 - Upload URI fix: https://github.com/semperdic/semperdic-app/pull/28 → merged; release **v1.0-beta.6**
-- Device phase: matrix **#3 Sweep** started 2026-08-08T05:54:45Z (tester: `start:3`)
+- Device phase: matrix **#3 Sweep** ended 2026-08-08T05:56:06Z; next **#4 Restore** when tester says `start:4`
 - Cloud agent has no ADB to the laptop Pixel 3; use human-driven checklist in ALPHA_USAGE_METERING.md.
