@@ -8,7 +8,10 @@ Labeled access logs require a backend revision that emits `opClass` (see
 `backend/app/observability.py`). Deploy staging/production **before** metering
 runs that expect those fields.
 
-Related: [RELEASING.md](RELEASING.md) (alpha APK), [CLOUD_ARCHITECTURE_GCP.md](../backend/CLOUD_ARCHITECTURE_GCP.md) §17.
+Related: [RELEASING.md](RELEASING.md) (alpha APK),
+[CLOUD_ARCHITECTURE_GCP.md](../backend/CLOUD_ARCHITECTURE_GCP.md) §14–15 (free
+tiers / Drive ceilings), [ALPHA_USAGE_REPORT.md](ALPHA_USAGE_REPORT.md) (filled
+scenario table + **PLC daily/monthly cost model**).
 
 ## Operation classes (`opClass`)
 
