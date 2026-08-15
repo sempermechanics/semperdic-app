@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "tufte-data-viz": {
+      "source": "caylent/tufte-data-viz",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "d85fdadbe09f93cd0c918a4c669e522d1285f338597525922a956ccdf3d3ada4"
+    }
+  }
+}
