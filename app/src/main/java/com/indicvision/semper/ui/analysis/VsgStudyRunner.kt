@@ -1,6 +1,5 @@
 package com.indicvision.semper.ui.analysis
 
-import com.indicvision.semper.DicResult
 import com.indicvision.semper.EngineDebug
 import com.indicvision.semper.ProgressCallback
 import com.indicvision.semper.SemperNativeLib
@@ -9,7 +8,6 @@ import com.indicvision.semper.report.EngineStats
 import timber.log.Timber
 import java.io.File
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 
 /**
  * Executes the sweep a [VsgStudy] plans: solves one deformed frame once per
@@ -158,7 +156,7 @@ object VsgStudyRunner {
                 params.outputDir,
                 runs.size,
             )
-            writeField(buffer, solved, datFile)
+            DicFieldIo.write(buffer, solved, datFile)
             runs.add(RunOutcome(point, datFile, solved))
 
             onProgress(
@@ -223,22 +221,20 @@ object VsgStudyRunner {
         val finestStep = params.plan.minOfOrNull { it.step } ?: 1
         val gridW = params.roiW / finestStep
         val gridH = params.roiH / finestStep
-        return ByteBuffer
-            .allocateDirect(maxOf(1, gridW * gridH) * DicResult.BYTES_PER_POINT)
-            .order(ByteOrder.nativeOrder())
+        return DicFieldIo.allocateDirect(gridW * gridH)
     }
 
     /**
      * Why this node cannot be used — a non-positive engine code, or a point count
      * that would overrun [buffer]'s capacity — or null when it solved cleanly. The
-     * capacity check is a defensive crash guard: [writeField] reads `solved` points
+     * capacity check is a defensive crash guard: [DicFieldIo.write] reads `solved` points
      * back, and reading past the direct buffer would crash the whole sweep.
      */
     private fun skipCodeFor(solved: Int, buffer: ByteBuffer): Int? {
-        val capacityPoints = buffer.capacity() / DicResult.BYTES_PER_POINT
+        val capacityPoints = DicFieldIo.capacityPoints(buffer)
         return when {
             solved <= 0 -> solved
-            solved > capacityPoints -> {
+            DicFieldIo.wouldOverrun(solved, buffer) -> {
                 Timber.e(
                     "Sweep engine returned %d points but the buffer holds %d — skipping node",
                     solved,
@@ -248,13 +244,6 @@ object VsgStudyRunner {
             }
             else -> null
         }
-    }
-
-    private fun writeField(buffer: ByteBuffer, validPoints: Int, target: File) {
-        val bytes = ByteArray(validPoints * DicResult.BYTES_PER_POINT)
-        buffer.position(0)
-        buffer.get(bytes, 0, bytes.size)
-        target.outputStream().use { it.write(bytes) }
     }
 
     /** One full-field solve. Returns the engine's point count, negative on failure. */
