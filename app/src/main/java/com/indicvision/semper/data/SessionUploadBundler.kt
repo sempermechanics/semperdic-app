@@ -108,7 +108,7 @@ object SessionUploadBundler {
             null
         }
         val ctx = if (baseImg != null && scratch != null) {
-            RenderContext(record, baseImg, scratch)
+            RenderContext(record, baseImg, scratch, context.resources)
         } else {
             null
         }
@@ -246,6 +246,7 @@ object SessionUploadBundler {
         val baseImg: Bitmap,
         /** Scratch PDF file, reused per frame. */
         val scratch: File,
+        val resources: android.content.res.Resources,
     )
 
     /**
@@ -312,7 +313,7 @@ object SessionUploadBundler {
         var ok = true
         try {
             ctx.scratch.outputStream().use { stream ->
-                PdfReportGenerator.generate(reportData, stream).collect { progress ->
+                PdfReportGenerator.generate(reportData, stream, ctx.resources).collect { progress ->
                     if (progress is PdfReportGenerator.Progress.Error) {
                         Timber.e(progress.ex, "PDF generation failed for %s", frameName)
                         ok = false

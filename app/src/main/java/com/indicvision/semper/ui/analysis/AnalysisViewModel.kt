@@ -47,6 +47,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
 
 /**
  * Holds analysis inputs/state across configuration changes and runs the
@@ -350,15 +352,12 @@ class AnalysisViewModel : ViewModel() {
         request: SweepRequest,
         onProgress: (VsgStudyRunner.Progress) -> Unit,
     ): BatchAnalysisOutcome = withContext(SemperNativeLib.nativeDispatcher) {
-        Trace.beginSection("Semper.analysis.sweep")
-        try {
+        traceSection("Semper.analysis.sweep") {
             runVsgSweepBody(appContext, request, onProgress)
-        } finally {
-            Trace.endSection()
         }
     }
 
-    private suspend fun runVsgSweepBody(
+    private fun runVsgSweepBody(
         appContext: Context,
         request: SweepRequest,
         onProgress: (VsgStudyRunner.Progress) -> Unit,
@@ -698,7 +697,7 @@ class AnalysisViewModel : ViewModel() {
         }
 
     data class BatchProgressUpdate(
-        val percent: Int,
+        val percent: Float,
         val status: String,
         val timerText: String,
         // Live overlay tiles; -1 = no update this tick
@@ -735,11 +734,9 @@ class AnalysisViewModel : ViewModel() {
         params: BatchAnalysisParams,
         onProgress: (BatchProgressUpdate) -> Unit,
     ): BatchAnalysisOutcome = withContext(SemperNativeLib.nativeDispatcher) {
-        Trace.beginSection("Semper.analysis.batch")
-        try {
-            runBatchAnalysisBody(appContext, params, onProgress)
-        } finally {
-            Trace.endSection()
+        val jobContext = coroutineContext
+        traceSection("Semper.analysis.batch") {
+            runBatchAnalysisBody(appContext, params, onProgress, jobContext)
         }
     }
 }

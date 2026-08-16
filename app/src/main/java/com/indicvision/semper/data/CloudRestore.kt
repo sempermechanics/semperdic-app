@@ -186,6 +186,17 @@ object CloudRestore {
     }
 
     /**
+     * Every COMPLETED cloud backup for this account (no local-presence filter).
+     * Settings management uses this so rows that still have a phone stub without
+     * `.dat`s can still offer Download when a cloud copy exists.
+     *
+     * [listRestorable] stays for Home's "restore something missing" lists.
+     */
+    suspend fun listCompleted(context: Context): ListResult = withContext(Dispatchers.IO) {
+        fetchCompletedSessions(context.applicationContext)
+    }
+
+    /**
      * Cloud analyses available to restore (excludes ones already on this
      * device).
      *
@@ -195,48 +206,53 @@ object CloudRestore {
      * [invalidateRestorableCache]; failures are never cached, so a retry after
      * signing in or coming back online goes straight to the backend.
      */
-    /**
-     * Every COMPLETED cloud backup for this account (no local-presence filter).
-     * Settings management uses this so rows that still have a phone stub without
-     * `.dat`s can still offer Download when a cloud copy exists.
-     *
-     * [listRestorable] stays for Home's "restore something missing" lists.
-     */
-    suspend fun listCompleted(context: Context): ListResult = withContext(Dispatchers.IO) {
-        val appContext = context.applicationContext
-        val api = IndicApi.get(appContext)
-        if (!api.enabled) return@withContext ListResult.ApiOff
-        val token = TokenProvider.usableIdToken() ?: return@withContext ListResult.NeedSignIn
-        try {
-            val sessions = api.listSessions(token).sessions
-                .filter { it.status == "COMPLETED" }
-            if (sessions.isEmpty()) ListResult.Empty else ListResult.Ready(sessions)
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            Timber.e(e, "listCompleted failed")
-            ListResult.Failed(e.message ?: e.toString())
-        }
-    }
-
     suspend fun listRestorable(context: Context): ListResult = withContext(Dispatchers.IO) {
         cachedList?.takeIf { System.currentTimeMillis() - cachedAt < LIST_CACHE_MS }
             ?.let { return@withContext it }
 
         val appContext = context.applicationContext
+        val result = when (val listed = fetchCompletedSessions(appContext)) {
+            is ListResult.Ready -> {
+                val localIds = SessionStore.list(appContext).map { it.id }.toSet()
+                val sessions = listed.sessions.filter {
+                    it.localSessionId.isBlank() || it.localSessionId !in localIds
+                }
+                if (sessions.isEmpty()) ListResult.Empty else ListResult.Ready(sessions)
+            }
+            ListResult.Empty,
+            ListResult.NeedSignIn,
+            ListResult.ApiOff,
+            is ListResult.Failed,
+            -> listed
+        }
+        when (result) {
+            is ListResult.Ready, ListResult.Empty -> {
+                cachedList = result
+                cachedAt = System.currentTimeMillis()
+            }
+            ListResult.NeedSignIn, ListResult.ApiOff, is ListResult.Failed -> Unit
+        }
+        result
+    }
+
+    /**
+     * One Firestore-backed listing of COMPLETED sessions. Auth/config failures
+     * stay distinct from an empty list. Does not filter by local presence.
+     */
+    private suspend fun fetchCompletedSessions(appContext: Context): ListResult {
         val api = IndicApi.get(appContext)
-        if (!api.enabled) return@withContext ListResult.ApiOff
-        val token = TokenProvider.usableIdToken() ?: return@withContext ListResult.NeedSignIn
-        try {
-            val localIds = SessionStore.list(appContext).map { it.id }.toSet()
-            val sessions = api.listSessions(token).sessions
-                .filter { it.status == "COMPLETED" }
-                .filter { it.localSessionId.isBlank() || it.localSessionId !in localIds }
-            val result = if (sessions.isEmpty()) ListResult.Empty else ListResult.Ready(sessions)
-            cachedList = result
-            cachedAt = System.currentTimeMillis()
-            result
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            Timber.e(e, "listRestorable failed")
-            ListResult.Failed(e.message ?: e.toString())
+        val token = TokenProvider.usableIdToken()
+        return when {
+            !api.enabled -> ListResult.ApiOff
+            token == null -> ListResult.NeedSignIn
+            else -> try {
+                val sessions = api.listSessions(token).sessions
+                    .filter { it.status == "COMPLETED" }
+                if (sessions.isEmpty()) ListResult.Empty else ListResult.Ready(sessions)
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                Timber.e(e, "listCompleted sessions failed")
+                ListResult.Failed(e.message ?: e.toString())
+            }
         }
     }
 

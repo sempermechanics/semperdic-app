@@ -14,8 +14,9 @@ import com.indicvision.semper.R
 
 /**
  * A determinate progress dialog: a status line over a horizontal bar.
- * Optional [onCancel] adds a Cancel button and cancels back-press; used so
- * long PDF/share builds can be stopped without killing the activity.
+ *
+ * [onCancel] is the Cancel button (stops the work). [onBackground] is Back or
+ * a tap outside the dimmed area — the dialog closes, the work keeps going.
  *
  * Build it on the main thread; [update] hops to the main thread itself, so
  * generators running on a background dispatcher can call it directly.
@@ -24,6 +25,7 @@ class DeterminateProgressDialog(
     private val activity: AppCompatActivity,
     title: CharSequence,
     private val onCancel: (() -> Unit)? = null,
+    private val onBackground: (() -> Unit)? = null,
 ) {
 
     private val label = TextView(activity).apply {
@@ -34,6 +36,8 @@ class DeterminateProgressDialog(
         isIndeterminate = true
         max = 100
     }
+
+    private var cancelledByButton = false
 
     private val dialog = MaterialAlertDialogBuilder(activity)
         .setTitle(title)
@@ -53,16 +57,26 @@ class DeterminateProgressDialog(
                 )
             },
         )
-        .setCancelable(onCancel != null)
+        .setCancelable(onCancel != null || onBackground != null)
         .apply {
             if (onCancel != null) {
-                setNegativeButton(R.string.action_cancel) { _, _ -> onCancel.invoke() }
-                setOnCancelListener { onCancel.invoke() }
+                setNegativeButton(R.string.action_cancel) { _, _ ->
+                    cancelledByButton = true
+                    onCancel.invoke()
+                }
+            }
+            if (onBackground != null) {
+                setOnCancelListener {
+                    if (!cancelledByButton) onBackground.invoke()
+                }
             }
         }
         .create()
 
+    val isShowing: Boolean get() = dialog.isShowing
+
     fun show() {
+        dialog.setCanceledOnTouchOutside(onBackground != null)
         dialog.show()
     }
 

@@ -13,7 +13,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -28,6 +27,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.toDrawable
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
@@ -556,7 +557,7 @@ class VsgLatticeActivity : AppCompatActivity() {
             }
             .start()
         // A foreground scrim flashes over both the transparent readout and the filled chip.
-        val scrim = ColorDrawable(ContextCompat.getColor(this, R.color.sky_primary))
+        val scrim = ContextCompat.getColor(this, R.color.sky_primary).toDrawable()
         view.foreground = scrim
         ObjectAnimator.ofInt(scrim, "alpha", COPY_FLASH_ALPHA, 0)
             .apply { duration = COPY_FLASH_MS }
@@ -605,7 +606,7 @@ class VsgLatticeActivity : AppCompatActivity() {
         val legendHeight = EXPORT_MARGIN_PX + legendRows * EXPORT_LINE_PX
         val total = (headerHeight + EXPORT_PLOT_HEIGHT_PX + legendHeight).toInt()
 
-        val out = Bitmap.createBitmap(EXPORT_PLOT_WIDTH_PX, total, Bitmap.Config.ARGB_8888)
+        val out = createBitmap(EXPORT_PLOT_WIDTH_PX, total)
         val canvas = Canvas(out)
         canvas.drawColor(Color.WHITE)
         drawExportHeader(canvas, header)
@@ -630,7 +631,7 @@ class VsgLatticeActivity : AppCompatActivity() {
         val ref = intent.getStringExtra(DicKeys.REF_NAME)
         if (!ref.isNullOrBlank()) {
             val defs = intent.getStringArrayExtra(DicKeys.DEF_FILE_NAMES)?.size ?: 0
-            lines += getString(R.string.vsg_export_images_fmt, ref, defs)
+            lines += resources.getQuantityString(R.plurals.vsg_export_images_fmt, defs, ref, defs)
         }
         val node = selectedNode()
         if (node != null) {
@@ -638,7 +639,7 @@ class VsgLatticeActivity : AppCompatActivity() {
         }
         val isolate = togglePlotMode.checkedButtonId == R.id.btnPlotIsolate
         if (!isolate) {
-            lines += getString(R.string.vsg_export_combos_fmt, series.size)
+            lines += resources.getQuantityString(R.plurals.vsg_export_combos_fmt, series.size, series.size)
         }
         return lines
     }

@@ -16,7 +16,10 @@ import android.graphics.pdf.PdfDocument
 import androidx.core.graphics.toColorInt
 import java.util.Locale
 
-class PdfLayoutEngine(private val pdfDocument: PdfDocument) {
+class PdfLayoutEngine(
+    private val pdfDocument: PdfDocument,
+    private val brandLogo: Bitmap? = null,
+) {
     val pageWidth = 2480f
     val pageHeight = 3508f
     val margin = 150f
@@ -84,6 +87,7 @@ class PdfLayoutEngine(private val pdfDocument: PdfDocument) {
         currentPage = page
         canvas = page.canvas
         cursorY = margin
+        drawBrandHeader()
         drawFooter()
         return page.canvas
     }
@@ -116,6 +120,17 @@ class PdfLayoutEngine(private val pdfDocument: PdfDocument) {
             pageHeight - (margin / 2f),
             footerPaint,
         )
+    }
+
+    fun drawBrandHeader() {
+        val logo = brandLogo
+        if (logo == null || logo.isRecycled || logo.width <= 0) return
+        val targetW = BRAND_LOGO_WIDTH
+        val scale = targetW / logo.width.toFloat()
+        val targetH = logo.height * scale
+        val dest = RectF(margin, cursorY, margin + targetW, cursorY + targetH)
+        canvas?.drawBitmap(logo, null, dest, upscalerPaint)
+        cursorY += targetH + BRAND_LOGO_GAP
     }
 
     fun drawTitle(title: String) {
@@ -340,5 +355,10 @@ class PdfLayoutEngine(private val pdfDocument: PdfDocument) {
         )
 
         cursorY = startY + blockHeight
+    }
+
+    private companion object {
+        const val BRAND_LOGO_WIDTH = 520f
+        const val BRAND_LOGO_GAP = 40f
     }
 }

@@ -11,6 +11,7 @@ import com.indicvision.semper.data.SessionPaths
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.Locale
 
 /**
  * Debug-only launcher that fabricates a short synthetic DIC session and opens

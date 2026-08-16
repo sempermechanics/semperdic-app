@@ -4,9 +4,9 @@ Program status: **cleared**.
 
 - `app/lint-baseline.xml` and `app/detekt-baseline.xml` are empty.
 - `./gradlew :app:lintDebug` reports **no errors**; the gate fails on errors, and
-  `lintVitalRelease` is clean. It does report a handful of long-standing warnings
-  (`OldTargetApi`, `UnclosedTrace`, `PluralsCandidate`, `TooManyViews`, `UseKtx`) —
-  see the note under the 2026-08-12 entry.
+  `lintVitalRelease` is clean. Remaining warnings after the 2026-08-16 Trace/plurals
+  pass: `OldTargetApi` (compileSdk 37 vs targetSdk 36 — inventory only; do not bump
+  in a drive-by), `TooManyViews`, `UseKtx`.
 - Inherent size/complexity in a few UI orchestration files uses targeted
   `@file:Suppress` — prefer extracting over widening those lists.
 - Catalog version-availability lint IDs are disabled; bump deps in deliberate PRs.
@@ -51,7 +51,6 @@ by 0-delta parity tests. Measured before/after, including the drawbacks, is in
 | Item | Why |
 |---|---|
 | `StartupTimingMetric` benchmarks on an API 37 emulator | `startActivityAndWait` confirms launches via `dumpsys gfxinfo framestats`, which returns empty there for every activity. `StartupBenchmark`/`ScreenBenchmark` need a physical device or an older image; `ViewerScrubBenchmark` avoids the API and runs |
-| `UnclosedTrace` in `AnalysisViewModel` (:354, :739) | Pre-existing: `Trace.beginSection` spans a suspension point, so the section can close on another thread. Real but untouched by this program — fix with a non-suspending wrapper, deliberately |
 | Float16 / ZNSSD quantisation for field data | Would change reported numbers; rejected under the bit-exactness requirement |
 | In-memory X/Y compaction (derive coords from the grid) | Loss-less and worth ~25 %, but a larger change that also touches the native writer |
 

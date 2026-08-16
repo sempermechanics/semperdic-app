@@ -56,6 +56,12 @@ class PdfLayoutEngineTest {
     }
 
     @Test
+    fun `drawBrandHeader with no logo does not advance the cursor`() {
+        engine.drawBrandHeader()
+        assertEquals(0f, engine.cursorY, 0.001f)
+    }
+
+    @Test
     fun `drawTitle advances past the rule beneath it`() {
         engine.drawTitle("Semper Metrology Report")
         // 120f for the title block, then 60f clearance under the rule.

@@ -28,6 +28,7 @@ import com.indicvision.semper.report.PdfReportGenerator
 import com.indicvision.semper.report.ReportBuilder
 import com.indicvision.semper.report.VisualizationEngine
 import com.indicvision.semper.ui.common.DeterminateProgressDialog
+import com.indicvision.semper.ui.common.TransferBannerController
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -114,24 +115,42 @@ class ShareCenter(private val host: ResultViewerActivity) {
         progressText: Int,
         build: suspend (report: (Int, String) -> Unit) -> Pair<List<File>, String>,
     ) {
-        // Job is cancelled from the dialog Cancel button; keep a ref the builder
-        // can see once launch returns it.
         var job: Job? = null
+        val transferId = "share-$progressText"
+        val title = host.getString(progressText)
+        fun stopJob() {
+            job?.cancel()
+            host.shareBanner.remove(transferId)
+        }
         val progress = DeterminateProgressDialog(
             host,
-            host.getString(progressText),
-            onCancel = { job?.cancel() },
+            title,
+            onCancel = { stopJob() },
+            onBackground = {
+                host.shareBanner.upsert(
+                    TransferBannerController.Transfer(
+                        id = transferId,
+                        title = title,
+                        onCancel = { stopJob() },
+                    ),
+                )
+            },
         )
         progress.show()
         job = host.lifecycleScope.launch {
             try {
-                val report: (Int, String) -> Unit = { pct, label -> progress.update(pct, label) }
+                val report: (Int, String) -> Unit = { pct, label ->
+                    progress.update(pct, label)
+                    if (host.shareBanner.contains(transferId)) {
+                        host.shareBanner.updateProgress(transferId, pct, label)
+                    }
+                }
                 val (files, mime) = withContext(Dispatchers.Default) { build(report) }
                 // Safety: never hand an empty or missing file to the share sheet —
                 // a generator that silently produced nothing would otherwise share
                 // a 0-byte document.
                 if (files.isEmpty() || files.any { !it.exists() || it.length() == 0L }) {
-                    fail(progress, null, "Share produced no usable files")
+                    fail(progress, transferId, null, "Share produced no usable files")
                     return@launch
                 }
                 // SAF saves one document; bundle multi-file exports into a zip first.
@@ -143,25 +162,33 @@ class ShareCenter(private val host: ResultViewerActivity) {
                     }
                 }
                 if (!handoff.first.exists() || handoff.first.length() == 0L) {
-                    fail(progress, null, "Bundled export was empty")
+                    fail(progress, transferId, null, "Bundled export was empty")
                     return@launch
                 }
                 progress.dismiss()
+                host.shareBanner.remove(transferId)
                 shareWithLocalOption(handoff.first, handoff.second)
             } catch (e: CancellationException) {
                 progress.dismiss()
+                host.shareBanner.remove(transferId)
                 throw e
             } catch (e: Throwable) {
                 // Throwable, not just Exception: a large multi-frame ZIP/PDF export
                 // can hit OutOfMemoryError (an Error), which we'd rather surface as
                 // a snackbar than let crash the app.
-                fail(progress, e, "Share generation failed")
+                fail(progress, transferId, e, "Share generation failed")
             }
         }
     }
 
-    private fun fail(progress: DeterminateProgressDialog, e: Throwable?, log: String) {
+    private fun fail(
+        progress: DeterminateProgressDialog,
+        transferId: String,
+        e: Throwable?,
+        log: String,
+    ) {
         progress.dismiss()
+        host.shareBanner.remove(transferId)
         if (e != null) Timber.e(e, log) else Timber.e(log)
         Snackbar.make(
             host.findViewById(android.R.id.content),
@@ -333,12 +360,13 @@ class ShareCenter(private val host: ResultViewerActivity) {
         val s = requireSnapshot()
         val f = File(shareDir(), "${s.baseName}_report.pdf")
         f.outputStream().use { out ->
-            PdfReportGenerator.generateBatch(
-                frameCount = s.batchFiles.size,
-                dataAt = { index -> frameReport(index) },
-                outputStream = out,
-                frameTitle = { index -> frameTitle(index) },
-            ).collect { progress ->
+                PdfReportGenerator.generateBatch(
+                    frameCount = s.batchFiles.size,
+                    dataAt = { index -> frameReport(index) },
+                    outputStream = out,
+                    frameTitle = { index -> frameTitle(index) },
+                    resources = host.resources,
+                ).collect { progress ->
                 when (progress) {
                     // generateBatch reports failures as a Flow event rather than
                     // throwing; surface it so the share job actually fails (and logs)

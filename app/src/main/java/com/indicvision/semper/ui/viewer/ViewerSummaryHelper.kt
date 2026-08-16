@@ -149,15 +149,7 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
     fun sequenceRange(dataIndex: Int): Pair<Float, Float>? = ranges[dataIndex]
 
     /** The label the frame counter shows while the summary is up. */
-    fun counterText(): String {
-        val frames = host.summaryBatchFiles().size
-        return host.resources.getQuantityString(
-            R.plurals.summary_counter_fmt,
-            frames,
-            host.currentTypeString,
-            frames,
-        )
-    }
+    fun counterText(): String = host.getString(R.string.summary_gif)
 
     private fun render(dataIndex: Int) {
         if (shownField == dataIndex && image.drawable != null) {

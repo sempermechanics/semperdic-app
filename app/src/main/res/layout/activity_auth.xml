@@ -17,15 +17,16 @@
         android:gravity="center_vertical">
 
         <!-- Brand -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/app_name"
-            android:textColor="@color/sky_primary"
-            android:textSize="42sp"
-            android:textStyle="bold"
-            android:textAlignment="center"
-            android:layout_marginBottom="4dp" />
+        <ImageView
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_semper_mark"
+            android:contentDescription="@string/app_name"
+            android:padding="14dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/semper_mark_s" />
 
         <TextView
             android:id="@+id/tvSubtitle"

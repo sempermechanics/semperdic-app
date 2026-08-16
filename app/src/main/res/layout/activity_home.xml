@@ -205,8 +205,7 @@
         android:id="@+id/fabNewAnalysis"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="20dp"
+        android:layout_gravity="top|start"
         android:contentDescription="@string/home_new_analysis"
         android:src="@drawable/ic_add" />
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

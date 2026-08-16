@@ -15,6 +15,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.GestureDetector
@@ -22,6 +23,8 @@ import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.withClip
 import androidx.core.graphics.withRotation
 import com.indicvision.semper.R
 import java.util.Locale
@@ -113,6 +116,7 @@ class VsgPlotView @JvmOverloads constructor(
 
     /** Reused every draw — onDraw runs on each scrub frame. */
     private val frame = Frame()
+    private val clipRect = RectF()
 
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -259,7 +263,7 @@ class VsgPlotView @JvmOverloads constructor(
         val hSpec = MeasureSpec.makeMeasureSpec(heightPx, MeasureSpec.EXACTLY)
         measure(wSpec, hSpec)
         layout(0, 0, widthPx, heightPx)
-        val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(widthPx, heightPx)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
         draw(canvas)
@@ -432,33 +436,33 @@ class VsgPlotView @JvmOverloads constructor(
         fun sy(y: Float) = bottom - (y - b.yMin) / (b.yMax - b.yMin) * (bottom - top)
 
         frame.set(left, right, top, bottom)
-        canvas.save()
-        canvas.clipRect(left, top, right, bottom)
-        for (i in 0..GRID_LINES) {
-            val y = bottom - (bottom - top) * i / GRID_LINES
-            canvas.drawLine(left, y, right, y, gridPaint)
-        }
-        (scrubX ?: highlightX)?.let {
-            gridPaint.color = ContextCompat.getColor(context, R.color.sky_primary)
-            canvas.drawLine(sx(it), top, sx(it), bottom, gridPaint)
-            gridPaint.color = ContextCompat.getColor(context, R.color.surface_outline)
-        }
+        clipRect.set(left, top, right, bottom)
+        canvas.withClip(clipRect) {
+            for (i in 0..GRID_LINES) {
+                val y = bottom - (bottom - top) * i / GRID_LINES
+                drawLine(left, y, right, y, gridPaint)
+            }
+            (scrubX ?: highlightX)?.let {
+                gridPaint.color = ContextCompat.getColor(context, R.color.sky_primary)
+                drawLine(sx(it), top, sx(it), bottom, gridPaint)
+                gridPaint.color = ContextCompat.getColor(context, R.color.surface_outline)
+            }
 
-        for (s in series) {
-            if (s.points.isEmpty()) continue
-            linePaint.color = s.color
-            linePaint.alpha = if (s.muted) ALPHA_MUTED else ALPHA_SOLID
-            path.reset()
-            s.points.forEachIndexed { i, (x, y) ->
-                if (i == 0) path.moveTo(sx(x), sy(y)) else path.lineTo(sx(x), sy(y))
-            }
-            canvas.drawPath(path, linePaint)
-            if (s.markers) {
-                markerPaint.color = s.color
-                s.points.forEach { (x, y) -> canvas.drawCircle(sx(x), sy(y), dp(MARKER_RADIUS_DP), markerPaint) }
+            for (s in series) {
+                if (s.points.isEmpty()) continue
+                linePaint.color = s.color
+                linePaint.alpha = if (s.muted) ALPHA_MUTED else ALPHA_SOLID
+                path.reset()
+                s.points.forEachIndexed { i, (x, y) ->
+                    if (i == 0) path.moveTo(sx(x), sy(y)) else path.lineTo(sx(x), sy(y))
+                }
+                drawPath(path, linePaint)
+                if (s.markers) {
+                    markerPaint.color = s.color
+                    s.points.forEach { (x, y) -> drawCircle(sx(x), sy(y), dp(MARKER_RADIUS_DP), markerPaint) }
+                }
             }
         }
-        canvas.restore()
 
         // The selected curve's y at the scrub line: a dot plus a value label on the plot.
         scrubX?.let { scrub ->

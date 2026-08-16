@@ -13,7 +13,9 @@ import android.os.SystemClock
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.indicvision.semper.util.OverlayFormats
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * Owns the compute / video-extraction progress overlay: visibility, progress
@@ -36,8 +38,8 @@ class ComputeOverlayHelper(
     private val mainHandler = Handler(Looper.getMainLooper())
     private val elapsedTicker = object : Runnable {
         override fun run() {
-            val secs = (System.currentTimeMillis() - processingStartTime) / 1000
-            elapsed.text = "Elapsed ${secs}s"
+            val ms = System.currentTimeMillis() - processingStartTime
+            elapsed.text = "Elapsed ${OverlayFormats.elapsed(ms)}"
             mainHandler.postDelayed(this, 1000)
         }
     }
@@ -45,7 +47,7 @@ class ComputeOverlayHelper(
     var processingStartTime: Long = 0
 
     // Coalesced pending state (any thread may write; flushed on main).
-    @Volatile private var pendingPercent: Int? = null
+    @Volatile private var pendingPercent: Float? = null
 
     @Volatile private var pendingStatus: String? = null
 
@@ -72,13 +74,14 @@ class ComputeOverlayHelper(
         flushScheduled = false
         clearPending()
         this.title.text = title
+        progress.max = RING_MAX
         progress.progress = 0
-        percent.text = "0%"
+        percent.text = "0.0%"
         this.status.text = status
-        elapsed.text = "Elapsed 0s"
+        elapsed.text = "Elapsed ${OverlayFormats.elapsed(0)}"
         // Reset the run tiles too, so a re-run doesn't flash the PREVIOUS run's
         // points/convergence until its first frame completes.
-        runPoints?.text = "0"
+        runPoints?.text = OverlayFormats.compactCount(0)
         runConvergence?.text = "0.0%"
         runTilesRow?.visibility = if (showRunTiles) View.VISIBLE else View.GONE
         overlay.visibility = View.VISIBLE
@@ -106,8 +109,8 @@ class ComputeOverlayHelper(
     }
 
     /** Update the overlay's ring + percentage. Safe to call from any thread. */
-    fun setProgress(percent: Int) {
-        pendingPercent = percent.coerceIn(0, 100)
+    fun setProgress(percent: Float) {
+        pendingPercent = percent.coerceIn(0f, 100f)
         scheduleFlush()
     }
 
@@ -128,13 +131,13 @@ class ComputeOverlayHelper(
      * Prefer this over separate [setProgress]/[setStatus]/[setTitle] calls.
      */
     fun update(
-        percent: Int? = null,
+        percent: Float? = null,
         status: String? = null,
         title: String? = null,
         pointsSolved: Int = -1,
         convergencePercent: Float = -1f,
     ) {
-        if (percent != null) pendingPercent = percent.coerceIn(0, 100)
+        if (percent != null) pendingPercent = percent.coerceIn(0f, 100f)
         if (status != null) pendingStatus = status
         if (title != null) pendingTitle = title
         if (pointsSolved >= 0) pendingPoints = pointsSolved
@@ -161,8 +164,9 @@ class ComputeOverlayHelper(
     private fun applyPending() {
         lastFlushUptimeMs = SystemClock.uptimeMillis()
         pendingPercent?.let {
-            progress.progress = it
-            percent.text = "$it%"
+            progress.max = RING_MAX
+            progress.progress = (it * RING_SCALE).roundToInt().coerceIn(0, RING_MAX)
+            percent.text = String.format(Locale.US, "%.1f%%", it)
             pendingPercent = null
         }
         pendingStatus?.let {
@@ -174,7 +178,7 @@ class ComputeOverlayHelper(
             pendingTitle = null
         }
         pendingPoints?.let { pts ->
-            runPoints?.text = String.format(Locale.US, "%,d", pts)
+            runPoints?.text = OverlayFormats.compactCount(pts)
             pendingPoints = null
         }
         pendingConvergence?.let { conv ->
@@ -193,5 +197,7 @@ class ComputeOverlayHelper(
 
     companion object {
         private const val THROTTLE_MS = 100L
+        private const val RING_MAX = 1000
+        private const val RING_SCALE = 10f
     }
 }

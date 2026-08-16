@@ -12,6 +12,7 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.PointF
 import android.graphics.RectF
+import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -57,6 +58,12 @@ class TouchImageView @JvmOverloads constructor(
     /** Horizontal fling while fit-to-screen: −1 previous frame, +1 next. */
     var onScrubListener: ((delta: Int) -> Unit)? = null
 
+    /** Center-third tap: hide/show chrome. */
+    var onCenterTapListener: (() -> Unit)? = null
+
+    /** Vertical swipe at 1×: true = show chrome, false = hide. */
+    var onChromeSwipeListener: ((show: Boolean) -> Unit)? = null
+
     init {
         super.setClickable(true)
         mScaleDetector = ScaleGestureDetector(context, ScaleListener())
@@ -89,6 +96,9 @@ class TouchImageView @JvmOverloads constructor(
                     }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                    if (event.actionMasked == MotionEvent.ACTION_UP) {
+                        maybeFitSwipe(curr)
+                    }
                     mode = 0
                     dragArmed = false
                 }
@@ -102,6 +112,27 @@ class TouchImageView @JvmOverloads constructor(
         super.setImageBitmap(bm)
         updateContentScale(bm)
         publishMatrix()
+    }
+
+    override fun setImageDrawable(drawable: Drawable?) {
+        super.setImageDrawable(drawable)
+        val w = drawable?.intrinsicWidth ?: 0
+        val h = drawable?.intrinsicHeight ?: 0
+        if (w > 0 && h > 0) {
+            setTrueImageDimensions(w, h)
+        }
+    }
+
+    private fun maybeFitSwipe(curr: PointF) {
+        if (!isAtFitScale() || !dragArmed || mScaleDetector.isInProgress) return
+        val dx = curr.x - start.x
+        val dy = curr.y - start.y
+        if (hypot(dx, dy) < SWIPE_DISTANCE) return
+        if (abs(dx) > abs(dy)) {
+            onScrubListener?.invoke(if (dx < 0f) 1 else -1)
+        } else {
+            onChromeSwipeListener?.invoke(dy > 0f)
+        }
     }
 
     // --- NEW: Manually inject the known dimensions ---
@@ -166,6 +197,10 @@ class TouchImageView @JvmOverloads constructor(
 
     private inner class GestureListener : GestureDetector.SimpleOnGestureListener() {
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+            if (isCenterTap(e.x, e.y) && onCenterTapListener != null) {
+                onCenterTapListener?.invoke()
+                return true
+            }
             onTapListener?.invoke(e.x, e.y)
             return true
         }
@@ -271,7 +306,17 @@ class TouchImageView @JvmOverloads constructor(
         onMatrixChangedListener?.invoke()
     }
 
+    private fun isCenterTap(x: Float, y: Float): Boolean {
+        if (viewWidth <= 0 || viewHeight <= 0) return false
+        val cx = viewWidth / 2f
+        val cy = viewHeight / 2f
+        return abs(x - cx) <= viewWidth * CENTER_FRACTION / 2f &&
+            abs(y - cy) <= viewHeight * CENTER_FRACTION / 2f
+    }
+
     private companion object {
-        const val FLING_MIN_VELOCITY = 800f
+        const val FLING_MIN_VELOCITY = 400f
+        const val SWIPE_DISTANCE = 80f
+        const val CENTER_FRACTION = 0.34f
     }
 }

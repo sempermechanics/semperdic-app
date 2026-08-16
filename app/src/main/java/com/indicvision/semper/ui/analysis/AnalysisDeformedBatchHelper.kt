@@ -69,7 +69,12 @@ object AnalysisDeformedBatchHelper {
                 withContext(Dispatchers.Main) {
                     overlayHelper.update(
                         percent = 0,
-                        status = activity.getString(R.string.analysis_importing_fmt, 0, uris.size),
+                        status = activity.resources.getQuantityString(
+                            R.plurals.analysis_importing_fmt,
+                            uris.size,
+                            0,
+                            uris.size,
+                        ),
                     )
                 }
 
@@ -81,7 +86,12 @@ object AnalysisDeformedBatchHelper {
                     onProgress = { done, total ->
                         overlayHelper.update(
                             percent = if (total > 0) done * 100 / total else 0,
-                            status = activity.getString(R.string.analysis_importing_fmt, done, total),
+                            status = activity.resources.getQuantityString(
+                                R.plurals.analysis_importing_fmt,
+                                total,
+                                done,
+                                total,
+                            ),
                         )
                     },
                 )

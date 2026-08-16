@@ -58,7 +58,7 @@ object AnalysisVideoExtractHelper {
                     maxFrames = DicSettings.maxFrames(activity, AppRemoteConfig.maxFrames(activity)),
                     cacheDir = cacheDir,
                     onProgress = { percent, status ->
-                        overlayHelper.update(percent = percent, status = status)
+                        overlayHelper.update(percent = percent.toFloat(), status = status)
                     },
                 )
 

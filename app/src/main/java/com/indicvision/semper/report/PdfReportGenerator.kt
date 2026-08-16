@@ -6,6 +6,10 @@
 package com.indicvision.semper.report
 
 import android.graphics.pdf.PdfDocument
+import android.content.res.Resources
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import com.indicvision.semper.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -56,9 +60,11 @@ object PdfReportGenerator {
         dataAt: (Int) -> ReportData?,
         outputStream: OutputStream,
         frameTitle: (Int) -> String = { "DIC Analysis Report — Frame ${it + 1}" },
+        resources: Resources? = null,
     ): Flow<Progress> = flow {
         val pdfDocument = PdfDocument()
-        val layout = PdfLayoutEngine(pdfDocument)
+        val brandLogo = decodeBrandLogo(resources)
+        val layout = PdfLayoutEngine(pdfDocument, brandLogo)
         try {
             // Telemetry is per-analysis, not per-frame, so one page closes the
             // document. Holds no bitmaps, so it survives the recycling below.
@@ -90,12 +96,18 @@ object PdfReportGenerator {
             emit(Progress.Error(e))
         } finally {
             pdfDocument.close()
+            recycleLogo(brandLogo)
         }
     }.flowOn(Dispatchers.Default)
 
-    fun generate(data: ReportData, outputStream: OutputStream): Flow<Progress> = flow {
+    fun generate(
+        data: ReportData,
+        outputStream: OutputStream,
+        resources: Resources? = null,
+    ): Flow<Progress> = flow {
         val pdfDocument = PdfDocument()
-        val layout = PdfLayoutEngine(pdfDocument)
+        val brandLogo = decodeBrandLogo(resources)
+        val layout = PdfLayoutEngine(pdfDocument, brandLogo)
 
         try {
             currentCoroutineContext().ensureActive()
@@ -119,6 +131,7 @@ object PdfReportGenerator {
             emit(Progress.Error(e))
         } finally {
             pdfDocument.close()
+            recycleLogo(brandLogo)
         }
     }.flowOn(Dispatchers.IO)
 
@@ -248,5 +261,14 @@ object PdfReportGenerator {
             ),
             colWeights = listOf(0.6f, 0.4f),
         )
+    }
+
+    private fun decodeBrandLogo(resources: Resources?): Bitmap? {
+        if (resources == null) return null
+        return BitmapFactory.decodeResource(resources, R.drawable.semper_wordmark)
+    }
+
+    private fun recycleLogo(logo: Bitmap?) {
+        if (logo != null && !logo.isRecycled) logo.recycle()
     }
 }

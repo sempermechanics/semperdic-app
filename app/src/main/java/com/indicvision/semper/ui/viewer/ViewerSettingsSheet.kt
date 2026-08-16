@@ -110,13 +110,9 @@ object ViewerSettingsSheet {
     }
 
     fun show(host: ResultViewerActivity) {
-        val sheet = BottomSheetDialog(host, R.style.ThemeOverlay_Semper_ViewerPeekSheet)
+        val sheet = BottomSheetDialog(host)
         val view = host.layoutInflater.inflate(R.layout.sheet_settings_used, null)
         sheet.setContentView(view)
-        sheet.setOnShowListener {
-            sheet.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-                ?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-        }
 
         view.findViewById<TextView>(R.id.tvSettingsUsedSpecimen).text =
             host.intent.getStringExtra(DicKeys.REF_NAME).orEmpty()
@@ -133,10 +129,6 @@ object ViewerSettingsSheet {
         }
         if (host.isSweep) populateLineCut(host, view)
 
-        view.findViewById<View>(R.id.btnSheetHome).setOnClickListener {
-            sheet.dismiss()
-            host.goHome()
-        }
         sheet.show()
     }
 
@@ -232,7 +224,7 @@ object ViewerSettingsSheet {
         row.addView(
             TextView(host).apply {
                 text = label
-                setTextColor(host.getColor(R.color.viewer_peek_muted))
+                setTextColor(host.getColor(R.color.text_secondary))
                 textSize = SETTINGS_ROW_SP
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             },
@@ -240,7 +232,7 @@ object ViewerSettingsSheet {
         row.addView(
             TextView(host).apply {
                 text = value
-                setTextColor(host.getColor(R.color.viewer_peek_text))
+                setTextColor(host.getColor(R.color.text_primary))
                 textSize = SETTINGS_ROW_SP
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
             },
@@ -253,6 +245,6 @@ object ViewerSettingsSheet {
             LinearLayout.LayoutParams.MATCH_PARENT,
             1,
         )
-        setBackgroundColor(host.getColor(R.color.viewer_peek_divider))
+        setBackgroundColor(host.getColor(R.color.surface_outline))
     }
 }

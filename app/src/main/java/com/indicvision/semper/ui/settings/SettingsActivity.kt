@@ -1,9 +1,5 @@
-// The settings page wires every section in one screen — account, cloud,
-// per-analysis data, export/erasure and defaults — kept together for locality.
-// The many small wireX/helpers push it past the LongMethod / TooManyFunctions /
-// LargeClass thresholds; splitting a screen whose handlers share this Activity's
-// launchers and views would trade that locality for cross-class state plumbing,
-// so those rules are suppressed for this file rather than worked around.
+// Settings Activity hosts cloud backup and per-analysis restore/download/delete.
+// Account, storage, preferences, your-data, and help live in section classes.
 
 @file:Suppress("TooManyFunctions", "LargeClass", "LongMethod", "CyclomaticComplexMethod", "MagicNumber", "ReturnCount")
 
@@ -12,7 +8,6 @@ package com.indicvision.semper.ui.settings
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageButton
@@ -30,39 +25,25 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.slider.Slider
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.indicvision.semper.BuildConfig
-import com.indicvision.semper.Diagnostics
 import com.indicvision.semper.R
-import com.indicvision.semper.analytics.SemperAnalytics
 import com.indicvision.semper.data.AuthRepository
 import com.indicvision.semper.data.BackupDeleteWorker
-import com.indicvision.semper.data.CacheJanitor
 import com.indicvision.semper.data.CloudRestore
 import com.indicvision.semper.data.CloudSync
-import com.indicvision.semper.data.DevAuth
-import com.indicvision.semper.data.DeviceKeyManager
 import com.indicvision.semper.data.DicBundleDownloadWorker
 import com.indicvision.semper.data.DicRestoreWorker
 import com.indicvision.semper.data.DicSettings
-import com.indicvision.semper.data.SessionEverythingExporter
 import com.indicvision.semper.data.SessionRecord
 import com.indicvision.semper.data.SessionStore
-import com.indicvision.semper.data.StorageBudget
-import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.net.CloudSessionDto
-import com.indicvision.semper.data.net.IndicApi
-import com.indicvision.semper.data.net.TokenProvider
-import com.indicvision.semper.data.net.TokenStore
-import com.indicvision.semper.ui.admin.AdminActivity
 import com.indicvision.semper.ui.auth.AuthActivity
 import com.indicvision.semper.ui.common.AuthRoute
 import com.indicvision.semper.ui.common.Insets
 import com.indicvision.semper.ui.common.TransferBannerController
 import com.indicvision.semper.ui.home.SessionOpenHelper
-import com.indicvision.semper.ui.viewer.SendToSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -82,7 +63,7 @@ class SettingsActivity : AppCompatActivity() {
      * hands off to the sign-in screen and only proceeds if it answers OK.
      */
     private val reauthLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == RESULT_OK) deleteAccount()
+        if (it.resultCode == RESULT_OK) yourDataSection.deleteAccount()
     }
 
     /**
@@ -112,12 +93,14 @@ class SettingsActivity : AppCompatActivity() {
     /** Restore / Save-to-Files download keys currently busy — disables row actions. */
     private val downloadingKeys = mutableSetOf<String>()
 
-    private lateinit var transferBanner: TransferBannerController
+    internal lateinit var transferBanner: TransferBannerController
+    private lateinit var yourDataSection: SettingsYourDataSection
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingDownload = PendingBundleDownload.fromBundle(savedInstanceState)
         setContentView(R.layout.activity_settings)
+        yourDataSection = SettingsYourDataSection(this)
         // Edge-to-edge: without this the status bar swallows taps on the back arrow.
         Insets.padTop(findViewById(R.id.settingsTopBar))
         Insets.padBottom(findViewById(R.id.settingsScroll))
@@ -152,13 +135,13 @@ class SettingsActivity : AppCompatActivity() {
         observeRestoreOutcomes()
         observeBundleDownloadOutcomes()
 
-        wireAccountSection()
+        SettingsAccountSection(this).wire()
         wireCloudSection()
         wireAnalysesDataSection()
-        wireStorageSection()
-        wireYourDataSection()
-        wirePreferencesSection()
-        wireHelpSupportSection()
+        SettingsStorageSection(this).wire()
+        yourDataSection.wire()
+        SettingsPreferencesSection(this).wire()
+        SettingsHelpSupportSection(this).wire()
         wireFooter()
     }
 
@@ -180,18 +163,6 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     // ── Account ──────────────────────────────────────────────────────────
-
-    private fun wireAccountSection() {
-        findViewById<TextView>(R.id.tvAccountEmail).text = TokenStore.cachedEmail(this).orEmpty()
-        val deviceId = runCatching { DeviceKeyManager(this).getDeviceId() }.getOrDefault("")
-        findViewById<TextView>(R.id.tvAccountDevice).text =
-            getString(R.string.account_device_id_fmt, deviceId)
-
-        findViewById<View>(R.id.btnAdmin).apply {
-            isVisible = TokenStore.isAdmin(this@SettingsActivity)
-            setOnClickListener { startActivity(Intent(this@SettingsActivity, AdminActivity::class.java)) }
-        }
-    }
 
     // ── Cloud backup ─────────────────────────────────────────────────────
 
@@ -240,7 +211,7 @@ class SettingsActivity : AppCompatActivity() {
 
     // ── Analyses data management ─────────────────────────────────────────
 
-    private fun wireAnalysesDataSection() {
+    internal fun wireAnalysesDataSection() {
         analysesProgress.isVisible = true
         analysesState.isVisible = false
 
@@ -267,133 +238,6 @@ class SettingsActivity : AppCompatActivity() {
                 analysesState.setText(R.string.analyses_data_empty)
             }
             analysesAdapter.submit(entries)
-        }
-    }
-
-    // ── Storage ──────────────────────────────────────────────────────────
-
-    private fun wireStorageSection() {
-        findViewById<View>(R.id.btnStorageFreeUp).setOnClickListener { confirmFreeUpSpace() }
-        findViewById<View>(R.id.btnStorageClearCache).setOnClickListener { clearTemporaryFiles() }
-        findViewById<ImageButton>(R.id.btnAutoFreeInfo).setOnClickListener {
-            MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.storage_auto_free)
-                .setMessage(R.string.storage_auto_free_info)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
-        }
-
-        val valueLabel = findViewById<TextView>(R.id.tvAutoFreeValue)
-        findViewById<Slider>(R.id.sliderAutoFree).apply {
-            valueTo = DicSettings.MAX_AUTO_FREE_GB.toFloat()
-            value = DicSettings.autoFreeBudgetGb(this@SettingsActivity)
-                .toFloat().coerceIn(valueFrom, valueTo)
-            valueLabel.text = autoFreeText(value.toInt())
-            addOnChangeListener { _, v, fromUser ->
-                valueLabel.text = autoFreeText(v.toInt())
-                if (!fromUser) return@addOnChangeListener
-                DicSettings.setAutoFreeBudgetGb(this@SettingsActivity, v.toInt())
-                // Applying on release rather than on every tick: dragging past a
-                // low value would otherwise start dropping sessions mid-gesture.
-            }
-            addOnSliderTouchListener(
-                object : com.google.android.material.slider.Slider.OnSliderTouchListener {
-                    override fun onStartTrackingTouch(slider: Slider) = Unit
-                    override fun onStopTrackingTouch(slider: Slider) = applyStorageBudget()
-                },
-            )
-        }
-
-        refreshStorageTotals()
-    }
-
-    private fun autoFreeText(gb: Int): String =
-        if (gb <= DicSettings.AUTO_FREE_OFF) {
-            getString(R.string.storage_auto_free_off)
-        } else {
-            getString(R.string.storage_auto_free_on_fmt, gb)
-        }
-
-    /** Measures off the main thread — a full sessions tree is a lot of stat calls. */
-    private fun refreshStorageTotals() {
-        lifecycleScope.launch {
-            val sizes = withContext(Dispatchers.IO) {
-                Triple(
-                    SessionStore.totalSize(this@SettingsActivity),
-                    // Show what Clear will free — not raw cacheDir size (which
-                    // includes a live import the button must not delete).
-                    CacheJanitor.clearableUserBytes(this@SettingsActivity),
-                    StorageBudget.reclaimableBytes(this@SettingsActivity),
-                )
-            }
-            val (analyses, cache, reclaimable) = sizes
-            findViewById<TextView>(R.id.tvStorageAnalysesSize).text = humanSize(analyses)
-            findViewById<TextView>(R.id.tvStorageCacheSize).text = humanSize(cache)
-            findViewById<View>(R.id.btnStorageClearCache).isEnabled = cache > 0
-
-            val freeUpSub = findViewById<TextView>(R.id.tvStorageFreeUpSub)
-            findViewById<View>(R.id.btnStorageFreeUp).isEnabled = reclaimable > 0
-            freeUpSub.text = if (reclaimable > 0) {
-                getString(R.string.storage_free_up_sub_fmt, humanSize(reclaimable))
-            } else {
-                getString(R.string.storage_free_up_none)
-            }
-        }
-    }
-
-    private fun confirmFreeUpSpace() {
-        lifecycleScope.launch {
-            val reclaimable = withContext(Dispatchers.IO) {
-                StorageBudget.reclaimableBytes(this@SettingsActivity)
-            }
-            if (reclaimable <= 0) {
-                toast(getString(R.string.storage_freed_none))
-                return@launch
-            }
-            MaterialAlertDialogBuilder(this@SettingsActivity)
-                .setTitle(R.string.storage_free_up_title)
-                .setMessage(getString(R.string.storage_free_up_body, humanSize(reclaimable)))
-                .setPositiveButton(R.string.storage_free_up_confirm) { _, _ -> freeUpSpace() }
-                .setNegativeButton(R.string.action_cancel, null)
-                .show()
-        }
-    }
-
-    private fun freeUpSpace() {
-        lifecycleScope.launch {
-            val outcome = StorageBudget.freeAllBackedUpAsync(this@SettingsActivity)
-            if (outcome.didAnything) {
-                toast(getString(R.string.storage_freed_fmt, humanSize(outcome.freedBytes), outcome.sessionsDropped))
-            } else {
-                toast(getString(R.string.storage_freed_none))
-            }
-            refreshStorageTotals()
-            wireAnalysesDataSection()
-        }
-    }
-
-    private fun clearTemporaryFiles() {
-        lifecycleScope.launch {
-            val freed = withContext(Dispatchers.IO) {
-                CacheJanitor.sweepUserRequested(this@SettingsActivity)
-            }
-            if (freed > 0) {
-                toast(getString(R.string.storage_cache_cleared_fmt, humanSize(freed)))
-            } else {
-                toast(getString(R.string.storage_cache_cleared_none))
-            }
-            refreshStorageTotals()
-        }
-    }
-
-    private fun applyStorageBudget() {
-        lifecycleScope.launch {
-            val outcome = StorageBudget.enforceAsync(this@SettingsActivity)
-            if (outcome.didAnything) {
-                toast(getString(R.string.storage_freed_fmt, humanSize(outcome.freedBytes), outcome.sessionsDropped))
-                wireAnalysesDataSection()
-            }
-            refreshStorageTotals()
         }
     }
 
@@ -882,314 +726,23 @@ class SettingsActivity : AppCompatActivity() {
             .show()
     }
 
-    // ── Your data / preferences / footer ─────────────────────────────────
+    // Host helpers used by extracted sections.
 
-    private fun wireYourDataSection() {
-        findViewById<View>(R.id.btnExportData).setOnClickListener { exportMyData() }
-        findViewById<View>(R.id.btnExportCloudData).setOnClickListener { exportCloudAccountData() }
-        findViewById<View>(R.id.btnDeleteAccount).setOnClickListener { confirmDeleteAccount() }
-
-        val switchDiagnostics = findViewById<SwitchMaterial>(R.id.switchDiagnostics)
-        switchDiagnostics.isChecked = DicSettings.diagnosticsEnabled(this)
-        switchDiagnostics.setOnCheckedChangeListener { _, checked ->
-            // Applies immediately in both directions: turning this off also
-            // deletes any crash report still queued on disk.
-            Diagnostics.setEnabled(this, checked)
-        }
-    }
-
-    /**
-     * Download what the *cloud* holds about this account (GDPR Art. 20).
-     *
-     * Separate from [exportMyData], which bundles the sessions on this device.
-     * The policy has always promised this; until now it existed only as an API
-     * endpoint with no way for a user to reach it.
-     */
-    private fun exportCloudAccountData() {
-        val api = IndicApi.get(this)
-        if (!api.enabled) {
-            Toast.makeText(this, R.string.export_cloud_data_offline, Toast.LENGTH_LONG).show()
-            return
-        }
-        val key = "export_cloud"
-        if (transferBanner.contains(key)) {
-            Toast.makeText(this, R.string.download_analysis_already, Toast.LENGTH_SHORT).show()
-            return
-        }
-        var job: kotlinx.coroutines.Job? = null
-        SemperAnalytics.event(this, SemperAnalytics.EXPORT_STARTED, mapOf("kind" to "cloud"))
-        transferBanner.upsert(
-            TransferBannerController.Transfer(
-                id = key,
-                title = getString(R.string.transfer_banner_export_cloud),
-                onCancel = { job?.cancel() },
-            ),
-        )
-        job = lifecycleScope.launch {
-            try {
-                val dest = java.io.File(cacheDir, "semper-account-export.json")
-                val ok = runCatching {
-                    val idToken = TokenProvider.usableIdToken() ?: error("not signed in")
-                    api.exportAccount(idToken, dest)
-                }.onFailure { Timber.w(it, "Cloud account export failed") }.isSuccess
-                transferBanner.remove(key)
-                if (!ok || !dest.exists() || dest.length() == 0L) {
-                    SemperAnalytics.event(
-                        this@SettingsActivity,
-                        SemperAnalytics.EXPORT_FAILED,
-                        mapOf("kind" to "cloud"),
-                    )
-                    Toast.makeText(
-                        this@SettingsActivity,
-                        R.string.export_cloud_data_failed,
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    return@launch
-                }
-                SemperAnalytics.event(
-                    this@SettingsActivity,
-                    SemperAnalytics.EXPORT_COMPLETED,
-                    mapOf("kind" to "cloud"),
-                )
-                SendToSheet.show(this@SettingsActivity, dest, JSON_MIME)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                transferBanner.remove(key)
-                throw e
-            } finally {
-                transferBanner.remove(key)
-            }
-        }
-    }
-
-    private fun exportMyData() {
-        val key = "export_local"
-        if (transferBanner.contains(key)) {
-            Toast.makeText(this, R.string.download_analysis_already, Toast.LENGTH_SHORT).show()
-            return
-        }
-        var job: kotlinx.coroutines.Job? = null
-        SemperAnalytics.event(this, SemperAnalytics.EXPORT_STARTED, mapOf("kind" to "local"))
-        transferBanner.upsert(
-            TransferBannerController.Transfer(
-                id = key,
-                title = getString(R.string.transfer_banner_export_local),
-                onCancel = { job?.cancel() },
-            ),
-        )
-        job = lifecycleScope.launch {
-            try {
-                val export = SessionEverythingExporter.exportMasterZip(this@SettingsActivity) { done, total ->
-                    val pct = if (total > 0) done * 100 / total else 0
-                    runOnUiThread {
-                        transferBanner.updateProgress(
-                            key,
-                            pct,
-                            getString(R.string.export_progress_fmt, done, total),
-                        )
-                    }
-                }
-                transferBanner.remove(key)
-                // Safety: only share a file that actually exists and has content.
-                val file = export?.file?.takeIf { it.exists() && it.length() > 0L }
-                if (file == null) {
-                    SemperAnalytics.event(
-                        this@SettingsActivity,
-                        SemperAnalytics.EXPORT_FAILED,
-                        mapOf("kind" to "local"),
-                    )
-                    Toast.makeText(this@SettingsActivity, R.string.export_data_failed, Toast.LENGTH_LONG).show()
-                    return@launch
-                }
-                SemperAnalytics.event(
-                    this@SettingsActivity,
-                    SemperAnalytics.EXPORT_COMPLETED,
-                    mapOf("kind" to "local"),
-                )
-                // Save to Files (folder icon) + Share, via our own sheet — the system
-                // chooser can't show a custom icon on its initial intents (Android 12+).
-                SendToSheet.show(this@SettingsActivity, file, ZIP_MIME)
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                transferBanner.remove(key)
-                throw e
-            } finally {
-                transferBanner.remove(key)
-            }
-        }
-    }
-
-    private fun confirmDeleteAccount() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.delete_account_title)
-            .setMessage(R.string.delete_account_body)
-            .setPositiveButton(R.string.delete_account_confirm) { _, _ -> verifyThenDeleteAccount() }
-            .setNegativeButton(R.string.action_cancel, null)
-            .show()
-    }
-
-    /**
-     * Erasing an identity is the one action a stolen unlocked phone must not be
-     * able to perform on an old session, so we prove who is holding it first.
-     * Firebase also refuses to delete a user whose sign-in has gone stale, which
-     * is what used to leave the identity behind after the data was gone.
-     *
-     * The proof happens on the sign-in screen itself — it already knows every
-     * way into this account, including the emailed link, which a password box
-     * here never could.
-     */
-    private fun verifyThenDeleteAccount() {
-        if (DevAuth.active) {
-            // The emulator bypass never signed in, so there is no identity to
-            // prove — and no real account to protect either.
-            deleteAccount()
-            return
-        }
+    internal fun launchReauth() {
         reauthLauncher.launch(AuthActivity.reauthIntent(this))
     }
 
-    private fun deleteAccount() {
-        // Erasure walks the cloud copy before it touches anything local, so it
-        // can take a few seconds on a full account. Without this the screen just
-        // sits there and the only feedback is the app appearing to have hung.
-        val progress = MaterialAlertDialogBuilder(this)
-            .setMessage(R.string.delete_account_working)
-            .setCancelable(false)
-            .show()
-        lifecycleScope.launch {
-            val outcome = CloudSync.deleteAccount(this@SettingsActivity)
-            progress.dismiss()
-            when (outcome) {
-                CloudSync.AccountDeletion.DELETED -> {
-                    toast(getString(R.string.delete_account_done))
-                    AuthRoute.toSignIn(this@SettingsActivity)
-                }
-                // Data is gone either way, so the session must not continue.
-                CloudSync.AccountDeletion.IDENTITY_KEPT -> {
-                    toast(getString(R.string.delete_account_identity_kept))
-                    AuthRoute.toSignIn(this@SettingsActivity)
-                }
-                CloudSync.AccountDeletion.CLOUD_UNREACHABLE ->
-                    toast(getString(R.string.delete_account_failed))
-            }
-        }
-    }
-
-    private fun toast(message: String) =
+    internal fun toast(message: String) =
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
 
-    private fun wirePreferencesSection() {
-        val valueLabel = findViewById<TextView>(R.id.tvMaxFramesValue)
-        val remoteMaxFrames = AppRemoteConfig.maxFrames(this)
-        val ceiling = DicSettings.frameCeiling(remoteMaxFrames).toFloat()
-        findViewById<Slider>(R.id.sliderMaxFrames).apply {
-            valueTo = ceiling
-            value = DicSettings.maxFrames(this@SettingsActivity, remoteMaxFrames)
-                .toFloat().coerceIn(valueFrom, valueTo)
-            valueLabel.text = frameCountText(value.toInt())
-            addOnChangeListener { _, v, _ ->
-                valueLabel.text = frameCountText(v.toInt())
-                DicSettings.setMaxFrames(this@SettingsActivity, v.toInt(), remoteMaxFrames)
-            }
-        }
-        findViewById<ImageButton>(R.id.btnMaxFramesInfo).setOnClickListener {
-            MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.setting_max_frames)
-                .setMessage(R.string.setting_max_frames_info)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
-        }
-    }
-
-    private fun wireHelpSupportSection() {
-        findViewById<View>(R.id.btnOpenManual).setOnClickListener {
-            openExternalUrl(getString(R.string.url_manual))
-        }
-        findViewById<View>(R.id.btnCommunity).setOnClickListener {
-            openExternalUrl(getString(R.string.url_community))
-        }
-        findViewById<View>(R.id.btnReportBug).setOnClickListener {
-            openExternalUrl(getString(R.string.url_report_bug))
-        }
-        findViewById<View>(R.id.btnRequestFeature).setOnClickListener {
-            openExternalUrl(getString(R.string.url_request_feature))
-        }
-        findViewById<View>(R.id.btnSendFeedback).setOnClickListener { sendFeedback() }
-        findViewById<View>(R.id.btnEmailSupport).setOnClickListener { emailSupport() }
-    }
-
     /** Opens a https URL in the browser; toast if nothing can handle it. */
-    private fun openExternalUrl(url: String) {
+    internal fun openExternalUrl(url: String) {
         val intent = Intent(Intent.ACTION_VIEW, url.toUri())
         try {
             startActivity(intent)
         } catch (e: ActivityNotFoundException) {
             Timber.w(e, "No browser to open %s", url)
             Toast.makeText(this, url, Toast.LENGTH_LONG).show()
-        }
-    }
-
-    /** Product feedback mail with version / device context (no account PII required). */
-    private fun sendFeedback() {
-        SemperAnalytics.event(this, SemperAnalytics.FEEDBACK_OPENED)
-        val body = getString(
-            R.string.help_support_feedback_body,
-            BuildConfig.VERSION_NAME,
-            BuildConfig.VERSION_CODE,
-            "${Build.MANUFACTURER} ${Build.MODEL}",
-            Build.VERSION.SDK_INT,
-            if (BuildConfig.DEBUG) "debug" else "release",
-        )
-        val support = getString(R.string.support_email)
-        val intent = Intent(Intent.ACTION_SENDTO).apply {
-            data = "mailto:".toUri()
-            putExtra(Intent.EXTRA_EMAIL, arrayOf(support))
-            putExtra(
-                Intent.EXTRA_SUBJECT,
-                getString(
-                    R.string.help_support_feedback_subject,
-                    BuildConfig.VERSION_NAME,
-                    BuildConfig.VERSION_CODE,
-                ),
-            )
-            putExtra(Intent.EXTRA_TEXT, body)
-        }
-        try {
-            startActivity(intent)
-        } catch (e: ActivityNotFoundException) {
-            Timber.w(e, "No email app for feedback")
-            Toast.makeText(this, getString(R.string.request_access_none, support), Toast.LENGTH_LONG).show()
-        }
-    }
-
-    /** Opens the mail app pre-filled to support with account + device context. */
-    private fun emailSupport() {
-        val account = TokenStore.cachedEmail(this) ?: getString(R.string.pending_unknown_account)
-        // The blank lines leave the cursor above the diagnostics, so the user
-        // writes their question first and the context travels underneath it.
-        val body = buildString {
-            append("\n\n---\n")
-            append("Account: ").append(account).append('\n')
-            // Same guard as the Account section: a Keystore that refuses to open
-            // must not cost the user their way of reaching support.
-            val deviceId = runCatching { DeviceKeyManager(this@SettingsActivity).getDeviceId() }
-                .getOrDefault("(unavailable)")
-            append("Device ID: ").append(deviceId).append('\n')
-            append("App: ").append(BuildConfig.VERSION_NAME)
-                .append(" (").append(BuildConfig.VERSION_CODE).append(")\n")
-            append("Device: ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL)
-                .append(" — Android ").append(Build.VERSION.RELEASE)
-        }
-        val support = getString(R.string.support_email)
-        val intent = Intent(Intent.ACTION_SENDTO).apply {
-            data = "mailto:".toUri()
-            putExtra(Intent.EXTRA_EMAIL, arrayOf(support))
-            putExtra(Intent.EXTRA_SUBJECT, getString(R.string.help_support_subject))
-            putExtra(Intent.EXTRA_TEXT, body)
-        }
-        try {
-            startActivity(intent)
-        } catch (e: ActivityNotFoundException) {
-            Timber.w(e, "No email app to contact support")
-            Toast.makeText(this, getString(R.string.request_access_none, support), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -1235,13 +788,11 @@ class SettingsActivity : AppCompatActivity() {
         SessionRecord.SyncState.FAILED -> getString(R.string.badge_not_backed_up)
     }
 
-    private fun humanSize(bytes: Long): String = when {
+    internal fun humanSize(bytes: Long): String = when {
         bytes >= BYTES_PER_GB -> String.format(Locale.US, "%.1f GB", bytes / BYTES_PER_GB.toDouble())
         bytes >= BYTES_PER_MB -> String.format(Locale.US, "%.0f MB", bytes / BYTES_PER_MB.toDouble())
         else -> String.format(Locale.US, "%.0f KB", bytes / BYTES_PER_KB)
     }
-
-    private fun frameCountText(value: Int): String = String.format(Locale.US, "%d", value)
 
     private data class PendingBundleDownload(
         val cloudSessionId: String,
@@ -1266,7 +817,7 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private companion object {
+    companion object {
         private const val STATE_DL_CLOUD = "pending_dl_cloud"
         private const val STATE_DL_NAME = "pending_dl_name"
         private const val STATE_DL_LOCAL = "pending_dl_local"

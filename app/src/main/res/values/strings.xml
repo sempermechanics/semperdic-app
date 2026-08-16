@@ -15,7 +15,10 @@
 
     <string name="analysis_caching_images">Caching images…</string>
     <string name="analysis_importing_title">Importing Images</string>
-    <string name="analysis_importing_fmt">Importing image %1$d of %2$d</string>
+    <plurals name="analysis_importing_fmt">
+        <item quantity="one">Importing image %1$d of %2$d</item>
+        <item quantity="other">Importing image %1$d of %2$d</item>
+    </plurals>
 
     <!-- Common actions -->
     <string name="cancel">Cancel</string>
@@ -127,9 +130,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
 
     <!-- Result viewer: summary animation and frame jump -->
     <string name="summary_title">Summary</string>
+    <string name="summary_gif">Summary GIF</string>
     <plurals name="summary_counter_fmt">
-        <item quantity="one">Summary · %1$s · %2$d frame</item>
-        <item quantity="other">Summary · %1$s · %2$d frames</item>
+        <item quantity="one">Summary GIF</item>
+        <item quantity="other">Summary GIF</item>
     </plurals>
     <string name="scale_max_fmt">Max: %1$s %2$s</string>
     <string name="scale_min_fmt">Min: %1$s %2$s</string>
@@ -161,7 +165,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="computing_strain_field">Computing Strain Field</string>
     <string name="label_0">0%</string>
     <string name="initializing_engine">Initializing engine…</string>
-    <string name="elapsed_0s">Elapsed 0s</string>
+    <string name="elapsed_0s">Elapsed 0:00</string>
     <string name="please_keep_the_app_open">Please keep the app open</string>
     <string name="text">—</string>
     <string name="extraction_frame_rate">Extraction frame rate</string>
@@ -316,7 +320,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="storage_free_up_title">Free up space?</string>
     <string name="storage_free_up_body">This removes the local images and results for every analysis that is already backed up, freeing about %1$s.\n\nNothing is deleted from the cloud. Opening one of these analyses downloads it again.</string>
     <string name="storage_free_up_confirm">Free up space</string>
-    <string name="storage_freed_fmt">Freed %1$s from %2$d analyses.</string>
+    <plurals name="storage_freed_fmt">
+        <item quantity="one">Freed %1$s from %2$d analysis.</item>
+        <item quantity="other">Freed %1$s from %2$d analyses.</item>
+    </plurals>
     <string name="storage_freed_none">There was nothing to free up.</string>
     <string name="storage_clear_cache">Clear temporary files</string>
     <string name="storage_clear_cache_sub">Import leftovers, transfer scratch, and export bundles. Safe to remove.</string>
@@ -484,8 +491,14 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="vsg_lattice_readout_copy_hint">Double-tap to copy parameters</string>
     <string name="vsg_lattice_share_graph">Share strain graph</string>
     <string name="vsg_export_title_fmt">%1$s · %2$s along %3$s</string>
-    <string name="vsg_export_images_fmt">Reference: %1$s · %2$d deformed images</string>
-    <string name="vsg_export_combos_fmt">%1$d parameter combinations</string>
+    <plurals name="vsg_export_images_fmt">
+        <item quantity="one">Reference: %1$s · %2$d deformed image</item>
+        <item quantity="other">Reference: %1$s · %2$d deformed images</item>
+    </plurals>
+    <plurals name="vsg_export_combos_fmt">
+        <item quantity="one">%1$d parameter combination</item>
+        <item quantity="other">%1$d parameter combinations</item>
+    </plurals>
     <string name="action_paste_params">Paste params</string>
 
     <string name="setting_vsg">Virtual strain gauge</string>
@@ -499,7 +512,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="line_cut_axis_y">Position along Y (px)</string>
     <string name="line_cut_axis_strain">Strain (mε)</string>
 
-    <string name="run_points_solved">Total points converged</string>
+    <string name="run_points_solved"># converged</string>
     <string name="run_convergence">convergence</string>
     <string name="cancel_run_title">Cancel this analysis?</string>
     <string name="cancel_run_body">Stops after the current frame. Results so far are discarded.</string>
@@ -508,7 +521,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="keep_running">Keep running</string>
     <string name="ref_formats_hint">PNG or TIFF recommended</string>
     <string name="deformed_frames">Deformed frames</string>
-    <string name="def_formats_hint_fmt">Up to %1$d · PNG or TIFF recommended</string>
+    <plurals name="def_formats_hint_fmt">
+        <item quantity="one">Up to %1$d frame · PNG or TIFF recommended</item>
+        <item quantity="other">Up to %1$d frames · PNG or TIFF recommended</item>
+    </plurals>
     <string name="action_change">Change</string>
     <string name="action_edit">Edit</string>
     <string name="action_reset">Reset</string>
