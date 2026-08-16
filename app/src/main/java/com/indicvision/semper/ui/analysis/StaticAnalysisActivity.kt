@@ -48,7 +48,6 @@ import com.indicvision.semper.DicKeys
 import com.indicvision.semper.EngineDebug
 import com.indicvision.semper.R
 import com.indicvision.semper.SemperNativeLib
-import com.indicvision.semper.data.CoachPrefs
 import com.indicvision.semper.data.DicSettings
 import com.indicvision.semper.data.ParamClipboard
 import com.indicvision.semper.data.net.AppRemoteConfig
@@ -132,6 +131,8 @@ class StaticAnalysisActivity : AppCompatActivity() {
     private lateinit var btnNext: Button
     private lateinit var btnBack: Button
     private lateinit var wizardChrome: AnalysisWizardChrome
+    private lateinit var wizardSlots: AnalysisWizardSlots
+    private lateinit var wizardCoach: AnalysisWizardCoach
     private lateinit var sweepHelper: SweepSetupHelper
     private lateinit var settingsSheetHelper: AnalysisSettingsSheetHelper
 
@@ -246,6 +247,13 @@ class StaticAnalysisActivity : AppCompatActivity() {
             btnRunSweep = findViewById(R.id.btnRunSweep),
             toolbar = findViewById(R.id.toolbar),
         )
+        wizardCoach = AnalysisWizardCoach(
+            activity = this,
+            coach = coach,
+            refDropzone = refDropzone,
+            defDropzone = defDropzone,
+            btnDefineRoi = btnDefineRoi,
+        )
 
         sweepHelper = SweepSetupHelper(
             activity = this,
@@ -270,6 +278,29 @@ class StaticAnalysisActivity : AppCompatActivity() {
         )
         // After the wizard views exist: the sweep controls call checkReady().
         sweepHelper.setup()
+        wizardSlots = AnalysisWizardSlots(
+            activity = this,
+            viewModel = viewModel,
+            refDropzone = refDropzone,
+            refCard = refCard,
+            ivRefThumb = ivRefThumb,
+            tvRefName = tvRefName,
+            tvRefMeta = tvRefMeta,
+            defDropzone = defDropzone,
+            defCard = defCard,
+            ivDefIcon = ivDefIcon,
+            tvDefName = tvDefName,
+            tvDefMeta = tvDefMeta,
+            jpegWarnRow = jpegWarnRow,
+            rvFrameOrder = rvFrameOrder,
+            btnFrameOrderSort = btnFrameOrderSort,
+            frameOrderAdapter = frameOrderAdapter,
+            tvInputsTitle = tvInputsTitle,
+            tvInputsMeta = tvInputsMeta,
+            ivInputsThumb = ivInputsThumb,
+            tvInstruction = tvInstruction,
+            onLineCutPreview = { sweepHelper.refreshLineCutPreview() },
+        )
 
         btnNext.setOnClickListener {
             when (viewModel.wizardStep) {
@@ -379,7 +410,7 @@ class StaticAnalysisActivity : AppCompatActivity() {
                     // A selection covering the whole image counts as no custom ROI.
                     viewModel.hasCustomRoi =
                         !(viewModel.roiW == viewModel.realRefWidth && viewModel.roiH == viewModel.realRefHeight)
-                    updateRoiSummary()
+                    wizardSlots.updateRoiSummary()
 
                     sweepHelper.refreshLineCutPreview()
                     checkReady()
@@ -501,7 +532,7 @@ class StaticAnalysisActivity : AppCompatActivity() {
                     viewModel.refName = name
                     viewModel.refBytes = loaded.bytes
                     refPreviewBmp = loaded.preview
-                    refreshRefSlot()
+                    wizardSlots.refreshRefSlot(refPreviewBmp)
 
                     if (!viewModel.hasCustomRoi) {
                         viewModel.roiX = 0
@@ -578,7 +609,7 @@ class StaticAnalysisActivity : AppCompatActivity() {
             tvResult = tvResult,
             overlayHelper = overlayHelper,
             onApplied = {
-                refreshDefSlot()
+                wizardSlots.refreshDefSlot()
                 validateFrameSizes()
                 checkReady()
             },
@@ -667,7 +698,7 @@ class StaticAnalysisActivity : AppCompatActivity() {
             viewModel.defOriginalNames = ordered.names
             viewModel.defFrameDates = ordered.dates
             viewModel.defFrameSizes = sizes
-            refreshDefSlot()
+            wizardSlots.refreshDefSlot()
             validateFrameSizes()
         }
     }
@@ -807,8 +838,8 @@ class StaticAnalysisActivity : AppCompatActivity() {
             overlayHelper = overlayHelper,
             onApplied = { applied ->
                 applied.refPreview?.let { refPreviewBmp = it }
-                refreshRefSlot()
-                refreshDefSlot()
+                wizardSlots.refreshRefSlot(refPreviewBmp)
+                wizardSlots.refreshDefSlot()
                 validateFrameSizes()
                 checkReady()
                 requestSubsetRecommendation()
@@ -1407,8 +1438,8 @@ class StaticAnalysisActivity : AppCompatActivity() {
         if (target >= 2) viewModel.settingsReviewed = true
 
         if (target == 2) {
-            refreshInputsCard()
-            updateRoiSummary()
+            wizardSlots.refreshInputsCard(refPreviewBmp)
+            wizardSlots.updateRoiSummary()
             // Cheap no-op when the reference/ROI have not changed since the
             // last measurement; covers inputs that arrived before this page.
             requestSubsetRecommendation()
@@ -1418,64 +1449,7 @@ class StaticAnalysisActivity : AppCompatActivity() {
         }
 
         checkReady()
-        maybeShowWizardCoach(target)
-    }
-
-    private fun maybeShowWizardCoach(step: Int) {
-        // Leaving a page dismisses any open coach for that screen.
-        coach.dismiss(markSeen = true)
-        val root = findViewById<View>(android.R.id.content)
-        root.post {
-            when (step) {
-                1 -> coach.maybeShow(
-                    CoachPrefs.Screen.ANALYSIS_IMAGES,
-                    listOf(
-                        CoachMarkController.Step(
-                            refDropzone,
-                            getString(R.string.coach_analysis_ref),
-                        ),
-                        CoachMarkController.Step(
-                            defDropzone,
-                            getString(R.string.coach_analysis_def),
-                        ),
-                    ),
-                )
-                2 -> coach.maybeShow(
-                    CoachPrefs.Screen.ANALYSIS_SETTINGS,
-                    listOf(
-                        CoachMarkController.Step(
-                            findViewById(R.id.rgAnalysisMode),
-                            getString(R.string.coach_analysis_mode),
-                        ),
-                        CoachMarkController.Step(
-                            btnDefineRoi,
-                            getString(R.string.coach_analysis_roi),
-                        ),
-                        CoachMarkController.Step(
-                            findViewById(R.id.advancedParamsHeader),
-                            getString(R.string.coach_analysis_advanced),
-                        ),
-                    ),
-                )
-                3 -> coach.maybeShow(
-                    CoachPrefs.Screen.ANALYSIS_SWEEP,
-                    listOf(
-                        CoachMarkController.Step(
-                            findViewById(R.id.subsetRangeBlock),
-                            getString(R.string.coach_sweep_subset),
-                        ),
-                        CoachMarkController.Step(
-                            findViewById(R.id.plannedLatticeCard),
-                            getString(R.string.coach_sweep_lattice),
-                        ),
-                        CoachMarkController.Step(
-                            findViewById(R.id.btnRunSweep),
-                            getString(R.string.coach_sweep_run),
-                        ),
-                    ),
-                )
-            }
-        }
+        wizardCoach.maybeShow(target)
     }
 
     private fun checkReady() {
@@ -1505,92 +1479,18 @@ class StaticAnalysisActivity : AppCompatActivity() {
                 }
                 withContext(Dispatchers.Main) {
                     refPreviewBmp = preview
-                    refreshRefSlot()
-                    refreshDefSlot()
+                    wizardSlots.refreshRefSlot(refPreviewBmp)
+                    wizardSlots.refreshDefSlot()
                     checkReady()
                     applySubsetRecommendation()
                 }
             }
         } else {
-            refreshRefSlot()
-            refreshDefSlot()
+            wizardSlots.refreshRefSlot(refPreviewBmp)
+            wizardSlots.refreshDefSlot()
             checkReady()
             applySubsetRecommendation()
         }
-    }
-
-    /** Reference slot: dropzone when empty, summary card when filled. */
-    private fun refreshRefSlot() {
-        val hasRef = viewModel.refBytes != null
-        refDropzone.visibility = if (hasRef) View.GONE else View.VISIBLE
-        refCard.visibility = if (hasRef) View.VISIBLE else View.GONE
-        if (hasRef) {
-            tvRefName.text = viewModel.refName
-            tvRefMeta.text = getString(
-                R.string.reference_meta_fmt,
-                viewModel.realRefWidth,
-                viewModel.realRefHeight,
-            )
-            refPreviewBmp?.let { ivRefThumb.setImageBitmap(it) }
-        }
-        updateJpegChip()
-    }
-
-    /** Deformed slot: dropzone when empty, count card + order strip when filled. */
-    private fun refreshDefSlot() {
-        val n = viewModel.defFilePaths.size
-        defDropzone.visibility = if (n > 0) View.GONE else View.VISIBLE
-        defCard.visibility = if (n > 0) View.VISIBLE else View.GONE
-        if (n > 0) {
-            tvDefName.text = resources.getQuantityString(R.plurals.def_count_fmt, n, n)
-            val first = viewModel.defFilePaths.first().substringAfterLast('/')
-            val last = viewModel.defFilePaths.last().substringAfterLast('/')
-            tvDefMeta.text = if (n == 1) first else "$first … $last"
-            // Match the icon to what the user actually picked — the frames are
-            // image files either way, so only the source tells them apart.
-            ivDefIcon.setImageResource(
-                if (viewModel.defFromVideo) R.drawable.ic_video else R.drawable.ic_photos_share,
-            )
-            rvFrameOrder.isVisible = true
-            frameOrderAdapter.submit(viewModel.defFilePaths)
-            val showSort = n > 1 && !viewModel.defFromVideo
-            btnFrameOrderSort.visibility = if (showSort) View.VISIBLE else View.GONE
-            frameOrderAdapter.dragEnabled =
-                showSort &&
-                viewModel.defOrderMode == FrameOrderMode.MANUAL
-        } else {
-            rvFrameOrder.isVisible = false
-            btnFrameOrderSort.isVisible = false
-            frameOrderAdapter.submit(emptyList())
-        }
-        updateJpegChip()
-    }
-
-    /** Confirm-settings inputs summary card. */
-    private fun refreshInputsCard() {
-        tvInputsTitle.text = viewModel.refName
-        tvInputsMeta.text = resources.getQuantityString(
-            R.plurals.inputs_meta_fmt,
-            viewModel.defFilePaths.size,
-            viewModel.defFilePaths.size,
-        )
-        refPreviewBmp?.let { ivInputsThumb.setImageBitmap(it) }
-    }
-
-    /** ROI card subtitle reflecting the current selection. */
-    private fun updateRoiSummary() {
-        tvInstruction.text = if (!viewModel.hasCustomRoi) {
-            getString(R.string.roi_full_fmt, viewModel.realRefWidth, viewModel.realRefHeight)
-        } else {
-            getString(
-                R.string.roi_custom_fmt,
-                viewModel.roiW,
-                viewModel.roiH,
-                viewModel.roiX,
-                viewModel.roiY,
-            )
-        }
-        sweepHelper.refreshLineCutPreview()
     }
 
     /** Clears a custom crop and treats the whole reference frame as the ROI. */
@@ -1603,16 +1503,8 @@ class StaticAnalysisActivity : AppCompatActivity() {
             viewModel.roiW = viewModel.realRefWidth
             viewModel.roiH = viewModel.realRefHeight
         }
-        updateRoiSummary()
+        wizardSlots.updateRoiSummary()
         checkReady()
         requestSubsetRecommendation()
-    }
-
-    /** Inline, non-blocking JPEG accuracy warning. */
-    private fun updateJpegChip() {
-        val jpeg = viewModel.refName.endsWith(".jpg", true) ||
-            viewModel.refName.endsWith(".jpeg", true) ||
-            viewModel.defFilePaths.any { it.endsWith(".jpg", true) || it.endsWith(".jpeg", true) }
-        jpegWarnRow.visibility = if (jpeg) View.VISIBLE else View.GONE
     }
 }
