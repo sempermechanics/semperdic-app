@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.annotation.VisibleForTesting
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.indicvision.semper.R
 import com.indicvision.semper.data.CaptureNoiseFloor
@@ -168,7 +169,10 @@ internal class NoiseFloorGateUi(
         // actually went wrong. Correlation failed, and at this resolution the
         // most likely reason is that the speckle is not resolved.
         if (result.verdict.outcome == NoiseFloorStats.Outcome.INSUFFICIENT) {
-            showUncorrelatedDialog(session, planWidth, planHeight)
+            showUncorrelatedDialog(planWidth, planHeight) {
+                warnAboutPipeline(session)
+                onProceed()
+            }
             return false
         }
         // Assigned before either dialog, because the dialog reads the gauge
@@ -201,8 +205,13 @@ internal class NoiseFloorGateUi(
      * could not be measured the recommendation is zero and setup simply
      * re-opens with the plan intact, which is still better than a retry that
      * will fail the same way.
+     *
+     * The session is not a parameter: nothing this method renders depends on
+     * the camera, and only the override branch does. Passing that branch in
+     * keeps the dialog testable without a camera to hand.
      */
-    private fun showUncorrelatedDialog(session: LockedCameraSession, planWidth: Int, planHeight: Int) {
+    @VisibleForTesting
+    internal fun showUncorrelatedDialog(planWidth: Int, planHeight: Int, onRecordAnyway: () -> Unit) {
         val longEdge = maxOf(planWidth, planHeight)
         val onPlan = speckleDiameterPx?.let {
             SpeckleScale.scaledTo(it, maxOf(sourceWidth, sourceHeight), longEdge)
@@ -237,8 +246,7 @@ internal class NoiseFloorGateUi(
             // the same override the floor verdict offers belongs here too.
             .setNegativeButton(R.string.capture_record_anyway) { _, _ ->
                 overridden = true
-                warnAboutPipeline(session)
-                onProceed()
+                onRecordAnyway()
             }
             .setNeutralButton(R.string.action_why, null)
         if (activity.isFinishing || activity.isDestroyed) return
