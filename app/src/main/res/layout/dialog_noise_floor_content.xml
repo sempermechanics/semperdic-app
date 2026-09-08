@@ -20,7 +20,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:textAppearance="@style/TextAppearance.Semper.SectionHeader"
             android:textColor="?attr/colorError"
             android:visibility="gone" />
 
@@ -43,15 +43,14 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:text="@string/capture_noise_floor_label"
-        android:textAppearance="?attr/textAppearanceLabelLarge"
-        android:textColor="?attr/colorOnSurfaceVariant" />
+        android:textAppearance="@style/TextAppearance.Semper.Label" />
 
     <TextView
         android:id="@+id/tvNoiseFloorValue"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:textAppearance="?attr/textAppearanceHeadlineLarge"
+        android:textAppearance="@style/TextAppearance.Semper.Hero"
         android:textStyle="bold" />
 
     <TextView
@@ -59,6 +58,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:textAppearance="?attr/textAppearanceBodyLarge"
+        android:textAppearance="@style/TextAppearance.Semper.Body"
         android:textColor="?attr/colorOnSurface" />
 </LinearLayout>
