@@ -57,6 +57,11 @@ object CameraCapabilities {
          *  outright, so the preview size is chosen from this and not simply
          *  scaled down from the capture size. */
         val previewSizes: List<Resolution>,
+        /** Physical long edge of the active sensor area, in millimetres, or
+         *  null when the device does not report one. The only ingredient of
+         *  [ImageScale] that is not already read somewhere else, and the one
+         *  that turns a speckle measured in pixels into a size at the bench. */
+        val sensorLongEdgeMm: Float? = null,
     ) {
         /** Sensor floor for [res] in ms, or 0 when this device reports none. */
         fun sensorFloorMs(res: Resolution): Long = minFrameMs[res] ?: 0L
@@ -196,6 +201,7 @@ object CameraCapabilities {
         yuvSizes = FALLBACK_STREAM_SIZES,
         minFrameMs = emptyMap(),
         previewSizes = FALLBACK_STREAM_SIZES,
+        sensorLongEdgeMm = null,
     )
 
     @Suppress("ReturnCount")
@@ -227,7 +233,13 @@ object CameraCapabilities {
             .orEmpty()
             .ifEmpty { yuv }
 
-        return Info(id, yuv, minFrameDurations(map, yuv), previews)
+        // Best-effort: absent on some devices, and absent is a state
+        // [ImageScale] is built to report rather than paper over.
+        val sensorMm = chars.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
+            ?.let { maxOf(it.width, it.height) }
+            ?.takeIf { it.isFinite() && it > 0f }
+
+        return Info(id, yuv, minFrameDurations(map, yuv), previews, sensorMm)
     }
 
     /**
