@@ -690,6 +690,11 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="other">%1$d camera settings could not be locked. Strain below this floor is noise, not measurement. Noted on the report.</item>
     </plurals>
     <string name="capture_record_anyway">Record anyway</string>
+    <!-- Sigma heat map shown under the noise-floor verdict. -->
+    <string name="capture_noise_map_desc">Map of measurement scatter across the framed area</string>
+    <!-- %1$.4f lowest scatter in px, %2$.4f highest, %3$.0f and %4$.0f the same
+         two ends in microstrain at the gauge the verdict is quoted at. -->
+    <string name="capture_noise_map_legend_fmt">Scatter across the area: %1$.4f to %2$.4f px (%3$.0f to %4$.0f µε). Blue is steadiest, red is worst.</string>
     <!-- The burst was taken but the frames would not correlate. Distinct from a
          burst that never happened: photographs exist, so "no photo was saved"
          would offer a remedy that cannot fix this. -->

@@ -37,6 +37,33 @@
             app:tint="?attr/colorOnSurface" />
     </LinearLayout>
 
+    <!-- The scatter drawn over the frame it was measured on. GONE whenever the
+         burst produced no field, which keeps the text-only dialog a valid
+         state rather than a degraded one. -->
+    <LinearLayout
+        android:id="@+id/groupNoiseFloorMap"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/imgNoiseFloorMap"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:contentDescription="@string/capture_noise_map_desc"
+            android:scaleType="fitCenter" />
+
+        <TextView
+            android:id="@+id/tvNoiseFloorMapLegend"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textAppearance="@style/TextAppearance.Semper.Caption" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/tvNoiseFloorLabel"
         android:layout_width="match_parent"

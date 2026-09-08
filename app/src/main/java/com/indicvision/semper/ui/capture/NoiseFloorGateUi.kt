@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.view.View
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.TextView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.indicvision.semper.R
@@ -170,6 +171,8 @@ internal class NoiseFloorGateUi(
             showUncorrelatedDialog(session, planWidth, planHeight)
             return false
         }
+        // Assigned before either dialog, because the dialog reads the gauge
+        // off it to put the colour scale in the same unit as the verdict.
         floor = result
         // A high floor no longer stops the run, but it must not pass unseen
         // either: it is shown, and the same verdict is stamped on the session so
@@ -258,6 +261,7 @@ internal class NoiseFloorGateUi(
                     label,
                     body = activity.getText(R.string.capture_noise_floor_body),
                     showFaq = true,
+                    map = result.sigmaMap,
                 ),
             )
             .setCancelable(false)
@@ -277,6 +281,7 @@ internal class NoiseFloorGateUi(
         headlineRes: Int? = null,
         body: CharSequence,
         showFaq: Boolean = false,
+        map: NoiseFloorSigmaMap? = null,
     ): View {
         @SuppressLint("InflateParams")
         val view = activity.layoutInflater.inflate(R.layout.dialog_noise_floor_content, null)
@@ -295,7 +300,43 @@ internal class NoiseFloorGateUi(
                 FaqRedirect.confirm(activity, R.string.url_faq_noise_floor)
             }
         }
+        showMap(view, map)
         return view
+    }
+
+    /**
+     * The scatter map, when the burst produced one.
+     *
+     * One number cannot say *where* a setup is weak: a glare patch, a soft
+     * corner and a thin band of speckle all reduce to the same slightly-worse
+     * floor, and all three have different answers. The map is what turns the
+     * verdict from a grade into somewhere to look.
+     *
+     * The legend quotes both ends of the colour scale twice — in pixels, which
+     * is what was measured, and in microstrain at the gauge the verdict itself
+     * is quoted at, which is what the number above the map is in. A colour
+     * scale in a unit the reader has to convert is a colour scale they will
+     * read wrong.
+     *
+     * Hidden, not omitted, when there is no field: the text-only dialog stays a
+     * valid state rather than becoming a degraded one.
+     */
+    private fun showMap(view: View, map: NoiseFloorSigmaMap?) {
+        val group = view.findViewById<View>(R.id.groupNoiseFloorMap)
+        if (map == null) {
+            group.visibility = View.GONE
+            return
+        }
+        val gauge = floor?.vsgPx ?: return
+        view.findViewById<ImageView>(R.id.imgNoiseFloorMap).setImageBitmap(map.image)
+        view.findViewById<TextView>(R.id.tvNoiseFloorMapLegend).text = activity.getString(
+            R.string.capture_noise_map_legend_fmt,
+            map.minSigmaPx,
+            map.maxSigmaPx,
+            NoiseFloorStats.microstrainFor(map.minSigmaPx, gauge),
+            NoiseFloorStats.microstrainFor(map.maxSigmaPx, gauge),
+        )
+        group.visibility = View.VISIBLE
     }
 
     /**
@@ -388,7 +429,7 @@ internal class NoiseFloorGateUi(
 
         val dialog = MaterialAlertDialogBuilder(activity)
             .setCancelable(false)
-        describe(dialog, verdict, refused, label)
+        describe(dialog, verdict, refused, label, result.sigmaMap)
         val proceed = { _: DialogInterface, _: Int ->
             // Recorded, so an export months later still says the run was
             // captured below the usable floor and by how much.
@@ -426,6 +467,7 @@ internal class NoiseFloorGateUi(
         verdict: NoiseFloorStats.Verdict,
         refused: Int,
         label: String,
+        map: NoiseFloorSigmaMap?,
     ) {
         when {
             verdict.outcome == NoiseFloorStats.Outcome.NOT_SETTLING ->
@@ -452,6 +494,7 @@ internal class NoiseFloorGateUi(
                             refused,
                             refused,
                         ),
+                        map = map,
                     ),
                 )
 
@@ -461,6 +504,7 @@ internal class NoiseFloorGateUi(
                         label = label,
                         headlineRes = R.string.capture_noise_erroneous_title,
                         body = activity.getText(R.string.capture_noise_erroneous_body),
+                        map = map,
                     ),
                 )
 
@@ -469,6 +513,7 @@ internal class NoiseFloorGateUi(
                     floorDialogContent(
                         label = label,
                         body = activity.getText(R.string.capture_noise_floor_body),
+                        map = map,
                     ),
                 )
         }

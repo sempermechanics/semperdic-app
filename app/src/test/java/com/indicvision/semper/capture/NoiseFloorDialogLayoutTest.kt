@@ -3,8 +3,10 @@ package com.indicvision.semper.capture
 import android.content.Context
 import android.view.ContextThemeWrapper
 import android.view.LayoutInflater
+import android.view.View
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.R
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,5 +38,22 @@ class NoiseFloorDialogLayoutTest {
         assertNotNull(view.findViewById(R.id.tvNoiseFloorLabel))
         assertNotNull(view.findViewById(R.id.tvNoiseFloorBody))
         assertNotNull(view.findViewById(R.id.tvNoiseFloorHeadline))
+    }
+
+    @Test
+    fun `the sigma map starts hidden so the text-only dialog stays valid`() {
+        // A burst that produced no field is a normal outcome, not a degraded
+        // one: INSUFFICIENT bursts and short bursts both reach this dialog with
+        // nothing to draw, and the layout has to be correct with the block
+        // never made visible.
+        val themed = ContextThemeWrapper(
+            ApplicationProvider.getApplicationContext<Context>(),
+            R.style.Theme_Semper,
+        )
+        val view = LayoutInflater.from(themed)
+            .inflate(R.layout.dialog_noise_floor_content, null)
+        assertNotNull(view.findViewById(R.id.imgNoiseFloorMap))
+        assertNotNull(view.findViewById(R.id.tvNoiseFloorMapLegend))
+        assertEquals(View.GONE, view.findViewById<View>(R.id.groupNoiseFloorMap).visibility)
     }
 }

@@ -46,6 +46,13 @@ object NoiseFloorGate {
         val framesCaptured: Int,
         /** Cost of the first still, for [CaptureCalibration]. */
         val firstFrameMs: Long,
+        /**
+         * The scatter drawn over the burst's own reference frame, or null when
+         * the burst could not produce one. Rendered here rather than carried as
+         * a field because the burst frames are deleted the moment [measure]
+         * returns, and a map has to be drawn while its image still exists.
+         */
+        val sigmaMap: NoiseFloorSigmaMap? = null,
     )
 
     /**
@@ -133,7 +140,7 @@ object NoiseFloorGate {
         val step = VsgStudy.stepSizeFor(subset, VsgStudy.DEFAULT_STEP_DENOM)
         val vsgPx = VsgStudy.vsgFor(VsgStudy.DEFAULT_STRAIN_WINDOW).toDouble()
 
-        val samples = withContext(SemperNativeLib.nativeDispatcher) {
+        val measurement = withContext(SemperNativeLib.nativeDispatcher) {
             NoiseFloorProbe.measure(
                 refFile = files.first(),
                 frameFiles = files.drop(1),
@@ -141,6 +148,7 @@ object NoiseFloorGate {
                 subset = subset,
             )
         }
+        val samples = measurement.samples
         logSeparation(samples)
         val verdict = NoiseFloorStats.evaluate(samples, vsgPx)
         Timber.i(
@@ -167,6 +175,7 @@ object NoiseFloorGate {
             vsgPx = vsgPx,
             framesCaptured = files.size,
             firstFrameMs = firstFrameMs,
+            sigmaMap = NoiseFloorMap.of(measurement.sigmaField, files.first()),
         )
     }
 

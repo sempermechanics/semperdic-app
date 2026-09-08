@@ -1,9 +1,11 @@
 package com.indicvision.semper.analysis
 
 import android.graphics.Rect
+import com.indicvision.semper.DicResult
 import com.indicvision.semper.ui.analysis.NoiseFloorProbe
 import com.indicvision.semper.ui.analysis.VsgStudy
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -94,8 +96,139 @@ class NoiseFloorProbeTest {
         assertTrue("step $step", step >= 47 / 2)
     }
 
+    // ------------------------------------------------------------------
+    // The per-cell scatter behind the sigma heat map
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `scatter accumulates by grid coordinate, not by array position`() {
+        // The defect this exists to prevent. Two frames of the same burst come
+        // back with different points in them, because the engine drops whatever
+        // would not solve. Here the second frame is missing its first point, so
+        // every later point shifts one slot down the array: an accumulator
+        // keyed on position would pair cell 1 with cell 0, cell 2 with cell 1,
+        // and so on, and would report a scatter that is really the difference
+        // between two different places on the specimen.
+        val accumulator = NoiseFloorProbe.SigmaAccumulator()
+        // Every cell holds still — u and v are the same in all three frames —
+        // so a correctly keyed accumulator reports zero scatter everywhere.
+        accumulator.add(field(cells = 0 until 20) { index -> index * DISPLACEMENT_PER_CELL })
+        accumulator.add(field(cells = 1 until 20) { index -> index * DISPLACEMENT_PER_CELL })
+        accumulator.add(field(cells = 0 until 20) { index -> index * DISPLACEMENT_PER_CELL })
+
+        val map = accumulator.field(imgW = 4000, imgH = 3000, step = STEP)!!
+        for (i in map.points.indices step DicResult.STRIDE) {
+            assertEquals("cell at ${map.points[i]}", 0.0, map.points[i + DicResult.IDX_U].toDouble(), 1e-6)
+        }
+    }
+
+    @Test
+    fun `a cell seen fewer than three times is left off the map`() {
+        // Two samples give one difference, which drawn as a colour would read
+        // as a finding rather than as the artefact of having looked twice.
+        val accumulator = NoiseFloorProbe.SigmaAccumulator()
+        accumulator.add(field(cells = 0 until 20) { 0f })
+        accumulator.add(field(cells = 0 until 20) { 0f })
+        accumulator.add(field(cells = 0 until 14) { 0f })
+
+        val map = accumulator.field(imgW = 4000, imgH = 3000, step = STEP)!!
+        assertEquals(14, map.points.size / DicResult.STRIDE)
+    }
+
+    @Test
+    fun `a burst too thin to map returns no map rather than a sparse one`() {
+        val accumulator = NoiseFloorProbe.SigmaAccumulator()
+        repeat(3) { accumulator.add(field(cells = 0 until 5) { 0f }) }
+        assertNull(accumulator.field(imgW = 4000, imgH = 3000, step = STEP))
+    }
+
+    @Test
+    fun `a point the engine rejected contributes nothing`() {
+        val accumulator = NoiseFloorProbe.SigmaAccumulator()
+        repeat(3) { accumulator.add(field(cells = 0 until 20) { 0f }) }
+        // Same cells again, wildly displaced, but marked as failed correlation.
+        repeat(3) { accumulator.add(field(cells = 0 until 20, znssd = REJECTED) { 99f }) }
+
+        val map = accumulator.field(imgW = 4000, imgH = 3000, step = STEP)!!
+        assertEquals(20, map.points.size / DicResult.STRIDE)
+        for (i in map.points.indices step DicResult.STRIDE) {
+            assertEquals(0.0, map.points[i + DicResult.IDX_U].toDouble(), 1e-6)
+        }
+    }
+
+    @Test
+    fun `the field is laid out the way the visualiser reads it`() {
+        // The map is drawn by VisualizationEngine.generateHeatmap with no
+        // changes inside it, which only works while this layout matches: grid
+        // position in IDX_X and IDX_Y, the value in IDX_U, and a ZNSSD that
+        // DicResult.isAcceptedPoint accepts. A marker of 1f would fail the
+        // 0.15 threshold and the map would come back empty with nothing said.
+        val accumulator = NoiseFloorProbe.SigmaAccumulator()
+        repeat(3) { frame -> accumulator.add(field(cells = 0 until 20) { frame * 0.01f }) }
+
+        val map = accumulator.field(imgW = 4000, imgH = 3000, step = STEP)!!
+        assertEquals(0, map.points.size % DicResult.STRIDE)
+        for (i in map.points.indices step DicResult.STRIDE) {
+            assertTrue("znssd", DicResult.isAcceptedPoint(map.points[i + DicResult.IDX_ZNSSD]))
+            assertTrue("x", map.points[i + DicResult.IDX_X] >= 0f)
+            assertTrue("sigma", map.points[i + DicResult.IDX_U] >= 0f)
+        }
+        assertEquals(4000, map.imgW)
+        assertEquals(3000, map.imgH)
+        assertEquals(STEP, map.step)
+    }
+
+    @Test
+    fun `the legend ends bracket every cell on the map`() {
+        val accumulator = NoiseFloorProbe.SigmaAccumulator()
+        // Cell index sets how far that cell moves between frames, so the map
+        // has a real spread rather than one value everywhere.
+        for (frame in 0 until 4) {
+            accumulator.add(field(cells = 0 until 20) { index -> index * frame * 0.001f })
+        }
+        val map = accumulator.field(imgW = 4000, imgH = 3000, step = STEP)!!
+        val sigmas = (map.points.indices step DicResult.STRIDE)
+            .map { map.points[it + DicResult.IDX_U].toDouble() }
+        assertEquals(sigmas.min(), map.minSigmaPx, 1e-9)
+        assertEquals(sigmas.max(), map.maxSigmaPx, 1e-9)
+        assertTrue("a real spread", map.maxSigmaPx > map.minSigmaPx)
+    }
+
+    /**
+     * A solved field in [DicResult]'s layout, holding [cells] laid out on a
+     * grid, each displaced by [displacement] of its own index.
+     *
+     * The cell index is written into the grid coordinates, so a cell keeps its
+     * identity across frames however the array is packed — which is exactly the
+     * thing the accumulator has to get right.
+     */
+    private fun field(
+        cells: IntRange,
+        znssd: Float = ACCEPTED,
+        displacement: (Int) -> Float,
+    ): FloatArray {
+        val points = FloatArray(cells.count() * DicResult.STRIDE)
+        cells.forEachIndexed { slot, cell ->
+            val at = slot * DicResult.STRIDE
+            points[at + DicResult.IDX_X] = ((cell % GRID_EDGE) * STEP).toFloat()
+            points[at + DicResult.IDX_Y] = ((cell / GRID_EDGE) * STEP).toFloat()
+            points[at + DicResult.IDX_U] = displacement(cell)
+            points[at + DicResult.IDX_V] = displacement(cell)
+            points[at + DicResult.IDX_ZNSSD] = znssd
+        }
+        return points
+    }
+
     private companion object {
         /** `valid_pts >= 3` in the engine's own support check. */
         const val ENGINE_MIN_SUPPORT = 3
+
+        const val STEP = 16
+        const val GRID_EDGE = 5
+        const val ACCEPTED = 0.01f
+        const val REJECTED = -1f
+
+        /** Distinct per cell, so pairing the wrong two cells cannot look like zero. */
+        const val DISPLACEMENT_PER_CELL = 0.1f
     }
 }
