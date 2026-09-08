@@ -17,7 +17,7 @@ App ↔ FAQ map: [FAQ_LINKS.md](FAQ_LINKS.md).
 | Section | Anchor | Opened from |
 |---------|--------|-------------|
 | Lossy formats | [jpeg-warning](#jpeg-warning) | Wizard step 1 chip |
-| Speckle contrast | [speckle-contrast](#speckle-contrast) | Wizard chip; capture speckle fail **Why?** |
+| Speckle contrast | [speckle-contrast](#speckle-contrast) | Wizard chip; capture speckle fail **Why?**; speckle-size dialogs; uncorrelated burst **Why?** |
 | Measurement floor | [noise-floor](#noise-floor) | Capture floor dialog **ⓘ** / **Why?**; result viewer caption |
 | Lighting & accuracy | [lighting-and-accuracy](#lighting-and-accuracy) | Linked from measurement floor; reports |
 | Strain field stats | [strain-field-stats](#strain-field-stats) | Result viewer; reports |
@@ -73,6 +73,60 @@ a subset are weak, correlation fails or wanders.
 See [lighting-and-accuracy](#lighting-and-accuracy) for how much light changes
 measured strain noise.
 
+### How big a speckle should be
+
+Contrast is only half of it. A speckle can be perfectly black on perfectly white
+and still be untrackable, because what DIC needs is a *feature size* the sensor
+can resolve. The iDICs *Good Practices Guide* puts a single speckle at:
+
+| | Speckle diameter | What happens outside it |
+|---|---|---|
+| **Minimum** | **3 px** | Below this the pattern aliases: neighbouring frames no longer share a feature to match, and correlation fails outright |
+| **Recommended** | **5 px** | Enough detail to interpolate to sub-pixel without wasting frame area |
+| **Maximum** | **9 px** | Above this the pattern is oversampled — more pixels are being spent per speckle with no gain in correlation, and the frame rate is paying for it |
+
+This is measured in **pixels of the recording**, not of the test shot, so the same
+specimen moves in and out of the band as the capture resolution changes. That is
+why the app measures the speckle on the test shot and then re-checks it against
+the resolution you actually chose.
+
+**When the app says the speckle is too small,** the fix is either a bigger
+recording (the dialog names the long edge that puts it at 5 px) or a coarser
+pattern. **When it says too large,** a *smaller* recording is the better answer:
+it costs less per frame, so the same run becomes available at a higher frame
+rate, and the correlation is no worse.
+
+### Speckle size in millimetres
+
+Pixels are a property of the camera; the pattern you paint is in millimetres. The
+app converts the band when it can work out the image scale, from the sensor size,
+the focal length and the subject distance the camera reports:
+
+```
+mm per pixel = (sensor long edge mm / image long edge px) × (distance − focal) / focal
+```
+
+Most phones do not report a calibrated subject distance, so this often reads
+**not available** — that is the normal case, not an error. The pixel figures are
+measured directly and are unaffected.
+
+---
+
+## speckle-uncorrelated {#speckle-uncorrelated}
+
+**When you see it:** **The pattern could not be tracked** after the static burst.
+
+The photographs were taken and processed — nothing failed about the capture. What
+failed is that the burst frames would not correlate with *each other*, on a scene
+that was not moving. At the recording size, the pattern is not resolved.
+
+**What to do:** the primary action is **Change resolution**, which returns to the
+setup screen with the recommended size already selected. **Record anyway** is
+still offered — you may know something the check does not — but a retry at the
+same size will fail the same way, which is why one is not offered.
+
+See [speckle-contrast](#speckle-contrast) for the size band and how to hit it.
+
 ---
 
 ## noise-floor {#noise-floor}
@@ -106,6 +160,26 @@ as **mε** (e.g. 1.0 mε). Same number, different unit for readability.
 **Gate:** **1 mε** is the warning line. Above it, strain smaller than the floor is
 mostly noise — the app warns strongly but still lets you **Record anyway** and
 stamps the floor on the **PDF**, **CSV**, and session.
+
+### The scatter map
+
+Under the number, when the burst produced enough frames, is a **heat map of the
+scatter drawn over the frame it was measured on**. Each cell is the spread of
+that point's position across the burst — the same quantity the floor above is a
+summary of, before it was summarised.
+
+It is there because one number cannot say *where* a setup is weak. A glare patch,
+a soft corner and a thin band of speckle all reduce to the same slightly-worse
+floor, and all three have different fixes. The map is what turns the verdict from
+a grade into somewhere to look: a bright corner means refocus, a bright patch
+means move the lamp, bright everywhere means the pattern.
+
+The legend gives both ends of the colour scale twice — in **pixels**, which is
+what was measured, and in **microstrain** at the same 15 px gauge the floor
+itself is quoted at, so the colours and the number above them read in one unit.
+
+The map is absent, rather than empty, when the burst could not produce one:
+fewer than three usable frames, or too few points that solved in all of them.
 
 ### What the dialog is telling you to do
 

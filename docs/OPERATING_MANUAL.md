@@ -259,8 +259,18 @@ typical values are about 0.50–0.75.
 ![Virtual strain gauge](images/vsg.svg)
 
 ```
-VSG = (strain window − 1) × step + 1     [px]
+VSG = strain window     [px]
 ```
+
+The strain window *is* the gauge length. The engine fits its strain plane over a
+circular window of that diameter in pixels, so step size does not enter — a
+denser step puts more points inside the same circle, it does not widen it. The
+older `(window − 1) × step + 1` expression assumed a window counted in *points*
+and overstated the gauge several-fold at any step above 1.
+
+In practice the measured gauge lands slightly **under** the nominal window,
+because the engine requires 90% support and the outer ring of the circle is not
+always filled.
 
 Quote the VSG, not the window: it is the distance one strain value actually
 covers. The sweep varies the **window** and reports the resulting VSG per node —
@@ -452,9 +462,9 @@ where you are. On a sweep each frame is a parameter combination, labelled like
 <img src="images/settings-used.png" width="300" alt="Settings used sheet">
 
 The ⓘ button. Everything the result was computed with — and on a sweep, the
-line-cut plot. There is no separate VSG row: it is `(strain window − 1) × step + 1`,
-and both of those are already listed, so `(13 − 1) × 5 + 1 = 61 px` is yours to
-read off (the relation is in [§5](#5-parameters)). A run that stopped early also
+line-cut plot. There is no separate VSG row: the gauge is the **strain window**
+itself in pixels, which is already listed — a window of 13 is a 13 px gauge (the
+relation is in [§5](#5-parameters)). A run that stopped early also
 carries **Stopped early** and **Frames solved** here.
 
 **Changing settings later never changes an old result.** This sheet is your
@@ -641,7 +651,7 @@ Write above that block; leave it in place.
 | Step denominator | 2–9 | — | Denser correlation | Faster runs |
 | Samples | 1–8 per axis | 3 | Finer detail | Runtime is the product |
 
-`VSG = (strain window − 1) × step + 1`
+`VSG = strain window` (in px; step size does not enter)
 
 ## Appendix B — Glossary
 

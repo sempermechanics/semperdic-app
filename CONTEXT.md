@@ -160,7 +160,36 @@ takes the larger of the Camera2 sensor read-out floor
 (`CameraCapabilities.sensorFloorMs`) and a real on-device PNG-encode timing
 (`CaptureCalibration`, re-measured once after the test shot), and
 `CapturePlanOptions` builds the chips from it with `ASSURANCE_MARGIN` on top so
-every rate shown is one the run will actually deliver. `StillSequenceRunner`
+every rate shown is one the run will actually deliver.
+
+`CaptureCalibration` fits **two** parameters, `fixedMs + slopeMsPerMp × MP`,
+both measured on the device at runtime. A per-megapixel-only model was
+unfittable: on real hardware a larger frame can cost *less* than a smaller one,
+because the cost is overwhelmingly fixed overhead, and the quotient a small
+sample produced then predicted seconds per frame at full resolution. Beyond
+`MAX_EXTRAPOLATION` times the largest anchor's pixel count the fit is ignored in
+favour of the conservative default model, and the poisoned `ms_per_megapixel`
+key is deleted on first read of the older schema.
+
+The ladder is **floored at 1 fps**. Below that the specimen moves more than a
+subset between frames, so the rate is not a DIC measurement whatever the camera
+can do; a resolution that cannot hold 1 fps is not offered at all, and the setup
+screen disables **Continue** and names the limit that binds — the camera, or the
+Max frames setting — rather than leaving a button that does nothing. At the
+floor, frames equal seconds, which makes Max frames the binding limit for any
+long run, so `DicSettings.DEFAULT_MAX_FRAMES` is **150** (range 10-500).
+
+Resolution is judged against the pattern, not chosen blind. `SpeckleScale`
+measures the speckle diameter off the test shot by lag-k autocorrelation, and
+`DicGoodPractice` holds the iDICs band — 3 px minimum, 5 px recommended, 9 px
+maximum. The **maximum** is what makes "high resolution or high fps" a solvable
+question rather than a trade-off: above 9 px the pattern is oversampled, so a
+*lower* resolution is recommended and the frame rate comes back. `ImageScale`
+converts the band to millimetres from the sensor size, focal length and subject
+distance where the camera reports them, and says **not available** rather than
+inventing a scale where it does not. Speckle warns and never blocks; the fps
+floor removes options outright, because that one is a device fact known before
+the specimen is spent. `StillSequenceRunner`
 schedules each frame from t0 rather than from its predecessor, so a slow frame
 cannot walk the run off the end of the test window, and `CaptureWorkspace`
 clears the previous run's frames so a shorter run cannot inherit the tail of a

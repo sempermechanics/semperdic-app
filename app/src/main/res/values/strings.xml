@@ -411,7 +411,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="subset_samples">No. of subsets</string>
     <string name="vsg_samples">No. of strain windows</string>
     <string name="step_depth">Step size</string>
-    <string name="info_step_depth">Step size given as subset ÷ N(Larger N means denser correlation). Capped between 2 and 6.</string>
+    <string name="info_step_depth">Step size given as subset ÷ N(Larger N means denser correlation). Capped between 2 and 9.</string>
     <string name="step_depth_prefix">subset ÷ </string>
     <string name="subset_overlap">Subset overlap</string>
     <string name="overlap">Overlap</string>

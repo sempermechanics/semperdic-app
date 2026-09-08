@@ -32,6 +32,8 @@ publishers; live links use the section ids below.
 | Capture test shot | Floor **pass** dialog | Large value + `capture_noise_floor_body`; **ⓘ** (does not dismiss) | `url_faq_noise_floor` | `#setup` |
 | Capture test shot | Floor **fail** / drift / unsettled | `capture_noise_erroneous_*` / unsettled / drift; **Why?** (does not dismiss) | `url_faq_noise_floor` | `#setup` |
 | Capture test shot | Speckle-fail dialog | **Why?** | `url_faq_speckle` | `#loading` |
+| Capture test shot | Burst would not correlate | `capture_noise_uncorrelated_*`; **Why?** beside **Change resolution** / **Record anyway** | `url_faq_speckle` | `#loading` |
+| Capture test shot | Speckle outside the 3-9 px band | `capture_speckle_under_*` / `capture_speckle_over_*`; **Why?** | `url_faq_speckle` | `#loading` |
 | Capture test shot | HAL refused settings | `capture_isp_warn_more` snackbar | `url_faq_imaging_pipeline` | `#setup` |
 | Capture test shot | Burst frames smoothed | `capture_denoise_warn` snackbar | `url_faq_imaging_pipeline` | `#setup` |
 | Lattice | Hollow node tap | short reason dialog **Why?** | same `url_faq_engine_*` as the node code | `#during-a-run` or `#reading` for VSG |

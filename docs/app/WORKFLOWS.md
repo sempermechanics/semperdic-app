@@ -263,6 +263,10 @@ sheet the wizard's two dropzones open (§5.1), so test it once here.
 | [ ] 3b.1 | From Home FAB → **Record** | Setup screen with fps, duration, resolution, and a mode summary |
 | [ ] 3b.1a | Press Back / close on setup | Home — Record is abandoned |
 | [ ] 3b.2 | Choose a plan that exceeds free RAM or storage | Blocking dialog; no test shot |
+| [ ] 3b.2a | Open the rate chips at every resolution | No rate below **1 fps** is ever offered. Below that the specimen moves more than a subset between frames, which is not a DIC measurement |
+| [ ] 3b.2b | Set Max frames to its minimum in Settings, then ask for a one-minute run | **Continue is disabled** — not enabled-and-silent — and the line under the chips names the frames the run needs, the cap it has, and that the cap is a Settings value |
+| [ ] 3b.2c | Pick the largest resolution on a slow phone, at a long duration | Same refusal, but the line names the **camera** and the per-frame cost instead of the setting: the fix is a smaller resolution, not a Settings change |
+| [ ] 3b.2d | Install fresh and open Settings | **Max frames** reads **150**, which is what a 150 s run at the 1 fps floor needs |
 | [ ] 3b.3 | Continue with a valid plan | CAMERA permission prompt (first run), then the phone Camera app opens for one test shot; **setup stays under the session** |
 | [ ] 3b.3a | Press Back on the session before recording | Setup again, with the previous fps / duration / resolution still filled |
 | [ ] 3b.4 | Cancel the test shot or save nothing | Retry / Cancel (Cancel → setup) |
@@ -283,6 +287,12 @@ sheet the wizard's two dropzones open (§5.1), so test it once here.
 | [ ] 3b.6e2 | Knock the tripod once with **Start recording** showing | Nothing happens — a knock is an acceleration, not a new framing |
 | [ ] 3b.6e3 | Re-aim the rig a few degrees with **Start recording** showing | **The camera moved**, Start withdrawn, **Retake test shot** as the primary action and the status line saying the same; recording cannot proceed on the stale floor |
 | [ ] 3b.6f | Pass the gate on a good setup | Dialog shows large **measurement floor** value (e.g. **402 µε**), body text, **ⓘ** → `#noise-floor` without dismiss; **Continue** enables **Start recording**; floor recorded on session |
+| [ ] 3b.6f2 | Record at a resolution well below the recommendation | Speckle-band dialog naming the **measured** diameter at that resolution, the **3 px** minimum it breaks, and the long edge that would put it at **5 px** — plus the same figures in **mm**, or "not available" where the camera reports no usable scale |
+| [ ] 3b.6f3 | Record at the largest resolution the device offers | The **oversampled** message instead, recommending a *lower* resolution — and the rate chips at that resolution offer a **higher** fps, which is the point of the ceiling |
+| [ ] 3b.6f4 | Tap **Change resolution** on either dialog | Back to setup with the recommendation **already selected** and a line saying why it moved; the duration and the rest of the plan are untouched |
+| [ ] 3b.6f5 | Point the camera at a pattern too fine to resolve, then pass the ROI | **The pattern could not be tracked** — never "no photo was saved". **Change resolution** is the primary action, **Record anyway** is still offered, and **Why?** opens the speckle FAQ |
+| [ ] 3b.6f6 | Pass the floor gate on a good setup | Under the floor value, a **heat map of the scatter drawn over the burst frame**, with a legend giving both ends of the scale in **px** and in **µε** at the same gauge as the number above it |
+| [ ] 3b.6f7 | Force a burst with too few usable frames | The map block is **absent**, not blank — the text-only dialog is still a complete, valid dialog |
 | [ ] 3b.6g | Press Back while timed stills are running | **Stop recording?** confirm; confirming returns to setup (frames discarded) |
 | [ ] 3b.7 | Complete a stills run | Wizard opens with reference + deformed frames filled; Back from wizard step 1 confirms exit to Home (not setup) |
 | [ ] 3b.8 | Open the phone's gallery after a run | A `semper/<date>-<time>` folder under Pictures holds the reference and every frame, as captured |
@@ -733,7 +743,7 @@ a centre double-tap brings the bars back when they have faded.
 | [ ] 8.4.1 | Tap the info button | Peek sheet titled **Details** with the specimen name under it, then max / min (coordinates) / mean, then subset, step, strain window, strain method, ROI and image size |
 | [ ] 8.4.1a | Open it on a run that stopped early | Two extra rows: **Stopped early** and **Frames solved (n of N)** — the provenance survives a restart |
 | [ ] 8.4.2 | Compare against what you entered in the wizard | They match |
-| [ ] 8.4.3 | Look for a **virtual strain gauge** row | There is none, deliberately: VSG is `(strain window − 1) × step + 1`, and both of those are already rows above it |
+| [ ] 8.4.3 | Look for a **virtual strain gauge** row | There is none, deliberately: the gauge **is** the strain window in px, which is already a row above it |
 | [ ] 8.4.4 | Scrub to another combination and reopen | The values follow the new frame, not the run's first |
 | [ ] 8.4.5 | Open it on a sweep | A line-cut plot with colour-matched Exx / Eyy / Exy and the cut axis named |
 | [ ] 8.4.6 | Open it on a single-setting run | No line-cut section |
