@@ -65,10 +65,37 @@ class CapturePlanOptionsTest {
 
     @Test
     fun `the max frames setting can be the binding limit`() {
-        // 17ms per frame would allow 30 fps, but 20 frames over 30s is 0.66 fps.
-        val options = CapturePlanOptions.of(30, perFrameMs = 17, maxFramesSetting = 20)
-        assertTrue("top was ${options.first().fps}", options.first().fps <= 0.67f)
+        // 17ms per frame would allow 30 fps, but 60 frames over 30s is 2 fps.
+        val options = CapturePlanOptions.of(30, perFrameMs = 17, maxFramesSetting = 60)
+        assertEquals(2f, options.first().fps, EPS)
+        assertTrue(CapturePlanOptions.cappedByFrameSetting(17L, 30, 60))
+    }
+
+    @Test
+    fun `a setting below one frame per second of the run offers nothing`() {
+        // 20 frames over 30 s is 0.66 fps, under the floor. The old code
+        // answered with a single one-frame "option" — a recording that cannot
+        // be correlated afterwards, offered as though it were a plan.
+        assertTrue(CapturePlanOptions.of(30, perFrameMs = 17, maxFramesSetting = 20).isEmpty())
+        // And the caller can tell which limit to name.
         assertTrue(CapturePlanOptions.cappedByFrameSetting(17L, 30, 20))
+        assertEquals(30, CapturePlanOptions.framesNeededAtFloor(30))
+    }
+
+    @Test
+    fun `no offered rate is ever below the floor`() {
+        val plans = (1..600 step 13).flatMap { seconds ->
+            longArrayOf(17, 80, 150, 290, 400, 900, 2500, 9_000).flatMap { perFrame ->
+                intArrayOf(10, 50, 150, 500).map { cap -> Triple(seconds, perFrame, cap) }
+            }
+        }
+        for ((seconds, perFrame, cap) in plans) {
+            val slowest = CapturePlanOptions.of(seconds, perFrame, cap).minByOrNull { it.fps } ?: continue
+            assertTrue(
+                "$seconds s at ${perFrame}ms cap $cap offered ${slowest.fps} fps",
+                slowest.fps >= CapturePlanOptions.MIN_FPS,
+            )
+        }
     }
 
     @Test
@@ -77,7 +104,7 @@ class CapturePlanOptionsTest {
     }
 
     @Test
-    fun `raising the setting to 500 lifts a run the old 150 ceiling held down`() {
+    fun `raising the setting to 500 lifts a run the 150 default held down`() {
         // 60s at 17ms per frame: the camera would allow 30 fps either way.
         val at150 = CapturePlanOptions.of(60, perFrameMs = 17, maxFramesSetting = 150).first()
         val at500 = CapturePlanOptions.of(60, perFrameMs = 17, maxFramesSetting = 500).first()
@@ -86,16 +113,21 @@ class CapturePlanOptionsTest {
     }
 
     @Test
-    fun `a device too slow for even the slowest standard rate still captures one frame`() {
-        val options = CapturePlanOptions.of(1, perFrameMs = 9_000, maxFramesSetting = BIG_CAP)
-        assertEquals(1, options.size)
-        assertEquals(1, options.first().frames)
+    fun `a device too slow for the floor offers nothing at all`() {
+        // 9 s per still cannot hold 1 fps by any arrangement of frames. The
+        // screen has to say so and disable Continue; there is no plan here to
+        // dress a single frame up as.
+        assertTrue(CapturePlanOptions.of(1, perFrameMs = 9_000, maxFramesSetting = BIG_CAP).isEmpty())
+        assertFalse(CapturePlanOptions.cappedByFrameSetting(9_000L, 1, BIG_CAP))
     }
 
     @Test
     fun `a slower device is offered lower rates, not the same ones`() {
         val fast = CapturePlanOptions.of(30, perFrameMs = 30, maxFramesSetting = BIG_CAP).first().fps
-        val slow = CapturePlanOptions.of(30, perFrameMs = 900, maxFramesSetting = BIG_CAP).first().fps
+        // 700 ms is about as slow as a device can be and still clear the
+        // floor; past that it is offered nothing, which the empty-list tests
+        // above cover.
+        val slow = CapturePlanOptions.of(30, perFrameMs = 700, maxFramesSetting = BIG_CAP).first().fps
         assertTrue("fast=$fast slow=$slow", slow < fast)
     }
 

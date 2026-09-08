@@ -43,13 +43,22 @@ internal object CapturePlanOptions {
     /**
      * Standard capture rates, descending. Snapping to these keeps the choice
      * readable — "2 fps", not "2.64 fps" — and the snap is always downward, so
-     * it can only add headroom. Sub-1 rates matter here: a creep or long-hold
-     * test runs for minutes and wants frames seconds apart.
+     * it can only add headroom.
+     *
+     * The ladder stops at [MIN_FPS]. The iDICs good-practice guidance this app
+     * follows elsewhere asks for frames close enough together that a subset
+     * moves less than its own size between them, and a rate below one frame a
+     * second cannot hold that for anything but a creep test the app does not
+     * claim to support. Rates of a frame every few seconds used to sit on this
+     * ladder; what they produced was a sequence the solver could not track.
      */
     @Suppress("MagicNumber") // the ladder *is* the data; naming each rung adds nothing
     private val FPS_LADDER = floatArrayOf(
-        60f, 30f, 24f, 20f, 15f, 12f, 10f, 8f, 6f, 5f, 4f, 3f, 2f, 1f, 0.5f, 0.2f, 0.1f,
+        60f, 30f, 24f, 20f, 15f, 12f, 10f, 8f, 6f, 5f, 4f, 3f, 2f, 1f,
     )
+
+    /** The slowest rate this app will offer. See [FPS_LADDER]. */
+    const val MIN_FPS = 1f
 
     /** Spacing between successive offers, so four chips span a useful range. */
     private const val OPTION_STEP_DOWN = 2f
@@ -66,19 +75,29 @@ internal object CapturePlanOptions {
      * Descending list of sustainable rates for [durationSec] at a resolution
      * costing [perFrameMs] per still, with the run's frame count kept within
      * [maxFramesSetting].
+     *
+     * **Empty is a real answer.** This used to fall back to a single
+     * one-frame-per-run option when nothing on the ladder fit, which offered
+     * the user a rate below [MIN_FPS] dressed up as a plan — a recording that
+     * cannot be correlated afterwards. A combination this device cannot shoot
+     * at [MIN_FPS] is not offerable, and the caller must say which limit binds
+     * rather than showing a chip that leads nowhere. See
+     * [cappedByFrameSetting] for which of the two it is.
      */
     fun of(durationSec: Int, perFrameMs: Long, maxFramesSetting: Int): List<Option> {
         val seconds = durationSec.coerceAtLeast(1)
         val cap = maxFramesSetting.coerceAtLeast(1)
         val ceiling = assuredMaxFps(perFrameMs, seconds, cap)
-        val rates = ladderFrom(ceiling)
-        if (rates.isEmpty()) {
-            // Slower than the slowest standard rate: one frame is still a
-            // capture, and saying so beats offering nothing.
-            return listOf(Option(fps = 1f / seconds, frames = 1, intervalMs = seconds * MILLIS_PER_SECOND.toLong()))
-        }
-        return rates.map { fps -> option(fps, seconds, cap) }
+        return ladderFrom(ceiling).map { fps -> option(fps, seconds, cap) }
     }
+
+    /**
+     * Frames a run of [durationSec] needs to hold [MIN_FPS] — which at the
+     * floor is one per second. The message that names *Max frames* as the
+     * binding limit quotes this, so the user is told the number to raise it to.
+     */
+    fun framesNeededAtFloor(durationSec: Int): Int =
+        (MIN_FPS * durationSec.coerceAtLeast(1)).toInt().coerceAtLeast(1)
 
     /**
      * Highest rate this device can hold, after both margins and the frame cap.

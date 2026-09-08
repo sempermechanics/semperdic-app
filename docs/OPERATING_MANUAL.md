@@ -101,7 +101,7 @@ Hard rules:
 |---|---|
 | All frames the same pixel size as the reference | Blocking error; you cannot run |
 | At least one reference + one deformed frame | **Next** stays off |
-| At most *Max frames* (default 50) | Extras dropped, with a toast |
+| At most *Max frames* (default 150) | Extras dropped, with a toast |
 
 **Formats.** PNG and TIFF are best. JPEG works but raises an accuracy warning —
 compression damages the intensity gradients correlation needs. RAW and DNG
@@ -273,7 +273,9 @@ your subject.
 
 ### Max frames
 
-In Settings, not here. 10–150, default 50. Caps frames per analysis.
+In Settings, not here. 10–500, default 150. Caps frames per analysis, and
+caps a capture: the rate ladder stops at 1 fps, so a run needs one frame per
+second of its duration and this setting is what makes a long run offerable.
 
 ---
 
@@ -633,7 +635,7 @@ Write above that block; leave it in place.
 | Step | 1–30 | 5 | Runtime matters | You need a denser field |
 | Strain window | 5–101, odd | 15 | Strain is noisy | Detail is being smoothed away |
 | Kernel | 4×4 / 6×6 | 4×4 Bicubic | Studying interpolation bias | — |
-| Max frames | 10–150 | 50 | Long sequences | Runs are killed for memory |
+| Max frames | 10–500 | 150 | Long sequences | Runs are killed for memory |
 | Sweep subset range | 15–121, odd | Around recommended | — | — |
 | Sweep strain window range | 5–101, odd | 5–101 | Strain is noisy | Detail is being smoothed away |
 | Step denominator | 2–9 | — | Denser correlation | Faster runs |

@@ -45,6 +45,7 @@ class CaptureSetupActivity : AppCompatActivity() {
     private lateinit var tvAssurance: TextView
     private lateinit var tvMode: TextView
     private lateinit var resPicker: CaptureResolutionPicker
+    private lateinit var btnContinue: MaterialButton
     private var options: List<CapturePlanOptions.Option> = emptyList()
 
     /** Cost of one still at the current resolution, recomputed by [rebuild]. */
@@ -110,6 +111,7 @@ class CaptureSetupActivity : AppCompatActivity() {
             caps.yuvSizes,
         ) { rebuild() }
 
+        btnContinue = findViewById(R.id.btnCaptureContinue)
         wireDurationField()
         chipsFps.setOnCheckedStateChangeListener { _, checked ->
             checked.firstOrNull()?.let { id ->
@@ -119,9 +121,7 @@ class CaptureSetupActivity : AppCompatActivity() {
         }
         rebuild()
 
-        findViewById<MaterialButton>(R.id.btnCaptureContinue).setOnClickListener {
-            onContinue()
-        }
+        btnContinue.setOnClickListener { onContinue() }
     }
 
     /**
@@ -187,9 +187,8 @@ class CaptureSetupActivity : AppCompatActivity() {
         options.firstOrNull { it.fps == preferredFps } ?: options.firstOrNull()
 
     private fun refreshLine() {
-        val option = selectedOption() ?: return
         val modeLabel = getString(R.string.capture_mode_stills)
-        tvEstimate.text = CaptureEstimateText.line(this, option, modeLabel)
+        tvMode.text = modeLabel
         // One prefs read: this runs on every keystroke in the duration field.
         val frameCap = maxFramesSetting()
         val cappedBySetting = CapturePlanOptions.cappedByFrameSetting(
@@ -197,12 +196,42 @@ class CaptureSetupActivity : AppCompatActivity() {
             durationSec,
             frameCap,
         )
+        val option = selectedOption()
+        if (option == null) {
+            showNoRate(cappedBySetting, frameCap)
+            return
+        }
+        btnContinue.isEnabled = true
+        tvEstimate.text = CaptureEstimateText.line(this, option, modeLabel)
         tvAssurance.text = getString(
             R.string.capture_fps_assured_with_ceiling,
             getString(R.string.capture_fps_assured),
             CaptureEstimateText.ceilingNote(this, cappedBySetting, frameCap),
         )
-        tvMode.text = modeLabel
+    }
+
+    /**
+     * No rate on the ladder fits this plan, so there is nothing to continue to.
+     *
+     * The button used to stay enabled and do nothing at all: [selectedOption]
+     * returned null on an empty list and [onContinue] returned silently. A
+     * disabled button plus the binding limit named in the line below the chips
+     * is the same information the user needed, in a place they will read it.
+     */
+    private fun showNoRate(cappedBySetting: Boolean, frameCap: Int) {
+        btnContinue.isEnabled = false
+        val res = resPicker.selected
+        tvEstimate.text = getString(R.string.capture_no_rate_title)
+        val why = if (cappedBySetting) {
+            CaptureEstimateText.noRateFromSetting(this, durationSec, frameCap)
+        } else {
+            CaptureEstimateText.noRateFromCamera(this, res.label, perFrameMs)
+        }
+        tvAssurance.text = getString(
+            R.string.capture_fps_assured_with_ceiling,
+            why,
+            getString(R.string.capture_no_rate_why),
+        )
     }
 
     @Suppress("ReturnCount")

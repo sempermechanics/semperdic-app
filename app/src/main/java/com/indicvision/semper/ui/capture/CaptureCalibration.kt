@@ -183,7 +183,7 @@ object CaptureCalibration {
         val mp = megapixels(width, height)
         val fit = fitOf(context)
         val modelled = when {
-            fit == null -> defaultModel(mp)
+            fit == null -> DEFAULT_MS_PER_MEGAPIXEL * mp
             mp > fit.maxAnchorMp * MAX_EXTRAPOLATION -> {
                 Timber.i(
                     "capture calibration: %.2f MP is past %.1fx the largest sample (%.2f MP); using the default",
@@ -191,7 +191,7 @@ object CaptureCalibration {
                     MAX_EXTRAPOLATION,
                     fit.maxAnchorMp,
                 )
-                defaultModel(mp)
+                DEFAULT_MS_PER_MEGAPIXEL * mp
             }
 
             else -> fit.predict(mp)
@@ -218,27 +218,27 @@ object CaptureCalibration {
      */
     internal fun fitOf(context: Context): Fit? {
         ensureSchema(context)
-        val lo = anchorAt(context, KEY_LO_MP, KEY_LO_MS) ?: return null
-        val hi = anchorAt(context, KEY_HI_MP, KEY_HI_MS) ?: return null
+        val lo = anchorAt(context, KEY_LO_MP, KEY_LO_MS)
+        val hi = anchorAt(context, KEY_HI_MP, KEY_HI_MS)
+        if (lo == null || hi == null) return null
         val anchors = listOf(lo.megapixels to lo.ms, hi.megapixels to hi.ms)
         val widest = maxOf(lo.megapixels, hi.megapixels)
-        if (hi.megapixels < lo.megapixels * MIN_ANCHOR_MP_RATIO) {
+        val rawSlope = (hi.ms - lo.ms) / (hi.megapixels - lo.megapixels)
+        return when {
             // One usable size only: hold the assumed overhead and let the
             // sample explain whatever is left, never less than nothing.
-            val single = if (hi.ms >= lo.ms) hi else lo
-            val fixed = minOf(DEFAULT_FIXED_MS, single.ms)
-            val slope = ((single.ms - fixed) / single.megapixels).coerceAtLeast(0f)
-            return Fit(fixed, slope, widest, anchors)
-        }
-        val rawSlope = (hi.ms - lo.ms) / (hi.megapixels - lo.megapixels)
-        return if (rawSlope <= 0f) {
-            Fit(maxOf(lo.ms, hi.ms), 0f, widest, anchors)
-        } else {
-            Fit((lo.ms - rawSlope * lo.megapixels).coerceAtLeast(0f), rawSlope, widest, anchors)
+            hi.megapixels < lo.megapixels * MIN_ANCHOR_MP_RATIO -> {
+                val single = if (hi.ms >= lo.ms) hi else lo
+                val fixed = minOf(DEFAULT_FIXED_MS, single.ms)
+                val slope = ((single.ms - fixed) / single.megapixels).coerceAtLeast(0f)
+                Fit(fixed, slope, widest, anchors)
+            }
+
+            rawSlope <= 0f -> Fit(maxOf(lo.ms, hi.ms), 0f, widest, anchors)
+
+            else -> Fit((lo.ms - rawSlope * lo.megapixels).coerceAtLeast(0f), rawSlope, widest, anchors)
         }
     }
-
-    private fun defaultModel(mp: Float): Float = DEFAULT_MS_PER_MEGAPIXEL * mp
 
     private fun sameSize(a: Anchor, b: Anchor): Boolean {
         val reference = maxOf(a.megapixels, b.megapixels)

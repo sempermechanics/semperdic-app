@@ -589,6 +589,13 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="capture_fps_assured_with_ceiling">%1$s\n%2$s</string>
     <string name="capture_fps_ceiling_camera">For a faster rate, choose a smaller resolution — the sensor and the encoder both slow down as the frame grows.</string>
     <string name="capture_fps_ceiling_setting_fmt">Your Max frames setting (%1$d) is holding the top of this list down, not the camera. Raise it in Settings, or shorten the run.</string>
+    <string name="capture_no_rate_title">No usable capture rate</string>
+    <plurals name="capture_no_rate_setting_fmt">
+        <item quantity="one">A %1$d s run at 1 frame per second needs %2$d frame, above your Max frames setting of %3$d. Raise Max frames in Settings, or shorten the run.</item>
+        <item quantity="other">A %1$d s run at 1 frame per second needs %2$d frames, above your Max frames setting of %3$d. Raise Max frames in Settings, or shorten the run.</item>
+    </plurals>
+    <string name="capture_no_rate_camera_fmt">This camera cannot hold 1 frame per second at %1$s — one still costs about %2$d ms. Choose a smaller resolution.</string>
+    <string name="capture_no_rate_why">Digital image correlation needs the specimen to move less than a subset between frames. Below 1 frame per second that stops being true for anything but a creep test, so the app no longer offers those rates.</string>
     <string name="capture_interval_sec_fmt">%1$.1f s</string>
     <string name="capture_interval_ms_fmt">%1$d ms</string>
     <string name="capture_mode_stills">Still photos, focus locked from the test shot</string>

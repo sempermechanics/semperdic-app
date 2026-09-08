@@ -36,6 +36,31 @@ internal object CaptureEstimateText {
             context.getString(R.string.capture_fps_ceiling_camera)
         }
 
+    /**
+     * Why *nothing* is offered, which is a state the screen can reach now that
+     * the ladder stops at [CapturePlanOptions.MIN_FPS].
+     *
+     * Emptiness on its own is a dead end — the same dead Continue button this
+     * replaced — so the sentence names the limit that binds and the number
+     * that would lift it. The two limits have opposite fixes and so get two
+     * sentences: offering the wrong one sends the user to a setting that was
+     * never the problem.
+     */
+    fun noRateFromSetting(context: Context, durationSec: Int, maxFramesSetting: Int): String {
+        val needed = CapturePlanOptions.framesNeededAtFloor(durationSec)
+        return context.resources.getQuantityString(
+            R.plurals.capture_no_rate_setting_fmt,
+            needed,
+            durationSec,
+            needed,
+            maxFramesSetting,
+        )
+    }
+
+    /** The other half of [noRateFromSetting]: the camera, not the setting. */
+    fun noRateFromCamera(context: Context, resolutionLabel: String, perFrameMs: Long): String =
+        context.getString(R.string.capture_no_rate_camera_fmt, resolutionLabel, perFrameMs)
+
     /** "2", "0.5" — never "2.0", which reads like false precision. */
     fun fps(value: Float): String =
         if (value >= 1f && value == value.toInt().toFloat()) {

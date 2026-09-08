@@ -15,7 +15,16 @@ import androidx.core.content.edit
 @Suppress("TooManyFunctions") // one getter/setter pair per setting; splitting would scatter them
 object DicSettings {
 
-    const val DEFAULT_MAX_FRAMES = 50
+    /**
+     * Frames per analysis out of the box.
+     *
+     * Sized against the capture side rather than the picker: the rate ladder
+     * stops at 1 fps, where a run needs one frame per second, so this default
+     * is what decides the longest run the app can offer at its slowest rate.
+     * At 50 anything over 50 s had no offerable rate at all, which read as the
+     * app refusing a perfectly ordinary plan.
+     */
+    const val DEFAULT_MAX_FRAMES = 150
     const val MIN_MAX_FRAMES = 10
 
     /**
