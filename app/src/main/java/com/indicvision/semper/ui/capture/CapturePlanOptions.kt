@@ -106,6 +106,18 @@ internal object CapturePlanOptions {
     fun assuredMaxFps(perFrameMs: Long, durationSec: Int, maxFramesSetting: Int): Float =
         minOf(hardwareFps(perFrameMs), frameCapFps(durationSec, maxFramesSetting))
 
+    /**
+     * Whether this device can hold [MIN_FPS] at a frame costing [perFrameMs],
+     * ignoring the run's own length and the user's frame cap.
+     *
+     * Deliberately a *device* question and not a plan question. The frame cap
+     * and the duration apply equally to every resolution, so they can never
+     * make one resolution offerable and another not — only the camera can. That
+     * is what makes this safe to ask once, when the screen is built, rather
+     * than on every keystroke in the duration field.
+     */
+    fun sustainableAtFloor(perFrameMs: Long): Boolean = hardwareFps(perFrameMs) >= MIN_FPS
+
     /** True when [maxFramesSetting] — not the camera — is holding the list down. */
     fun cappedByFrameSetting(perFrameMs: Long, durationSec: Int, maxFramesSetting: Int): Boolean =
         frameCapFps(durationSec, maxFramesSetting) < hardwareFps(perFrameMs)

@@ -139,4 +139,44 @@ class CapturePlanOptionsTest {
         val full = CapturePlanOptions.of(30, perFrameMs = 500, maxFramesSetting = BIG_CAP).first().fps
         assertTrue("binned=$binned full=$full", full < binned)
     }
+
+    // ------------------------------------------------------------------
+    // Which resolutions are worth offering at all
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `a frame the camera can repeat every second clears the floor`() {
+        // 1 fps after the assurance margin needs the raw cost under
+        // 1000 / 1.30 ms, so a frame at 700 ms clears it and one at 800 does
+        // not. Both are costs, not device names: any phone landing either side
+        // is treated the same way.
+        assertTrue(CapturePlanOptions.sustainableAtFloor(700L))
+        assertFalse(CapturePlanOptions.sustainableAtFloor(800L))
+    }
+
+    @Test
+    fun `the floor test ignores the run length and the frame cap`() {
+        // The point of asking this per resolution: the answer must not depend
+        // on anything that applies to every resolution equally, or hiding a
+        // resolution would be hiding the wrong thing.
+        val cheap = 100L
+        assertTrue(CapturePlanOptions.sustainableAtFloor(cheap))
+        // A cap and a duration that leave no offer at all do not change it.
+        assertTrue(CapturePlanOptions.of(600, cheap, 10).isEmpty())
+        assertTrue(CapturePlanOptions.sustainableAtFloor(cheap))
+    }
+
+    @Test
+    fun `a resolution that clears the floor really does have a rate to offer`() {
+        // The predicate is only honest if it agrees with the list builder at a
+        // plan the frame cap cannot spoil.
+        for (perFrameMs in listOf(50L, 200L, 500L, 700L, 760L)) {
+            val offered = CapturePlanOptions.of(durationSec = 10, perFrameMs = perFrameMs, maxFramesSetting = 500)
+            assertEquals(
+                "at $perFrameMs ms",
+                CapturePlanOptions.sustainableAtFloor(perFrameMs),
+                offered.isNotEmpty(),
+            )
+        }
+    }
 }

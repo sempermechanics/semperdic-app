@@ -1,90 +1,105 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?><!--
+    Scrollable, because this dialog grew a picture. The floor value and its
+    body text used to be the whole content and always fitted; with the scatter
+    map added they do not, on a short screen or at a large font scale, and a
+    dialog that silently clips the sentence explaining the number is worse than
+    one the user has to scroll.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingStart="24dp"
-    android:paddingTop="8dp"
-    android:paddingEnd="24dp"
-    android:paddingBottom="8dp">
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/tvNoiseFloorHeadline"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textAppearance="@style/TextAppearance.Semper.SectionHeader"
-            android:textColor="?attr/colorError"
-            android:visibility="gone" />
-
-        <ImageButton
-            android:id="@+id/btnNoiseFloorFaq"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/info"
-            android:padding="4dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/ic_info_min"
-            android:visibility="gone"
-            app:tint="?attr/colorOnSurface" />
-    </LinearLayout>
-
-    <!-- The scatter drawn over the frame it was measured on. GONE whenever the
-         burst produced no field, which keeps the text-only dialog a valid
-         state rather than a degraded one. -->
-    <LinearLayout
-        android:id="@+id/groupNoiseFloorMap"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
         android:orientation="vertical"
-        android:visibility="gone">
+        android:paddingStart="24dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="8dp">
 
-        <ImageView
-            android:id="@+id/imgNoiseFloorMap"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:adjustViewBounds="true"
-            android:contentDescription="@string/capture_noise_map_desc"
-            android:scaleType="fitCenter" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvNoiseFloorHeadline"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textAppearance="@style/TextAppearance.Semper.SectionHeader"
+                android:textColor="?attr/colorError"
+                android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/btnNoiseFloorFaq"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/info"
+                android:padding="4dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_info_min"
+                android:visibility="gone"
+                app:tint="?attr/colorOnSurface" />
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/tvNoiseFloorMapLegend"
+            android:id="@+id/tvNoiseFloorLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:textAppearance="@style/TextAppearance.Semper.Caption" />
+            android:text="@string/capture_noise_floor_label"
+            android:textAppearance="@style/TextAppearance.Semper.Label" />
+
+        <TextView
+            android:id="@+id/tvNoiseFloorValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textAppearance="@style/TextAppearance.Semper.Hero"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvNoiseFloorBody"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textAppearance="@style/TextAppearance.Semper.Body"
+            android:textColor="?attr/colorOnSurface" />
+
+        <!-- Below the number it illustrates, not above it: the verdict is what
+             the user opened this dialog for, and a picture placed first pushed
+             the value and its explanation off the bottom of the screen. GONE
+             whenever the burst produced no field, which keeps the text-only
+             dialog a valid state rather than a degraded one. -->
+        <LinearLayout
+            android:id="@+id/groupNoiseFloorMap"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/imgNoiseFloorMap"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                android:contentDescription="@string/capture_noise_map_desc"
+                android:maxHeight="@dimen/noise_floor_map_max_height"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:id="@+id/tvNoiseFloorMapLegend"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textAppearance="@style/TextAppearance.Semper.Caption" />
+        </LinearLayout>
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/tvNoiseFloorLabel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="@string/capture_noise_floor_label"
-        android:textAppearance="@style/TextAppearance.Semper.Label" />
-
-    <TextView
-        android:id="@+id/tvNoiseFloorValue"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textAppearance="@style/TextAppearance.Semper.Hero"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/tvNoiseFloorBody"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:textAppearance="@style/TextAppearance.Semper.Body"
-        android:textColor="?attr/colorOnSurface" />
-</LinearLayout>
+</ScrollView>

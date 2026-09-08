@@ -12,4 +12,11 @@
          magnification — around 3-4x on a typical phone, enough to see speckle
          go soft. -->
     <dimen name="capture_focus_loupe_size">120dp</dimen>
+
+    <!-- Ceiling on the noise scatter map inside the floor dialog. The map is
+         supporting evidence for the number above it, not the subject of the
+         dialog: left to fill the width it grew tall enough to push the floor
+         value and its explanation off a phone screen. Capped rather than
+         fixed, so a wide map still shrinks to fit. -->
+    <dimen name="noise_floor_map_max_height">200dp</dimen>
 </resources>

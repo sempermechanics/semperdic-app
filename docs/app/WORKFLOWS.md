@@ -264,6 +264,7 @@ sheet the wizard's two dropzones open (§5.1), so test it once here.
 | [ ] 3b.1a | Press Back / close on setup | Home — Record is abandoned |
 | [ ] 3b.2 | Choose a plan that exceeds free RAM or storage | Blocking dialog; no test shot |
 | [ ] 3b.2a | Open the rate chips at every resolution | No rate below **1 fps** is ever offered. Below that the specimen moves more than a subset between frames, which is not a DIC measurement |
+| [ ] 3b.2a2 | Open the resolution drawer on a phone with a slow large resolution | Only resolutions the camera can hold **1 fps** at are listed. A size with no rate to offer is not named, because choosing it could only produce the refusal |
 | [ ] 3b.2b | Set Max frames to its minimum in Settings, then ask for a one-minute run | **Continue is disabled** — not enabled-and-silent — and the line under the chips names the frames the run needs, the cap it has, and that the cap is a Settings value |
 | [ ] 3b.2c | Pick the largest resolution on a slow phone, at a long duration | Same refusal, but the line names the **camera** and the per-frame cost instead of the setting: the fix is a smaller resolution, not a Settings change |
 | [ ] 3b.2d | Install fresh and open Settings | **Max frames** reads **150**, which is what a 150 s run at the 1 fps floor needs |
@@ -292,6 +293,7 @@ sheet the wizard's two dropzones open (§5.1), so test it once here.
 | [ ] 3b.6f4 | Tap **Change resolution** on either dialog | Back to setup with the recommendation **already selected** and a line saying why it moved; the duration and the rest of the plan are untouched |
 | [ ] 3b.6f5 | Point the camera at a pattern too fine to resolve, then pass the ROI | **The pattern could not be tracked** — never "no photo was saved". **Change resolution** is the primary action, **Record anyway** is still offered, and **Why?** opens the speckle FAQ |
 | [ ] 3b.6f6 | Pass the floor gate on a good setup | Under the floor value, a **heat map of the scatter drawn over the burst frame**, with a legend giving both ends of the scale in **px** and in **µε** at the same gauge as the number above it |
+| [ ] 3b.6f6b | Read the whole floor dialog with the map showing, at a large system font size | Everything is reachable: the dialog **scrolls**, the floor value and its explanation are **above** the map, and the map is capped so it cannot push them off |
 | [ ] 3b.6f7 | Force a burst with too few usable frames | The map block is **absent**, not blank — the text-only dialog is still a complete, valid dialog |
 | [ ] 3b.6g | Press Back while timed stills are running | **Stop recording?** confirm; confirming returns to setup (frames discarded) |
 | [ ] 3b.7 | Complete a stills run | Wizard opens with reference + deformed frames filled; Back from wizard step 1 confirms exit to Home (not setup) |

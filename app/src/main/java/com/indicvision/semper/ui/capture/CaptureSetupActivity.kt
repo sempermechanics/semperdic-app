@@ -22,6 +22,7 @@ import com.indicvision.semper.data.DicSettings
 import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.ui.analysis.StaticAnalysisActivity
 import com.indicvision.semper.ui.common.Insets
+import timber.log.Timber
 
 /**
  * Collects capture rate / duration / resolution, runs the budget gate, then
@@ -122,7 +123,7 @@ class CaptureSetupActivity : AppCompatActivity() {
         // of the device alone: a change here rebuilds the rates.
         resPicker = CaptureResolutionPicker(
             findViewById<Spinner>(R.id.spinnerCaptureResolution),
-            caps.yuvSizes,
+            offerableSizes(),
         ) { rebuild() }
 
         btnContinue = findViewById(R.id.btnCaptureContinue)
@@ -166,6 +167,39 @@ class CaptureSetupActivity : AppCompatActivity() {
         val canonical = CaptureDurationText.format(durationSec)
         if (etDuration.text.toString() != canonical) etDuration.setText(canonical)
         rebuild()
+    }
+
+    /**
+     * The resolutions worth putting in the drawer: the ones this camera can
+     * actually hold [CapturePlanOptions.MIN_FPS] at.
+     *
+     * A resolution that cannot reach the floor has no rate to offer, so
+     * choosing it can only produce the "no usable capture rate" refusal. Naming
+     * it in the list is an offer the screen has already decided to decline —
+     * better not to make it.
+     *
+     * The filter is only ever the **camera's** limit. Max frames and the run
+     * length bind every resolution alike, so if they are what is wrong, hiding
+     * resolutions would hide the whole list and point the user at the one thing
+     * that is not the problem; that case keeps the full list and is explained
+     * by [showNoRate] instead. For the same reason, if *nothing* clears the
+     * floor the list is left whole: an empty drawer says less than a populated
+     * one beside a message naming the camera.
+     */
+    private fun offerableSizes(): List<CameraCapabilities.Resolution> {
+        val all = caps.yuvSizes
+        val sustainable = all.filter {
+            CapturePlanOptions.sustainableAtFloor(CaptureFrameCost.perFrameMs(this, caps, it))
+        }
+        if (sustainable.size < all.size) {
+            Timber.i(
+                "capture setup: %d of %d resolutions cannot hold %s fps; not offering them",
+                all.size - sustainable.size,
+                all.size,
+                CapturePlanOptions.MIN_FPS,
+            )
+        }
+        return sustainable.ifEmpty { all }
     }
 
     private fun maxFramesSetting(): Int =
