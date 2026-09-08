@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primary button label, the other half of btn_semper_bg: white on the live fill,
+     and dimmed to Material's 38% on the disabled one so the label does not float
+     at full contrast over a washed-out background. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:alpha="0.38" android:color="@color/text_on_primary" android:state_enabled="false" />
+    <item android:color="@color/text_on_primary" />
+</selector>

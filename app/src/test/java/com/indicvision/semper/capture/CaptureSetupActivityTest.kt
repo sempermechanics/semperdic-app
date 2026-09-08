@@ -9,6 +9,7 @@ import com.indicvision.semper.data.DicSettings
 import com.indicvision.semper.ui.capture.CaptureSetupActivity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -75,6 +76,45 @@ class CaptureSetupActivityTest {
         )
     }
 
+    @Test
+    fun `the refusal is one line, not a lecture`() {
+        setMaxFrames(DicSettings.MIN_MAX_FRAMES)
+
+        val activity = launchWithDuration(LONG_RUN)
+
+        // The line used to carry the reasoning behind the 1 fps floor as well,
+        // which is a paragraph the user has to read past to reach the sentence
+        // telling them what to change. A dead end wants an exit, not a lesson.
+        val said = activity.findViewById<TextView>(R.id.tvCaptureAssurance).text.toString()
+        assertTrue("stays short: $said", said.length <= MAX_REFUSAL_CHARS)
+        assertFalse("no correlation lecture: $said", said.contains("subset"))
+    }
+
+    @Test
+    fun `a disabled Continue does not look like an enabled one`() {
+        setMaxFrames(DicSettings.MIN_MAX_FRAMES)
+
+        val activity = launchWithDuration(LONG_RUN)
+
+        // The style set backgroundTint to a flat colour, which replaced the
+        // state list wholesale: the button was disabled and still painted the
+        // full-strength primary fill, so the only way to discover it was dead
+        // was to press it. Both halves of the affordance have to dim.
+        val button = activity.findViewById<MaterialButton>(R.id.btnCaptureContinue)
+        val fill = requireNotNull(button.backgroundTintList) { "a tint list" }
+        val label = button.textColors
+        assertNotEquals(
+            "the fill dims when disabled",
+            fill.getColorForState(ENABLED, 0),
+            fill.getColorForState(DISABLED, 0),
+        )
+        assertNotEquals(
+            "the label dims with it",
+            label.getColorForState(ENABLED, 0),
+            label.getColorForState(DISABLED, 0),
+        )
+    }
+
     /** Type a duration into the field the way the user does, then let it settle. */
     private fun launchWithDuration(seconds: Int): CaptureSetupActivity {
         val activity = Robolectric.buildActivity(CaptureSetupActivity::class.java)
@@ -105,5 +145,14 @@ class CaptureSetupActivityTest {
 
         /** Well inside the default cap at every rate the ladder offers. */
         const val SHORT_RUN = 5
+
+        /**
+         * Long enough for the number, the cap and both ways out; short enough
+         * that a second explanatory paragraph cannot hide inside it.
+         */
+        const val MAX_REFUSAL_CHARS = 120
+
+        val ENABLED = intArrayOf(android.R.attr.state_enabled)
+        val DISABLED = intArrayOf(-android.R.attr.state_enabled)
     }
 }

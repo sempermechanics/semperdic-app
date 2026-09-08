@@ -590,12 +590,15 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="capture_fps_ceiling_camera">For a faster rate, choose a smaller resolution — the sensor and the encoder both slow down as the frame grows.</string>
     <string name="capture_fps_ceiling_setting_fmt">Your Max frames setting (%1$d) is holding the top of this list down, not the camera. Raise it in Settings, or shorten the run.</string>
     <string name="capture_no_rate_title">No usable capture rate</string>
+    <!-- One line, because it sits under a heading that has already said there is
+         no rate. It names the binding number and the two ways out; the reasoning
+         behind the 1 fps floor belongs in the FAQ, not in the way of the fix.
+         %1$d run seconds, %2$d frames needed, %3$d the Max frames setting. -->
     <plurals name="capture_no_rate_setting_fmt">
-        <item quantity="one">A %1$d s run at 1 frame per second needs %2$d frame, above your Max frames setting of %3$d. Raise Max frames in Settings, or shorten the run.</item>
-        <item quantity="other">A %1$d s run at 1 frame per second needs %2$d frames, above your Max frames setting of %3$d. Raise Max frames in Settings, or shorten the run.</item>
+        <item quantity="one">%1$d s at 1 fps needs %2$d frame; Max frames is %3$d. Shorten the run, or raise it in Settings.</item>
+        <item quantity="other">%1$d s at 1 fps needs %2$d frames; Max frames is %3$d. Shorten the run, or raise it in Settings.</item>
     </plurals>
-    <string name="capture_no_rate_camera_fmt">This camera cannot hold 1 frame per second at %1$s — one still costs about %2$d ms. Choose a smaller resolution.</string>
-    <string name="capture_no_rate_why">Digital image correlation needs the specimen to move less than a subset between frames. Below 1 frame per second that stops being true for anything but a creep test, so the app no longer offers those rates.</string>
+    <string name="capture_no_rate_camera_fmt">%1$s costs about %2$d ms a frame — too slow for 1 fps. Choose a smaller resolution.</string>
     <string name="capture_interval_sec_fmt">%1$.1f s</string>
     <string name="capture_interval_ms_fmt">%1$d ms</string>
     <string name="capture_mode_stills">Still photos, focus locked from the test shot</string>
@@ -710,8 +713,18 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="capture_speckle_under_body">At this recording size the speckle dots measure about %1$.1f pixels across. DIC needs %2$d to %3$d pixels per dot, so the analysis is unlikely to track them. Recording at %4$s would bring them into range.</string>
     <string name="capture_speckle_over_title">A smaller resolution would record faster</string>
     <string name="capture_speckle_over_body">At this recording size the speckle dots measure about %1$.1f pixels across. DIC gains nothing above %3$d pixels per dot, and the extra pixels cost time on every frame. Recording at %4$s measures just as well and allows a higher frame rate.</string>
+    <!-- Same case, but the rate ladder lands on the same rung at both sizes, so
+         the smaller frame buys headroom and battery rather than a faster run.
+         Kept as its own string rather than a clause, because promising a higher
+         frame rate that does not arrive is the one thing the user will check. -->
+    <string name="capture_speckle_over_body_same_rate">At this recording size the speckle dots measure about %1$.1f pixels across. DIC gains nothing above %3$d pixels per dot, and the extra pixels cost time on every frame. Recording at %4$s measures just as well, with time to spare on every frame.</string>
     <!-- %1$.2f measured speckle in mm, %2$.2f smallest usable, %3$.2f largest. -->
     <string name="capture_speckle_mm_fmt">On the specimen that is about %1$.2f mm per dot. At this resolution the usable range is %2$.2f to %3$.2f mm.</string>
+    <!-- Shown in place of the line above when no scale could be derived. Most
+         phones report no focus distance, so this is the ordinary case, not an
+         error: it says the millimetre figure is missing and why, and stops the
+         user hunting for a number that was never there. -->
+    <string name="capture_speckle_mm_unavailable">Dot size in millimetres: not available — this phone does not report the focus distance needed to work out the scale.</string>
     <!-- Fallback when no offered resolution is close to the recommendation. -->
     <string name="capture_speckle_fit_long_edge_fmt">about %1$d pixels across</string>
     <!-- %1$s is a resolution label such as 1920x1080. -->

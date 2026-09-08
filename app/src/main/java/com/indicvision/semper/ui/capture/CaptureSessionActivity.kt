@@ -30,6 +30,8 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.indicvision.semper.DicKeys
 import com.indicvision.semper.R
 import com.indicvision.semper.data.CaptureNoiseFloor
+import com.indicvision.semper.data.DicSettings
+import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.imaging.BitmapDecode
 import com.indicvision.semper.ui.analysis.DicGoodPractice
 import com.indicvision.semper.ui.analysis.NoiseFloorPixels
@@ -534,8 +536,35 @@ class CaptureSessionActivity : AppCompatActivity() {
             verdict.band,
             verdict.recommended?.label ?: "${verdict.recommendedLongEdge} px long edge",
         )
-        showSpeckleFitDialog(verdict)
+        showSpeckleFitDialog(verdict, buysARate(caps, plan, verdict.recommended))
         return false
+    }
+
+    /**
+     * Whether dropping to [recommended] actually buys a faster rate on this
+     * camera, rather than only saving frame time.
+     *
+     * Worth asking rather than assuming. The rate ladder snaps to rungs, and
+     * frame cost on a phone is mostly fixed overhead, so a resolution with a
+     * third of the pixels can still land on the same rung — which is exactly
+     * what happened on the device this was written against. Promising a higher
+     * frame rate and then offering the same one is a small lie the user checks
+     * immediately, so the claim is made only when it is true.
+     *
+     * Both sides are asked with the run's own duration and frame cap, because
+     * that is the ladder the user will see when they arrive back at setup.
+     */
+    private fun buysARate(
+        caps: CameraCapabilities.Info,
+        plan: CameraCapabilities.Resolution,
+        recommended: CameraCapabilities.Resolution?,
+    ): Boolean {
+        if (recommended == null) return false
+        val cap = DicSettings.maxFrames(this, AppRemoteConfig.maxFrames(this))
+        fun topFps(res: CameraCapabilities.Resolution): Float =
+            CapturePlanOptions.of(durationSec, CaptureFrameCost.perFrameMs(this, caps, res), cap)
+                .firstOrNull()?.fps ?: 0f
+        return topFps(recommended) > topFps(plan)
     }
 
     /**
@@ -549,20 +578,22 @@ class CaptureSessionActivity : AppCompatActivity() {
      * rate back, and a user told only "your speckle is too big" would reasonably
      * ignore it.
      *
-     * The millimetre line is appended only when a scale could be derived. Most
-     * phones report no subject distance, so its absence is the normal case and
-     * is handled by saying less rather than by saying "not available" in the
-     * middle of a sentence the user is trying to act on.
+     * The millimetre line is always present, and says "not available" when no
+     * scale could be derived. Most phones report no subject distance, so that
+     * is the ordinary case rather than a fault; it sits in its own paragraph at
+     * the end, so the sentences the user has to act on are never interrupted by
+     * it, and a missing figure is stated instead of silently left out.
      */
-    private fun showSpeckleFitDialog(verdict: CaptureSuitability.Verdict) {
+    private fun showSpeckleFitDialog(verdict: CaptureSuitability.Verdict, buysARate: Boolean) {
         val recommendedLabel = verdict.recommended?.label
             ?: getString(R.string.capture_speckle_fit_long_edge_fmt, verdict.recommendedLongEdge)
         val body = StringBuilder(
             getString(
-                if (verdict.band == DicGoodPractice.Verdict.UNDER_RESOLVED) {
-                    R.string.capture_speckle_under_body
-                } else {
-                    R.string.capture_speckle_over_body
+                when {
+                    verdict.band == DicGoodPractice.Verdict.UNDER_RESOLVED ->
+                        R.string.capture_speckle_under_body
+                    buysARate -> R.string.capture_speckle_over_body
+                    else -> R.string.capture_speckle_over_body_same_rate
                 },
                 verdict.speckleOnPlanPx,
                 DicGoodPractice.MIN_SPECKLE_PX.toInt(),
@@ -572,11 +603,13 @@ class CaptureSessionActivity : AppCompatActivity() {
         )
         val speckleMm = verdict.speckleMm
         val bandMm = verdict.bandMm
-        if (speckleMm != null && bandMm != null) {
-            body.append(PARAGRAPH_BREAK).append(
-                getString(R.string.capture_speckle_mm_fmt, speckleMm, bandMm.first, bandMm.third),
-            )
-        }
+        body.append(PARAGRAPH_BREAK).append(
+            if (speckleMm != null && bandMm != null) {
+                getString(R.string.capture_speckle_mm_fmt, speckleMm, bandMm.first, bandMm.third)
+            } else {
+                getString(R.string.capture_speckle_mm_unavailable)
+            },
+        )
         val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(
                 if (verdict.band == DicGoodPractice.Verdict.UNDER_RESOLVED) {

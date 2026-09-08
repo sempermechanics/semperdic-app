@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primary button fill. The style used to set backgroundTint to a flat colour,
+     which replaced the Material state list wholesale: a disabled button kept the
+     full-strength sky fill and read as tappable, which is exactly the case the
+     capture screen relies on when no capture rate is offerable. Disabled is the
+     same hue at 26% alpha over the surface, matching Material's own convention. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:alpha="0.26" android:color="@color/sky_primary" android:state_enabled="false" />
+    <item android:color="@color/sky_primary" />
+</selector>

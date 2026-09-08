@@ -265,6 +265,10 @@ class CaptureSetupActivity : AppCompatActivity() {
      * returned null on an empty list and [onContinue] returned silently. A
      * disabled button plus the binding limit named in the line below the chips
      * is the same information the user needed, in a place they will read it.
+     *
+     * Deliberately one line. This is a dead end the user wants out of, and the
+     * only thing that gets them out is the number that binds and which knob
+     * moves it.
      */
     private fun showNoRate(cappedBySetting: Boolean, frameCap: Int) {
         btnContinue.isEnabled = false
@@ -275,11 +279,10 @@ class CaptureSetupActivity : AppCompatActivity() {
         } else {
             CaptureEstimateText.noRateFromCamera(this, res.label, perFrameMs)
         }
-        tvAssurance.text = getString(
-            R.string.capture_fps_assured_with_ceiling,
-            why,
-            getString(R.string.capture_no_rate_why),
-        )
+        // Just the binding limit. The heading above already says there is no
+        // rate, and the reasoning behind the floor is a paragraph the user has
+        // to read past to reach the one sentence that tells them what to change.
+        tvAssurance.text = why
     }
 
     @Suppress("ReturnCount")

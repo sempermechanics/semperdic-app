@@ -21,8 +21,8 @@
     <!-- ============================================================= -->
     <!-- Primary filled action (default via theme's materialButtonStyle) -->
     <style name="Widget.Semper.Button" parent="Widget.MaterialComponents.Button">
-        <item name="backgroundTint">@color/sky_primary</item>
-        <item name="android:textColor">@color/text_on_primary</item>
+        <item name="backgroundTint">@color/btn_semper_bg</item>
+        <item name="android:textColor">@color/btn_semper_text</item>
         <item name="cornerRadius">12dp</item>
         <item name="android:paddingTop">12dp</item>
         <item name="android:paddingBottom">12dp</item>
