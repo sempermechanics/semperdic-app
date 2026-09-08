@@ -698,6 +698,17 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <!-- %1$.1f measured speckle in pixels, %2$d minimum, %3$d maximum. -->
     <string name="capture_noise_uncorrelated_speckle_body">The test photos were taken, but the analysis could not follow the speckle pattern between them. At this recording size the dots measure about %1$.1f pixels across; DIC needs %2$d to %3$d. Change the resolution to bring them into range, or use a coarser pattern.</string>
     <string name="capture_change_resolution">Change resolution</string>
+    <!-- Speckle checked against the DIC band before recording. %1$.1f measured
+         speckle in pixels at the chosen resolution, %2$d minimum, %3$d maximum,
+         %4$s the resolution to use instead. -->
+    <string name="capture_speckle_under_title">The pattern is too fine for this resolution</string>
+    <string name="capture_speckle_under_body">At this recording size the speckle dots measure about %1$.1f pixels across. DIC needs %2$d to %3$d pixels per dot, so the analysis is unlikely to track them. Recording at %4$s would bring them into range.</string>
+    <string name="capture_speckle_over_title">A smaller resolution would record faster</string>
+    <string name="capture_speckle_over_body">At this recording size the speckle dots measure about %1$.1f pixels across. DIC gains nothing above %3$d pixels per dot, and the extra pixels cost time on every frame. Recording at %4$s measures just as well and allows a higher frame rate.</string>
+    <!-- %1$.2f measured speckle in mm, %2$.2f smallest usable, %3$.2f largest. -->
+    <string name="capture_speckle_mm_fmt">On the specimen that is about %1$.2f mm per dot. At this resolution the usable range is %2$.2f to %3$.2f mm.</string>
+    <!-- Fallback when no offered resolution is close to the recommendation. -->
+    <string name="capture_speckle_fit_long_edge_fmt">about %1$d pixels across</string>
     <!-- %1$s is a resolution label such as 1920x1080. -->
     <string name="capture_resolution_moved_fmt">Resolution changed to %1$s so the speckle can be measured.</string>
     <string name="capture_retry_test_shot">Retry test shot</string>

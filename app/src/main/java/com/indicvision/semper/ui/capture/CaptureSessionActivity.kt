@@ -31,6 +31,7 @@ import com.indicvision.semper.DicKeys
 import com.indicvision.semper.R
 import com.indicvision.semper.data.CaptureNoiseFloor
 import com.indicvision.semper.imaging.BitmapDecode
+import com.indicvision.semper.ui.analysis.DicGoodPractice
 import com.indicvision.semper.ui.analysis.NoiseFloorPixels
 import com.indicvision.semper.ui.analysis.NoiseFloorStats
 import com.indicvision.semper.ui.analysis.RoiDrawActivity
@@ -497,6 +498,112 @@ class CaptureSessionActivity : AppCompatActivity() {
     }
 
     /**
+     * Warn when the plan resolution puts this specimen's speckle outside the
+     * band DIC can measure in, and offer the resolution that would not.
+     *
+     * A warning, never a door — the same invariant the noise-floor gate holds.
+     * The user may be running a shakedown, may know the pattern is coarser than
+     * it looks, or may have a fixture that cannot be re-mounted, and this is a
+     * proxy for a question they can answer better than it can.
+     *
+     * @return false when a dialog is up and the caller should stop.
+     */
+    private fun checkSpeckleFitsResolution(
+        caps: CameraCapabilities.Info,
+        speckleDiameterPx: Double?,
+        testShotLongEdge: Int,
+    ): Boolean {
+        val plan = CameraCapabilities.Resolution(planWidth, planHeight)
+        val scale = ImageScale.of(
+            sensorLongEdgeMm = caps.sensorLongEdgeMm,
+            focalLengthMm = focusLock?.focalLengthMm,
+            subjectDistanceM = focusLock?.subjectDistanceM,
+            imageLongEdgePx = testShotLongEdge,
+        )
+        val verdict = CaptureSuitability.of(
+            speckleOnTestShotPx = speckleDiameterPx,
+            testShotLongEdge = testShotLongEdge,
+            plan = plan,
+            offered = caps.yuvSizes,
+            scale = scale,
+        ) ?: return true
+        Timber.w(
+            "speckle fit: %.1f px at %s is %s; recommending %s",
+            verdict.speckleOnPlanPx,
+            plan.label,
+            verdict.band,
+            verdict.recommended?.label ?: "${verdict.recommendedLongEdge} px long edge",
+        )
+        showSpeckleFitDialog(verdict)
+        return false
+    }
+
+    /**
+     * The two halves of the band, which call for opposite actions and so get
+     * different words.
+     *
+     * Under-resolved is a failure waiting to happen: the run will not correlate
+     * and the fix is a bigger frame or a coarser pattern. Over-resolved is not a
+     * failure at all — the run would work — so it is phrased as what it costs,
+     * because the recommendation there is to record *smaller* and get the frame
+     * rate back, and a user told only "your speckle is too big" would reasonably
+     * ignore it.
+     *
+     * The millimetre line is appended only when a scale could be derived. Most
+     * phones report no subject distance, so its absence is the normal case and
+     * is handled by saying less rather than by saying "not available" in the
+     * middle of a sentence the user is trying to act on.
+     */
+    private fun showSpeckleFitDialog(verdict: CaptureSuitability.Verdict) {
+        val recommendedLabel = verdict.recommended?.label
+            ?: getString(R.string.capture_speckle_fit_long_edge_fmt, verdict.recommendedLongEdge)
+        val body = StringBuilder(
+            getString(
+                if (verdict.band == DicGoodPractice.Verdict.UNDER_RESOLVED) {
+                    R.string.capture_speckle_under_body
+                } else {
+                    R.string.capture_speckle_over_body
+                },
+                verdict.speckleOnPlanPx,
+                DicGoodPractice.MIN_SPECKLE_PX.toInt(),
+                DicGoodPractice.MAX_SPECKLE_PX.toInt(),
+                recommendedLabel,
+            ),
+        )
+        val speckleMm = verdict.speckleMm
+        val bandMm = verdict.bandMm
+        if (speckleMm != null && bandMm != null) {
+            body.append(PARAGRAPH_BREAK).append(
+                getString(R.string.capture_speckle_mm_fmt, speckleMm, bandMm.first, bandMm.third),
+            )
+        }
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(
+                if (verdict.band == DicGoodPractice.Verdict.UNDER_RESOLVED) {
+                    R.string.capture_speckle_under_title
+                } else {
+                    R.string.capture_speckle_over_title
+                },
+            )
+            .setMessage(body.toString())
+            .setCancelable(false)
+            .setPositiveButton(R.string.capture_change_resolution) { _, _ ->
+                returnForResolutionChange(verdict.recommendedLongEdge)
+            }
+            .setNegativeButton(R.string.capture_record_anyway) { _, _ ->
+                Timber.w("speckle fit override: recording at %.1f px speckle", verdict.speckleOnPlanPx)
+                awaitingTestShot = false
+                ensureCameraThenLock()
+            }
+            .setNeutralButton(R.string.action_why, null)
+        if (isFinishing || isDestroyed) return
+        val alert = dialog.show()
+        alert.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+            FaqRedirect.confirm(this, R.string.url_faq_speckle)
+        }
+    }
+
+    /**
      * Hand the run back to the setup screen so a different resolution can be
      * chosen, carrying the long edge that would put this specimen's speckle
      * where DIC wants it.
@@ -554,6 +661,11 @@ class CaptureSessionActivity : AppCompatActivity() {
             if (!checkBudgetOrShowDialog(planWidth, planHeight)) return@launch
 
             focusLock = CaptureFocusLock.fromExif(file, check.focusNormX, check.focusNormY, w, h)
+            // Everything the verdict needs is known here and nowhere earlier:
+            // the ROI, the speckle inside it, the resolution the run settled
+            // on, and the EXIF the focus lock just read. Asking now costs the
+            // user one dialog; not asking costs them the specimen.
+            if (!checkSpeckleFitsResolution(caps, loaded.speckleDiameterPx, maxOf(w, h))) return@launch
             awaitingTestShot = false
             // Software PNG encode has no Camera2-reported stall (unlike JPEG),
             // so pacing is measured on a real locked still once the session is
@@ -1269,6 +1381,9 @@ class CaptureSessionActivity : AppCompatActivity() {
     }
 
     private companion object {
+        /** Blank line between the pixel verdict and the millimetre figures. */
+        const val PARAGRAPH_BREAK = "\n\n"
+
         const val MILLIS_PER_SECOND = 1_000L
 
         /** Only reached when the setup extra is missing; the setup screen owns the value. */
