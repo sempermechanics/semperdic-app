@@ -690,6 +690,16 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="other">%1$d camera settings could not be locked. Strain below this floor is noise, not measurement. Noted on the report.</item>
     </plurals>
     <string name="capture_record_anyway">Record anyway</string>
+    <!-- The burst was taken but the frames would not correlate. Distinct from a
+         burst that never happened: photographs exist, so "no photo was saved"
+         would offer a remedy that cannot fix this. -->
+    <string name="capture_noise_uncorrelated_title">The pattern could not be tracked</string>
+    <string name="capture_noise_uncorrelated_body">The test photos were taken, but the analysis could not follow the speckle pattern between them. At this recording size the dots are probably too small to measure. Try a larger resolution, or a coarser pattern on the specimen.</string>
+    <!-- %1$.1f measured speckle in pixels, %2$d minimum, %3$d maximum. -->
+    <string name="capture_noise_uncorrelated_speckle_body">The test photos were taken, but the analysis could not follow the speckle pattern between them. At this recording size the dots measure about %1$.1f pixels across; DIC needs %2$d to %3$d. Change the resolution to bring them into range, or use a coarser pattern.</string>
+    <string name="capture_change_resolution">Change resolution</string>
+    <!-- %1$s is a resolution label such as 1920x1080. -->
+    <string name="capture_resolution_moved_fmt">Resolution changed to %1$s so the speckle can be measured.</string>
     <string name="capture_retry_test_shot">Retry test shot</string>
     <!-- Imaging-pipeline refusals. Effect first, under 20 words each; the
          mechanism lives in the FAQ the warning links to. Only one is ever

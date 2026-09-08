@@ -293,10 +293,29 @@ object NoiseFloorGate {
      * which is usually a different resolution from the run. A subset is a
      * length in pixels, so carrying the number across unchanged would apply a
      * 12 MP subset to an 8 MP frame and get a different answer than intended.
+     *
+     * **Long edge against long edge, never width against width.** The vendor
+     * camera app frequently returns a landscape frame while the run records
+     * portrait, and comparing the two widths then puts a full sensor edge
+     * against a short edge — a ratio that describes nothing. Both images hold
+     * the same scene the same way up by the time the burst runs (see
+     * [uprightRoi]), so their long edges are the corresponding lengths whatever
+     * order the dimensions arrive in. The Pixel run this was found on measured
+     * 3072 of 3072x4080 against 800 of 800x600 and scaled a 17 px subset down
+     * by 3.8x when the true linear ratio was 5.1x, which
+     * [SubsetRecommender.MIN_SUBSET] then hid by clamping.
      */
-    internal fun rescaleSubset(subset: Int, fromWidth: Int, toWidth: Int): Int {
-        if (fromWidth <= 0 || toWidth <= 0) return subset
-        val scaled = (subset.toLong() * toWidth / fromWidth).toInt()
+    internal fun rescaleSubset(
+        subset: Int,
+        fromWidth: Int,
+        fromHeight: Int,
+        toWidth: Int,
+        toHeight: Int,
+    ): Int {
+        val from = maxOf(fromWidth, fromHeight)
+        val to = maxOf(toWidth, toHeight)
+        if (from <= 0 || to <= 0) return subset
+        val scaled = (subset.toLong() * to / from).toInt()
         val odd = if (scaled % 2 == 0) scaled + 1 else scaled
         return odd.coerceIn(SubsetRecommender.MIN_SUBSET, SubsetRecommender.MAX_SUBSET)
     }

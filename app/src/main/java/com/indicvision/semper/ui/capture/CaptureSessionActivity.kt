@@ -31,8 +31,10 @@ import com.indicvision.semper.DicKeys
 import com.indicvision.semper.R
 import com.indicvision.semper.data.CaptureNoiseFloor
 import com.indicvision.semper.imaging.BitmapDecode
+import com.indicvision.semper.ui.analysis.NoiseFloorPixels
 import com.indicvision.semper.ui.analysis.NoiseFloorStats
 import com.indicvision.semper.ui.analysis.RoiDrawActivity
+import com.indicvision.semper.ui.analysis.SpeckleScale
 import com.indicvision.semper.ui.analysis.SubsetRecommender
 import com.indicvision.semper.ui.common.FaqRedirect
 import com.indicvision.semper.ui.common.Insets
@@ -136,6 +138,7 @@ class CaptureSessionActivity : AppCompatActivity() {
             activity = this,
             onRetry = ::launchTestShot,
             onBurstFailed = { offerRetryTestShot(getString(R.string.capture_test_shot_empty)) },
+            onChangeResolution = ::returnForResolutionChange,
             onProceed = ::showReady,
             onFrameCost = ::applyMeasuredFrameCost,
         )
@@ -493,6 +496,25 @@ class CaptureSessionActivity : AppCompatActivity() {
         return bounds ?: (1 to 1)
     }
 
+    /**
+     * Hand the run back to the setup screen so a different resolution can be
+     * chosen, carrying the long edge that would put this specimen's speckle
+     * where DIC wants it.
+     *
+     * Cancelled rather than OK, because no recording happened; setup is still
+     * on the stack by design (see [CaptureSetupActivity]) and reads the
+     * recommendation off the cancelled result. Zero means "no recommendation",
+     * which setup treats as simply coming back with the plan intact.
+     */
+    private fun returnForResolutionChange(recommendedLongEdge: Int) {
+        Timber.i("capture: returning to setup, recommended long edge %d px", recommendedLongEdge)
+        setResult(
+            Activity.RESULT_CANCELED,
+            Intent().putExtra(CaptureSetupActivity.EXTRA_RECOMMENDED_LONG_EDGE, recommendedLongEdge),
+        )
+        finish()
+    }
+
     private fun onContrastRoiReady(file: File, roi: Rect) {
         tvStatus.setText(R.string.capture_status_checking)
         lifecycleScope.launch {
@@ -501,6 +523,13 @@ class CaptureSessionActivity : AppCompatActivity() {
                 SpeckleLoad(
                     bounds = BitmapDecode.storedBounds(bytes),
                     outcome = evaluateSpeckleBounded(bytes, roi),
+                    // Measured on the same full-resolution window the noise
+                    // maths uses, inside the ROI the user drew, before any
+                    // resolution change: this is a length in the test shot's
+                    // pixels and is scaled onto whatever frame is being judged.
+                    speckleDiameterPx = SpeckleScale.diameterPx(
+                        NoiseFloorPixels.grayWindow(bytes, roi),
+                    ),
                 )
             }
             val outcome = loaded.outcome
@@ -515,7 +544,7 @@ class CaptureSessionActivity : AppCompatActivity() {
             }
 
             val (w, h) = loaded.bounds ?: (1 to 1)
-            noiseGate.onSpeckleChecked(roi, w, h, check.subsetSize)
+            noiseGate.onSpeckleChecked(roi, w, h, check.subsetSize, loaded.speckleDiameterPx)
             val caps = CameraCapabilities.query(this@CaptureSessionActivity)
 
             // The test shot's own size is the vendor Camera app's choice, not
@@ -700,6 +729,8 @@ class CaptureSessionActivity : AppCompatActivity() {
     private data class SpeckleLoad(
         val bounds: Pair<Int, Int>?,
         val outcome: SpeckleOutcome,
+        /** Speckle diameter in test-shot pixels, or null when unmeasurable. */
+        val speckleDiameterPx: Double? = null,
     )
 
     /**

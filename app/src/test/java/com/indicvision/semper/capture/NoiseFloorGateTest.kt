@@ -59,29 +59,71 @@ class NoiseFloorGateTest {
     fun `a subset is a length in pixels and scales with the frame`() {
         // 47 px of speckle on a 3024 px frame is ~31 px on a 2016 px one. Left
         // unscaled it would solve for a different pattern than the one measured.
-        assertEquals(31, NoiseFloorGate.rescaleSubset(47, fromWidth = 3024, toWidth = 2016))
+        assertEquals(
+            31,
+            NoiseFloorGate.rescaleSubset(47, fromWidth = 3024, fromHeight = 2268, toWidth = 2016, toHeight = 1512),
+        )
+    }
+
+    @Test
+    fun `a subset scales by the long edge across an orientation change`() {
+        // The defect this pins: the vendor camera app returns a portrait test
+        // shot while the run records landscape, and the old code compared the
+        // two *widths* — a full 3072 px sensor edge against an 1600 px long
+        // edge, which are not corresponding lengths. The true linear ratio is
+        // 1600/4080, so a 101 px subset is 39 px on the burst frame; comparing
+        // widths gives 1600/3072 and answers 53, a subset a third too large
+        // that nothing downstream would have flagged.
+        val portraitShot = NoiseFloorGate.rescaleSubset(
+            subset = 101,
+            fromWidth = 3072,
+            fromHeight = 4080,
+            toWidth = 1600,
+            toHeight = 1200,
+        )
+        assertEquals(39, portraitShot)
+    }
+
+    @Test
+    fun `which way up each image is cannot change the subset`() {
+        // Same two images, each named the other way round. A length in pixels
+        // is a length in pixels; the answer must not depend on the order the
+        // dimensions arrived in.
+        val all = listOf(
+            NoiseFloorGate.rescaleSubset(101, 3072, 4080, 1600, 1200),
+            NoiseFloorGate.rescaleSubset(101, 4080, 3072, 1600, 1200),
+            NoiseFloorGate.rescaleSubset(101, 3072, 4080, 1200, 1600),
+            NoiseFloorGate.rescaleSubset(101, 4080, 3072, 1200, 1600),
+        )
+        assertEquals("all four orientations agree", 1, all.distinct().size)
     }
 
     @Test
     fun `a rescaled subset stays odd`() {
         // The engine centres the subset on a pixel; an even size has no centre.
         for (from in listOf(3000, 3024, 4000)) {
-            val scaled = NoiseFloorGate.rescaleSubset(47, fromWidth = from, toWidth = 2048)
+            val scaled = NoiseFloorGate.rescaleSubset(
+                47,
+                fromWidth = from,
+                fromHeight = from * 4 / 3,
+                toWidth = 2048,
+                toHeight = 1536,
+            )
             assertTrue("$scaled from $from", scaled % 2 == 1)
         }
     }
 
     @Test
     fun `a rescaled subset stays inside the recommender's own range`() {
-        val tiny = NoiseFloorGate.rescaleSubset(47, fromWidth = 4000, toWidth = 64)
+        val tiny = NoiseFloorGate.rescaleSubset(47, fromWidth = 4000, fromHeight = 3000, toWidth = 64, toHeight = 48)
         assertEquals(SubsetRecommender.MIN_SUBSET, tiny)
-        val huge = NoiseFloorGate.rescaleSubset(101, fromWidth = 640, toWidth = 8000)
+        val huge = NoiseFloorGate.rescaleSubset(101, fromWidth = 640, fromHeight = 480, toWidth = 8000, toHeight = 6000)
         assertEquals(SubsetRecommender.MAX_SUBSET, huge)
     }
 
     @Test
-    fun `an unknown source width leaves the subset alone rather than guessing`() {
-        assertEquals(47, NoiseFloorGate.rescaleSubset(47, fromWidth = 0, toWidth = 2048))
-        assertEquals(47, NoiseFloorGate.rescaleSubset(47, fromWidth = 3024, toWidth = 0))
+    fun `an unknown source size leaves the subset alone rather than guessing`() {
+        assertEquals(47, NoiseFloorGate.rescaleSubset(47, 0, 0, toWidth = 2048, toHeight = 1536))
+        assertEquals(47, NoiseFloorGate.rescaleSubset(47, 3024, 2268, toWidth = 0, toHeight = 0))
     }
 }

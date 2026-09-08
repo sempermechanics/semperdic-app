@@ -4,6 +4,7 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Spinner
+import kotlin.math.abs
 
 /**
  * The resolution spinner and the list behind it.
@@ -41,4 +42,34 @@ internal class CaptureResolutionPicker(
 
     val selected: CameraCapabilities.Resolution
         get() = sizes.getOrElse(spinner.selectedItemPosition) { sizes.first() }
+
+    /**
+     * Move the spinner to the offered size closest to [longEdgePx], and say
+     * which one that was.
+     *
+     * The recommendation comes back from the capture screen as the long edge
+     * that would put this specimen's speckle at the size DIC wants, which is
+     * an arbitrary number rather than one of this camera's sizes — so the job
+     * here is to land on the nearest thing the camera will actually record.
+     *
+     * Nearest on the **long edge**, because that is the axis the recommendation
+     * is expressed on and the catalogue is a single aspect ratio: comparing
+     * widths would sort a portrait entry against a landscape one and pick by
+     * orientation rather than by size.
+     *
+     * Selecting fires the spinner's own listener, so the rate ladder rebuilds
+     * for the new size exactly as it would for a user's tap. Returns null only
+     * when there is nothing to select.
+     */
+    fun select(longEdgePx: Int): CameraCapabilities.Resolution? {
+        val index = if (longEdgePx <= 0) {
+            null
+        } else {
+            sizes.indices.minByOrNull { i -> abs(maxOf(sizes[i].width, sizes[i].height) - longEdgePx) }
+        }
+        return index?.let {
+            spinner.setSelection(it)
+            sizes[it]
+        }
+    }
 }

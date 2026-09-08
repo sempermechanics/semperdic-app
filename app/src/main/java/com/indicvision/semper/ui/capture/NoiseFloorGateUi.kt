@@ -12,7 +12,9 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.indicvision.semper.R
 import com.indicvision.semper.data.CaptureNoiseFloor
 import com.indicvision.semper.data.NoiseFloorText
+import com.indicvision.semper.ui.analysis.DicGoodPractice
 import com.indicvision.semper.ui.analysis.NoiseFloorStats
+import com.indicvision.semper.ui.analysis.SpeckleScale
 import com.indicvision.semper.ui.common.FaqRedirect
 import timber.log.Timber
 
@@ -35,6 +37,13 @@ internal class NoiseFloorGateUi(
     private val onRetry: () -> Unit,
     /** The burst produced nothing, which is the existing test-shot failure. */
     private val onBurstFailed: () -> Unit,
+    /**
+     * Frames were captured but would not correlate with one another. Carries
+     * the long edge that would put the measured speckle at the recommended
+     * size, or zero when the speckle could not be measured; the capture screen
+     * hands it back to setup so the resolution can be changed.
+     */
+    private val onChangeResolution: (Int) -> Unit,
     /** The user chose to record past a failing floor: re-enable the start button. */
     private val onProceed: () -> Unit,
     /** Measured per-frame cost, for the rate ladder. */
@@ -52,6 +61,14 @@ internal class NoiseFloorGateUi(
     private var roiNorm: RectF? = null
     private var subset = 0
     private var sourceWidth = 0
+    private var sourceHeight = 0
+
+    /**
+     * Speckle diameter measured on the test shot, in that shot's own pixels,
+     * or null when it could not be measured. Kept unscaled so it can be put
+     * onto whichever frame size is being judged.
+     */
+    private var speckleDiameterPx: Double? = null
 
     /** Which way round the test shot was, so the burst can check it still is. */
     private var sourceLandscape = false
@@ -84,17 +101,26 @@ internal class NoiseFloorGateUi(
     private var restoredFloor: CaptureNoiseFloor? = null
 
     /** Called with the speckle check's result, which is where the ROI comes from. */
-    fun onSpeckleChecked(roi: Rect, imageWidth: Int, imageHeight: Int, subsetSize: Int) {
+    fun onSpeckleChecked(
+        roi: Rect,
+        imageWidth: Int,
+        imageHeight: Int,
+        subsetSize: Int,
+        speckleDiameter: Double? = null,
+    ) {
         roiNorm = NoiseFloorGate.normalize(roi, imageWidth, imageHeight)
         subset = subsetSize
         sourceWidth = imageWidth
+        sourceHeight = imageHeight
+        speckleDiameterPx = speckleDiameter
         sourceLandscape = imageWidth > imageHeight
         Timber.i(
-            "noise floor roi: test shot %dx%d roi=%s subset=%d",
+            "noise floor roi: test shot %dx%d roi=%s subset=%d speckle=%s px",
             imageWidth,
             imageHeight,
             roi.toShortString(),
             subsetSize,
+            speckleDiameter?.let { "%.1f".format(it) } ?: "?",
         )
     }
 
@@ -121,7 +147,7 @@ internal class NoiseFloorGateUi(
             Timber.w("noise floor: no contrast ROI; skipping the check")
             return true
         }
-        val scaled = NoiseFloorGate.rescaleSubset(subset, sourceWidth, planWidth)
+        val scaled = NoiseFloorGate.rescaleSubset(subset, sourceWidth, sourceHeight, planWidth, planHeight)
         val result = runCatching {
             NoiseFloorGate.measure(activity, session, roi, scaled, sourceLandscape)
         }.onFailure { Timber.w(it, "noise floor: burst failed") }.getOrNull()
@@ -134,11 +160,14 @@ internal class NoiseFloorGateUi(
         // this device rather than Camera2's unrelated JPEG stall.
         CaptureCalibration.record(activity, planWidth, planHeight, result.firstFrameMs)
         onFrameCost(result.firstFrameMs)
-        // Frames that could not be correlated with each other at all are not a
-        // floor of "unknown" to pass through quietly — they are the burst
-        // producing nothing usable, same as a burst that crashed outright.
+        // Frames that could not be correlated with each other are not a floor
+        // of "unknown" to pass through quietly. But they are also not the burst
+        // failing to happen: six photos were taken and processed, and telling
+        // the user "no photo was saved" offers a remedy that cannot fix what
+        // actually went wrong. Correlation failed, and at this resolution the
+        // most likely reason is that the speckle is not resolved.
         if (result.verdict.outcome == NoiseFloorStats.Outcome.INSUFFICIENT) {
-            onBurstFailed()
+            showUncorrelatedDialog(session, planWidth, planHeight)
             return false
         }
         floor = result
@@ -151,6 +180,69 @@ internal class NoiseFloorGateUi(
         }
         showVerdict(session, result)
         return false
+    }
+
+    /**
+     * The burst correlated with nothing: frames exist, the solve returned no
+     * points.
+     *
+     * Its own dialog rather than the test-shot failure, because the enum this
+     * arrives on says so — [NoiseFloorStats.Outcome.INSUFFICIENT] is documented
+     * as "too few usable frames to conclude anything; reports, never blocks" —
+     * and because the two have different fixes. Nothing was wrong with the
+     * photographs; what failed is that at this recording size the pattern is
+     * not resolved, which is a resolution problem and not a retry.
+     *
+     * So the primary action is **Change resolution**, carrying the size that
+     * would put the measured speckle where DIC wants it. Where the speckle
+     * could not be measured the recommendation is zero and setup simply
+     * re-opens with the plan intact, which is still better than a retry that
+     * will fail the same way.
+     */
+    private fun showUncorrelatedDialog(session: LockedCameraSession, planWidth: Int, planHeight: Int) {
+        val longEdge = maxOf(planWidth, planHeight)
+        val onPlan = speckleDiameterPx?.let {
+            SpeckleScale.scaledTo(it, maxOf(sourceWidth, sourceHeight), longEdge)
+        }
+        val recommended = onPlan
+            ?.let { DicGoodPractice.usefulLongEdges(it, longEdge) }
+            ?.recommended
+            ?: 0
+        Timber.w(
+            "noise floor: burst uncorrelated at %dx%d; speckle %s px, recommending long edge %d",
+            planWidth,
+            planHeight,
+            onPlan?.let { "%.1f".format(it) } ?: "?",
+            recommended,
+        )
+        val body = if (onPlan == null) {
+            activity.getString(R.string.capture_noise_uncorrelated_body)
+        } else {
+            activity.getString(
+                R.string.capture_noise_uncorrelated_speckle_body,
+                onPlan,
+                DicGoodPractice.MIN_SPECKLE_PX.toInt(),
+                DicGoodPractice.MAX_SPECKLE_PX.toInt(),
+            )
+        }
+        val dialog = MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.capture_noise_uncorrelated_title)
+            .setMessage(body)
+            .setCancelable(false)
+            .setPositiveButton(R.string.capture_change_resolution) { _, _ -> onChangeResolution(recommended) }
+            // Not a door: the user may know something this proxy does not, and
+            // the same override the floor verdict offers belongs here too.
+            .setNegativeButton(R.string.capture_record_anyway) { _, _ ->
+                overridden = true
+                warnAboutPipeline(session)
+                onProceed()
+            }
+            .setNeutralButton(R.string.action_why, null)
+        if (activity.isFinishing || activity.isDestroyed) return
+        val alert = dialog.show()
+        alert.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+            FaqRedirect.confirm(activity, R.string.url_faq_speckle)
+        }
     }
 
     /**

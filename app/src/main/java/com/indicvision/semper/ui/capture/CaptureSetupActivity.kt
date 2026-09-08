@@ -15,6 +15,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.snackbar.Snackbar
 import com.indicvision.semper.DicKeys
 import com.indicvision.semper.R
 import com.indicvision.semper.data.DicSettings
@@ -33,9 +34,15 @@ import com.indicvision.semper.ui.common.Insets
  * device can hold removes the trim entirely.
  *
  * Setup stays on the stack until recording succeeds so Back from the session
- * can return here to change the plan. On success this screen starts the
- * wizard and finishes so Back from the wizard lands on Home.
+ * can return here to change the plan — and so the capture screen can send the
+ * run back deliberately, carrying the resolution that would let the speckle be
+ * measured. On success this screen starts the wizard and finishes so Back from
+ * the wizard lands on Home.
  */
+// One function over the threshold: the screen has a single job and each of
+// these is one step of it — read the plan, offer the rates, price them, launch,
+// and take back the recommendation the capture screen sends home.
+@Suppress("TooManyFunctions")
 class CaptureSetupActivity : AppCompatActivity() {
 
     private lateinit var caps: CameraCapabilities.Info
@@ -68,7 +75,14 @@ class CaptureSetupActivity : AppCompatActivity() {
     private val captureSession = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+        if (result.resultCode != Activity.RESULT_OK) {
+            // Not every cancel is a Back press. The capture screen sends the
+            // run back here when the speckle cannot be resolved at the chosen
+            // size, and the size that would resolve it rides on the cancelled
+            // result — so the extra is read before the early return, not after.
+            applyRecommendedResolution(result.data)
+            return@registerForActivityResult
+        }
         val data = result.data ?: return@registerForActivityResult
         startActivity(
             Intent(this, StaticAnalysisActivity::class.java).apply {
@@ -270,6 +284,26 @@ class CaptureSetupActivity : AppCompatActivity() {
         )
     }
 
+    /**
+     * Move the spinner to the resolution the capture screen recommended, and
+     * say on screen that it moved.
+     *
+     * Silently changing a setting the user chose is worse than not changing it:
+     * they picked that size for a reason, and a screen that quietly disagrees
+     * teaches them not to trust it. So the change is made — it is the whole
+     * point of coming back here — and then named.
+     */
+    private fun applyRecommendedResolution(data: Intent?) {
+        val longEdge = data?.getIntExtra(EXTRA_RECOMMENDED_LONG_EDGE, 0) ?: 0
+        if (longEdge <= 0) return
+        val picked = resPicker.select(longEdge) ?: return
+        Snackbar.make(
+            findViewById(R.id.spinnerCaptureResolution),
+            getString(R.string.capture_resolution_moved_fmt, picked.label),
+            Snackbar.LENGTH_LONG,
+        ).show()
+    }
+
     companion object {
         const val EXTRA_DURATION_SEC = "capture_duration_sec"
         const val EXTRA_FRAME_COUNT = "capture_frame_count"
@@ -277,6 +311,13 @@ class CaptureSetupActivity : AppCompatActivity() {
         const val EXTRA_WIDTH = "capture_width"
         const val EXTRA_HEIGHT = "capture_height"
         const val EXTRA_CAMERA_ID = "capture_camera_id"
+
+        /**
+         * Long edge, in pixels, that the capture screen worked out would put
+         * this specimen's speckle in the DIC band. Rides on a *cancelled*
+         * result, because nothing was recorded.
+         */
+        const val EXTRA_RECOMMENDED_LONG_EDGE = "capture_recommended_long_edge"
 
         /** Short enough to be a first run, long enough to be a real one. */
         const val DEFAULT_DURATION_SEC = 10
