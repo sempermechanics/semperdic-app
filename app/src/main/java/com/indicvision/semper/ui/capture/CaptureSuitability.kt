@@ -55,6 +55,17 @@ internal object CaptureSuitability {
          * the real advice instead.
          */
         val recommended: CameraCapabilities.Resolution?,
+        /**
+         * The offered size nearest [recommendedLongEdge] whether or not it
+         * reaches the band — the best this camera can do.
+         *
+         * Kept separate from [recommended] because the two answer different
+         * questions and only one of them is a promise. **Change resolution**
+         * moves here, so the user is never stranded in a dialog with no way
+         * forward; the wording that goes with it says this is the closest the
+         * camera comes rather than claiming it fixes anything.
+         */
+        val closest: CameraCapabilities.Resolution?,
         /** Speckle size in millimetres, or null when no scale could be derived. */
         val speckleMm: Double?,
         /** The 3 / 5 / 9 px band in millimetres, or null alongside [speckleMm]. */
@@ -104,6 +115,7 @@ internal object CaptureSuitability {
             band = band,
             recommendedLongEdge = range.recommended,
             recommended = nearestInBand(offered, range),
+            closest = nearestOffered(offered, range.recommended),
             speckleMm = mmPerPx?.let { onPlan * it },
             bandMm = mmPerPx?.let { DicGoodPractice.bandInMillimetres(it) },
         )
@@ -133,4 +145,18 @@ internal object CaptureSuitability {
     ): CameraCapabilities.Resolution? = offered
         .filter { maxOf(it.width, it.height) in range.minimum..range.maximum }
         .minByOrNull { abs(maxOf(it.width, it.height) - range.recommended) }
+
+    /**
+     * The catalogued size closest to [longEdgePx], band or no band.
+     *
+     * What [nearestInBand] falls back to when nothing reaches the band. It is
+     * not a fix and is never described as one, but it is still the direction to
+     * move in, and a dialog that offers no way forward at all is a worse answer
+     * than one that offers the best available with the limit stated.
+     */
+    private fun nearestOffered(
+        offered: List<CameraCapabilities.Resolution>,
+        longEdgePx: Int,
+    ): CameraCapabilities.Resolution? =
+        offered.minByOrNull { abs(maxOf(it.width, it.height) - longEdgePx) }
 }

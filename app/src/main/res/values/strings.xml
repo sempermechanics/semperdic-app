@@ -728,6 +728,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <!-- Fallback when no offered resolution is close to the recommendation. -->
     <string name="capture_speckle_under_body_unreachable">At this recording size the speckle dots measure about %1$.1f pixels across. DIC needs %2$d to %3$d pixels per dot, and no recording size this camera offers can get them there. The pattern has to change: coarser dots, or the phone closer to the specimen.</string>
     <string name="capture_speckle_over_body_unreachable">At this recording size the speckle dots measure about %1$.1f pixels across. DIC gains nothing above %3$d pixels per dot, and no smaller recording size this camera offers brings them under it. Finer dots, or a little more distance, would buy back the frame time.</string>
+    <string name="capture_speckle_closest_fmt">%1$s is the closest this camera comes.</string>
     <!-- %1$s is a resolution label such as 1920x1080. -->
     <string name="capture_resolution_moved_fmt">Resolution changed to %1$s so the speckle can be measured.</string>
     <string name="capture_retry_test_shot">Retry test shot</string>

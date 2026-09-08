@@ -124,6 +124,7 @@ class CaptureSuitabilityTest {
     fun `a camera with no sizes to offer still gives the pixel verdict`() {
         val verdict = verdictFor(24.0, 4000, res(400, 300), offered = emptyList())!!
         assertNull(verdict.recommended)
+        assertNull("nowhere to send them either", verdict.closest)
         assertTrue(verdict.recommendedLongEdge > 0)
     }
 
@@ -138,6 +139,19 @@ class CaptureSuitabilityTest {
         assertEquals(DicGoodPractice.Verdict.UNDER_RESOLVED, verdict.band)
         assertNull("no offered size fixes it", verdict.recommended)
         assertTrue("the ideal is still stated", verdict.recommendedLongEdge > 4000)
+        // Nothing is promised, but there is still somewhere to go: Change
+        // resolution moves here, and the wording says it is the closest the
+        // camera comes rather than claiming it fixes the pattern.
+        assertEquals(res(4000, 3000), verdict.closest)
+    }
+
+    @Test
+    fun `the closest size is the in-band one whenever there is an in-band one`() {
+        // The two only diverge where the band is out of reach. Anywhere else
+        // they agree, so the button and the sentence cannot drift apart.
+        val verdict = verdictFor(24.0, 4000, res(400, 300))!!
+        assertNotNull(verdict.recommended)
+        assertEquals(verdict.recommended, verdict.closest)
     }
 
     @Test

@@ -585,11 +585,12 @@ class CaptureSessionActivity : AppCompatActivity() {
      * ignore it.
      *
      * A third case sits under both: no offered resolution puts this speckle in
-     * the band at all. There is no resolution to recommend then, so none is
-     * named — the answer is the pattern itself, which is what the millimetre
-     * line was already there to give. Offering **Change resolution** in that
-     * state would send the user back to pick a size that cannot help and
-     * re-shoot into the same failure.
+     * the band at all. Nothing is *promised* then — the answer is the pattern
+     * itself, which is what the millimetre line was already there to give — but
+     * **Change resolution** stays, pointed at the closest size this camera has.
+     * It is still the direction to move in, and a dialog whose only ways out
+     * are "record something that will not correlate" and "go back" is a worse
+     * answer than one that offers the best available with the limit stated.
      *
      * The millimetre line is always present, and says "not available" when no
      * scale could be derived. Most phones report no subject distance, so that
@@ -597,8 +598,11 @@ class CaptureSessionActivity : AppCompatActivity() {
      * the end, so the sentences the user has to act on are never interrupted by
      * it, and a missing figure is stated instead of silently left out.
      */
-    private fun showSpeckleFitDialog(verdict: CaptureSuitability.Verdict, buysARate: Boolean) {
-        val under = verdict.band == DicGoodPractice.Verdict.UNDER_RESOLVED
+    private fun speckleFitBody(
+        verdict: CaptureSuitability.Verdict,
+        under: Boolean,
+        buysARate: Boolean,
+    ): String {
         val recommended = verdict.recommended
         val body = StringBuilder(
             if (recommended == null) {
@@ -626,6 +630,13 @@ class CaptureSessionActivity : AppCompatActivity() {
                 )
             },
         )
+        // Its own sentence rather than a fourth argument to the paragraph
+        // above: it is only true in the unreachable case, and the size named
+        // there is the nearest the camera has, not one that fixes anything.
+        val closest = verdict.closest
+        if (recommended == null && closest != null) {
+            body.append(' ').append(getString(R.string.capture_speckle_closest_fmt, closest.label))
+        }
         val speckleMm = verdict.speckleMm
         val bandMm = verdict.bandMm
         body.append(PARAGRAPH_BREAK).append(
@@ -635,6 +646,23 @@ class CaptureSessionActivity : AppCompatActivity() {
                 getString(R.string.capture_speckle_mm_unavailable)
             },
         )
+        return body.toString()
+    }
+
+    /**
+     * The verdict as a dialog: [speckleFitBody] for the words, and three ways
+     * out of it.
+     *
+     * **Change resolution** is always offered where the camera has any size to
+     * move to — the in-band one when there is one, the closest one otherwise.
+     * **Record anyway** is always offered too: this warns, it does not block,
+     * and the user may know something a proxy measurement does not.
+     */
+    private fun showSpeckleFitDialog(verdict: CaptureSuitability.Verdict, buysARate: Boolean) {
+        val under = verdict.band == DicGoodPractice.Verdict.UNDER_RESOLVED
+        val recommended = verdict.recommended
+        val closest = verdict.closest
+        val body = speckleFitBody(verdict, under, buysARate)
         val recordAnyway = { _: DialogInterface, _: Int ->
             Timber.w("speckle fit override: recording at %.1f px speckle", verdict.speckleOnPlanPx)
             awaitingTestShot = false
@@ -642,20 +670,22 @@ class CaptureSessionActivity : AppCompatActivity() {
         }
         val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(if (under) R.string.capture_speckle_under_title else R.string.capture_speckle_over_title)
-            .setMessage(body.toString())
+            .setMessage(body)
             .setCancelable(false)
             .setNeutralButton(R.string.action_why, null)
-        if (recommended == null) {
-            // No size to change to, so no button offering one. Back to setup is
-            // still worth having — the pattern is what has to change, and the
-            // duration and resolution are worth revisiting once it has.
+        // Change resolution goes to the in-band size when there is one and to
+        // the closest size otherwise, and either way it carries the size the
+        // picker will land on rather than the ideal long edge that produced it:
+        // select() takes the nearest offered size, and the two are only the
+        // same number by luck.
+        val destination = recommended ?: closest
+        if (destination == null) {
+            // A catalogue with nothing in it at all. Back is the only honest
+            // way forward, since there is no size to move to.
             dialog.setPositiveButton(R.string.capture_record_anyway, recordAnyway)
                 .setNegativeButton(R.string.back) { _, _ -> returnForResolutionChange(0) }
         } else {
-            // The size the picker will land on, not the ideal long edge that
-            // produced it: select() takes the nearest offered size, and the two
-            // are only the same number by luck.
-            val pick = maxOf(recommended.width, recommended.height)
+            val pick = maxOf(destination.width, destination.height)
             dialog.setPositiveButton(R.string.capture_change_resolution) { _, _ ->
                 returnForResolutionChange(pick)
             }
