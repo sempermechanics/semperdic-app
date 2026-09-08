@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/result-viewer.png" width="720" alt="Interactive strain heatmap in the result viewer">
+  <img src="docs/images/result-viewer.png" width="220" alt="Interactive strain heatmap in the result viewer">
 </p>
 
 Speckle a specimen, photograph it before and under load, and Semper computes
