@@ -34,4 +34,30 @@ internal object CaptureFrameCost {
         val sensorMs = caps.sensorFloorMs(res)
         return max(encodeMs, sensorMs).coerceAtLeast(1L)
     }
+
+    /**
+     * The sizes worth offering on this camera: the ones it can hold
+     * [CapturePlanOptions.MIN_FPS] at.
+     *
+     * One implementation on purpose, shared by the setup screen's picker and by
+     * the speckle verdict's recommendation. They used to filter separately —
+     * the picker did, the verdict did not — so the verdict could name a size
+     * the picker had already dropped, and taking the recommendation landed the
+     * user on a different resolution from the one they had just been promised.
+     * Two answers to "which sizes can this run use" is one answer too many.
+     *
+     * The filter is only ever the **camera's** limit: the run length and the
+     * frame cap bind every size alike, so they can never make one offerable and
+     * another not. If *nothing* clears the floor the whole list comes back —
+     * an empty drawer says less than a populated one beside a message naming
+     * the camera.
+     */
+    fun offerable(
+        context: Context,
+        caps: CameraCapabilities.Info,
+    ): List<CameraCapabilities.Resolution> {
+        val all = caps.yuvSizes
+        val sustainable = all.filter { CapturePlanOptions.sustainableAtFloor(perFrameMs(context, caps, it)) }
+        return sustainable.ifEmpty { all }
+    }
 }

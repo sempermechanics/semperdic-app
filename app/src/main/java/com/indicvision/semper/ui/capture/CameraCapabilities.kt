@@ -62,6 +62,16 @@ object CameraCapabilities {
          *  [ImageScale] that is not already read somewhere else, and the one
          *  that turns a speckle measured in pixels into a size at the bench. */
         val sensorLongEdgeMm: Float? = null,
+        /**
+         * Focal lengths this camera reports, in millimetres. Kept so
+         * [ImageScale] can check that a focal length read out of a photograph's
+         * EXIF belongs to *this* camera before pairing it with
+         * [sensorLongEdgeMm]: the test shot is taken by whichever lens the
+         * vendor camera app chose, and this catalogue is built from the longest
+         * back lens, so on a multi-camera phone the two are routinely different
+         * pieces of glass with different sensors behind them.
+         */
+        val focalLengthsMm: List<Float> = emptyList(),
     ) {
         /** Sensor floor for [res] in ms, or 0 when this device reports none. */
         fun sensorFloorMs(res: Resolution): Long = minFrameMs[res] ?: 0L
@@ -202,6 +212,7 @@ object CameraCapabilities {
         minFrameMs = emptyMap(),
         previewSizes = FALLBACK_STREAM_SIZES,
         sensorLongEdgeMm = null,
+        focalLengthsMm = emptyList(),
     )
 
     @Suppress("ReturnCount")
@@ -239,7 +250,11 @@ object CameraCapabilities {
             ?.let { maxOf(it.width, it.height) }
             ?.takeIf { it.isFinite() && it > 0f }
 
-        return Info(id, yuv, minFrameDurations(map, yuv), previews, sensorMm)
+        val focalLengths = chars.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
+            ?.filter { it.isFinite() && it > 0f }
+            .orEmpty()
+
+        return Info(id, yuv, minFrameDurations(map, yuv), previews, sensorMm, focalLengths)
     }
 
     /**

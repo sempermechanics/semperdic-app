@@ -43,7 +43,17 @@ internal object CaptureSuitability {
         val band: DicGoodPractice.Verdict,
         /** Long edge that would put the speckle at the recommended size. */
         val recommendedLongEdge: Int,
-        /** The offered size closest to that, or null when none could be found. */
+        /**
+         * The offered size that gets closest to [recommendedLongEdge] *while
+         * still landing inside the band*, or null when this camera has none.
+         *
+         * Null is the answer worth having. A speckle far outside the band can
+         * want a frame larger than the sensor, and the nearest offered size is
+         * then simply the biggest one — which does not fix anything. Naming it
+         * sends the user away to re-shoot into the identical failure, so when
+         * no size works the verdict says so and the millimetre figures carry
+         * the real advice instead.
+         */
         val recommended: CameraCapabilities.Resolution?,
         /** Speckle size in millimetres, or null when no scale could be derived. */
         val speckleMm: Double?,
@@ -93,23 +103,34 @@ internal object CaptureSuitability {
             speckleOnPlanPx = onPlan,
             band = band,
             recommendedLongEdge = range.recommended,
-            recommended = nearestOffered(offered, range.recommended),
+            recommended = nearestInBand(offered, range),
             speckleMm = mmPerPx?.let { onPlan * it },
             bandMm = mmPerPx?.let { DicGoodPractice.bandInMillimetres(it) },
         )
     }
 
     /**
-     * The catalogued size closest to [longEdgePx].
+     * The catalogued size closest to [range]'s target that is itself inside
+     * [range], or null when this camera offers no such size.
      *
-     * Nearest on the long edge, matching [CaptureResolutionPicker.select], so
-     * the size named in the dialog is the size the spinner lands on when the
-     * user takes the recommendation. Naming one and selecting another would be
-     * its own small betrayal.
+     * Two things have to hold for a recommendation to be worth making, and
+     * both are easy to lose:
+     *
+     *  * **It has to fix the problem.** Filtered to the band first, so the
+     *    size named is one where the speckle really does land between
+     *    [DicGoodPractice.MIN_SPECKLE_PX] and [DicGoodPractice.MAX_SPECKLE_PX].
+     *    Nearest-of-everything would answer "the largest size you have" to a
+     *    speckle needing a frame larger than the sensor.
+     *  * **It has to be selectable.** [offered] is the same filtered list the
+     *    setup screen's picker is built from, and nearest-on-the-long-edge is
+     *    what [CaptureResolutionPicker.select] does, so the size named in the
+     *    dialog is the size the spinner lands on. Naming one and selecting
+     *    another would be its own small betrayal.
      */
-    private fun nearestOffered(
+    private fun nearestInBand(
         offered: List<CameraCapabilities.Resolution>,
-        longEdgePx: Int,
-    ): CameraCapabilities.Resolution? =
-        offered.minByOrNull { abs(maxOf(it.width, it.height) - longEdgePx) }
+        range: DicGoodPractice.LongEdgeRange,
+    ): CameraCapabilities.Resolution? = offered
+        .filter { maxOf(it.width, it.height) in range.minimum..range.maximum }
+        .minByOrNull { abs(maxOf(it.width, it.height) - range.recommended) }
 }

@@ -127,6 +127,37 @@ class CaptureSuitabilityTest {
         assertTrue(verdict.recommendedLongEdge > 0)
     }
 
+    @Test
+    fun `a speckle no offered size can rescue gets no recommendation at all`() {
+        // 1 px of speckle on a 1600 px frame wants an 8000 px one; the largest
+        // size this camera has is 4000, where the dot is still 2.5 px. Naming
+        // it would send the user back to setup to take advice that cannot work
+        // and re-shoot into the identical failure, so nothing is named and the
+        // millimetre figures carry the real answer.
+        val verdict = verdictFor(1.0, 1600, res(1600, 1200))!!
+        assertEquals(DicGoodPractice.Verdict.UNDER_RESOLVED, verdict.band)
+        assertNull("no offered size fixes it", verdict.recommended)
+        assertTrue("the ideal is still stated", verdict.recommendedLongEdge > 4000)
+    }
+
+    @Test
+    fun `the size named is one the speckle really does land in the band at`() {
+        // Nearest-of-everything would answer "the biggest size you have" to a
+        // speckle needing more frame than the sensor. Whatever comes back has
+        // to survive the round trip.
+        val picks = listOf(res(400, 300), res(4000, 3000), res(800, 600))
+            .mapNotNull { plan -> verdictFor(24.0, 4000, plan)?.recommended?.let { plan to it } }
+        assertTrue("something to check", picks.isNotEmpty())
+        for ((plan, picked) in picks) {
+            val atPick = 24.0 * maxOf(picked.width, picked.height) / 4000
+            assertEquals(
+                "from ${plan.label} to ${picked.label}",
+                DicGoodPractice.Verdict.USABLE,
+                DicGoodPractice.verdictFor(atPick),
+            )
+        }
+    }
+
     private fun res(width: Int, height: Int) = CameraCapabilities.Resolution(width, height)
 
     private fun verdictFor(

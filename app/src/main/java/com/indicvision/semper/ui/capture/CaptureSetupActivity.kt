@@ -187,19 +187,16 @@ class CaptureSetupActivity : AppCompatActivity() {
      * one beside a message naming the camera.
      */
     private fun offerableSizes(): List<CameraCapabilities.Resolution> {
-        val all = caps.yuvSizes
-        val sustainable = all.filter {
-            CapturePlanOptions.sustainableAtFloor(CaptureFrameCost.perFrameMs(this, caps, it))
-        }
-        if (sustainable.size < all.size) {
+        val offerable = CaptureFrameCost.offerable(this, caps)
+        if (offerable.size < caps.yuvSizes.size) {
             Timber.i(
                 "capture setup: %d of %d resolutions cannot hold %s fps; not offering them",
-                all.size - sustainable.size,
-                all.size,
+                caps.yuvSizes.size - offerable.size,
+                caps.yuvSizes.size,
                 CapturePlanOptions.MIN_FPS,
             )
         }
-        return sustainable.ifEmpty { all }
+        return offerable
     }
 
     private fun maxFramesSetting(): Int =
@@ -269,12 +266,21 @@ class CaptureSetupActivity : AppCompatActivity() {
      * Deliberately one line. This is a dead end the user wants out of, and the
      * only thing that gets them out is the number that binds and which knob
      * moves it.
+     *
+     * Which knob is *not* the same question as which limit is tighter, and the
+     * two used to be conflated. [CapturePlanOptions.cappedByFrameSetting] only
+     * reports which of the two bites first; when the camera cannot hold
+     * [CapturePlanOptions.MIN_FPS] either, raising Max frames changes nothing
+     * and the user comes straight back to a still-disabled button, now with a
+     * different message. So the camera is asked first, on its own terms, and
+     * the setting is named only when lifting it would actually produce a rate.
      */
     private fun showNoRate(cappedBySetting: Boolean, frameCap: Int) {
         btnContinue.isEnabled = false
         val res = resPicker.selected
         tvEstimate.text = getString(R.string.capture_no_rate_title)
-        val why = if (cappedBySetting) {
+        val cameraCanHoldFloor = CapturePlanOptions.sustainableAtFloor(perFrameMs)
+        val why = if (cappedBySetting && cameraCanHoldFloor) {
             CaptureEstimateText.noRateFromSetting(this, durationSec, frameCap)
         } else {
             CaptureEstimateText.noRateFromCamera(this, res.label, perFrameMs)

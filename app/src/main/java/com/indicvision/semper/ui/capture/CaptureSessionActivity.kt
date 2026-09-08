@@ -5,6 +5,7 @@ package com.indicvision.semper.ui.capture
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.PointF
@@ -521,12 +522,17 @@ class CaptureSessionActivity : AppCompatActivity() {
             focalLengthMm = focusLock?.focalLengthMm,
             subjectDistanceM = focusLock?.subjectDistanceM,
             imageLongEdgePx = testShotLongEdge,
+            cameraFocalLengthsMm = caps.focalLengthsMm,
         )
         val verdict = CaptureSuitability.of(
             speckleOnTestShotPx = speckleDiameterPx,
             testShotLongEdge = testShotLongEdge,
             plan = plan,
-            offered = caps.yuvSizes,
+            // The same list the setup screen's picker is built from, not the
+            // full catalogue: a size the picker has already dropped is one the
+            // user cannot select, so naming it here would send them back to
+            // setup to take a recommendation that is not on offer.
+            offered = CaptureFrameCost.offerable(this, caps),
             scale = scale,
         ) ?: return true
         Timber.w(
@@ -578,6 +584,13 @@ class CaptureSessionActivity : AppCompatActivity() {
      * rate back, and a user told only "your speckle is too big" would reasonably
      * ignore it.
      *
+     * A third case sits under both: no offered resolution puts this speckle in
+     * the band at all. There is no resolution to recommend then, so none is
+     * named — the answer is the pattern itself, which is what the millimetre
+     * line was already there to give. Offering **Change resolution** in that
+     * state would send the user back to pick a size that cannot help and
+     * re-shoot into the same failure.
+     *
      * The millimetre line is always present, and says "not available" when no
      * scale could be derived. Most phones report no subject distance, so that
      * is the ordinary case rather than a fault; it sits in its own paragraph at
@@ -585,21 +598,33 @@ class CaptureSessionActivity : AppCompatActivity() {
      * it, and a missing figure is stated instead of silently left out.
      */
     private fun showSpeckleFitDialog(verdict: CaptureSuitability.Verdict, buysARate: Boolean) {
-        val recommendedLabel = verdict.recommended?.label
-            ?: getString(R.string.capture_speckle_fit_long_edge_fmt, verdict.recommendedLongEdge)
+        val under = verdict.band == DicGoodPractice.Verdict.UNDER_RESOLVED
+        val recommended = verdict.recommended
         val body = StringBuilder(
-            getString(
-                when {
-                    verdict.band == DicGoodPractice.Verdict.UNDER_RESOLVED ->
-                        R.string.capture_speckle_under_body
-                    buysARate -> R.string.capture_speckle_over_body
-                    else -> R.string.capture_speckle_over_body_same_rate
-                },
-                verdict.speckleOnPlanPx,
-                DicGoodPractice.MIN_SPECKLE_PX.toInt(),
-                DicGoodPractice.MAX_SPECKLE_PX.toInt(),
-                recommendedLabel,
-            ),
+            if (recommended == null) {
+                getString(
+                    if (under) {
+                        R.string.capture_speckle_under_body_unreachable
+                    } else {
+                        R.string.capture_speckle_over_body_unreachable
+                    },
+                    verdict.speckleOnPlanPx,
+                    DicGoodPractice.MIN_SPECKLE_PX.toInt(),
+                    DicGoodPractice.MAX_SPECKLE_PX.toInt(),
+                )
+            } else {
+                getString(
+                    when {
+                        under -> R.string.capture_speckle_under_body
+                        buysARate -> R.string.capture_speckle_over_body
+                        else -> R.string.capture_speckle_over_body_same_rate
+                    },
+                    verdict.speckleOnPlanPx,
+                    DicGoodPractice.MIN_SPECKLE_PX.toInt(),
+                    DicGoodPractice.MAX_SPECKLE_PX.toInt(),
+                    recommended.label,
+                )
+            },
         )
         val speckleMm = verdict.speckleMm
         val bandMm = verdict.bandMm
@@ -610,25 +635,32 @@ class CaptureSessionActivity : AppCompatActivity() {
                 getString(R.string.capture_speckle_mm_unavailable)
             },
         )
+        val recordAnyway = { _: DialogInterface, _: Int ->
+            Timber.w("speckle fit override: recording at %.1f px speckle", verdict.speckleOnPlanPx)
+            awaitingTestShot = false
+            ensureCameraThenLock()
+        }
         val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle(
-                if (verdict.band == DicGoodPractice.Verdict.UNDER_RESOLVED) {
-                    R.string.capture_speckle_under_title
-                } else {
-                    R.string.capture_speckle_over_title
-                },
-            )
+            .setTitle(if (under) R.string.capture_speckle_under_title else R.string.capture_speckle_over_title)
             .setMessage(body.toString())
             .setCancelable(false)
-            .setPositiveButton(R.string.capture_change_resolution) { _, _ ->
-                returnForResolutionChange(verdict.recommendedLongEdge)
-            }
-            .setNegativeButton(R.string.capture_record_anyway) { _, _ ->
-                Timber.w("speckle fit override: recording at %.1f px speckle", verdict.speckleOnPlanPx)
-                awaitingTestShot = false
-                ensureCameraThenLock()
-            }
             .setNeutralButton(R.string.action_why, null)
+        if (recommended == null) {
+            // No size to change to, so no button offering one. Back to setup is
+            // still worth having — the pattern is what has to change, and the
+            // duration and resolution are worth revisiting once it has.
+            dialog.setPositiveButton(R.string.capture_record_anyway, recordAnyway)
+                .setNegativeButton(R.string.back) { _, _ -> returnForResolutionChange(0) }
+        } else {
+            // The size the picker will land on, not the ideal long edge that
+            // produced it: select() takes the nearest offered size, and the two
+            // are only the same number by luck.
+            val pick = maxOf(recommended.width, recommended.height)
+            dialog.setPositiveButton(R.string.capture_change_resolution) { _, _ ->
+                returnForResolutionChange(pick)
+            }
+                .setNegativeButton(R.string.capture_record_anyway, recordAnyway)
+        }
         if (isFinishing || isDestroyed) return
         val alert = dialog.show()
         alert.getButton(androidx.appcompat.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {

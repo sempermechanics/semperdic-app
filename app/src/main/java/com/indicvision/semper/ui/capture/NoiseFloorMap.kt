@@ -26,7 +26,12 @@ import java.io.File
 /** The heat map composited over the frame it describes. */
 class NoiseFloorSigmaMap(
     val image: Bitmap,
-    /** Ends of the colour scale, in pixels of displacement. */
+    /**
+     * Ends of the colour scale, in pixels of displacement — the scale the
+     * renderer actually used, which is a percentile clamp and not the field's
+     * extremes. The legend has to quote these or it labels colours that are
+     * not on the map.
+     */
     val minSigmaPx: Double,
     val maxSigmaPx: Double,
 )
@@ -46,13 +51,22 @@ internal object NoiseFloorMap {
      * the question the map answers is *where* — a bright corner means nothing
      * without the corner of the specimen under it.
      *
+     * **The legend comes back from the visualiser, not from the field.** Asked
+     * without explicit bounds, `generateHeatmap` scales its colours to the 2nd
+     * and 98th percentiles of the data, not to its extremes — so the field's
+     * own min and max are not what the reddest and bluest pixels mean. On a
+     * scatter with a couple of glare cells in it the two differ by an order of
+     * magnitude, and a legend quoting the extremes would put a number under the
+     * map that no colour on the map stands for. The returned pair is the scale
+     * that was actually drawn, so that is what is quoted.
+     *
      * Null on any failure. A missing map costs the dialog a section it can hide;
      * a crash here would cost a test shot.
      */
     fun of(field: NoiseFloorProbe.SigmaField?, reference: File): NoiseFloorSigmaMap? {
         if (field == null) return null
         return runCatching {
-            val (heat, _, _) = VisualizationEngine.generateHeatmap(
+            val (heat, scaleMin, scaleMax) = VisualizationEngine.generateHeatmap(
                 data = field.points,
                 imgW = field.imgW,
                 imgH = field.imgH,
@@ -68,7 +82,7 @@ internal object NoiseFloorMap {
             }
             base?.recycle()
             heat.recycle()
-            NoiseFloorSigmaMap(canvas, field.minSigmaPx, field.maxSigmaPx)
+            NoiseFloorSigmaMap(canvas, scaleMin.toDouble(), scaleMax.toDouble())
         }.onFailure { Timber.w(it, "noise floor: sigma map could not be drawn") }.getOrNull()
     }
 

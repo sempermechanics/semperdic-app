@@ -64,6 +64,27 @@ class CaptureFrameCostTest {
     }
 
     @Test
+    fun `a size the sensor cannot read out once a second is not offerable`() {
+        // One list of offerable sizes, shared by the setup screen's picker and
+        // by the speckle verdict's recommendation. They used to filter apart,
+        // and the verdict could name a size the picker had already dropped.
+        val c = caps(mapOf(full to 2_000L, small to 33L))
+
+        val offerable = CaptureFrameCost.offerable(context, c)
+
+        assertEquals(listOf(small), offerable)
+    }
+
+    @Test
+    fun `a camera where nothing clears the floor still offers its whole list`() {
+        // An empty drawer says less than a populated one beside a message
+        // naming the camera, so the filter gives up rather than emptying out.
+        val c = caps(mapOf(full to 2_000L, small to 5_000L))
+
+        assertEquals(listOf(full, small), CaptureFrameCost.offerable(context, c))
+    }
+
+    @Test
     fun `never returns a zero budget to divide by`() {
         val cost = CaptureFrameCost.perFrameMs(context, caps(mapOf(full to 0L)), full)
         assertTrue("cost was $cost", cost >= 1L)

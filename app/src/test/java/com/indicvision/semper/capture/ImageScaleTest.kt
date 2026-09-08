@@ -62,46 +62,46 @@ class ImageScaleTest {
 
     @Test
     fun `a device that will not report its sensor size has no scale`() {
-        assertUnavailable(ImageScale.of(null, 6.8f, 0.3f, 4000))
+        assertUnavailable(scale(null, 6.8f, 0.3f, 4000))
     }
 
     @Test
     fun `a shot with no focal length has no scale`() {
-        assertUnavailable(ImageScale.of(7.0f, null, 0.3f, 4000))
+        assertUnavailable(scale(7.0f, null, 0.3f, 4000))
     }
 
     @Test
     fun `the common case of no subject distance is unavailable, not an error`() {
         // Most phones report focus distance as UNCALIBRATED and write no EXIF
         // tag at all. This is the expected path on a great many devices.
-        assertUnavailable(ImageScale.of(7.0f, 6.8f, null, 4000))
+        assertUnavailable(scale(7.0f, 6.8f, null, 4000))
     }
 
     @Test
     fun `an unknown frame size has no scale`() {
-        assertUnavailable(ImageScale.of(7.0f, 6.8f, 0.3f, 0))
+        assertUnavailable(scale(7.0f, 6.8f, 0.3f, 0))
     }
 
     @Test
     fun `a distance outside arm's reach of a specimen is refused`() {
         // 2 cm is inside any phone's close focus; 40 m is not a specimen.
-        assertUnavailable(ImageScale.of(7.0f, 6.8f, 0.02f, 4000))
-        assertUnavailable(ImageScale.of(7.0f, 6.8f, 40f, 4000))
+        assertUnavailable(scale(7.0f, 6.8f, 0.02f, 4000))
+        assertUnavailable(scale(7.0f, 6.8f, 40f, 4000))
     }
 
     @Test
     fun `a focal length or sensor size no phone has is refused`() {
-        assertUnavailable(ImageScale.of(7.0f, 0.4f, 0.3f, 4000))
-        assertUnavailable(ImageScale.of(7.0f, 400f, 0.3f, 4000))
-        assertUnavailable(ImageScale.of(0.2f, 6.8f, 0.3f, 4000))
-        assertUnavailable(ImageScale.of(90f, 6.8f, 0.3f, 4000))
+        assertUnavailable(scale(7.0f, 0.4f, 0.3f, 4000))
+        assertUnavailable(scale(7.0f, 400f, 0.3f, 4000))
+        assertUnavailable(scale(0.2f, 6.8f, 0.3f, 4000))
+        assertUnavailable(scale(90f, 6.8f, 0.3f, 4000))
     }
 
     @Test
     fun `a non-finite input is refused rather than propagated`() {
-        assertUnavailable(ImageScale.of(Float.NaN, 6.8f, 0.3f, 4000))
-        assertUnavailable(ImageScale.of(7.0f, Float.NaN, 0.3f, 4000))
-        assertUnavailable(ImageScale.of(7.0f, 6.8f, Float.POSITIVE_INFINITY, 4000))
+        assertUnavailable(scale(Float.NaN, 6.8f, 0.3f, 4000))
+        assertUnavailable(scale(7.0f, Float.NaN, 0.3f, 4000))
+        assertUnavailable(scale(7.0f, 6.8f, Float.POSITIVE_INFINITY, 4000))
     }
 
     @Test
@@ -109,7 +109,7 @@ class ImageScaleTest {
         // Inputs each individually in range, product absurd: a 50 mm sensor
         // 5 m from the specimen behind a 1 mm lens is 4.9 mm per pixel on a
         // 50 px frame — arithmetic, not a photograph.
-        assertUnavailable(ImageScale.of(50f, 1f, 5f, 50))
+        assertUnavailable(scale(50f, 1f, 5f, 50))
     }
 
     @Test
@@ -125,8 +125,44 @@ class ImageScaleTest {
         assertNull(ImageScale.scaledTo(Double.NaN, fromLongEdge = 2000, toLongEdge = 2000))
     }
 
+    @Test
+    fun `a focal length from another lens is refused, not paired with this sensor`() {
+        // The vendor camera app shot the test frame on the ultra-wide while the
+        // catalogue was built from the main camera. Every number is individually
+        // plausible and the product is wrong by the ratio between the lenses, so
+        // there is nothing downstream that could catch it.
+        assertUnavailable(ImageScale.of(7.0f, 2.2f, 0.3f, 4000, listOf(6.8f)))
+    }
+
+    @Test
+    fun `a rounded EXIF focal length still counts as its own lens`() {
+        // EXIF writes 6.81 for a 6.8125 mm lens, and some apps write 7. An
+        // exact match would refuse the ordinary case.
+        val result = ImageScale.of(7.0f, 6.81f, 0.3f, 4000, listOf(6.8125f))
+        assertTrue("expected a scale, got $result", result is ImageScale.Result.Known)
+    }
+
+    @Test
+    fun `a camera that lists no lenses cannot confirm the pairing`() {
+        // Unconfirmed is the same as wrong here: a fabricated millimetre figure
+        // is worse than none, because a specimen gets re-made from it.
+        assertUnavailable(ImageScale.of(7.0f, 6.8f, 0.3f, 4000, emptyList()))
+    }
+
+    /**
+     * [ImageScale.of] with the lens pairing satisfied, so each case above
+     * exercises the one input it is actually about. The pairing has its own
+     * tests.
+     */
+    private fun scale(
+        sensorMm: Float?,
+        focalMm: Float?,
+        distanceM: Float?,
+        longEdgePx: Int,
+    ): ImageScale.Result = ImageScale.of(sensorMm, focalMm, distanceM, longEdgePx, listOfNotNull(focalMm))
+
     private fun known(sensorMm: Float, focalMm: Float, distanceM: Float, longEdgePx: Int): Double {
-        val result = ImageScale.of(sensorMm, focalMm, distanceM, longEdgePx)
+        val result = scale(sensorMm, focalMm, distanceM, longEdgePx)
         assertTrue("expected a scale, got $result", result is ImageScale.Result.Known)
         return (result as ImageScale.Result.Known).mmPerPx
     }
