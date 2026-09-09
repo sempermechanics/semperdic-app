@@ -56,3 +56,26 @@ available.
   emulator used here — taps sometimes landed on the underlying image as a
   tap-to-probe instead of the icon beneath the cursor. Worth a retry on a
   different AVD or with a physical device.
+
+## Record for analysis — no screenshot yet (added 2026-09-09)
+
+The whole Record-for-analysis flow has never had a screenshot in this folder,
+and `fix/capture-dic-good-practice-gates` adds six screens to it. None of these
+need a backend or an account — a phone with a camera and a speckled specimen is
+the whole rig — but they do need a *real* one: the sizes offered, the frame
+cost and the measured speckle diameter all come from the device in front of the
+user, so an emulator produces a plausible-looking screenshot of numbers that
+mean nothing.
+
+| Proposed file | Would be used in | State to be in |
+|---|---|---|
+| `capture-setup-no-rate.png` | WORKFLOWS §3b (3b.2b2/3b.2b3) | The refusal at a resolution nothing can shoot at 1 fps: the one-line message naming what binds, **Continue** visibly dimmed |
+| `capture-speckle-under.png` | FAQ `#speckle-contrast`, WORKFLOWS 3b.6f3 | Under-resolved dialog: measured diameter, the 3–9 px band, the size that reaches 5 px, the mm line, **Change resolution** / **Record anyway** / **Why?** |
+| `capture-speckle-over.png` | same | Oversampled dialog on the largest offered size — the case where a *lower* resolution is recommended and the fps comes back |
+| `capture-speckle-unreachable.png` | WORKFLOWS 3b.6f3c | A pattern too fine for any offered size: no promise made, the closest size named, **Change resolution** still present |
+| `capture-burst-uncorrelated.png` | FAQ, WORKFLOWS 3b.6 | The INSUFFICIENT dialog — frames saved, correlation failed — rather than the old "No photo was saved" |
+| `capture-noise-floor-heatmap.png` | OPERATING_MANUAL, WORKFLOWS 3b.6f6 | The noise-floor dialog with the sigma heat map composited over the burst frame, legend showing both ends in px and µε |
+
+The mm line in the two speckle dialogs reads **not available** on most phones.
+Capture it in that state as well as, not instead of, a phone that reports a
+focus distance — it is the common case and it must not read as an error.
