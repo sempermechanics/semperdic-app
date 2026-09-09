@@ -79,3 +79,21 @@ mean nothing.
 The mm line in the two speckle dialogs reads **not available** on most phones.
 Capture it in that state as well as, not instead of, a phone that reports a
 focus distance — it is the common case and it must not read as an error.
+
+Four of the six were caught on the device during the 2026-09-08 test pass and
+are **not committed here**, because the build they were shot on is four commits
+behind and each has since changed in the exact place the docs now point at:
+
+- the **under-resolved** and **oversampled** dialogs both predate the millimetre
+  paragraph, which `79083ed` made unconditional — every speckle dialog now ends
+  with a dot size in mm or with "not available";
+- the oversampled one also still promises "allows a higher frame rate" without
+  checking, which the same commit split into a same-rate variant;
+- the **heat map** shot is the one worth re-taking most: its legend reads the
+  field's own extremes (0.0041–0.0135 px), and `8faa901` changed it to quote the
+  colour scale actually drawn, so the numbers on that shot are precisely the ones
+  the fix corrected.
+
+A screenshot whose text no longer matches the build is the failure this file
+exists to track, so they wait for a re-shoot rather than going in stale. The
+setup screen at 1 fps came through unchanged and could be committed as-is.
