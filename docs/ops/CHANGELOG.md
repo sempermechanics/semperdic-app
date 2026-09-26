@@ -38,7 +38,7 @@ commit can be redeployed. The console went out with `scripts/deploy-console.sh`.
 - #268 and #270 (TD-22): 156 behavioural tests for `auth.js`, `router.js` and the
   operator, account and institution pages, run by `node --test` against a fake
   Firebase and a parsed DOM; no deploy needed.
-- #271 (TD-134, found by #270): the account page keeps "Could not read your
+- #271 (TD-136, found by #270): the account page keeps "Could not read your
   account" when the analyses answer second instead of clearing it.
 
 ## 2026-09-26 — Backend, gateway and console deploy: Demo phone change through staff (#266, with #264)

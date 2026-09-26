@@ -110,7 +110,7 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   #240 (cost), the licence desk (backend and console), the device-change fixes (#248, #249,
   #255, #261, #264), pinned serving/rollback images (#263), the staff phone release for
   Demo accounts (#266), compat shims 1–5 retired (#267, TD-45) and the account page's kept
-  load error (#271, TD-134) went out 2026-09-26 ([CHANGELOG](docs/ops/CHANGELOG.md)).
+  load error (#271, TD-136) went out 2026-09-26 ([CHANGELOG](docs/ops/CHANGELOG.md)).
 - **App release `v1.2-beta.2`** (beta, private GitHub Release, from `fab33cb`): the
   burn-down's app half, #180's strain window in data points, engine `v0.2.2`, #182 (TD-66).
 - **Merged, awaiting release:** #189, four fixes ported from material_testing
