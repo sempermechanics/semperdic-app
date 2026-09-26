@@ -174,31 +174,10 @@ internal class HardwareVideoDecoder private constructor(
     private fun extractLumaFromOutputBuffer(outIndex: Int): GrayPngEncoder.Luma? {
         val image = codec.getOutputImage(outIndex) ?: return null
         return try {
-            val plane = image.planes[0]
-            val buffer = plane.buffer
-            val rowStride = plane.rowStride
-            val pixelStride = plane.pixelStride
-
-            val crop = image.cropRect
-            val width = if (crop.width() > 0) crop.width() else image.width
-            val height = if (crop.height() > 0) crop.height() else image.height
-
-            val startOffset = crop.top * rowStride + crop.left * pixelStride
-            val dup = buffer.duplicate()
-            val safeOffset = startOffset.coerceIn(0, dup.capacity())
-            dup.position(safeOffset)
-
-            val bytes = ByteArray(dup.remaining())
-            dup.get(bytes)
-
-            GrayPngEncoder.Luma(
-                bytes = bytes,
-                width = width,
-                height = height,
-                rowStride = rowStride,
-                pixelStride = pixelStride,
-                rotationDegrees = rotationDegrees,
-            )
+            // The codec's output format carries the stream's colour range when it
+            // has one; the container's track format is the fallback (TD-134).
+            val output = runCatching { codec.getOutputFormat(outIndex) }.getOrNull()
+            ImageLuma.of(image, rotationDegrees, limitedRange = ImageLuma.isLimitedRange(output, format))
         } finally {
             image.close()
         }
