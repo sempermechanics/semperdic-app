@@ -111,37 +111,13 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   #255, #261, #264), pinned serving/rollback images (#263), the staff phone release for
   Demo accounts (#266), compat shims 1–5 retired (#267, TD-45) and the account page's kept
   load error (#271, TD-134) went out 2026-09-26 ([CHANGELOG](docs/ops/CHANGELOG.md)).
-- **App release `v1.2-beta.2`** (beta, private GitHub Release, from `fab33cb`): the
-  burn-down's app half, #180's strain window in data points, engine `v0.2.2`, #182 (TD-66).
-- **Merged, awaiting release:** #189, four fixes ported from material_testing
-  (`SubsetRecommender` reads speckle inside the ROI from textured patches only,
-  `VsgPlotView` y gutter, `TouchImageView` zoom across a resize, `AviReader` µs slack);
-  #197, `settingsScroll` skips the licence-only settings headers and
-  `scripts/ci_test_report.py` puts failing device tests and benchmark numbers in the CI log;
-  #203 (TD-81), Compute comes back after a single run fails outright, and a first frame
-  that kept no points says why (the strain window with the run's VSG and step, nothing
-  correlated, or an unreadable frame).
-- **Measured optimisation (2026-09-25, all six passes done).** Passes 1–2 (#191, #206) take
-  an app open from 12 to 3 requests on the Pixel 6 and ship with the next app build; Pass 4
-  (#202) is deployed; Passes 3, 5 and 6 measured nothing worth changing
-  ([perf/request-volume.md](docs/perf/request-volume.md), [CHANGELOG](docs/ops/CHANGELOG.md)).
-- **Benchmarks in CI.** `HotPathMicroBenchmark` runs (#200, TD-86: debug-only permission,
-  `am instrument`); the scrub seeder writes the ranges sidecar (#208, TD-87: 150-frame heap
-  161 → 21 MB); #214 reuses one frame buffer, #217 (TD-88) saves the sidecar after a full
-  decode. #229/#230 (TD-90): no API URL now reads as offline instead of crashing on open.
-- **Wrong-information audit, app half (merged, awaiting release):** #211 (enforce a known
-  licensed ceiling), #212 (PDF page cover image and name, mixed bulk-delete prompt, sweep
-  export header, per-node sweep reasons, restored skip count), #218 (licence countdown, backup
-  status, local quota count, restored stop reasons), #219 (PDF and share extremes), #220 (run
-  counts, stale Home rows), #223 (counts, captions, report names, progress), #225 (frame names
-  past a skipped frame, Home headline, partial-run dialog). No audit TECH_DEBT rows remain.
-- **Bulk delete.** Backend half deployed (#226, [CHANGELOG](docs/ops/CHANGELOG.md)); app half
-  merged, awaiting release (#227: one `SessionDeletes` queue, Delete everywhere, cloud link cleared).
-  Pixel 6, 10 rows, Delete everywhere: 10 DELETEs, all 200, in ~17 s (was 61 in 100 s).
-  **Restore (#234, merged, awaiting release):** Home says Restore, restores a multi-selection,
-  shares `RestoreStart` with Settings, and announces a failed restore once (`RestoreFailureLedger`).
-  Pixel 6, 3 at once: 13 requests, 0 × 429, ~17 s, so restores stay parallel. **Home cloud
-  backups (#235, merged, awaiting release):** a card offers backups this phone has no row for (`CloudBackupListing`).
+- **App release `v1.2-beta.3`** (beta, private GitHub Release, run 36239577288, from
+  `ae05bb87`, versionCode 35): everything the app merged since `v1.2-beta.2`, including
+  the wrong-information audit's app half, one delete queue (#227), Restore (#234), the Home
+  backups card (#235), "Upload pending" (#254), request-volume passes 1–2 and TD-82's
+  "1 / 1" fix ([CHANGELOG](docs/ops/CHANGELOG.md)). Pixel 6 smoke on 2026-09-26, on the
+  account #264 demoted (runs as Demo): clean install, sign-in, a two-frame run, frame names, an attested upload (three
+  `complete` calls, 200), Home "9 / 25" after a refresh, no crashes.
 - **Lock taken by a refused phone (#264, deployed):** the Pixel 6 account demoted on
   2026-09-26 still needs one **New device** to get its licence back (not verified here).
 - **Licence desk:** #236 (fast list, one-row refresh), #237 (one licence per person), #238
@@ -151,15 +127,10 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 - **material_testing shares this history** (it merged `643462c`, material_testing#22):
   sync with a plain `git merge`. Lab features stay there; only general fixes come here.
   It also ships under Semper's app id (TD-133), so its lab build replaces Semper on a phone.
-- **"Upload pending" with no upload coming (#254, merged, awaiting release):** a build with no
-  backend saves analyses as not backed up, and each reconcile queues rows still PENDING again.
-  Pixel 6, 2026-09-26: its 8 waiting analyses backed up on their own after sign-in.
-- **`v1.2-beta.2` shows "1 / 1 analyses used"** after a user's first analysis, whatever
-  the cap: its plural's "one" form is a hard-coded "1 / 1", so a licensed account (cap 999)
-  looks capped at 1. TD-82's fix (`b9c218da`) is on `main`, so the next release carries it.
-  The backend floor for a licensed cap (#211) is deployed; the app half ships with that release.
-- **Owed.** A device smoke of `v1.2-beta.2` and its public release (website / Play); AVI import has
-  run only on emulators ([WORKFLOWS.md](docs/app/WORKFLOWS.md) §5.1a); unchecked rows in [PRODUCTION_READINESS_GATE.md](docs/ops/PRODUCTION_READINESS_GATE.md).
+- **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke
+  of the paths a Demo account cannot reach (share and PDF, Delete everywhere, Restore, the
+  backups card); AVI import has run only on emulators ([WORKFLOWS.md](docs/app/WORKFLOWS.md) §5.1a);
+  unchecked rows in [PRODUCTION_READINESS_GATE.md](docs/ops/PRODUCTION_READINESS_GATE.md).
 - **Look it up; this list rots.** `gh pr list --state open`, [CHANGELOG.md](docs/ops/CHANGELOG.md), [FUTURE_IMPROVEMENTS.md](docs/ops/FUTURE_IMPROVEMENTS.md).
 
 ## Traps
