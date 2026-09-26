@@ -54,7 +54,12 @@ object LicenseEntitlements {
      */
     fun licenseKind(context: Context): String = AppRemoteConfig.licenseKind(context)
 
-    /** Key prefix shown for support (never the full key). Empty on demo. */
+    /**
+     * Prefix of the key the account points at (never the full key). Not
+     * empty on demo: a Demo key, and a licence that is revoked, lapsed or
+     * waiting on a seat, all have one. Pair it with [isLicensed] before
+     * presenting it as a licence.
+     */
     fun licensePrefix(context: Context): String = AppRemoteConfig.licensePrefix(context)
 
     /**
