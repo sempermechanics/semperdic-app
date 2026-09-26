@@ -73,13 +73,16 @@ function showFactorPill() {
 
 /* --------------------------------------------------------------- mint */
 
-for (const radio of document.querySelectorAll('input[name="kind"]')) {
-  radio.addEventListener("change", () => {
-    const institution = radio.value === "institution" && radio.checked;
-    $("individualFields").hidden = institution;
-    $("institutionFields").hidden = !institution;
-  });
+const kindRadios = () => document.querySelectorAll('input[name="kind"]');
+
+/** Show the fields of whichever kind is ticked. */
+function syncKind() {
+  const institution = [...kindRadios()].some((r) => r.value === "institution" && r.checked);
+  $("individualFields").hidden = institution;
+  $("institutionFields").hidden = !institution;
 }
+
+for (const radio of kindRadios()) radio.addEventListener("change", syncKind);
 
 $("duration").addEventListener("change", () => {
   const timed = $("duration").value === "timed";
@@ -495,6 +498,10 @@ function openEdit(id) {
   // one is refused; say why instead of offering it.
   $("editCap").disabled = demo;
   $("editCap").title = demo ? demoCapNote() : "";
+  // Nothing in this dialog licenses a Demo account; say what does.
+  $("editDemo").hidden = !demo;
+  $("editDemoEmail").textContent = lic.emailLock || "the account's address";
+  $("editDemoIssue").hidden = !lic.emailLock;
   $("editInstitution").hidden = !institution;
   $("editSeats").value = lic.maxSeats ?? "";
   $("editSeating").value = lic.seating || "assigned";
@@ -522,6 +529,19 @@ function editHint(message, isError = true) {
 }
 
 $("editPerpetual").addEventListener("change", syncEditTerm);
+// Licensing a Demo account is an issue, not an edit: hand its address to the
+// Issue form rather than have the operator retype it. The term is still
+// theirs to choose, so nothing is sent from here.
+$("editDemoIssue").addEventListener("click", () => {
+  const email = editing?.emailLock;
+  if (!email) return;
+  $("editDialog").close();
+  for (const radio of kindRadios()) radio.checked = radio.value === "individual";
+  syncKind();
+  $("emailLock").value = email;
+  $("emailLock").focus();
+  setStatus(`Choose the term, then Issue licence: it attaches to ${email} and replaces the Demo key.`);
+});
 $("editCancel").addEventListener("click", () => $("editDialog").close());
 $("editForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();

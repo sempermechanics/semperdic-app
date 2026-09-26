@@ -176,6 +176,19 @@
             Everyone on this licence gets the change at once. Nothing is
             re-issued and nobody re-activates.
           </p>
+          <!-- A Demo key is minted for every account and is not a licence
+               anyone bought, so no edit turns it into one. Licensing the
+               account is an individual licence issued to the same address,
+               which attaches at once and retires this key. -->
+          <div id="editDemo" class="note" hidden>
+            This is the account's Demo key. Editing it does not license the
+            account. Issue a licence to
+            <span id="editDemoEmail" class="mono"></span> instead: it attaches
+            straight away and replaces this key.
+            <div class="row">
+              <button id="editDemoIssue" type="button" class="secondary">Issue a licence to this address</button>
+            </div>
+          </div>
           <div class="grid">
             <label>Expires
               <input id="editExpiry" type="date" />

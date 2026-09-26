@@ -455,6 +455,51 @@ test("clearing the cap sends clearMaxAnalyses; a Demo key's cap cannot be edited
   assert.equal($("editCap").title, "Demo keys use the demo allowance of 25; issue a licensed key to raise it.");
 });
 
+/** The desk with Demo keys shown, and Edit open on `demo`. */
+async function openDemoEdit(demo = DEMO) {
+  await open({
+    licenses: [demo],
+    routes: { "GET /v1/admin/licenses?limit=50&include_demo=true&include_revoked=false": () => json(200, { licenses: [demo], demoMaxAnalyses: 25 }) },
+  });
+  $("showDemo").checked = true;
+  $("showDemo").dispatch("change");
+  await settle();
+  rowButton("edit", demo.id).click();
+}
+
+test("Edit on a licensed key says nothing about Demo", async () => {
+  await openEdit();
+  assert.equal($("editDemo").hidden, true);
+});
+
+test("Edit on a Demo key says a licence is issued, not edited in, and hands the address to Issue", async () => {
+  await openDemoEdit();
+  assert.equal($("editDemo").hidden, false);
+  assert.equal($("editDemoEmail").textContent, "d@x.org");
+  assert.equal($("editDemoIssue").hidden, false);
+
+  document.querySelector('input[name="kind"][value="institution"]').checked = true;
+  document.querySelector('input[name="kind"][value="individual"]').checked = false;
+  $("editDemoIssue").click();
+
+  assert.equal($("editDialog").open, false);
+  assert.equal(document.querySelector('input[name="kind"]:checked').value, "individual");
+  assert.equal($("individualFields").hidden, false);
+  assert.equal($("institutionFields").hidden, true);
+  assert.equal($("emailLock").value, "d@x.org");
+  assert.equal($("emailLock").focused, true);
+  assert.deepEqual(status(),
+    ["Choose the term, then Issue licence: it attaches to d@x.org and replaces the Demo key.", "muted"]);
+  assert.deepEqual(sent(/POST|PATCH/), [], "the term is the operator's to choose; nothing is issued from Edit");
+});
+
+test("a Demo key with no address on it offers no hand-off", async () => {
+  await openDemoEdit({ ...DEMO, emailLock: "" });
+  assert.equal($("editDemo").hidden, false);
+  assert.equal($("editDemoEmail").textContent, "the account's address");
+  assert.equal($("editDemoIssue").hidden, true);
+});
+
 test("nothing changed is said in the dialog, and nothing is sent", async () => {
   await openEdit();
   await submitEdit();
