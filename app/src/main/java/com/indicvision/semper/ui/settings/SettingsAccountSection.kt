@@ -25,12 +25,15 @@ class SettingsAccountSection(
             activity.getString(R.string.account_device_id_fmt, deviceId)
 
         // The prefix is the only part of a key the app is ever told, and it is
-        // what support asks for. Empty on demo, and on any backend that
-        // predates the field, so the row is hidden rather than showing
-        // "Licensed as" with nothing after it.
+        // what support asks for. It is *not* empty on demo: the backend sends
+        // the prefix of whatever key the account points at, including its own
+        // Demo key and a licence that is revoked, lapsed, or waiting on a
+        // floating seat. So "Licensed as" is gated on the entitlement, not on
+        // the prefix; the prefix check only covers a backend that predates the
+        // field, where the row would otherwise end at "Licensed as".
         val prefix = LicenseEntitlements.licensePrefix(activity)
         activity.findViewById<TextView>(R.id.tvAccountLicense).apply {
-            isVisible = prefix.isNotEmpty()
+            isVisible = LicenseEntitlements.isLicensed(activity) && prefix.isNotEmpty()
             text = activity.getString(R.string.account_license_prefix_fmt, prefix)
         }
 

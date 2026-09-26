@@ -244,7 +244,7 @@ bundle downloads, **Export my data** and **Download my cloud account data**.
 |---|---|---|
 | [ ] 4.1 | Open Settings | All seven sections are collapsed; chevrons rotate on tap |
 | [ ] 4.2 | Expand **Account** | Your email and "Device ID · …" are shown; the device ID can be selected and copied |
-| [ ] 4.2a | Expand **Account** on a licensed account | "Licensed as SEMP-…" is shown below the device ID — the key prefix support asks for, never the key. Absent on demo |
+| [ ] 4.2a | Expand **Account** on a licensed account | "Licensed as SEMP-…" is shown below the device ID — the key prefix support asks for, never the key. Absent whenever the account is not entitled: a Demo account (even though its Demo key has a prefix), and a licence that is revoked, past grace, or waiting on a floating seat |
 | [ ] 4.3 | Expand **Account** as a non-admin | No "Pending access requests" button |
 | [ ] 4.4 | Expand **Account** as an admin | The button appears and opens the admin list |
 | [ ] 4.5 | Turn **Save to cloud** on with local-only analyses present | A dialog offers to back up N of them |
