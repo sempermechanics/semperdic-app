@@ -138,10 +138,6 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   shares `RestoreStart` with Settings, and announces a failed restore once (`RestoreFailureLedger`).
   Pixel 6, 3 at once: 13 requests, 0 × 429, ~17 s, so restores stay parallel. **Home cloud
   backups (#235, merged, awaiting release):** a card offers backups this phone has no row for (`CloudBackupListing`).
-- **Changing device (#248 merged; hold in review):** a cleared device lock left `users/{uid}.activeDeviceId` on the old
-  phone, so the new one got `409 device_conflict` at sign-in (found 2026-09-26 on an emulator). The
-  clear now releases it (#248), and the released phone is refused for 24 h so its upload worker
-  cannot re-register first (in review); demo accounts still cannot change phone (TD-126). Needs a backend deploy.
 - **Licence desk:** #236 (fast list, one-row refresh), #237 (one licence per person), #238
   (edit/upgrade/convert) and #239 (delete with a 30-day restore): backend, gateway, indexes,
   TTLs and console deployed 2026-09-26 ([ADR-007](docs/adr/ADR-007-licence-lifecycle.md)).

@@ -12,6 +12,25 @@ Decisions that outlive their PR are recorded in
 [CLOUD_ARCHITECTURE_GCP.md](../backend/CLOUD_ARCHITECTURE_GCP.md) §20,
 [ARCHITECTURE.md](../app/ARCHITECTURE.md) and [../adr/](../adr/).
 
+## 2026-09-26 — Changing device works again (#248, #249)
+
+A cleared device lock ("New device" in the consoles, or the holder's own "Use Semper on a
+different device") emptied the licence's `deviceIdLock` but left `users/{uid}.activeDeviceId`
+naming the old phone, so `POST /v1/devices/register` refused the new phone with
+`409 device_conflict` and the device change never happened. Found smoke-testing #235 on an
+emulator: two 409s at 05:59 and 06:00 UTC after a staff clear. #248 makes the clear release
+the holder's binding (`_release_holder_device`: `activeDeviceId` deleted, the old
+`devices/{id}` marked `SUPERSEDED`). #249 holds the released phone off for
+`DEVICE_RELEASE_HOLD_HOURS` (24) so its upload worker's automatic re-register cannot take the
+account back before the new phone signs in.
+
+Deployed from `main`, staging first each time: #248 as `semper-api-staging-36223348648-1`
+and `semper-api-36223604531-1` (`5b7d0642`); #249 as `semper-api-staging-36224232418-1` and
+`semper-api-36224429945-1` (`dea4fcc7`). #248's gateway dry-run found nothing to change. Left
+open in [TECH_DEBT.md](TECH_DEBT.md): TD-126 (a demo account cannot change phone) and the
+#248 review findings TD-127..132, of which TD-127 (the release skips neither a revoked
+licence nor a held seat) matters most.
+
 ## 2026-09-26 — Firestore TTL policies declared as field overrides (#242)
 
 `scripts/deploy-firestore.sh indexes` had created the licence desk's composite indexes and
