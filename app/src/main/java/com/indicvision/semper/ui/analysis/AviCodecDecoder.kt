@@ -185,7 +185,8 @@ internal class AviCodecDecoder private constructor(
     private fun lumaOf(outIndex: Int): GrayPngEncoder.Luma? {
         val image = codec.getOutputImage(outIndex) ?: return null
         return try {
-            ImageLuma.of(image, rotationDegrees = 0)
+            val output = runCatching { codec.getOutputFormat(outIndex) }.getOrNull()
+            ImageLuma.of(image, rotationDegrees = 0, limitedRange = ImageLuma.isLimitedRange(output))
         } finally {
             image.close()
         }
