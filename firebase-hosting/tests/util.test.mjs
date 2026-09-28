@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  esc, when, day, licenceState, licenceStatePill, leaseHeld, seatCells, inviteCells,
+  esc, when, day, licenceState, licenceStatePill, leaseHeld, seatCells, seatDevices, inviteCells,
   errorDetail, licenceListPath, searchableLicenceText, upsertLicence, alreadyLicensedId,
   isoDay, emailList, licenceEditPatch, daysLeft, reauthMethods, unfinishedStepUpText,
 } from "../public/console/util.js";
@@ -57,6 +57,19 @@ test("seat cells: four columns, status labels, escaped member", () => {
   assert.match(html, /abcdefghij…/);
   assert.match(seatCells({ uid: "u", status: "revoked" }, NOW), /removed/);
   assert.match(seatCells({ uid: "u", status: "active" }, NOW), /not yet/);
+});
+
+test("a seat shows each app's device, escaped (ADR-010)", () => {
+  assert.equal(seatDevices({}), "");
+  assert.equal(seatDevices({ deviceIdLock: "abcdefghijklmnop" }), "abcdefghij…");
+  assert.equal(
+    seatDevices({ deviceIdLock: "abcdefghijklmnop", deviceIdLockMaterialTesting: "<mt>defghijklmn" }),
+    "abcdefghij…; Material Testing &lt;mt&gt;defghi…",
+  );
+  assert.equal(seatDevices({ deviceIdLockMaterialTesting: "zyxwvutsrqpo" }),
+    "Material Testing zyxwvutsrq…");
+  assert.match(seatCells({ uid: "u", status: "active", deviceIdLockMaterialTesting: "zyxwvutsrqpo" }, NOW),
+    /Material Testing zyxwvutsrq…/);
 });
 
 test("invite cells line up with seat cells", () => {

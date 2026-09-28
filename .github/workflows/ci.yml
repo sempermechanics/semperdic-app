@@ -16,9 +16,13 @@ on:
         type: boolean
         default: false
 
+# A new push cancels a PR's older run. On main a started run finishes (the full
+# matrix, ~20 min): cancelling there meant a busy day of merges never finished
+# Tier 3 / 5 on main at all (TD-97). GitHub still keeps only the newest pending
+# run per group, so a burst of merges runs the one in flight and the latest.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Read-only by default; jobs that prune caches or read PRs widen it themselves.
 permissions:

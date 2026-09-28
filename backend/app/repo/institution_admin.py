@@ -1,5 +1,6 @@
 """Institution licence self-service for the licence's own IT admins.
 """
+from .. import apps
 from ..licenses import (
     KIND_INSTITUTION,
     normalize_kind,
@@ -126,7 +127,8 @@ def list_institution_seats(license_id: str) -> list[dict]:
         out.append({
             "uid": doc.id,
             "email": s.get("email") or "",
-            "deviceIdLock": s.get("deviceIdLock") or "",
+            **{apps.field("deviceIdLock", app): s.get(apps.field("deviceIdLock", app)) or ""
+               for app in apps.ALL},
             "status": s.get("status") or "active",
             # The lease is the point of the floating roster view: without it
             # IT cannot see who is actually using a seat right now, only who

@@ -5,7 +5,7 @@ import random
 import time
 from datetime import timedelta
 
-from .. import errors
+from .. import apps, errors
 from ..config import settings
 from ..licenses import (
     as_utc,
@@ -34,13 +34,18 @@ log = logging.getLogger("indic.firestore")
 
 # Verdicts from _device_lock_state. "Unbound" is deliberately distinct from
 # "matches": both let the request through, but only one of them is a
-# instruction to write.
+# instruction to write. The two refusals differ in what they say about the
+# account: "revoked" is the entitlement itself ending, "mismatch" is only this
+# device not being the one the lock names.
 _LOCK_OK = "ok"
 _LOCK_UNBOUND = "unbound"
-_LOCK_VIOLATION = "violation"
+_LOCK_REVOKED = "revoked"
+_LOCK_MISMATCH = "mismatch"
+_LOCK_REFUSED = (_LOCK_REVOKED, _LOCK_MISMATCH)
 
 
-def _device_lock_state(user: dict, device_id: str) -> tuple[str, object | None]:
+def _device_lock_state(user: dict, device_id: str,
+                       app: str = apps.SEMPER) -> tuple[str, object | None]:
     """Judge `device_id` against this account's entitlement.
 
     Returns the verdict and, when the lock is still empty, the document that
@@ -55,7 +60,9 @@ def _device_lock_state(user: dict, device_id: str) -> tuple[str, object | None]:
     the licence ties itself to a device without anyone typing a key.
 
     Individual: the lock lives on the licence, one device for the licence.
-    Institution: on the seat, one device per member.
+    Institution: on the seat, one device per member. Either way there is one
+    lock per app (`apps.field`), so a licence holds one phone for each app
+    (ADR-010).
     """
     license_id = user.get("licenseId")
     if not license_id:
@@ -66,17 +73,17 @@ def _device_lock_state(user: dict, device_id: str) -> tuple[str, object | None]:
         return _LOCK_OK, None
     lic = snap.to_dict() or {}
     if (lic.get("status") or "") == "revoked":
-        return _LOCK_VIOLATION, None
+        return _LOCK_REVOKED, None
     if normalize_kind(lic.get("kind")) != KIND_INSTITUTION:
-        return _lock_verdict(lic.get("deviceIdLock"), device_id, ref)
+        return _lock_verdict(lic.get(apps.field("deviceIdLock", app)), device_id, ref)
     seat_ref = _seat_ref(license_id, user.get("uid") or "")
     seat_snap = seat_ref.get()
     if not seat_snap.exists:
         return _LOCK_OK, None
     seat = seat_snap.to_dict() or {}
     if seat.get("status") in ("revoked", "disabled"):
-        return _LOCK_VIOLATION, None
-    return _lock_verdict(seat.get("deviceIdLock"), device_id, seat_ref)
+        return _LOCK_REVOKED, None
+    return _lock_verdict(seat.get(apps.field("deviceIdLock", app)), device_id, seat_ref)
 
 
 def _lock_verdict(locked, device_id: str, ref) -> tuple[str, object | None]:
@@ -85,7 +92,7 @@ def _lock_verdict(locked, device_id: str, ref) -> tuple[str, object | None]:
     locked = locked or ""
     if not locked:
         return _LOCK_UNBOUND, ref
-    return (_LOCK_OK, None) if locked == device_id else (_LOCK_VIOLATION, None)
+    return (_LOCK_OK, None) if locked == device_id else (_LOCK_MISMATCH, None)
 
 
 #: Whole bind transactions tried before giving up, each with the client's own
@@ -105,9 +112,9 @@ class DeviceLockContended(DependencyError):
         super().__init__(errors.DEVICE_LOCK_CONTENDED, "firestore")
 
 
-def bind_device_lock(ref, device_id: str) -> bool:
-    """Claim an empty device lock for `device_id`. True if this call bound it,
-    False if the lock is held (by another device, or already by this one).
+def bind_device_lock(ref, device_id: str, app: str = apps.SEMPER) -> bool:
+    """Claim `app`'s empty device lock for `device_id`. True if this call bound
+    it, False if the lock is held (by another device, or already by this one).
 
     Transactional rather than a bare update: two devices signing in at once
     both read an empty lock, and with a plain write the later one would win,
@@ -127,12 +134,14 @@ def bind_device_lock(ref, device_id: str) -> bool:
     device holds.
     """
 
+    lock = apps.field("deviceIdLock", app)
+
     @_base.firestore.transactional
     def _bind(tx) -> bool:
         snap = ref.get(transaction=tx)
-        if not snap.exists or ((snap.to_dict() or {}).get("deviceIdLock") or ""):
+        if not snap.exists or ((snap.to_dict() or {}).get(lock) or ""):
             return False
-        tx.update(ref, {"deviceIdLock": device_id})
+        tx.update(ref, {lock: device_id})
         return True
 
     for round_ in range(_BIND_ROUNDS):
@@ -140,7 +149,7 @@ def bind_device_lock(ref, device_id: str) -> bool:
         if bound is not None:
             return bound
         snap = ref.get()
-        if not snap.exists or ((snap.to_dict() or {}).get("deviceIdLock") or ""):
+        if not snap.exists or ((snap.to_dict() or {}).get(lock) or ""):
             # Another device bound it first. This one is a mismatch from its
             # next request onward, which revalidate_device_lock will act on.
             return False
@@ -149,19 +158,20 @@ def bind_device_lock(ref, device_id: str) -> bool:
     raise DeviceLockContended()
 
 
-def check_device_lock(user: dict, device_id: str) -> bool:
+def check_device_lock(user: dict, device_id: str, app: str = apps.SEMPER) -> bool:
     """True if `device_id` may still use this account's entitlement.
 
     An unbound lock passes: it is not a violation, it is a licence that has
     not met a device yet. Binding is revalidate_device_lock's job, because
     only it knows the caller is a real authed request rather than a check.
     """
-    return _device_lock_state(user, device_id)[0] != _LOCK_VIOLATION
+    return _device_lock_state(user, device_id, app)[0] not in _LOCK_REFUSED
 
 
 
-def released_device_held(user: dict, device_id: str) -> bool:
-    """Whether `device_id` is a phone a device-lock clear released, still held off.
+def released_device_held(user: dict, device_id: str, app: str = apps.SEMPER) -> bool:
+    """Whether `device_id` is a phone a device-lock clear released from `app`,
+    still held off.
 
     A device-lock clear (`repo.seats._settle_holder`) empties `activeDeviceId` so the new phone can
     register, and stamps the old id. Without this check the old phone gets it
@@ -170,17 +180,17 @@ def released_device_held(user: dict, device_id: str) -> bool:
     Registering any other device clears the stamp (`register_device`), and after
     `DEVICE_RELEASE_HOLD_HOURS` the old phone may return.
     """
-    if not device_id or user.get("releasedDeviceId") != device_id:
+    if not device_id or user.get(apps.field("releasedDeviceId", app)) != device_id:
         return False
     hold = timedelta(hours=max(0, settings.DEVICE_RELEASE_HOLD_HOURS))
-    released = as_utc(user.get("releasedAt"))
+    released = as_utc(user.get(apps.field("releasedAt", app)))
     return bool(hold) and released is not None and _now() - released < hold
 
 
-def _may_bind(user: dict, device_id: str) -> bool:
-    """Whether `device_id` may take this account's empty lock: its registered
-    phone, or, while nothing is registered, any phone but one a clear released
-    and still holds off.
+def _may_bind(user: dict, device_id: str, app: str = apps.SEMPER) -> bool:
+    """Whether `device_id` may take this account's empty lock for `app`: the
+    phone registered for that app, or, while nothing is registered for it, any
+    phone but one a clear released and still holds off.
 
     Any device used to bind. A phone refused at `POST /v1/devices/register`
     (`device_conflict`) still sends its config and profile calls, and those
@@ -190,19 +200,31 @@ def _may_bind(user: dict, device_id: str) -> bool:
     sign-in). The same path let a released phone's upload worker retake the
     lock during its hold.
     """
-    active = user.get("activeDeviceId") or ""
+    active = user.get(apps.field("activeDeviceId", app)) or ""
     if active:
         return device_id == active
-    return not released_device_held(user, device_id)
+    return not released_device_held(user, device_id, app)
 
 
-def revalidate_device_lock(user: dict, device_id: str | None) -> dict:
+def revalidate_device_lock(user: dict, device_id: str | None,
+                           app: str = apps.SEMPER) -> dict:
     """Re-check this account's entitlement against `device_id` on every authed
     call that carries X-Device-Id — activation is not "trust forever". A
-    revoked license/seat, or a device that no longer matches the lock, drops
-    the account to Demo immediately rather than waiting for the next explicit
-    revoke/activate to notice. No-op (and no write) for Demo accounts, accounts
-    with no license on file, or a call with no device id to check.
+    revoked license/seat drops the account to Demo immediately, and stored,
+    rather than waiting for the next explicit revoke/activate to notice. No-op
+    (and no write) for Demo accounts, accounts with no license on file, or a
+    call with no device id to check.
+
+    A device that does not match the lock gets Demo for *its own requests*,
+    and nothing is written. The mismatch says this device is not the
+    licensed one, not that the licence ended, and the device holding the lock
+    must stay licensed. Storing it let any other device demote the account for
+    good: a phone refused at `POST /v1/devices/register` still sends its
+    profile and config calls, and so does a second app on the same phone,
+    whose ANDROID_ID (and so device id) differs because it is signed with
+    another key (material_testing ADR-009, 2026-09-28). `effective_mode` then
+    read Demo everywhere, and this function's early return for Demo meant the
+    licensed phone never undid it; only a device-lock clear did.
 
     Also the moment an unbound licence acquires its device. A licence minted
     against an email, or a seat added to a roster, carries no lock until
@@ -212,6 +234,10 @@ def revalidate_device_lock(user: dict, device_id: str | None) -> dict:
     licence to a device with no key and no activation step; see
     _device_lock_state.
 
+    `app` is the app the request came from (`X-App-Id`). Each app has its own
+    lock, so Semper and Material Testing on one phone are each checked against
+    their own device id, and neither is a mismatch for the other (ADR-010).
+
     This only ever *removes* entitlement in place — it never deletes or hides
     the account's sessions/files, and re-locking to a *different* device
     happens only after a staff, IT or self-service clear of the existing lock.
@@ -220,13 +246,13 @@ def revalidate_device_lock(user: dict, device_id: str | None) -> dict:
         return user
     if effective_mode(user) != MODE_LICENSED:
         return user
-    verdict, ref = _device_lock_state(user, device_id)
+    verdict, ref = _device_lock_state(user, device_id, app)
     if verdict == _LOCK_UNBOUND:
-        if not _may_bind(user, device_id):
+        if not _may_bind(user, device_id, app):
             # Proceeds, but leaves the lock for the phone that may take it.
             return user
         try:
-            bound = bind_device_lock(ref, device_id)
+            bound = bind_device_lock(ref, device_id, app)
         except DeviceLockContended:
             # Nobody holds the lock, so this device is not a mismatch and the
             # request it rides on should not fail for it: leave the licence
@@ -235,8 +261,8 @@ def revalidate_device_lock(user: dict, device_id: str | None) -> dict:
                      user.get("uid"), user.get("licenseId"))
             return user
         if bound:
-            log.info("device lock bound uid=%s license=%s",
-                     user.get("uid"), user.get("licenseId"))
+            log.info("device lock bound uid=%s license=%s app=%s",
+                     user.get("uid"), user.get("licenseId"), app)
             # Imported here rather than at module scope: `audit` imports `db`
             # through the firestore_repo facade, which imports this module, so
             # the two cannot import each other eagerly.
@@ -247,11 +273,15 @@ def revalidate_device_lock(user: dict, device_id: str | None) -> dict:
             audit.record(
                 user.get("uid"), device_id, action="LICENSE_DEVICE_BIND",
                 target={"type": "license", "id": user.get("licenseId")},
-                detail={"deviceId": device_id},
+                detail={"deviceId": device_id, "app": app},
             )
         return user
     if verdict == _LOCK_OK:
         return user
+    if verdict == _LOCK_MISMATCH:
+        log.info("device lock mismatch uid=%s license=%s app=%s: demo for this request",
+                 user.get("uid"), user.get("licenseId"), app)
+        return {**user, **_mode_patch(MODE_DEMO)}
     uid = user.get("uid")
     if uid:
         db().collection("users").document(uid).update({

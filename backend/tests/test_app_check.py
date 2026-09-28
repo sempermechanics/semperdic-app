@@ -25,7 +25,7 @@ def real_auth(monkeypatch):
     monkeypatch.setattr(deps, "verify_id_token", lambda tok: {"sub": "u1", "email": "a@b.com"})
     user = {"uid": "u1", "email": "a@b.com", "access_status": "APPROVED"}
     monkeypatch.setattr(deps.repo, "get_or_create_user", lambda claims, device_id=None: dict(user))
-    monkeypatch.setattr(deps.repo, "revalidate_device_lock", lambda u, did: u)
+    monkeypatch.setattr(deps.repo, "revalidate_device_lock", lambda u, did, app=None: u)
     return user
 
 
@@ -36,6 +36,7 @@ def _call(device_id="d1", app_check=""):
         x_forwarded_authorization="",
         x_device_id=device_id,
         x_firebase_appcheck=app_check,
+        x_app_id="",
     )
 
 

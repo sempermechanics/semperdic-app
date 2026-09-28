@@ -289,6 +289,23 @@ test("moving the licence asks first and says when it can be moved again", async 
     `restore your analyses. You can do this again after ${when(next)}.`);
 });
 
+test("Material Testing moves on its own, named in the query", async () => {
+  // Each app holds its own device (ADR-010). A browser cannot send X-App-Id,
+  // so the page names the app; Semper's button still names none.
+  await open({
+    license: { mode: "licensed", held: true, kind: "individual" },
+    routes: { "POST /v1/licenses/unbind": () => json(200, { nextChangeAllowedAt: "" }) },
+  });
+  assert.equal($("unbindMt").hidden, false);
+  confirms.answer(true);
+  $("unbindMt").click();
+  await settle();
+  assert.deepEqual(sent(/unbind/), ["POST /v1/licenses/unbind?app=materialtesting"]);
+  assert.equal($("status").textContent,
+    "Done. Sign in on the new device, open Material Testing once so the licence attaches, " +
+    "and then restore your analyses.");
+});
+
 test("a move inside the cooldown names the instant it ends", async () => {
   const until = "2026-10-01T10:00:00Z";
   await unbind(json(409, { detail: `device_change_too_soon: ${until}` }));

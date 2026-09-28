@@ -19,7 +19,7 @@ membership is checked before MFA so a probe learns nothing about the factor.
 """
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
-from .. import audit, errors, firestore_repo as repo
+from .. import apps, audit, errors, firestore_repo as repo
 from .. import rate_limit
 from ..deps import current_user, ensure_web_step_up, rate_limited
 from ..licenses import KIND_INSTITUTION, normalize_kind
@@ -228,13 +228,15 @@ def patch_seat(
         ctx["user"]["uid"], action="INSTITUTION_SEAT_PATCH",
         target={"type": "seat", "id": f"{license_id}/{uid}"},
         detail={"clearDeviceLock": bool(body.clearDeviceLock), "enabled": body.enabled,
-                # The device given up. Its replacement is recorded by
-                # LICENSE_DEVICE_BIND when the next device signs in, so the
-                # two together say what the change actually was.
-                "previousDeviceId": (cleared or {}).get("previousDeviceId") or "",
-                # The registered device the account was signed out of, which
-                # can differ from the lock's (repo.clear_device_lock).
-                "releasedDeviceId": (cleared or {}).get("releasedDeviceId") or ""},
+                # The device given up, per app (ADR-010). Its replacement is
+                # recorded by LICENSE_DEVICE_BIND when the next device signs
+                # in, so the two together say what the change actually was.
+                # `releasedDeviceId` is the registered device the account was
+                # signed out of, which can differ from the lock's
+                # (repo.clear_device_lock).
+                **{k: (cleared or {}).get(k) or ""
+                   for name in ("previousDeviceId", "releasedDeviceId")
+                   for k in apps.spread(name, {})}},
     )
     seats = repo.list_institution_seats(license_id)
     seat = next((s for s in seats if s["uid"] == uid), None)

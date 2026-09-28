@@ -317,6 +317,15 @@ repo bundles ancient `gradle-wrapper.jar` files that fail checksum validation,
 and those jobs check out submodules recursively. Our own wrapper is validated by
 tier 1 when tier 1 runs.
 
+**A new push cancels a PR's older run, never `main`'s.** CI's concurrency
+group is per branch, and `cancel-in-progress` is true only for `pull_request`
+events. On `main` a started run finishes its full matrix. GitHub keeps one
+pending run per group, so several merges while one run is in flight queue
+only the newest; the ones in between get no run of their own. Before this,
+merges cancelled each other: on 2026-09-26 the `main` runs of #268, #270 and
+#271 were all cancelled mid-matrix, so #271's app-and-console change never had a
+full run of its own (TD-97, as in material_testing#67).
+
 **Three jobs run on every single event.** `secret-scan`, `legal-pages` and
 `console-pages` carry no path filter, so a documentation-only PR still runs
 them — and can still be blocked by them, which is the point.

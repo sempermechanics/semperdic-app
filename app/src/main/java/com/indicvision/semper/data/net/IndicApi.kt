@@ -705,6 +705,8 @@ class IndicApi private constructor(context: Context) : CloudApi {
             // inherits both through newBuilder() below.
             .addInterceptor(RetryOnTransient())
             .addInterceptor(AppCheckHeader())
+            // Which app's device binding a call is for (ADR-010).
+            .addInterceptor(AppIdHeader())
             .addInterceptor(ClientNonce.ServerDateObserver(apiHost()))
             .apply {
                 val pins = BuildConfig.INDIC_API_CERT_PINS.trim()

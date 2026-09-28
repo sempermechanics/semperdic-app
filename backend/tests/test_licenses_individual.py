@@ -73,10 +73,47 @@ def test_a_second_device_is_refused_once_the_lock_is_taken(store):
     demoted = repo.revalidate_device_lock(store._data["users"]["solo-1"], "and-second")
 
     assert demoted["mode"] == "demo"
-    assert store._data["users"]["solo-1"]["mode"] == "demo"
+    # Demo for the second device's own requests only: the account, and so the
+    # device that holds the lock, stays licensed.
+    assert store._data["users"]["solo-1"]["mode"] == "licensed"
+    assert repo.revalidate_device_lock(
+        store._data["users"]["solo-1"], "and-first")["mode"] == "licensed"
     # Demotion never touches the lock or the licence itself.
     assert store._data["licenses"][license_id]["deviceIdLock"] == "and-first"
     assert store._data["licenses"][license_id]["status"] == "redeemed"
+
+
+def test_a_second_app_on_the_licensed_phone_does_not_demote_the_account(store):
+    """Material Testing and Semper share an account, but each app on a phone
+    has its own ANDROID_ID, so the second one arrives as another device. Its
+    launch calls used to write Demo onto the account, which then read Demo in
+    both apps until someone cleared the lock (2026-09-28)."""
+    store._data["users"] = {}
+    _mint_individual()
+    user = repo.ensure_entitlement(_signed_in(store, "solo-1", "solo@lab.org"), None)
+    repo.revalidate_device_lock(user, "and-semper")
+
+    for _ in range(3):
+        assert repo.revalidate_device_lock(
+            store._data["users"]["solo-1"], "and-materialtesting")["mode"] == "demo"
+
+    assert store._data["users"]["solo-1"]["mode"] == "licensed"
+    assert repo.effective_mode(store._data["users"]["solo-1"]) == "licensed"
+
+
+def test_a_revoked_licence_still_stores_demo(store):
+    """Only the mismatch stopped being stored. A licence that has ended drops
+    the account for every device, the one holding the lock included."""
+    store._data["users"] = {}
+    license_id = _mint_individual()["license"]["id"]
+    user = repo.ensure_entitlement(_signed_in(store, "solo-1", "solo@lab.org"), None)
+    repo.revalidate_device_lock(user, "and-first")
+    store._data["licenses"][license_id]["status"] = "revoked"
+
+    demoted = repo.revalidate_device_lock(store._data["users"]["solo-1"], "and-first")
+
+    assert demoted["mode"] == "demo"
+    assert store._data["users"]["solo-1"]["mode"] == "demo"
 
 
 def test_binding_is_idempotent_for_the_device_that_holds_the_lock(store):

@@ -136,7 +136,7 @@ function seatRow(seat) {
   return `
     <tr>${seatCells(seat)}
       <td class="actions">
-        ${seat.deviceIdLock
+        ${seat.deviceIdLock || seat.deviceIdLockMaterialTesting
           ? `<button class="secondary" data-act="clear" data-uid="${esc(seat.uid)}">New device</button>`
           : ""}
         ${seat.status === "active"

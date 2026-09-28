@@ -265,13 +265,20 @@ def test_the_clear_names_the_phone_it_signed_out(store):
     assert cleared["releasedDeviceId"] == "old-phone"
 
 
+def _stored_demotion(store, uid="solo-1"):
+    """The Demo that `revalidate_device_lock` used to write on a lock mismatch.
+    It no longer does, but accounts demoted before that change still carry it,
+    and a device-lock clear is what restores them."""
+    store._data["users"][uid].update({"mode": "demo", "plan": "demo"})
+
+
 def _split(store, lock="emulator", registered="pixel"):
     """solo-1's licence locked to one device and the account registered on
     another: what a refused sign-in left behind while any device could bind."""
     license_id = _bound_individual(store, lock)
     _registered_on(store, "solo-1", registered)
-    repo.revalidate_device_lock(store._data["users"]["solo-1"], registered)
-    assert store._data["users"]["solo-1"]["mode"] == "demo"
+    assert repo.revalidate_device_lock(store._data["users"]["solo-1"], registered)["mode"] == "demo"
+    _stored_demotion(store)
     return license_id
 
 
@@ -400,8 +407,7 @@ def test_the_mode_and_the_release_land_together(store, monkeypatch):
     mode back and the old phone still bound."""
     license_id = _bound_individual(store)
     _registered_on(store, "solo-1")
-    repo.revalidate_device_lock(store._data["users"]["solo-1"], "new-phone")
-    assert store._data["users"]["solo-1"]["mode"] == "demo"
+    _stored_demotion(store)
 
     def _fail(self):
         raise RuntimeError("commit failed")
@@ -676,6 +682,7 @@ async def test_staff_clear_a_seat_lock_over_http(client, monkeypatch, audited):
     assert resp.json() == {
         "licenseId": license_id, "uid": "u1",
         "deviceIdLock": "", "previousDeviceId": "old-phone",
+        "previousDeviceIdMaterialTesting": "",
     }
     assert store._data[f"licenses/{license_id}/seats"]["u1"]["deviceIdLock"] == ""
     assert [r for r in audited if r["action"] == "ADMIN_DEVICE_LOCK_CLEAR"]

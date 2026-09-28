@@ -2,6 +2,7 @@
 """
 import logging
 
+from .. import apps
 from ..licenses import (
     KIND_INSTITUTION,
     MODE_DEMO,
@@ -128,7 +129,7 @@ def _give_back_license(uid: str) -> None:
         "status": "unused",
         "redeemedByUid": _base.firestore.DELETE_FIELD,
         "redeemedAt": _base.firestore.DELETE_FIELD,
-        "deviceIdLock": "",
+        **{apps.field("deviceIdLock", app): "" for app in apps.ALL},
         "updatedAt": _base.firestore.SERVER_TIMESTAMP,
     })
     email = lic.get("emailLock") or ""

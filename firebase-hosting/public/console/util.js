@@ -75,6 +75,21 @@ const SEAT_STATUS = {
 };
 
 /**
+ * The devices a seat or licence is bound to, one per app (ADR-010), as short
+ * escaped HTML: "abc123…" for Semper alone, with "Material Testing def456…"
+ * after it when that app is bound too. "" when neither is.
+ */
+export function seatDevices(seat) {
+  const short = (id) => `${esc(id.slice(0, 10))}…`;
+  const parts = [];
+  if (seat.deviceIdLock) parts.push(short(seat.deviceIdLock));
+  if (seat.deviceIdLockMaterialTesting) {
+    parts.push(`Material Testing ${short(seat.deviceIdLockMaterialTesting)}`);
+  }
+  return parts.join("; ");
+}
+
+/**
  * Member, Status, Seat and Device cells for one seat. The caller appends its
  * own actions cell, which is the only part the two pages do differently.
  */
@@ -83,7 +98,7 @@ export function seatCells(seat, now = Date.now()) {
   const lease = leaseHeld(seat.leaseExpiresAt, now)
     ? `<span class="pill ok">until ${esc(when(seat.leaseExpiresAt))}</span>`
     : '<span class="pill off">—</span>';
-  const device = seat.deviceIdLock ? `${esc(seat.deviceIdLock.slice(0, 10))}…` : "not yet";
+  const device = seatDevices(seat) || "not yet";
   return `
       <td>${esc(seat.email || seat.uid)}</td>
       <td>${status}</td>

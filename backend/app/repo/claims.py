@@ -1,6 +1,7 @@
 """Claiming a licence: the seat and individual-licence transactions, and the
 user-document patches they write.
 """
+from .. import apps
 from ..licenses import (
     SEATING_FLOATING,
     KIND_INDIVIDUAL,
@@ -135,8 +136,14 @@ def _drop_superseded_demo(uid: str, license_id: str) -> None:
 
 
 def claim_seat(license_id: str, uid: str, email: str, device_id: str, user_patch: dict,
-               invite_ref=None) -> str:
+               invite_ref=None, *, app: str = apps.SEMPER,
+               carried_locks: dict[str, str] | None = None) -> str:
     """Take a seat on the roster, atomically. Returns an error code, or "".
+
+    `device_id` is checked against, and binds, `app`'s lock on the seat
+    (ADR-010). `carried_locks` (`{app: device id}`) seeds a new seat's locks
+    for the other apps too, for a licence converted to an institution with
+    its devices already bound (`repo.upgrade`).
 
     This was a read-then-`WriteBatch` — atomic for its writes, but carrying no
     reads and no preconditions, so two members activating at once on a pool of
@@ -187,7 +194,8 @@ def claim_seat(license_id: str, uid: str, email: str, device_id: str, user_patch
         if seat:
             if seat.get("status") == "disabled":
                 return "license_seat_disabled"
-            locked_device = seat.get("deviceIdLock") or ""
+            lock_field = apps.field("deviceIdLock", app)
+            locked_device = seat.get(lock_field) or ""
             if device_id and locked_device and locked_device != device_id:
                 return "license_device_mismatch"
             seat_patch = {"updatedAt": _base.firestore.SERVER_TIMESTAMP}
@@ -195,7 +203,7 @@ def claim_seat(license_id: str, uid: str, email: str, device_id: str, user_patch
                 # Only when a device actually redeemed. IT adding a member
                 # passes no device, and must not wipe the lock of someone who
                 # already has one.
-                seat_patch["deviceIdLock"] = device_id
+                seat_patch[lock_field] = device_id
             tx.update(seat_ref, seat_patch)
         else:
             # `maxSeats` caps the ROSTER on an assigned license, where holding
@@ -208,10 +216,14 @@ def claim_seat(license_id: str, uid: str, email: str, device_id: str, user_patch
             floating = normalize_seating(lic.get("seating")) == SEATING_FLOATING
             if not floating and max_seats is not None and seats_used >= int(max_seats):
                 return "license_seats_exhausted"
+            locks = {apps.field("deviceIdLock", a): (carried_locks or {}).get(a) or ""
+                     for a in apps.ALL}
+            if device_id:
+                locks[apps.field("deviceIdLock", app)] = device_id
             tx.set(seat_ref, {
                 "uid": uid,
                 "email": (email or "").strip().lower(),
-                "deviceIdLock": device_id,
+                **locks,
                 "status": "active",
                 "createdAt": _base.firestore.SERVER_TIMESTAMP,
                 "updatedAt": _base.firestore.SERVER_TIMESTAMP,

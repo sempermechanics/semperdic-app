@@ -8,7 +8,7 @@ on it in the same transaction that moves their account, and only then is the
 individual licence revoked — with `supersededBy` naming its replacement, so
 the audit trail and the desk can follow the chain.
 """
-from .. import errors
+from .. import apps, errors
 from ..licenses import (
     KIND_INDIVIDUAL,
     MODE_DEMO,
@@ -101,8 +101,12 @@ def convert_to_institution(
     new_ref = db().collection("licenses").document(new_id)
     claimed = ""
     if holder:
+        # Every app's device comes with the holder (ADR-010), so neither
+        # app has to be signed in again on the phone it was already on.
         err = claim_seat(new_id, holder_uid, address, lic.get("deviceIdLock") or "",
-                         _institution_member_patch(new_id, get_license(new_id) or {}))
+                         _institution_member_patch(new_id, get_license(new_id) or {}),
+                         carried_locks={a: lic.get(apps.field("deviceIdLock", a)) or ""
+                                        for a in apps.ALL})
         if err:
             new_ref.delete()
             return _public_claim_error(err, errors.CLAIM_CONTENDED), None

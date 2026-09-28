@@ -3,7 +3,7 @@ and institution keys.
 """
 import logging
 
-from .. import statuses
+from .. import apps, statuses
 from ..config import settings
 from ..licenses import (
     DURATION_PERPETUAL,
@@ -61,7 +61,8 @@ def _license_public(license_id: str, data: dict) -> dict:
         "plan": legacy_plan(_license_mode(data)),
         "status": data.get("status") or "unused",
         "emailLock": data.get("emailLock") or "",
-        "deviceIdLock": data.get("deviceIdLock") or "",
+        **{apps.field("deviceIdLock", app): data.get(apps.field("deviceIdLock", app)) or ""
+           for app in apps.ALL},
         "domainLock": data.get("domainLock") or "",
         "adminEmails": list(data.get("adminEmails") or []),
         "maxSeats": data.get("maxSeats"),

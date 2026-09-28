@@ -91,6 +91,8 @@ function renderLicence() {
   // Nothing to move without a licence. A Demo key has a kind too, so this
   // used to offer to move one; the backend then moved nothing worth having.
   $("unbind").hidden = !held;
+  // Each app holds its own device (ADR-010), so each moves on its own.
+  $("unbindMt").hidden = !held;
   renderQuota();
 }
 
@@ -161,18 +163,26 @@ function releaseError(code) {
   }[code] || code;
 }
 
-$("unbind").addEventListener("click", async () => {
+$("unbind").addEventListener("click", () => unbind("", "Semper"));
+$("unbindMt").addEventListener("click", () => unbind("materialtesting", "Material Testing"));
+
+/**
+ * Move one app's device. A browser cannot send `X-App-Id`, so the app is
+ * named in the query; the backend reads no app as Semper.
+ */
+async function unbind(app, name) {
   if (!confirm(
-    "Move your licence to a different device?\n\n" +
-    "Nothing is deleted and nothing is cancelled. Semper stops being " +
+    `Move ${name} to a different device?\n\n` +
+    `Nothing is deleted and nothing is cancelled. ${name} stops being ` +
     "licensed on your current device, and attaches to the next device you " +
     "sign in on. Your analyses come with you once it has.",
   )) return;
   setStatus("Unlocking…");
   try {
-    const out = await api("/v1/licenses/unbind", { method: "POST" });
+    const path = app ? `/v1/licenses/unbind?app=${encodeURIComponent(app)}` : "/v1/licenses/unbind";
+    const out = await api(path, { method: "POST" });
     setStatus(
-      "Done. Sign in on the new device, open Semper once so the licence " +
+      `Done. Sign in on the new device, open ${name} once so the licence ` +
       "attaches, and then restore your analyses." +
       (out.nextChangeAllowedAt
         ? ` You can do this again after ${when(out.nextChangeAllowedAt)}.`
@@ -181,7 +191,7 @@ $("unbind").addEventListener("click", async () => {
   } catch (e) {
     setStatus(unbindError(e.message), true);
   }
-});
+}
 
 function unbindError(detail) {
   // The cooldown refusal carries the instant it ends after the code.

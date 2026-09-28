@@ -31,6 +31,8 @@ NONCE_INVALID_OR_REPLAYED = "nonce_invalid_or_replayed"
 DEVICE_CONFLICT = "device_conflict"
 DEVICE_IN_USE = "device_in_use"
 DEVICE_NOT_ACTIVE = "device_not_active"
+#: `X-App-Id` names an app this backend does not bind devices for (ADR-010).
+UNKNOWN_APP = "unknown_app"
 
 # --- Cloud Tasks callback --------------------------------------------------
 INVALID_TASK_TOKEN = "invalid_task_token"

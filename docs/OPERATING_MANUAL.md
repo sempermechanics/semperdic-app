@@ -1031,14 +1031,23 @@ Clearing the lock **is** the change: it releases the account's old phone, and
 the licence binds to the phone that registers next. Only the account's
 registered phone can take the lock, so a phone refused at sign-in cannot.
 
+**Semper and Material Testing each hold their own phone** (ADR-010). One
+person can use both apps on one phone, or each on a different phone, on one
+licence. Staff and IT **New device**, and the staff phone release below,
+move both apps at once. The holder moves one app at a time: **Use Semper on
+a different device** or **Use Material Testing on a different device** on
+`/account`, or the same from inside that app, each with its own 30-day
+cooldown. Seats and the operator's user list show a Material Testing device
+as "Material Testing …" beside Semper's.
+
 **Demo on the phone they use.** An account whose lock was taken by another
 device before 2026-09-27 reads Demo on the phone it is registered on. One
 **New device** gives the licence back to that phone and does not sign it out
 (the clear's detail names no released device). If they really are moving, a
 second **New device** then releases it. Nothing is re-issued, nothing is typed, and nothing is revoked
-— entitlement, seat, lease and every stored analysis stay as they are. A
-holder who was demoted to Demo by trying the new phone first gets their mode
-back as part of the clear.
+— entitlement, seat, lease and every stored analysis stay as they are. Trying
+the new phone first no longer demotes the account; a holder demoted that way
+before 2026-09-28 gets their mode back as part of the clear.
 
 The old phone is then refused for 24 hours (`DEVICE_RELEASE_HOLD_HOURS`): it shows
 "bound to a different device" and cannot take the account back before the new

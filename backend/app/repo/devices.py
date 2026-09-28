@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from google.api_core.exceptions import AlreadyExists
 
-from .. import statuses
+from .. import apps, statuses
 from ..models import DeviceReg
 
 from . import _base
@@ -28,18 +28,23 @@ def get_device(device_id: str):
 
 
 def user_has_active_device(uid: str) -> bool:
+    """Whether the account has a phone registered for any app."""
     u = db().collection("users").document(uid).get()
-    return bool(u.exists and u.to_dict().get("activeDeviceId"))
+    if not u.exists:
+        return False
+    doc = u.to_dict() or {}
+    return any(doc.get(apps.field("activeDeviceId", app)) for app in apps.ALL)
 
 
-def _release_patch(device_id: str) -> dict:
-    """The `users/{uid}` fields that release `device_id`: the binding dropped and
-    the id stamped, so `repo.devlock.released_device_held` holds it off while the
-    new phone registers. Shared by a lock clear and a staff phone release."""
+def _release_patch(device_id: str, app: str = apps.SEMPER) -> dict:
+    """The `users/{uid}` fields that release `device_id` from `app`: the binding
+    dropped and the id stamped, so `repo.devlock.released_device_held` holds it
+    off while the new phone registers. Shared by a lock clear and a staff phone
+    release."""
     return {
-        "activeDeviceId": _base.firestore.DELETE_FIELD,
-        "releasedDeviceId": device_id,
-        "releasedAt": _now(),
+        apps.field("activeDeviceId", app): _base.firestore.DELETE_FIELD,
+        apps.field("releasedDeviceId", app): device_id,
+        apps.field("releasedAt", app): _now(),
     }
 
 
@@ -48,8 +53,8 @@ def _retire_device(batch, device_ref, status: str) -> None:
 
     The one way a device leaves service: superseded by a registration
     (`register_device`) or a lock clear (`repo.seats`), or revoked with its
-    account (`set_user_status`). The caller drops `users/{uid}.activeDeviceId`
-    in the same batch.
+    account (`set_user_status`). The caller drops the app's `activeDeviceId`
+    field on `users/{uid}` in the same batch.
     """
     batch.update(device_ref, {
         "status": status,
@@ -59,9 +64,10 @@ def _retire_device(batch, device_ref, status: str) -> None:
 
 
 
-def register_device(uid: str, body: DeviceReg) -> dict:
+def register_device(uid: str, body: DeviceReg, app: str = apps.SEMPER) -> dict:
     dev = {
         "uid": uid,
+        "app": app,
         "publicKeyPem": body.publicKeyPem,
         "status": statuses.DEVICE_ACTIVE,
         "model": body.model,
@@ -72,11 +78,14 @@ def register_device(uid: str, body: DeviceReg) -> dict:
         "schemaVersion": SCHEMA_VERSION,
     }
     user_ref = db().collection("users").document(uid)
-    # Only one device may be active per account (activeDeviceId is the single
-    # binding). Superseded devices used to keep status ACTIVE forever, so an
-    # account accumulated stale ACTIVE docs that still held their device ids
-    # against other accounts via the device_in_use check.
-    previous = user_ref.get().to_dict().get("activeDeviceId") if user_ref.get().exists else None
+    # Only one device may be active per account and app (the app's
+    # `activeDeviceId` field is the single binding, ADR-010). Superseded
+    # devices used to keep status ACTIVE forever, so an account accumulated
+    # stale ACTIVE docs that still held their device ids against other
+    # accounts via the device_in_use check.
+    active_field = apps.field("activeDeviceId", app)
+    user_snap = user_ref.get()
+    previous = (user_snap.to_dict() or {}).get(active_field) if user_snap.exists else None
     batch = db().batch()
     if previous and previous != body.deviceId:
         _retire_device(batch, db().collection("devices").document(previous),
@@ -85,9 +94,9 @@ def register_device(uid: str, body: DeviceReg) -> dict:
     # A registration ends any release hold: either the new phone has arrived,
     # or the hold has run out and the old one is back.
     batch.update(user_ref, {
-        "activeDeviceId": body.deviceId,
-        "releasedDeviceId": _base.firestore.DELETE_FIELD,
-        "releasedAt": _base.firestore.DELETE_FIELD,
+        active_field: body.deviceId,
+        apps.field("releasedDeviceId", app): _base.firestore.DELETE_FIELD,
+        apps.field("releasedAt", app): _base.firestore.DELETE_FIELD,
     })
     batch.commit()
     user = _load_user(uid)

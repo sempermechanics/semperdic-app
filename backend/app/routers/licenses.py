@@ -1,11 +1,11 @@
 import math
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
-from .. import audit, errors, firestore_repo as repo
+from .. import apps, audit, errors, firestore_repo as repo
 from .. import rate_limit
-from ..deps import attested_or_mfa_user, current_user, rate_limited
+from ..deps import attested_or_mfa_user, current_user, rate_limited, request_app
 from ..models import LicenseActivate
 from ..validation import require_header_identifier
 
@@ -17,12 +17,14 @@ def activate_license(
     body: LicenseActivate,
     user=Depends(current_user),
     x_device_id: str = Header(default=""),
+    app=Depends(request_app),
 ):
-    """Redeem a Professional (or re-entered) key locked to this email and device."""
+    """Redeem a Professional (or re-entered) key locked to this email and device
+    (the device of the app that asks, ADR-010)."""
     rate_limit.enforce(rate_limit.license_activate_bucket, user["uid"])
     device_id = require_header_identifier(x_device_id, name="device_id", maximum=128)
     code, config = repo.activate_license(
-        user["uid"], user.get("email") or "", device_id, body.key,
+        user["uid"], user.get("email") or "", device_id, body.key, app,
     )
     if code:
         status = {
@@ -112,7 +114,11 @@ def release_lease(user=Depends(current_user)):
     "/v1/licenses/unbind",
     dependencies=[rate_limited(rate_limit.license_activate_bucket)],
 )
-def unbind_device(ctx=Depends(attested_or_mfa_user)):
+def unbind_device(
+    ctx=Depends(attested_or_mfa_user),
+    header_app=Depends(request_app),
+    app: str = Query(default=""),
+):
     """"Use Semper on a different device" — the holder's own device change.
 
     Until now only institution IT could unbind a device, which left an
@@ -137,12 +143,23 @@ def unbind_device(ctx=Depends(attested_or_mfa_user)):
     binds), let the first authed request bind the lock, and only then restore.
     File content is device-attested, so restoring first fails on a device the
     user has legitimately just moved to.
+
+    Moves one app's device (ADR-010): the app that asks, by `X-App-Id`, or
+    from a browser, which cannot send that header, `?app=materialtesting`.
+    Each app has its own cooldown. No app named is Semper.
     """
+    if app:
+        named = apps.from_name(app)
+        if named is None:
+            raise HTTPException(400, errors.UNKNOWN_APP)
+    else:
+        named = header_app
     user = ctx["user"]
     license_id = user.get("licenseId") or ""
     if not license_id:
         raise HTTPException(404, errors.NO_LICENSE)
-    err, cleared = repo.clear_device_lock(license_id, user["uid"], actor=repo.ACTOR_SELF)
+    err, cleared = repo.clear_device_lock(license_id, user["uid"], actor=repo.ACTOR_SELF,
+                                          app=named)
     if err == errors.DEVICE_CHANGE_TOO_SOON:
         # 429, not 403: the answer is "not yet", and the caller is told
         # when. Nothing about their entitlement has changed.
@@ -158,8 +175,9 @@ def unbind_device(ctx=Depends(attested_or_mfa_user)):
         target={"type": (cleared or {}).get("scope") or "license", "id": license_id},
         detail={k: str(v) for k, v in (cleared or {}).items()},
     )
-    return {"licenseId": license_id, "deviceIdLock": "",
-            "previousDeviceId": (cleared or {}).get("previousDeviceId") or "",
+    return {"licenseId": license_id, "app": named, "deviceIdLock": "",
+            "previousDeviceId":
+                (cleared or {}).get(apps.field("previousDeviceId", named)) or "",
             "nextChangeAllowedAt": (cleared or {}).get("nextChangeAllowedAt") or ""}
 
 

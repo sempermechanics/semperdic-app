@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from .. import audit, errors, firestore_repo as repo, statuses
+from .. import apps, audit, errors, firestore_repo as repo, statuses
 from .. import rate_limit
 from ..config import settings
 from ..deps import admin_user, attested_or_mfa_admin, attested_or_mfa_admin_fresh, rate_limited
@@ -67,6 +67,9 @@ def admin_release_account_device(body: AdminDeviceRelease,
     is what the request arrives with. An account on a live licence is 409
     `license_device_clear_required`: **New device** on its licence moves both
     bindings. `releasedDeviceId` is "" when nothing was registered.
+
+    Releases every app's phone (ADR-010); `releasedDeviceIdMaterialTesting`
+    names the Material Testing one.
     """
     user = repo.find_user_by_email(body.email)
     if user is None:
@@ -77,9 +80,10 @@ def admin_release_account_device(body: AdminDeviceRelease,
     audit.record(
         admin["uid"], action="ADMIN_DEVICE_RELEASE",
         target={"type": "user", "id": user["uid"]},
-        detail={"releasedDeviceId": released},
+        detail=apps.spread("releasedDeviceId", released),
     )
-    return {"uid": user["uid"], "email": user.get("email") or "", "releasedDeviceId": released}
+    return {"uid": user["uid"], "email": user.get("email") or "",
+            **apps.spread("releasedDeviceId", released)}
 
 
 @router.patch("/v1/admin/users/{uid}/config", dependencies=[rate_limited(rate_limit.admin_bucket)])
@@ -427,7 +431,8 @@ def admin_clear_seat_device_lock(
         detail={k: str(v) for k, v in (cleared or {}).items()},
     )
     return {"licenseId": license_id, "uid": uid, "deviceIdLock": "",
-            "previousDeviceId": (cleared or {}).get("previousDeviceId") or ""}
+            **{k: (cleared or {}).get(k) or ""
+               for k in apps.spread("previousDeviceId", {})}}
 
 
 @router.get("/v1/admin/licenses/{license_id}/device-history")

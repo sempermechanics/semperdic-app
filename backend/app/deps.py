@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from fastapi import Depends, Header, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 
-from . import audit, errors, firestore_repo as repo, rate_limit, statuses
+from . import apps, audit, errors, firestore_repo as repo, rate_limit, statuses
 from .config import settings
 from .google_auth import verify_app_check_token, verify_id_token
 from .validation import require_header_identifier
@@ -41,6 +41,26 @@ def _client_bearer(authorization: str, x_forwarded_authorization: str) -> str:
     `Authorization`. Prefer the forwarded header when present.
     """
     return x_forwarded_authorization or authorization
+
+
+def _resolve_app(x_app_id: str) -> str:
+    """The app a request comes from (`X-App-Id`), or 400 `unknown_app`.
+
+    No header is Semper, as every build before the header was; an id this
+    backend does not know is refused rather than read as Semper (`apps.py`).
+    """
+    app = apps.from_header(x_app_id)
+    if app is None:
+        raise HTTPException(400, errors.UNKNOWN_APP)
+    return app
+
+
+def request_app(request: Request, x_app_id: str = Header(default="")) -> str:
+    """Route dependency: the app whose device binding this request is for
+    (ADR-010). `_authenticate` resolves it first; this reads it back, so a
+    route and the lock check it rode in on cannot disagree."""
+    app = getattr(request.state, "app", None)
+    return app if app else _resolve_app(x_app_id)
 
 
 def _require_app_check(token: str, uid: str) -> None:
@@ -86,6 +106,7 @@ def _authenticate(
     x_forwarded_authorization: str,
     x_device_id: str,
     x_firebase_appcheck: str,
+    x_app_id: str = "",
     *,
     require_approved: bool,
 ) -> dict:
@@ -96,6 +117,11 @@ def _authenticate(
     not-yet-approved user must be able to do — accept the Terms.
     """
     claims: dict = _DEV_CLAIMS if settings.DEV_INSECURE_AUTH else {}
+    app = _resolve_app(x_app_id)
+    try:
+        request.state.app = app
+    except Exception:  # noqa: BLE001
+        pass
     if settings.DEV_INSECURE_AUTH:
         user = _DEV_USER
     else:
@@ -132,9 +158,10 @@ def _authenticate(
         # X-Device-Id — not just at activation time. A revoked key, a disabled
         # or revoked institution seat, or a device that no longer matches the lock
         # drops the account to Demo immediately (fails closed); it never
-        # touches the account's stored sessions/files.
+        # touches the account's stored sessions/files. Checked against the
+        # lock of the app the request came from (ADR-010).
         if x_device_id:
-            user = repo.revalidate_device_lock(user, x_device_id)
+            user = repo.revalidate_device_lock(user, x_device_id, app)
     try:
         request.state.uid = user["uid"]
         obs.bind_uid(user["uid"])
@@ -158,6 +185,7 @@ def current_user(
     x_forwarded_authorization: str = Header(default=""),
     x_device_id: str = Header(default=""),
     x_firebase_appcheck: str = Header(default=""),
+    x_app_id: str = Header(default=""),
 ) -> dict:
     """Resolve the caller from a Google ID token; APPROVED accounts only.
 
@@ -167,7 +195,7 @@ def current_user(
     device-attested ones).
     """
     return _authenticate(request, authorization, x_forwarded_authorization, x_device_id,
-                         x_firebase_appcheck, require_approved=True)
+                         x_firebase_appcheck, x_app_id, require_approved=True)
 
 
 def any_status_user(
@@ -176,6 +204,7 @@ def any_status_user(
     x_forwarded_authorization: str = Header(default=""),
     x_device_id: str = Header(default=""),
     x_firebase_appcheck: str = Header(default=""),
+    x_app_id: str = Header(default=""),
 ) -> dict:
     """Like `current_user`, but a PENDING account is allowed through.
 
@@ -184,7 +213,7 @@ def any_status_user(
     cannot sit behind the APPROVED check. Nothing else should use this.
     """
     return _authenticate(request, authorization, x_forwarded_authorization, x_device_id,
-                         x_firebase_appcheck, require_approved=False)
+                         x_firebase_appcheck, x_app_id, require_approved=False)
 
 
 def rate_limited(bucket: rate_limit.TokenBucket):
@@ -267,7 +296,8 @@ async def verified_device(
     # that actually spend the entitlement (create a session, download a file),
     # so re-check here too rather than trust a value resolved before the
     # signature/nonce were even verified.
-    user = await run_in_threadpool(repo.revalidate_device_lock, user, x_device_id)
+    user = await run_in_threadpool(repo.revalidate_device_lock, user, x_device_id,
+                                   getattr(request.state, "app", None) or apps.SEMPER)
 
     body = await request.body()
     # The query string is inside the signature whenever there is one, so a

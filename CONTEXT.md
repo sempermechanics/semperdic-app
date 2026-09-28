@@ -110,7 +110,13 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   #240 (cost), the licence desk (backend and console), the device-change fixes (#248, #249,
   #255, #261, #264), pinned serving/rollback images (#263), the staff phone release for
   Demo accounts (#266), compat shims 1–5 retired (#267, TD-45) and the account page's kept
-  load error (#271, TD-134) went out 2026-09-26 ([CHANGELOG](docs/ops/CHANGELOG.md)).
+  load error (#271, TD-136) went out 2026-09-26 ([CHANGELOG](docs/ops/CHANGELOG.md)).
+- **Device binding per app** ([ADR-010](docs/adr/ADR-010-device-binding-per-app.md)): #279
+  (TD-137) and #280 (TD-138) merged and the backend deployed 2026-09-28 (image
+  `semper-api-36419849032-1`; `rollback-prev` is `semper-api-00029-z72`); consoles
+  deployed from `0c3946f7` the same day. material_testing#90 merged: its builds send
+  `X-App-Id`, and a debug build signed in licensed on the Pixel 6 (2026-09-28). Owed: a
+  Material Testing release, and App Check for it.
 - **App release `v1.2-beta.2`** (beta, private GitHub Release, from `fab33cb`): the
   burn-down's app half, #180's strain window in data points, engine `v0.2.2`, #182 (TD-66).
 - **Merged, awaiting release:** #189, four fixes ported from material_testing

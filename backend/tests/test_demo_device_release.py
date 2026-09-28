@@ -27,7 +27,7 @@ def test_staff_release_frees_a_demo_accounts_phone(store):
 
     err, released = repo.release_account_device(uid)
 
-    assert (err, released) == ("", "old-phone")
+    assert (err, released) == ("", {"semper": "old-phone"})
     user = store._data["users"][uid]
     assert "activeDeviceId" not in user
     assert user["releasedDeviceId"] == "old-phone"
@@ -47,7 +47,7 @@ def test_a_licensed_account_is_sent_to_new_device(store):
 
     err, released = repo.release_account_device("solo-1")
 
-    assert (err, released) == ("license_device_clear_required", "")
+    assert (err, released) == ("license_device_clear_required", {})
     assert store._data["users"]["solo-1"]["activeDeviceId"] == "old-phone"
 
 
@@ -61,20 +61,39 @@ def test_a_holder_left_on_demo_by_a_revoked_licence_can_be_released(store):
     repo.revoke_license(license_id, "staff-1")
     assert store._data["users"]["solo-1"]["licenseId"] == license_id
 
-    assert repo.release_account_device("solo-1") == ("", "old-phone")
+    assert repo.release_account_device("solo-1") == ("", {"semper": "old-phone"})
 
 
 def test_nothing_registered_is_not_an_error(store):
     uid = _demo_on(store)
     store._data["users"][uid].pop("activeDeviceId")
 
-    assert repo.release_account_device(uid) == ("", "")
+    assert repo.release_account_device(uid) == ("", {})
     assert "releasedDeviceId" not in store._data["users"][uid]
 
 
 def test_an_unknown_account(store):
     store._data["users"] = {}
-    assert repo.release_account_device("nobody") == ("user_not_found", "")
+    assert repo.release_account_device("nobody") == ("user_not_found", {})
+
+
+def test_a_release_frees_the_phone_in_both_apps(store):
+    """One phone per app (ADR-010): the holder is changing phones, and both
+    apps are on the phone they are changing."""
+    uid = _demo_on(store)
+    store._data["users"][uid]["activeDeviceIdMaterialTesting"] = "old-phone-mt"
+    store._data["devices"]["old-phone-mt"] = {"uid": uid, "status": "ACTIVE"}
+
+    err, released = repo.release_account_device(uid)
+
+    assert (err, released) == ("", {"semper": "old-phone", "materialtesting": "old-phone-mt"})
+    user = store._data["users"][uid]
+    assert "activeDeviceId" not in user and "activeDeviceIdMaterialTesting" not in user
+    assert user["releasedDeviceIdMaterialTesting"] == "old-phone-mt"
+    assert store._data["devices"]["old-phone-mt"]["status"] == "SUPERSEDED"
+    assert repo.released_device_held(user, "old-phone-mt", "materialtesting") is True
+    # Each app's hold is its own: the Semper id is not held off Material Testing.
+    assert repo.released_device_held(user, "old-phone", "materialtesting") is False
 
 
 @pytest.mark.asyncio
@@ -96,10 +115,12 @@ async def test_released_over_http_then_the_new_phone_registers(client, monkeypat
 
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"uid": "demo-1", "email": "demo@lab.org",
-                           "releasedDeviceId": "old-phone"}
+                           "releasedDeviceId": "old-phone",
+                           "releasedDeviceIdMaterialTesting": ""}
     released = [r for r in audited if r["action"] == "ADMIN_DEVICE_RELEASE"]
     assert released[0]["target"] == {"type": "user", "id": "demo-1"}
-    assert released[0]["detail"] == {"releasedDeviceId": "old-phone"}
+    assert released[0]["detail"] == {"releasedDeviceId": "old-phone",
+                                     "releasedDeviceIdMaterialTesting": ""}
 
     as_holder()
     old_phone = {"deviceId": "old-phone", "publicKeyPem": _ec_pem()}

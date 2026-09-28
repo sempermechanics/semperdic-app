@@ -3,7 +3,7 @@ import {
   stepUpForRevoke, ERR_CANCELLED,
 } from "../auth.js";
 import {
-  seatCells, inviteCells, day, licenceStatePill,
+  seatCells, seatDevices, inviteCells, day, licenceStatePill,
   licenceListPath, searchableLicenceText, upsertLicence, alreadyLicensedId,
   isoDay, emailList, licenceEditPatch, daysLeft, unfinishedStepUpText,
 } from "../util.js";
@@ -696,10 +696,15 @@ async function showDeviceHistory(id) {
       // The registered phone the clear signed out, when it is not the lock's.
       const released = (e.detail && e.detail.releasedDeviceId) || "";
       const next = (e.detail && e.detail.deviceId) || "";
+      // Material Testing's half of the same clear, and which app a bind was for.
+      const prevMt = (e.detail && e.detail.previousDeviceIdMaterialTesting) || "";
+      const app = (e.detail && e.detail.app) || "";
       const who = e.uid || "—";
       return `${e.ts || "?"}  ${e.action}  by ${who}` +
+        (app ? ` (${app})` : "") +
         (prev ? `  left ${prev}` : "") +
         (released && released !== prev ? `  signed out ${released}` : "") +
+        (prevMt ? `  left ${prevMt} (Material Testing)` : "") +
         (next ? `  → ${next}` : "");
     });
     window.alert(
@@ -1158,7 +1163,10 @@ async function loadUsers() {
           <tr>
             <td>${esc(u.email || u.uid)}</td>
             <td>${esc(u.displayName || "—")}</td>
-            <td class="muted">${u.activeDeviceId ? esc(u.activeDeviceId.slice(0, 10)) + "…" : "—"}</td>
+            <td class="muted">${seatDevices({
+              deviceIdLock: u.activeDeviceId,
+              deviceIdLockMaterialTesting: u.activeDeviceIdMaterialTesting,
+            }) || "—"}</td>
             <td class="actions">
               <button data-approve="${esc(u.uid)}">Approve</button>
             </td>
@@ -1180,8 +1188,13 @@ $("releasePhone").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({ email }),
     });
-    setStatus(out.releasedDeviceId
-      ? `Released ${out.releasedDeviceId} for ${out.email || email}; the new phone can sign in.`
+    // One phone per app (ADR-010); a release frees both.
+    const released = [
+      out.releasedDeviceId,
+      out.releasedDeviceIdMaterialTesting && `${out.releasedDeviceIdMaterialTesting} (Material Testing)`,
+    ].filter(Boolean);
+    setStatus(released.length
+      ? `Released ${released.join(" and ")} for ${out.email || email}; the new phone can sign in.`
       : `${out.email || email} had no phone registered; any phone can sign in.`);
     $("releaseEmail").value = "";
   } catch (e) {

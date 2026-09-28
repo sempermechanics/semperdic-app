@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from google.api_core.exceptions import AlreadyExists
 
-from .. import errors, notify, statuses
+from .. import apps, errors, notify, statuses
 from ..config import settings
 from ..licenses import (
     MODE_LICENSED,
@@ -247,13 +247,15 @@ def list_users(
             "displayName": u.get("displayName"),
             "role": u.get("role"),
             "access_status": u.get("access_status"),
-            "activeDeviceId": u.get("activeDeviceId"),
+            **{apps.field("activeDeviceId", app): u.get(apps.field("activeDeviceId", app))
+               for app in apps.ALL},
         })
     return out, next_token
 
 
-def release_account_device(uid: str) -> tuple[str, str]:
-    """Free the account's registered phone so a new one can register. `(error, released id)`.
+def release_account_device(uid: str) -> tuple[str, dict[str, str]]:
+    """Free the account's registered phones so a new one can register.
+    `(error, {app: released id})`, naming only the apps that had one.
 
     Staff only, on the holder's request (decided 2026-09-26, TD-126). A Demo
     account has no licence lock to clear, so before this its first phone was its
@@ -266,26 +268,30 @@ def release_account_device(uid: str) -> tuple[str, str]:
     An account on a live licence is refused with `license_device_clear_required`:
     its licence lock would still name the old phone and demote the new one, and
     **New device** on the licence moves both. Nothing registered is not an error;
-    the released id is then "".
+    the answer is then empty.
+
+    Every app's phone is released (ADR-010): the holder is changing phones, and
+    both apps are on the phone they are changing.
     """
     user_ref = db().collection("users").document(uid)
     snap = user_ref.get()
     if not snap.exists:
-        return errors.USER_NOT_FOUND, ""
+        return errors.USER_NOT_FOUND, {}
     user = snap.to_dict() or {}
     if user.get("licenseId") and effective_mode(user) == MODE_LICENSED:
-        return errors.LICENSE_DEVICE_CLEAR_REQUIRED, ""
-    released = user.get("activeDeviceId") or ""
+        return errors.LICENSE_DEVICE_CLEAR_REQUIRED, {}
+    released = {app: user.get(apps.field("activeDeviceId", app)) or "" for app in apps.ALL}
+    released = {app: device for app, device in released.items() if device}
     if not released:
-        return "", ""
+        return "", {}
     batch = db().batch()
-    batch.update(user_ref, {
-        **_release_patch(released),
-        "updatedAt": _base.firestore.SERVER_TIMESTAMP,
-    })
-    device_ref = db().collection("devices").document(released)
-    if device_ref.get().exists:
-        _retire_device(batch, device_ref, statuses.DEVICE_SUPERSEDED)
+    patch = {"updatedAt": _base.firestore.SERVER_TIMESTAMP}
+    for app, device in released.items():
+        patch.update(_release_patch(device, app))
+        device_ref = db().collection("devices").document(device)
+        if device_ref.get().exists:
+            _retire_device(batch, device_ref, statuses.DEVICE_SUPERSEDED)
+    batch.update(user_ref, patch)
     batch.commit()
     return "", released
 
@@ -305,7 +311,8 @@ def set_user_status(uid: str, status: str) -> bool:
     batch = db().batch()
     batch.update(ref, {"access_status": status, "updatedAt": _base.firestore.SERVER_TIMESTAMP})
     if status != statuses.ACCESS_APPROVED:
-        batch.update(ref, {"activeDeviceId": _base.firestore.DELETE_FIELD})
+        batch.update(ref, {apps.field("activeDeviceId", app): _base.firestore.DELETE_FIELD
+                           for app in apps.ALL})
         for dev in db().collection("devices").where("uid", "==", uid).stream():
             _retire_device(batch, dev.reference, statuses.DEVICE_REVOKED)
     batch.commit()
