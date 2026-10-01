@@ -41,7 +41,10 @@ Engine tests are **not** this CI. From the submodule: see [docs/engine/TESTING.m
 
 - Empty lint/detekt baselines. Extract or `@file:Suppress`; do not stuff findings.
 - Bit-exact `.dat` / GIF oracles. JNI `computeFullFieldDirect` stays in the one batch loop.
-- Do not split VisualizationEngine, GifEncoder LZW, ReportBuilder, upload `doWork`, scrub cache, `PointSpatialIndex.build`.
+- Fused hot loops keep their body whole in one function (VisualizationEngine pixel loops, GifEncoder LZW,
+  ReportBuilder fusion pass, `decodeDatFile`, `prefetchAround`, `PointSpatialIndex.build`); the files around
+  them may be split. Prove a split with the oracles and `HotPathMicroBenchmark` / `ViewerScrubBenchmark`.
+- Upload `doWork` may become named steps, but staged bytes stay identical across attempts.
 - Do not bump `targetSdk` 36→37 or enable `warningsAsErrors` without an explicit decision.
 - Never bump `backend/requirements.txt` without `pip-compile --generate-hashes` on Python **3.12**.
 - Never commit `local.properties` (API URL) or keystores.

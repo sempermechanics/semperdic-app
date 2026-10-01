@@ -273,8 +273,8 @@ CloudSync.enqueueUpload → DicUploadWorker.doWork
 | Signals | `data/TransferNotifications` foreground notification; `DicKeys.UPLOAD_PHASE` / `UPLOAD_PERCENT` progress; `SemperAnalytics` cloud_upload_* buckets; the backend's `X-Request-Id` appended by `UploadWorkOutcomes.withRef` |
 | Tests | `cloud/UploadResumableTest`, `cloud/DicUploadWorkerOutcomesTest`, `cloud/UploadChunkSizingTest`, `cloud/BackupSplitTest`, `cloud/SessionZipTest`, `cloud/WaitingUploadsTest` |
 
-Do not split `doWork`: the resume contract depends on the staged bytes being
-**identical** across attempts (the declared size and sha256 are what Drive's
+`doWork` may be broken into named steps, but the resume contract depends on
+the staged bytes being **identical** across attempts (the declared size and sha256 are what Drive's
 resumable URI and `C7` reconcile against).
 
 ### B2 Restore an analysis from the cloud 🔒

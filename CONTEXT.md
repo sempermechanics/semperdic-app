@@ -73,9 +73,14 @@ non-modal `TransferBannerController` strip.
   oracles unless the engine contract major-bumps. GIF bytes are pinned 0-delta.
 - **JNI buffer is bounded.** Allocate to the ROI grid; a point count over capacity
   is an engine failure, never a read past the buffer.
-- **Do not split** VisualizationEngine loops, GifEncoder LZW, ReportBuilder fusion,
-  `DicResult.decodeDatFile`, `DicUploadWorker.doWork`, `prefetchAround` /
-  `ScrubFrameCache`, `PointSpatialIndex.build`.
+- **Hot loops stay fused.** VisualizationEngine pixel loops, GifEncoder LZW, the
+  ReportBuilder fusion pass, `DicResult.decodeDatFile`, `prefetchAround` and
+  `PointSpatialIndex.build` each keep their loop body whole in one function. The
+  files around them may be split; a split proves itself with the `.dat` / GIF
+  oracles and no regression in `HotPathMicroBenchmark` / `ViewerScrubBenchmark`.
+- **Upload staging is repeatable.** `DicUploadWorker.doWork` may be broken into
+  named steps, but the staged bytes must be identical across attempts: Drive's
+  resumable URI and the reconcile check the declared size and sha256.
 - **Scrub cache** is byte-bounded and filled by **one** serialized worker.
 - **Whole-batch** summary / spatial index start on demand, never on viewer open.
 - **Batch progress** is a buffered `SharedFlow` (`DROP_OLDEST`), not a `StateFlow`.

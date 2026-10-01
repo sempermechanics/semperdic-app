@@ -231,9 +231,9 @@ by 0-delta parity tests. Measured before/after, including the drawbacks, is in
 | Float16 / ZNSSD quantisation for field data | Would change reported numbers; rejected under the bit-exactness requirement |
 | In-memory X/Y compaction (derive coords from the grid) | Loss-less and worth ~25 %, but a larger change that also touches the native writer |
 
-Do not split VisualizationEngine loops, GifEncoder LZW, ReportBuilder fusion,
-`DicResult.decodeDatFile`, `DicUploadWorker.doWork`, `prefetchAround` /
-`ScrubFrameCache`, or `PointSpatialIndex.build`.
+The fused hot loops keep their body whole in one function; the rule and its
+proof (oracles plus `HotPathMicroBenchmark` / `ViewerScrubBenchmark`) are in
+[CONTEXT.md § Invariants](../../CONTEXT.md#invariants).
 
 ## 2026-08-05 transparency / robustness audit
 

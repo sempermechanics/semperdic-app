@@ -46,9 +46,11 @@ invariant list, and none of them are drive-by changes.
 - The JNI output buffer is sized to the ROI grid and the engine's returned point
   count is checked against that capacity *before* read-back.
   `computeFullFieldDirect` stays inside the one batch loop.
-- Do not split `VisualizationEngine` loops, `GifEncoder` LZW, `ReportBuilder`
-  fusion, `DicResult.decodeDatFile`, `DicUploadWorker.doWork`,
-  `prefetchAround` / `ScrubFrameCache`, or `PointSpatialIndex.build`.
+- Fused hot loops (`VisualizationEngine` pixel loops, `GifEncoder` LZW, the
+  `ReportBuilder` fusion pass, `DicResult.decodeDatFile`, `prefetchAround`,
+  `PointSpatialIndex.build`) keep their body whole in one function; their files
+  may be split. `DicUploadWorker.doWork` may become named steps as long as the
+  staged bytes stay identical across attempts.
 - A failure reason must be the *real* reason: never widen a specific engine code
   into a generic message, and never report an unknown code as a known cause.
 
