@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A collapsible Settings section's header row: title and chevron. The same
+     attributes as each copy in settings_scroll_content.xml (Cloud backup,
+     Analyses, Storage, Your data, Analysis preferences, Help & support; the
+     Account copy differs only in an 8dp top margin, which its <include> sets).
+     An <include> applies android:layout_marginTop (or any layout_* attribute)
+     only when it also sets android:layout_width and android:layout_height.
+     Include it with the header's own id, then SettingsSectionHeader.bind sets
+     the title and gives the chevron the same text as its description. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="14dp"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingVertical="4dp">
+
+    <TextView
+        android:id="@+id/tvSectionTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textAppearance="@style/TextAppearance.Semper.SectionHeader"
+        tools:text="@string/account_section" />
+
+    <!-- Described at runtime with the section's title (SettingsSectionHeader.bind). -->
+    <ImageView
+        android:id="@+id/ivSectionChevron"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_expand_more"
+        app:tint="@color/text_secondary"
+        tools:ignore="ContentDescription" />
+</LinearLayout>
