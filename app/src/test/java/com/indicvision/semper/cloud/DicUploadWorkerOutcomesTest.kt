@@ -1,8 +1,8 @@
 package com.indicvision.semper.cloud
 
 import androidx.work.ListenableWorker
-import com.indicvision.semper.data.SessionPaths
-import com.indicvision.semper.data.UploadWorkOutcomes
+import com.indicvision.semper.data.cloud.UploadWorkOutcomes
+import com.indicvision.semper.data.session.SessionPaths
 import com.indicvision.semper.util.Digests
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

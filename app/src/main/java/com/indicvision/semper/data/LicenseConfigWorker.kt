@@ -8,6 +8,8 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.indicvision.semper.data.account.SeatHeartbeat
+import com.indicvision.semper.data.account.SeatLease
 import java.util.concurrent.TimeUnit
 
 /**

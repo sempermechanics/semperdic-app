@@ -4,9 +4,9 @@ import android.os.Build
 import android.view.View
 import com.indicvision.semper.BuildConfig
 import com.indicvision.semper.R
-import com.indicvision.semper.analytics.SemperAnalytics
-import com.indicvision.semper.data.DeviceKeyManager
+import com.indicvision.semper.data.account.DeviceKeyManager
 import com.indicvision.semper.data.net.TokenStore
+import com.indicvision.semper.diagnostics.SemperAnalytics
 import com.indicvision.semper.ui.common.SupportMail
 
 /**

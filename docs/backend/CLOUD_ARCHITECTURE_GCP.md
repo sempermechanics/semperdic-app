@@ -747,13 +747,13 @@ instead of failing the client.
 
 | Concern | File |
 |---|---|
-| Google sign-in, session state | [`data/AuthRepository.kt`](../../app/src/main/java/com/indicvision/semper/data/AuthRepository.kt) |
+| Google sign-in, session state | [`data/account/AuthRepository.kt`](../../app/src/main/java/com/indicvision/semper/data/account/AuthRepository.kt) |
 | Credential Manager helper | [`ui/auth/GoogleSignInHelper.kt`](../../app/src/main/java/com/indicvision/semper/ui/auth/GoogleSignInHelper.kt) |
-| EC P-256 Keystore device key | [`data/DeviceKeyManager.kt`](../../app/src/main/java/com/indicvision/semper/data/DeviceKeyManager.kt) |
+| EC P-256 Keystore device key | [`data/account/DeviceKeyManager.kt`](../../app/src/main/java/com/indicvision/semper/data/account/DeviceKeyManager.kt) |
 | Backend HTTP client | [`data/net/IndicApi.kt`](../../app/src/main/java/com/indicvision/semper/data/net/IndicApi.kt) |
 | Token storage / refresh | [`data/net/TokenStore.kt`](../../app/src/main/java/com/indicvision/semper/data/net/TokenStore.kt) · [`TokenProvider.kt`](../../app/src/main/java/com/indicvision/semper/data/net/TokenProvider.kt) |
 | Resumable upload worker | [`data/DicUploadWorker.kt`](../../app/src/main/java/com/indicvision/semper/data/DicUploadWorker.kt) |
-| Restore / download | [`data/DicRestoreWorker.kt`](../../app/src/main/java/com/indicvision/semper/data/DicRestoreWorker.kt) · [`CloudRestore.kt`](../../app/src/main/java/com/indicvision/semper/data/CloudRestore.kt) |
+| Restore / download | [`data/DicRestoreWorker.kt`](../../app/src/main/java/com/indicvision/semper/data/DicRestoreWorker.kt) · [`CloudRestore.kt`](../../app/src/main/java/com/indicvision/semper/data/cloud/restore/CloudRestore.kt) |
 
 The upload worker speaks the resumable protocol from §4: `PUT` with a
 `Content-Range` header, `308` means keep going, `200`/`201` means the file
@@ -2028,7 +2028,7 @@ substituted host fails that check.
 
 **The same Hosting site carries the app's auth continue links.** They live
 under `/auth/` on `app.sempermechanics.com` (`AUTH_HOST` in
-`data/AuthRepository.kt`). The `…-auth.firebaseapp.com` host stays accepted as
+`data/account/AuthRepository.kt`). The `…-auth.firebaseapp.com` host stays accepted as
 `LEGACY_AUTH_HOST` for every installed build that declares only it, and is
 still the password-reset action URL, until Play vitals show no such build
 ([TD-29](../ops/TECH_DEBT.md)). On the CORS side, `allowCors` in

@@ -2,8 +2,8 @@ package com.indicvision.semper.session
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.data.SessionRecord
-import com.indicvision.semper.data.SessionStore
+import com.indicvision.semper.data.session.SessionRecord
+import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.fixtures.CleanAppState
 import com.indicvision.semper.fixtures.sessionRecord
 import org.junit.Assert.assertEquals

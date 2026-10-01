@@ -197,7 +197,7 @@ jobs:
               # thing keeping them in step.
               - 'app/src/main/java/com/indicvision/semper/data/net/ApiErrors.kt'
               - 'app/src/main/java/com/indicvision/semper/data/net/ArtifactRoles.kt'
-              - 'app/src/main/java/com/indicvision/semper/data/UploadWorkOutcomes.kt'
+              - 'app/src/main/java/com/indicvision/semper/data/cloud/UploadWorkOutcomes.kt'
             ci_workflow:
               - '.github/workflows/ci.yml'
               # Tier 3 and the benchmark tier run it to report results.

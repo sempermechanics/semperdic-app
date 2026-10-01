@@ -8,14 +8,14 @@ import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry
-import com.indicvision.semper.DicResult
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.report.EngineStats
 import com.indicvision.semper.report.GifEncoder
 import com.indicvision.semper.report.ReportBuilder
 import com.indicvision.semper.report.RoiData
 import com.indicvision.semper.report.VisualizationEngine
-import com.indicvision.semper.ui.analysis.VsgStudy
-import com.indicvision.semper.ui.viewer.PointSpatialIndex
+import com.indicvision.semper.ui.analysis.sweep.VsgStudy
+import com.indicvision.semper.ui.viewer.inspect.PointSpatialIndex
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

@@ -1,8 +1,8 @@
 package com.indicvision.semper.analysis
 
-import com.indicvision.semper.DicResult
-import com.indicvision.semper.ui.analysis.SubsetRecommender
-import com.indicvision.semper.ui.analysis.VsgStudy
+import com.indicvision.semper.field.DicResult
+import com.indicvision.semper.ui.analysis.recommend.SubsetRecommender
+import com.indicvision.semper.ui.analysis.sweep.VsgStudy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

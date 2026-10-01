@@ -1,7 +1,7 @@
 package com.indicvision.semper.cloud
 
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.data.LicenseErrors
+import com.indicvision.semper.data.account.LicenseErrors
 import com.indicvision.semper.data.net.ApiErrors
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

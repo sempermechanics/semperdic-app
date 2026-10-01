@@ -2,8 +2,8 @@
 
 package com.indicvision.semper.results
 
-import com.indicvision.semper.DatDecoder
-import com.indicvision.semper.DicResult
+import com.indicvision.semper.field.DatDecoder
+import com.indicvision.semper.field.DicResult
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull

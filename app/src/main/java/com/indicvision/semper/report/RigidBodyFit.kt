@@ -1,6 +1,6 @@
 package com.indicvision.semper.report
 
-import com.indicvision.semper.DicResult
+import com.indicvision.semper.field.DicResult
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.hypot

@@ -2,9 +2,9 @@ package com.indicvision.semper.viewer
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.DicResult
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.report.ReportBuilder
-import com.indicvision.semper.ui.viewer.SummaryCaption
+import com.indicvision.semper.ui.viewer.summary.SummaryCaption
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test

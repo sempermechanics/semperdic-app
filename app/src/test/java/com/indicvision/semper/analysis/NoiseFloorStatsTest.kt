@@ -1,7 +1,7 @@
 package com.indicvision.semper.analysis
 
-import com.indicvision.semper.ui.analysis.NoiseFloorStats
-import com.indicvision.semper.ui.analysis.NoiseFloorStats.Outcome
+import com.indicvision.semper.ui.analysis.recommend.NoiseFloorStats
+import com.indicvision.semper.ui.analysis.recommend.NoiseFloorStats.Outcome
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

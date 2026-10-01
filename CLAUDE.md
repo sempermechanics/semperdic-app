@@ -30,6 +30,7 @@ Engine tests are **not** this CI. From the submodule: see [docs/engine/TESTING.m
 | Wizard chrome / steps | `StaticAnalysisActivity.goToStep`; slots/coach if present |
 | Full-field batch / `.dat` write | `DicBatchRunner.kt` (`AnalysisViewModel.runBatchAnalysisBody`) + `DicFieldIo`, else `AnalysisViewModel` |
 | A structural change | Check [docs/adr/](docs/adr/README.md) for a decision first |
+| A new Kotlin file / package split | Feature subpackage per [ADR-015](docs/adr/ADR-015-package-layout.md); never move Workers, `SemperNativeLib`, Activities |
 | Viewer / exports | `ResultViewerActivity`, `ShareCenter` |
 | Settings sections | `Settings*Section`; restore/delete stay on `SettingsActivity` |
 | Session paths | `SessionPaths` only |

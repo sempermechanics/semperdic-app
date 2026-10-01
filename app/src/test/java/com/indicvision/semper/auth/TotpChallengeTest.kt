@@ -6,7 +6,7 @@ import android.widget.EditText
 import android.widget.TextView
 import com.google.firebase.auth.TotpMultiFactorGenerator
 import com.indicvision.semper.R
-import com.indicvision.semper.data.TotpMfa
+import com.indicvision.semper.data.account.TotpMfa
 import com.indicvision.semper.ui.auth.AuthActivity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

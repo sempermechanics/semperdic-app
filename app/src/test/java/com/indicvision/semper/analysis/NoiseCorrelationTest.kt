@@ -1,7 +1,7 @@
 package com.indicvision.semper.analysis
 
-import com.indicvision.semper.ui.analysis.NoiseFloorPixels
-import com.indicvision.semper.ui.analysis.SubsetRecommender
+import com.indicvision.semper.ui.analysis.recommend.NoiseFloorPixels
+import com.indicvision.semper.ui.analysis.recommend.SubsetRecommender
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

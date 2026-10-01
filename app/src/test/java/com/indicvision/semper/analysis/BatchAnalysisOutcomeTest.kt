@@ -1,6 +1,6 @@
 package com.indicvision.semper.analysis
 
-import com.indicvision.semper.ui.analysis.AnalysisViewModel.BatchAnalysisOutcome
+import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel.BatchAnalysisOutcome
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

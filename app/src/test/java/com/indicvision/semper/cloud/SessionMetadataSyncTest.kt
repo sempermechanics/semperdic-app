@@ -4,16 +4,16 @@ package com.indicvision.semper.cloud
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.data.CloudSync
-import com.indicvision.semper.data.SessionMetadataSync
-import com.indicvision.semper.data.SessionMetadataSync.Outcome
-import com.indicvision.semper.data.SessionRecord.SyncState
-import com.indicvision.semper.data.SessionStore
+import com.indicvision.semper.data.cloud.CloudSync
+import com.indicvision.semper.data.cloud.SessionMetadataSync
+import com.indicvision.semper.data.cloud.SessionMetadataSync.Outcome
 import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.net.CloudSessionDto
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.ListSessionsResponse
 import com.indicvision.semper.data.net.QuotaDto
+import com.indicvision.semper.data.session.SessionRecord.SyncState
+import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.fixtures.sessionRecord
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject

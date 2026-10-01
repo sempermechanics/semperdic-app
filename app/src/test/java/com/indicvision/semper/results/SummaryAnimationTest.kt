@@ -1,9 +1,9 @@
 package com.indicvision.semper.results
 
-import com.indicvision.semper.DicResult
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.report.FieldRangesStore
 import com.indicvision.semper.report.VisualizationEngine
-import com.indicvision.semper.ui.viewer.SummaryAnimation
+import com.indicvision.semper.ui.viewer.summary.SummaryAnimation
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

@@ -1,8 +1,8 @@
 package com.indicvision.semper.analysis
 
-import com.indicvision.semper.ui.analysis.FrameOrderDirection
-import com.indicvision.semper.ui.analysis.FrameOrderHelper
-import com.indicvision.semper.ui.analysis.FrameOrderMode
+import com.indicvision.semper.ui.analysis.frames.FrameOrderDirection
+import com.indicvision.semper.ui.analysis.frames.FrameOrderHelper
+import com.indicvision.semper.ui.analysis.frames.FrameOrderMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

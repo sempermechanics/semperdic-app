@@ -1,7 +1,7 @@
 package com.indicvision.semper.cloud
 
-import com.indicvision.semper.DicResult
-import com.indicvision.semper.data.DatCodec
+import com.indicvision.semper.data.session.DatCodec
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.fixtures.packDat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows

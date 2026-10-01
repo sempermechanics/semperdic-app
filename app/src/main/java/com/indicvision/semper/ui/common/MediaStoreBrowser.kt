@@ -7,6 +7,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import androidx.annotation.WorkerThread
 import androidx.core.content.ContextCompat
 
 /**
@@ -42,6 +43,8 @@ object MediaStoreBrowser {
         return ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
     }
 
+    /** A content-resolver query over the gallery: call it off the main thread. */
+    @WorkerThread
     fun query(
         context: Context,
         includeVideo: Boolean,

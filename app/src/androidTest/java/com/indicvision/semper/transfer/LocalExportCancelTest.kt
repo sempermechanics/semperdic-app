@@ -2,10 +2,10 @@ package com.indicvision.semper.transfer
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.indicvision.semper.DicResult
-import com.indicvision.semper.data.SessionEverythingExporter
-import com.indicvision.semper.data.SessionPaths
-import com.indicvision.semper.data.SessionStore
+import com.indicvision.semper.data.session.SessionEverythingExporter
+import com.indicvision.semper.data.session.SessionPaths
+import com.indicvision.semper.data.session.SessionStore
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.fixtures.sessionRecord
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.job

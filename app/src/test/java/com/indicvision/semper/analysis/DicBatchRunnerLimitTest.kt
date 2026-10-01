@@ -2,14 +2,14 @@ package com.indicvision.semper.analysis
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.data.LicenseEntitlements
-import com.indicvision.semper.data.SessionStore
+import com.indicvision.semper.data.account.LicenseEntitlements
 import com.indicvision.semper.data.net.AppConfigDto
 import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.net.TokenStore
-import com.indicvision.semper.ui.analysis.AnalysisViewModel
-import com.indicvision.semper.ui.analysis.RunSpec
-import com.indicvision.semper.ui.analysis.runBatchAnalysisBody
+import com.indicvision.semper.data.session.SessionStore
+import com.indicvision.semper.ui.analysis.run.RunSpec
+import com.indicvision.semper.ui.analysis.run.runBatchAnalysisBody
+import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
 import kotlinx.coroutines.Job
 import org.junit.After
 import org.junit.Assert.assertEquals

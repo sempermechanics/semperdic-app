@@ -13,14 +13,15 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.indicvision.semper.DicResult
-import com.indicvision.semper.FieldHistogram
 import com.indicvision.semper.R
+import com.indicvision.semper.field.DicResult
+import com.indicvision.semper.field.FieldHistogram
 import com.indicvision.semper.report.ReportBuilder
-import com.indicvision.semper.ui.analysis.EngineFailure
-import com.indicvision.semper.ui.analysis.StrainWindowText
-import com.indicvision.semper.ui.analysis.VsgPlotView
-import com.indicvision.semper.ui.analysis.VsgStudy
+import com.indicvision.semper.ui.analysis.recommend.StrainWindowText
+import com.indicvision.semper.ui.analysis.run.EngineFailure
+import com.indicvision.semper.ui.analysis.sweep.VsgPlotView
+import com.indicvision.semper.ui.analysis.sweep.VsgStudy
+import com.indicvision.semper.ui.viewer.inspect.FieldHistogramView
 import kotlin.math.roundToInt
 
 /**

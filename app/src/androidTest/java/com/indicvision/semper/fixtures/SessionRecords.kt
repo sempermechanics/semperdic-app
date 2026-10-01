@@ -1,6 +1,6 @@
 package com.indicvision.semper.fixtures
 
-import com.indicvision.semper.data.SessionRecord
+import com.indicvision.semper.data.session.SessionRecord
 
 /**
  * One [SessionRecord] with every required field defaulted: a single-frame,

@@ -53,7 +53,7 @@
 
         <!-- compact=true (VsgLatticeActivity): no separate axis-title lines, the
              coach mark already explains both axes on first open. -->
-        <com.indicvision.semper.ui.analysis.VsgLatticeView
+        <com.indicvision.semper.ui.analysis.sweep.VsgLatticeView
             android:id="@+id/latticeView"
             android:layout_width="match_parent"
             android:layout_height="136dp"
@@ -221,7 +221,7 @@
 
             <!-- compactAxes=true (VsgLatticeActivity): no separate axis-title
                  lines, the unit folds onto the outermost tick instead. -->
-            <com.indicvision.semper.ui.analysis.VsgPlotView
+            <com.indicvision.semper.ui.analysis.sweep.VsgPlotView
                 android:id="@+id/plotLatticeStrain"
                 android:layout_width="match_parent"
                 android:layout_height="300dp"

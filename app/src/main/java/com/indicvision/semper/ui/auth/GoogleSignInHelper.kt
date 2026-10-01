@@ -13,7 +13,7 @@ import com.indicvision.semper.R
  * Native "Sign in with Google" via AndroidX Credential Manager.
  *
  * Returns a Google **ID token** which the app then exchanges for a Firebase
- * credential (see [com.indicvision.semper.data.AuthRepository.signInWithGoogle]).
+ * credential (see [com.indicvision.semper.data.account.AuthRepository.signInWithGoogle]).
  * The server client id is the **Firebase project's** web client id, published by
  * the google-services plugin as the `default_web_client_id` string resource.
  *

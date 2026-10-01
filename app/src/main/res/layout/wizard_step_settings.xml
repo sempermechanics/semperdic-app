@@ -7,7 +7,7 @@
     android:scrollbars="none"
     android:visibility="gone">
 
-    <com.indicvision.semper.ui.analysis.WizardStepSettingsContentView
+    <com.indicvision.semper.ui.analysis.wizard.WizardStepSettingsContentView
         android:id="@+id/settingsColumn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

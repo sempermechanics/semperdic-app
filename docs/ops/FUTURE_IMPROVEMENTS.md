@@ -155,7 +155,7 @@ twice.
 
 **Done** (TD-54 in the backend-dedupe PR, the rest in the app-reuse PR):
 
-- `data/DownloadProgress` publishes both workers' progress; their keys are
+- `data/cloud/restore/DownloadProgress` publishes both workers' progress; their keys are
   `DicKeys.PHASE_DOWNLOAD` / `DicKeys.DOWNLOAD_ERROR`, and both give up on
   `HttpStatus.NOT_FOUND` / `FORBIDDEN`.
 - `SettingsYourDataSection.runExport(kind, produce)` runs both exports; the dead

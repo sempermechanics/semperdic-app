@@ -5,12 +5,12 @@ package com.indicvision.semper.benchmark
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import com.indicvision.semper.DicResult
-import com.indicvision.semper.data.SessionPaths
+import com.indicvision.semper.data.session.SessionPaths
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.report.FieldRangesStore
 import com.indicvision.semper.report.VisualizationEngine
-import com.indicvision.semper.ui.viewer.SummaryAnimation
 import com.indicvision.semper.ui.viewer.ViewerArgs
+import com.indicvision.semper.ui.viewer.summary.SummaryAnimation
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder

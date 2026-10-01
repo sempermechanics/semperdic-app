@@ -7,7 +7,7 @@ import android.widget.EditText
 import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.R
-import com.indicvision.semper.data.AuthRepository
+import com.indicvision.semper.data.account.AuthRepository
 import com.indicvision.semper.ui.auth.AuthActivity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

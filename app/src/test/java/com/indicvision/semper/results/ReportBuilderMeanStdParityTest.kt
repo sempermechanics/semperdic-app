@@ -3,7 +3,7 @@
 package com.indicvision.semper.results
 
 import androidx.core.graphics.createBitmap
-import com.indicvision.semper.DicResult
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.report.EngineStats
 import com.indicvision.semper.report.ReportBuilder
 import com.indicvision.semper.report.RoiData

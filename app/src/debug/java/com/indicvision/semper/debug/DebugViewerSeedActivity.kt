@@ -5,8 +5,8 @@ package com.indicvision.semper.debug
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import com.indicvision.semper.DicResult
-import com.indicvision.semper.data.SessionPaths
+import com.indicvision.semper.data.session.SessionPaths
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.ui.viewer.ViewerArgs
 import java.io.File
 import java.nio.ByteBuffer

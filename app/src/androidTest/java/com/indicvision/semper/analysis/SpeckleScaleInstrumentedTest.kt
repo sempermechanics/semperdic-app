@@ -5,8 +5,8 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.indicvision.semper.ui.analysis.DicGoodPractice
-import com.indicvision.semper.ui.analysis.SubsetRecommender
+import com.indicvision.semper.ui.analysis.recommend.DicGoodPractice
+import com.indicvision.semper.ui.analysis.recommend.SubsetRecommender
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue

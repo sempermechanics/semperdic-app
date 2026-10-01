@@ -1,6 +1,6 @@
 package com.indicvision.semper.fixtures
 
-import com.indicvision.semper.DicResult
+import com.indicvision.semper.field.DicResult
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder

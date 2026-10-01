@@ -3,7 +3,7 @@ package com.indicvision.semper.cloud
 import android.content.Context
 import androidx.core.content.edit
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.data.CloudSync
+import com.indicvision.semper.data.cloud.CloudSync
 import com.indicvision.semper.data.net.AppConfigDto
 import com.indicvision.semper.data.net.ListSessionsResponse
 import kotlinx.coroutines.Dispatchers

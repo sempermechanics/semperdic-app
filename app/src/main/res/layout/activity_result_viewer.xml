@@ -16,7 +16,7 @@
         android:forceDarkAllowed="false"
         tools:targetApi="29">
 
-        <com.indicvision.semper.ui.viewer.TouchImageView
+        <com.indicvision.semper.ui.viewer.inspect.TouchImageView
             android:id="@+id/imgBaseResult"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -33,7 +33,7 @@
             android:outlineProvider="bounds"
             android:scaleType="matrix" />
 
-        <com.indicvision.semper.ui.viewer.InspectOverlayView
+        <com.indicvision.semper.ui.viewer.inspect.InspectOverlayView
             android:id="@+id/glassShield"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -50,7 +50,7 @@
             android:focusable="false"
             android:visibility="gone">
 
-            <com.indicvision.semper.ui.viewer.TouchImageView
+            <com.indicvision.semper.ui.viewer.inspect.TouchImageView
                 android:id="@+id/imgSummary"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"

@@ -5,12 +5,12 @@ import android.text.style.ImageSpan
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.indicvision.semper.DicResult
 import com.indicvision.semper.R
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.fixtures.idleUntil
 import com.indicvision.semper.fixtures.launchViewer
 import com.indicvision.semper.fixtures.viewerArgs
-import com.indicvision.semper.ui.analysis.EngineFailure
+import com.indicvision.semper.ui.analysis.run.EngineFailure
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before

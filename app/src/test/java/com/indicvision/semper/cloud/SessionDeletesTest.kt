@@ -2,16 +2,16 @@ package com.indicvision.semper.cloud
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.data.CloudSync
-import com.indicvision.semper.data.CloudSync.EraseResult
-import com.indicvision.semper.data.SessionDeletes
-import com.indicvision.semper.data.SessionDeletes.Item
-import com.indicvision.semper.data.SessionDeletes.Mode
-import com.indicvision.semper.data.SessionRecord
-import com.indicvision.semper.data.SessionStore
+import com.indicvision.semper.data.cloud.CloudSync
+import com.indicvision.semper.data.cloud.CloudSync.EraseResult
+import com.indicvision.semper.data.cloud.SessionDeletes
+import com.indicvision.semper.data.cloud.SessionDeletes.Item
+import com.indicvision.semper.data.cloud.SessionDeletes.Mode
 import com.indicvision.semper.data.net.CloudSessionDto
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.ListSessionsResponse
+import com.indicvision.semper.data.session.SessionRecord
+import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.fixtures.sessionRecord
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals

@@ -15,11 +15,11 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.indicvision.semper.R
-import com.indicvision.semper.data.CloudSync
-import com.indicvision.semper.data.SessionDeletes
-import com.indicvision.semper.data.SessionMetadataSync
-import com.indicvision.semper.data.SessionRecord
-import com.indicvision.semper.data.SessionStore
+import com.indicvision.semper.data.cloud.CloudSync
+import com.indicvision.semper.data.cloud.SessionDeletes
+import com.indicvision.semper.data.cloud.SessionMetadataSync
+import com.indicvision.semper.data.session.SessionRecord
+import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.ui.common.DeleteChoiceDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -157,7 +157,10 @@ class SessionSelectionController(
         onRestore(records)
     }
 
-    private fun isCloudOnly(record: SessionRecord): Boolean = !record.hasLocalData() && hasCloudCopy(record)
+    /** Reads phone presence from the list, which read it on IO: a toggle never touches the disk. */
+    private fun hasLocalData(record: SessionRecord): Boolean = adapter.hasLocalData(record.id)
+
+    private fun isCloudOnly(record: SessionRecord): Boolean = !hasLocalData(record) && hasCloudCopy(record)
 
     /**
      * Bulk delete. Branches on local data + cloud the same way as [confirmDelete];
@@ -171,7 +174,7 @@ class SessionSelectionController(
             return
         }
 
-        val allHaveLocal = records.all { it.hasLocalData() }
+        val allHaveLocal = records.all { hasLocalData(it) }
         val allHaveCloud = records.all { hasCloudCopy(it) }
         val anyCloud = records.any { hasCloudCopy(it) }
         val title = activity.resources.getQuantityString(
@@ -243,7 +246,7 @@ class SessionSelectionController(
      */
     fun confirmDelete(record: SessionRecord) {
         val hasCloud = hasCloudCopy(record)
-        val hasLocal = record.hasLocalData()
+        val hasLocal = hasLocalData(record)
         val title = activity.getString(R.string.delete_confirm_title)
 
         when {

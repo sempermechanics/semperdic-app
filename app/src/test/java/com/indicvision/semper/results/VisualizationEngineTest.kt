@@ -1,6 +1,6 @@
 package com.indicvision.semper.results
 
-import com.indicvision.semper.DicResult
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.report.VisualizationEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

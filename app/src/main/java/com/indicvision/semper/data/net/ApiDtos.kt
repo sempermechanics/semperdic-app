@@ -60,7 +60,7 @@ data class AppConfigDto(
     val maxFilesPerSession: Int = 0,
     val maxFrames: Int = 0,
     /** Version gate for the `.dat` archive codec — see [AppRemoteConfig] and
-     * [com.indicvision.semper.data.SessionZip]'s class doc. Missing on an older
+     * [com.indicvision.semper.data.session.SessionZip]'s class doc. Missing on an older
      * backend deploy this app talks to → false (fail closed, matches the
      * default already used for every field here). */
     val datCodecEncodingEnabled: Boolean = false,

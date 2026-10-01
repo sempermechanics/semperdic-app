@@ -1,6 +1,6 @@
 package com.indicvision.semper.auth
 
-import com.indicvision.semper.data.AccessStatus
+import com.indicvision.semper.data.account.AccessStatus
 import com.indicvision.semper.ui.auth.AccessRouter
 import com.indicvision.semper.ui.auth.AuthActivity
 import com.indicvision.semper.ui.auth.PendingApprovalActivity

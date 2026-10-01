@@ -130,7 +130,7 @@
                 <!-- Matches the result lattice's height (compact=true set in
                      SweepSetupHelper.setup()) so the planned and solved lattices
                      read as the same element at two points in the flow. -->
-                <com.indicvision.semper.ui.analysis.VsgLatticeView
+                <com.indicvision.semper.ui.analysis.sweep.VsgLatticeView
                     android:id="@+id/sweepLatticePreview"
                     android:layout_width="match_parent"
                     android:layout_height="136dp"
@@ -220,7 +220,7 @@
                         android:text="@string/axis_y" />
                 </com.google.android.material.button.MaterialButtonToggleGroup>
 
-                <com.indicvision.semper.ui.analysis.LineCutPreviewView
+                <com.indicvision.semper.ui.analysis.sweep.LineCutPreviewView
                     android:id="@+id/lineCutPreview"
                     android:layout_width="match_parent"
                     android:layout_height="220dp"

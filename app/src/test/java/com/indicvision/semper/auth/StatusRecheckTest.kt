@@ -1,7 +1,7 @@
 package com.indicvision.semper.auth
 
-import com.indicvision.semper.data.AccessStatus
-import com.indicvision.semper.data.AuthRepository
+import com.indicvision.semper.data.account.AccessStatus
+import com.indicvision.semper.data.account.AuthRepository
 import com.indicvision.semper.ui.auth.StatusRecheck
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

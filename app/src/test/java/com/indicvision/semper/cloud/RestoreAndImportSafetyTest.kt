@@ -1,9 +1,9 @@
 package com.indicvision.semper.cloud
 
-import com.indicvision.semper.data.CloudRestore
+import com.indicvision.semper.data.cloud.restore.CloudRestore
 import com.indicvision.semper.data.net.CloudSessionDto
-import com.indicvision.semper.ui.analysis.FrameImportHelper
-import com.indicvision.semper.ui.analysis.ImportedBatch
+import com.indicvision.semper.ui.analysis.frames.FrameImportHelper
+import com.indicvision.semper.ui.analysis.frames.ImportedBatch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -480,6 +480,7 @@ extraction show determinate progress instead.
 | [ ] 5.5.6 | Hit the quota during a run | Session limit screen |
 | [ ] 5.5.7 | Re-run with the same inputs after changing a parameter | The same Home row is updated, not duplicated |
 | [ ] 5.5.8 | Change the inputs and run again | A new Home row is created |
+| [ ] 5.5.8a | Pick the reference again (even the same image) and run, with the quota full | The session limit screen: a new reference is new inputs, so the run would make a new Home row |
 
 ---
 

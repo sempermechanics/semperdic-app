@@ -14,7 +14,7 @@ object ReportImageNames {
      * Frame [index]'s name from the session's frame names, or null when it has
      * none. [index] is the planned frame, never a position in the `.dat`
      * listing: past a frame the batch skipped the two differ
-     * ([com.indicvision.semper.data.SessionPaths.plannedFrameIndices]).
+     * ([com.indicvision.semper.data.session.SessionPaths.plannedFrameIndices]).
      */
     fun frameName(frameNames: List<String>, index: Int): String? =
         frameNames.getOrNull(index)?.takeIf { it.isNotBlank() }

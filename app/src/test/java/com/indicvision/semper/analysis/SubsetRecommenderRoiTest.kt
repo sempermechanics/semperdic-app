@@ -3,7 +3,7 @@
 package com.indicvision.semper.analysis
 
 import android.graphics.Rect
-import com.indicvision.semper.ui.analysis.SubsetRecommender
+import com.indicvision.semper.ui.analysis.recommend.SubsetRecommender
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull

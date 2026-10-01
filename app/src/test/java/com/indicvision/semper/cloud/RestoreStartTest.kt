@@ -3,10 +3,10 @@ package com.indicvision.semper.cloud
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.R
-import com.indicvision.semper.data.RestoreFailureLedger
-import com.indicvision.semper.data.RestoreStart
-import com.indicvision.semper.data.SessionRecord
-import com.indicvision.semper.data.SessionStore
+import com.indicvision.semper.data.cloud.restore.RestoreFailureLedger
+import com.indicvision.semper.data.cloud.restore.RestoreStart
+import com.indicvision.semper.data.session.SessionRecord
+import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.fixtures.sessionRecord
 import com.indicvision.semper.ui.home.RestoreSummary
 import org.junit.Assert.assertEquals

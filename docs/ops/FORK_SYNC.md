@@ -36,6 +36,56 @@ apps. The deploy and Firestore workflows only run in this repo
    (its `real_data_steel_tensile.py` and `real_data_pmma_bending.py` scripts); its JVM
    tests use arrays recorded on the old engine and stay green either way.
 
+### The 2026-10 package move (ADR-015)
+
+The sync that brings in [ADR-015](../adr/ADR-015-package-layout.md) moves 149
+files. The merge follows the renames for files both repos have. Files only
+the fork has, and its edits to moved files, need one more pass:
+
+1. Resolve the merge, then replay the mapping. It is idempotent, so files the
+   merge already moved are skipped, and only the imports still pointing at the
+   old packages are fixed, the fork's lab files included:
+   `python scripts/move_kotlin_packages.py --mapping scripts/package_moves_2026_10.json`.
+2. Move every non-Worker file left in `data/` too, so `data/` holds only the
+   six Workers here. Add them to a copy of the mapping and run it again. Never
+   move a `*Worker` class or an Activity (e.g. `BeamEdgeTapActivity`):
+   WorkManager and the manifest record their names. On the fork's `main` of
+   2026-10-01 those files, with a suggested package, are:
+
+   | Fork-only file in `data/` | Suggested package |
+   |---|---|
+   | `TestType`, `MechanicalTestInputs`, `SpecimenGeometry`, `BeamEdgeTaps`, `CurveCorrection`, `TypedLoads` | `data/mechanical/` (what the wizard records about the test) |
+   | `MachineLoadCsv`, `MachineLoadMapper` | `data/mechanical/` (the machine's load log, read and matched to frames) |
+   | `DocumentText` | `util/` (reads a small SAF text document; nothing mechanical in it) |
+
+   That makes `data/mechanical/` eight files. Re-list `data/` before you
+   map it, since the fork may have added files since. The fork's other
+   lab-only files fit the same pattern. In `ui/analysis/`, the load and
+   beam-tap UI (`AnalysisLoadCard`, `Load*`, `TypedLoadsSheet`,
+   `SpecimenGeometryFields`, `BeamEdgeTapOverlay`, `BeamTapPlacement`,
+   `PhotoCaptureTime`) can go to `ui/analysis/load/`, `VideoKeyframes` and
+   `VideoSampling` to `imaging/video/`, and `VideoSamplingSheet` to
+   `ui/analysis/frames/`. In `ui/viewer/`, the mechanical results
+   (`ViewerStressStrain*`, `ViewerBendingResults`, `ViewerCurveCorrection`,
+   `ViewerDeflectionCorrection`, `ViewerFrameRows`) and `LabReportExporter`
+   can go to `ui/viewer/mechanical/`.
+3. Run `./gradlew --no-daemon spotlessApply`, then the script again with
+   `--compile`. It runs the compile tasks and adds imports for any
+   `Unresolved reference` until a pass fixes nothing. Fix what is left by
+   hand: an inline FQCN that grew past detekt's 120 columns, a class name
+   inside a string literal (the script reports these and leaves them
+   alone), or a name that is declared in two packages.
+4. Run the script with `--kdoc` and `--docs` for KDoc links and doc paths,
+   then `python scripts/check_doc_paths.py`. `--docs` leaves dated records
+   as written: `docs/ops/QUALITY_BASELINE_*`, `docs/ops/CHANGELOG.md`, the
+   ADRs (`docs/adr/ADR-*.md`), `docs/engine/PERF_BASELINE_*` and dated
+   `docs/perf/*-20NN-*` reports. It names each one it skipped that mentions
+   a moved file. Pass `--docs-skip GLOB...` to change the list. If
+   `check_doc_paths.py` then fails on a link in one of those files, fix
+   that link by hand.
+5. Before release, do the upgrade check in ADR-015's action items: queued
+   work from the old APK must still run.
+
 ## Porting back
 
 List the fork's commits that touch shared paths and are not here:

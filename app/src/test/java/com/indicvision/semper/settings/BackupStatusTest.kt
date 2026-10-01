@@ -3,7 +3,7 @@ package com.indicvision.semper.settings
 import android.content.Context
 import android.content.res.Resources
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.data.SessionRecord.SyncState
+import com.indicvision.semper.data.session.SessionRecord.SyncState
 import com.indicvision.semper.ui.settings.BackupStatus
 import org.junit.Assert.assertEquals
 import org.junit.Test

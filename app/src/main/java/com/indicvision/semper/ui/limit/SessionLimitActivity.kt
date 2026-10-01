@@ -10,10 +10,10 @@ import androidx.annotation.MainThread
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.indicvision.semper.R
-import com.indicvision.semper.data.CloudSync
-import com.indicvision.semper.data.DeviceKeyManager
-import com.indicvision.semper.data.SessionStore
+import com.indicvision.semper.data.account.DeviceKeyManager
+import com.indicvision.semper.data.cloud.CloudSync
 import com.indicvision.semper.data.net.TokenStore
+import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.ui.common.Insets
 import com.indicvision.semper.ui.common.SupportMail
 import kotlinx.coroutines.launch

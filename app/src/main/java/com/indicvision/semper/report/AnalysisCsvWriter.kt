@@ -3,8 +3,8 @@
 
 package com.indicvision.semper.report
 
-import com.indicvision.semper.DicResult
-import com.indicvision.semper.ui.analysis.VsgStudy
+import com.indicvision.semper.field.DicResult
+import com.indicvision.semper.ui.analysis.sweep.VsgStudy
 import java.io.File
 import java.io.Writer
 import java.util.Locale

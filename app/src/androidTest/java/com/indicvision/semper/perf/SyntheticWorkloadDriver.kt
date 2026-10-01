@@ -14,17 +14,17 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import com.indicvision.semper.DicResult
 import com.indicvision.semper.ProgressCallback
 import com.indicvision.semper.SemperNativeLib
-import com.indicvision.semper.data.CloudRestore
-import com.indicvision.semper.data.CloudSync
-import com.indicvision.semper.data.SessionPaths
-import com.indicvision.semper.data.SessionRecord
-import com.indicvision.semper.data.SessionStore
-import com.indicvision.semper.data.SessionZip
+import com.indicvision.semper.data.cloud.CloudSync
+import com.indicvision.semper.data.cloud.restore.CloudRestore
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.TokenProvider
+import com.indicvision.semper.data.session.SessionPaths
+import com.indicvision.semper.data.session.SessionRecord
+import com.indicvision.semper.data.session.SessionStore
+import com.indicvision.semper.data.session.SessionZip
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.report.EngineStats
 import com.indicvision.semper.report.VisualizationEngine
 import kotlinx.coroutines.runBlocking
@@ -45,7 +45,7 @@ import kotlin.random.Random
  * [android.content.Context], same [SessionStore]/[TokenProvider] a real user session
  * would use — so every op it drives is the real code path, not a mock. It never touches
  * the wizard UI or the gallery picker: sessions are created directly through the same
- * native-engine + persistence calls [com.indicvision.semper.ui.analysis.AnalysisViewModel]
+ * native-engine + persistence calls [com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel]
  * makes, using seeded synthetic speckle (the same generator as
  * [com.indicvision.semper.pipeline.EnginePipelineSmokeTest]) so it is reproducible run to run.
  *

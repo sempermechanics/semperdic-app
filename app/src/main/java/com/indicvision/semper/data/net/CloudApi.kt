@@ -6,8 +6,8 @@ import java.io.File
  * What the app asks of the Semper backend: the public surface of [IndicApi]
  * (ADR-002).
  *
- * It exists so the classes with decisions to test — [com.indicvision.semper.data.AuthRepository],
- * [com.indicvision.semper.data.SeatLease], [com.indicvision.semper.data.CloudSync]
+ * It exists so the classes with decisions to test — [com.indicvision.semper.data.account.AuthRepository],
+ * [com.indicvision.semper.data.account.SeatLease], [com.indicvision.semper.data.cloud.CloudSync]
  * and the cloud export — can take a fake in a JVM test. Each takes it as a
  * defaulted parameter, `api: CloudApi = IndicApi.get(context)`, so production
  * call sites do not change. The failures stay nested in [IndicApi]

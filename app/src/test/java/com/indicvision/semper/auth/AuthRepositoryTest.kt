@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.cloud.FakeCloudApi
 import com.indicvision.semper.cloud.FakeTokens
-import com.indicvision.semper.data.AccessStatus
-import com.indicvision.semper.data.AuthRepository
+import com.indicvision.semper.data.account.AccessStatus
+import com.indicvision.semper.data.account.AuthRepository
 import com.indicvision.semper.data.net.AppConfigDto
 import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.net.IndicApi

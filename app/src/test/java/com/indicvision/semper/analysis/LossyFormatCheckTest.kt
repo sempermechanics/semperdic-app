@@ -1,6 +1,6 @@
 package com.indicvision.semper.analysis
 
-import com.indicvision.semper.ui.analysis.LossyFormatCheck
+import com.indicvision.semper.ui.analysis.wizard.LossyFormatCheck
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

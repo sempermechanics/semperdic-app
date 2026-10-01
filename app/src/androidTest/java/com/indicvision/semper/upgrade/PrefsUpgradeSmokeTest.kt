@@ -3,7 +3,7 @@ package com.indicvision.semper.upgrade
 import androidx.core.content.edit
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.indicvision.semper.data.DicSettings
+import com.indicvision.semper.data.prefs.DicSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test

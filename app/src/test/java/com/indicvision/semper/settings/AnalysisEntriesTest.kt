@@ -1,7 +1,7 @@
 package com.indicvision.semper.settings
 
-import com.indicvision.semper.data.SessionRecord
 import com.indicvision.semper.data.net.CloudSessionDto
+import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.fixtures.sessionRecord
 import com.indicvision.semper.ui.settings.AnalysisEntries
 import com.indicvision.semper.ui.settings.AnalysisLocation
@@ -46,6 +46,22 @@ class AnalysisEntriesTest {
             cloudSessionId = cloudSessionId,
             syncState = syncState,
         )
+    }
+
+    @Test
+    fun `a row's place and Restore come from the flag read at merge, not from the disk`() {
+        // Rows bind and are tapped on the main thread; listing a session
+        // directory there per bind is what the flag replaces.
+        val withFrames = record("local-1", withLocalData = true)
+        val cloud = CloudSessionDto(sessionId = "cloud-1", localSessionId = "local-1")
+
+        val readAsGone = AnalysisEntries.merge(listOf(withFrames), listOf(cloud), hasLocal = { false }).single()
+        assertEquals(AnalysisLocation.CLOUD_ONLY, readAsGone.location)
+        assertEquals(true, readAsGone.offersRestore())
+
+        val readAsThere = AnalysisEntries.merge(listOf(withFrames), listOf(cloud), hasLocal = { true }).single()
+        assertEquals(AnalysisLocation.PHONE_AND_CLOUD, readAsThere.location)
+        assertEquals(false, readAsThere.offersRestore())
     }
 
     @Test

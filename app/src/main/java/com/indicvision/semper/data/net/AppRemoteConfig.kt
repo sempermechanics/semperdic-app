@@ -183,7 +183,7 @@ object AppRemoteConfig {
     fun maxFrames(context: Context): Int = prefs(context).getInt(K_MAX_FRAMES, 0)
 
     /**
-     * Whether this account may upload `.dat` entries through [DatCodec][com.indicvision.semper.data.DatCodec].
+     * Whether this account may upload `.dat` entries through [DatCodec][com.indicvision.semper.data.session.DatCodec].
      * Fails closed like everything else here — `false` (today's raw behaviour)
      * until a successful [apply] says otherwise, so a device that has never
      * synced config, or whose last fetch failed, never guesses "on".

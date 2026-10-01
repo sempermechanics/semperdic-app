@@ -5,7 +5,7 @@ user in with Firebase, sends the resulting **Firebase ID token** as a bearer
 token, and Cloud Run verifies it with `firebase-admin`.
 
 Three providers are wired in
-[`AuthRepository.kt`](../../app/src/main/java/com/indicvision/semper/data/AuthRepository.kt):
+[`AuthRepository.kt`](../../app/src/main/java/com/indicvision/semper/data/account/AuthRepository.kt):
 
 | Provider | How it signs in | Email verified? |
 |---|---|---|
@@ -15,7 +15,7 @@ Three providers are wired in
 
 Forgot a password? The sign-in screen also offers **Forgot password?**, which
 emails a Firebase reset link (`sendPasswordReset` in
-[AuthRepository.kt](../../app/src/main/java/com/indicvision/semper/data/AuthRepository.kt)).
+[AuthRepository.kt](../../app/src/main/java/com/indicvision/semper/data/account/AuthRepository.kt)).
 It is identity-only — no backend call — and reports success even for an unknown
 email so the screen can't be used to probe which addresses are registered.
 
@@ -76,7 +76,7 @@ The passwordless link only signs the user in if tapping it **reopens this app**.
 Firebase mails a link back to the continue URL
 `https://app.sempermechanics.com/auth/finishSignIn`
 (`EMAIL_LINK_CONTINUE_URL` in
-[AuthRepository.kt](../../app/src/main/java/com/indicvision/semper/data/AuthRepository.kt)),
+[AuthRepository.kt](../../app/src/main/java/com/indicvision/semper/data/account/AuthRepository.kt)),
 and `AuthActivity` declares a matching App Link `intent-filter` for that
 host + path. Builds before that constant changed use
 `https://indicvision-dic-app-auth.firebaseapp.com/finishSignIn`; the manifest
@@ -101,7 +101,7 @@ constrains only implicit matching. `AuthActivity.isTrustedAuthLink` therefore
 re-checks scheme and host against `AUTH_HOST` before it touches `intent.data`,
 and both the sign-in-link and password-reset handlers go through it. Change the
 domain in `AUTH_HOST` (one constant, in
-[AuthRepository.kt](../../app/src/main/java/com/indicvision/semper/data/AuthRepository.kt))
+[AuthRepository.kt](../../app/src/main/java/com/indicvision/semper/data/account/AuthRepository.kt))
 and the manifest filter together, or tapped links stop being recognised.
 
 ## 2. Backend — which project's tokens to accept

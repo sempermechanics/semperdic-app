@@ -2,11 +2,11 @@ package com.indicvision.semper.cloud
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.data.CloudSync
-import com.indicvision.semper.data.DicSettings
-import com.indicvision.semper.data.LicenseEntitlements
+import com.indicvision.semper.data.account.LicenseEntitlements
+import com.indicvision.semper.data.cloud.CloudSync
 import com.indicvision.semper.data.net.AppConfigDto
 import com.indicvision.semper.data.net.AppRemoteConfig
+import com.indicvision.semper.data.prefs.DicSettings
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

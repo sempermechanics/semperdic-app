@@ -5,8 +5,8 @@ import android.widget.TextView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
 import com.indicvision.semper.R
-import com.indicvision.semper.data.DicSettings
 import com.indicvision.semper.data.net.AppRemoteConfig
+import com.indicvision.semper.data.prefs.DicSettings
 import java.util.Locale
 
 /**

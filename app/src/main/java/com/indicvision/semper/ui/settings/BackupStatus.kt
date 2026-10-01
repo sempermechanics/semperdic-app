@@ -2,7 +2,7 @@ package com.indicvision.semper.ui.settings
 
 import android.content.res.Resources
 import com.indicvision.semper.R
-import com.indicvision.semper.data.SessionRecord
+import com.indicvision.semper.data.session.SessionRecord
 
 /**
  * The one-line cloud backup status in Settings, worst news first.

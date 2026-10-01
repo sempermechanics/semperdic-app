@@ -7,8 +7,8 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.indicvision.semper.R
-import com.indicvision.semper.data.CloudBackupListing
-import com.indicvision.semper.data.RestoreStart
+import com.indicvision.semper.data.cloud.CloudBackupListing
+import com.indicvision.semper.data.cloud.restore.RestoreStart
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

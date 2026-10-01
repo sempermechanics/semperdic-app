@@ -3,6 +3,7 @@ package com.indicvision.semper.settings
 import android.view.View
 import com.indicvision.semper.R
 import com.indicvision.semper.ui.settings.SettingsActivity
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -12,6 +13,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.android.controller.ActivityController
 import org.robolectric.shadows.ShadowDialog
 
 /**
@@ -21,8 +23,17 @@ import org.robolectric.shadows.ShadowDialog
 @RunWith(RobolectricTestRunner::class)
 class DeleteAccountReauthTest {
 
+    /**
+     * Every Settings a test opens, destroyed after it: a live one left behind
+     * would still observe the account-deletion and sign-out runs of later tests.
+     */
+    private val built = mutableListOf<ActivityController<SettingsActivity>>()
+
+    @After
+    fun destroySettings() = built.forEach { runCatching { it.pause().stop().destroy() } }
+
     private fun settings(): SettingsActivity =
-        Robolectric.buildActivity(SettingsActivity::class.java).setup().get()
+        Robolectric.buildActivity(SettingsActivity::class.java).setup().also { built += it }.get()
 
     @Test
     fun `delete asks for confirmation before anything else happens`() {

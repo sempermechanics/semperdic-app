@@ -6,7 +6,7 @@ package com.indicvision.semper.data.net
 
 import android.content.Context
 import androidx.core.content.edit
-import com.indicvision.semper.data.LicenseEntitlements
+import com.indicvision.semper.data.account.LicenseEntitlements
 
 /**
  * Local session cache alongside Firebase Auth: the signed-in identity plus the
@@ -111,8 +111,24 @@ object TokenStore {
         }
     }
 
-    /** Refresh the phone's half of the USED count; the server's stays as last reported. */
+    /**
+     * Refresh the phone's half of the USED count; the server's stays as last
+     * reported. A stop forced by [setSessionLimitReached] stays too: saving a
+     * session, opening Home or starting a run brings no fresh server numbers,
+     * and clearing it here let the stop vanish before the user next tried.
+     * Only [setQuota] and [onLocalSessionsRemoved] lift it.
+     */
     fun refreshSessionLimit(context: Context, localCount: Int) {
+        prefs(context).edit { putInt(K_LOCAL_COUNT, localCount) }
+    }
+
+    /**
+     * Sessions were deleted from the phone, leaving [localCount]: refresh the
+     * count and lift a forced stop, so the user is not held at a limit they
+     * just made room under. The next upload re-forces it if the server still
+     * says no.
+     */
+    fun onLocalSessionsRemoved(context: Context, localCount: Int) {
         prefs(context).edit {
             putInt(K_LOCAL_COUNT, localCount)
             putBoolean(K_LIMIT_FORCED, false)

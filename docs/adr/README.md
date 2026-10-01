@@ -19,6 +19,7 @@ record that replaced it.
 | [011](ADR-011-viewer-deformed-frame.md) | The viewer draws each frame on its own photo, at the displaced positions | Accepted, built (ported from material_testing 2026-10-01) | TD-139 |
 | [013](ADR-013-session-metadata-replace.md) | A backed-up session's metadata.json can be replaced | Accepted, built, deployed 2026-10-01 | material_testing TD-150 |
 | [014](ADR-014-session-app-tag.md) | Cloud sessions are tagged with the app that backed them up | Accepted, built, deployed 2026-10-01 | TD-153 |
+| [015](ADR-015-package-layout.md) | Feature subpackages of about 15 files; workers, JNI classes and Activities keep their names | Accepted, built | — |
 
 Register IDs refer to [../ops/TECH_DEBT.md](../ops/TECH_DEBT.md). ADR-008, ADR-009,
 ADR-011 (ported here), ADR-012 and ADR-013 are material_testing's (ADR-008's benchmark harness and ADR-013's backend route live here too: the harness is shared code, and the backend deploys from this repo); the numbers are shared so they do not collide.

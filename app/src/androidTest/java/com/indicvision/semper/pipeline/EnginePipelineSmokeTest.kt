@@ -8,9 +8,9 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.indicvision.semper.DicResult
 import com.indicvision.semper.ProgressCallback
 import com.indicvision.semper.SemperNativeLib
+import com.indicvision.semper.field.DicResult
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith

@@ -1,8 +1,8 @@
 package com.indicvision.semper.viewer
 
 import com.google.android.material.button.MaterialButton
-import com.indicvision.semper.DicResult
 import com.indicvision.semper.R
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.fixtures.viewerArgs
 import com.indicvision.semper.fixtures.viewerController
 import com.indicvision.semper.fixtures.writeGridBatch

@@ -20,7 +20,7 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.indicvision.semper.R
-import com.indicvision.semper.data.CoachPrefs
+import com.indicvision.semper.data.prefs.CoachPrefs
 
 /**
  * Lightweight first-visit coach: dim overlay + speech bubble anchored near a

@@ -5,7 +5,7 @@ import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.indicvision.semper.data.TransferNotifications
+import com.indicvision.semper.data.cloud.TransferNotifications
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue

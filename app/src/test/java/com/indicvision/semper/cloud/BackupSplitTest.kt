@@ -2,9 +2,9 @@
 
 package com.indicvision.semper.cloud
 
-import com.indicvision.semper.data.CloudRestore
-import com.indicvision.semper.data.SessionUploadMetadata
-import com.indicvision.semper.data.SessionZip
+import com.indicvision.semper.data.cloud.SessionUploadMetadata
+import com.indicvision.semper.data.cloud.restore.CloudRestore
+import com.indicvision.semper.data.session.SessionZip
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

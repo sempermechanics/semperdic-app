@@ -8,9 +8,9 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.indicvision.semper.R
-import com.indicvision.semper.data.CloudBackupListing
-import com.indicvision.semper.data.CloudRestore
-import com.indicvision.semper.data.RestoreStart
+import com.indicvision.semper.data.cloud.CloudBackupListing
+import com.indicvision.semper.data.cloud.restore.CloudRestore
+import com.indicvision.semper.data.cloud.restore.RestoreStart
 import com.indicvision.semper.data.net.CloudSessionDto
 
 /**

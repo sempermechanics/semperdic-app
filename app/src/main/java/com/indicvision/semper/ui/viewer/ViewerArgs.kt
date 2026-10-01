@@ -2,9 +2,9 @@ package com.indicvision.semper.ui.viewer
 
 import android.content.Context
 import android.content.Intent
-import com.indicvision.semper.DicKeys
-import com.indicvision.semper.data.SessionRecord
-import com.indicvision.semper.data.SkippedNode
+import com.indicvision.semper.data.session.SessionRecord
+import com.indicvision.semper.data.session.SkippedNode
+import com.indicvision.semper.navigation.DicKeys
 import com.indicvision.semper.ui.analysis.VsgLatticeActivity
 import timber.log.Timber
 

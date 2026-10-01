@@ -1,7 +1,7 @@
 package com.indicvision.semper.ui.viewer
 
-import com.indicvision.semper.DicResult
 import com.indicvision.semper.R
+import com.indicvision.semper.field.DicResult
 
 /**
  * The five field pills, in screen order, as one id ↔ field mapping.

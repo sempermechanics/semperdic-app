@@ -3,7 +3,7 @@ package com.indicvision.semper.settings
 import android.content.Context
 import androidx.core.content.edit
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.data.DicSettings
+import com.indicvision.semper.data.prefs.DicSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Before

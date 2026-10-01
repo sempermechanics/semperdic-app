@@ -2,10 +2,10 @@ package com.indicvision.semper.cloud
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.DicResult
-import com.indicvision.semper.data.SessionEverythingExporter
-import com.indicvision.semper.data.SessionPaths
-import com.indicvision.semper.data.SessionStore
+import com.indicvision.semper.data.session.SessionEverythingExporter
+import com.indicvision.semper.data.session.SessionPaths
+import com.indicvision.semper.data.session.SessionStore
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.fixtures.CleanAppState
 import com.indicvision.semper.fixtures.sessionRecord
 import kotlinx.coroutines.runBlocking

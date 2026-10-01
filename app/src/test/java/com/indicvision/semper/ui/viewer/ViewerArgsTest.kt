@@ -3,10 +3,10 @@ package com.indicvision.semper.ui.viewer
 import android.content.Context
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.DicKeys
-import com.indicvision.semper.data.SessionRecord
-import com.indicvision.semper.data.SkippedNode
+import com.indicvision.semper.data.session.SessionRecord
+import com.indicvision.semper.data.session.SkippedNode
 import com.indicvision.semper.fixtures.sessionRecord
+import com.indicvision.semper.navigation.DicKeys
 import com.indicvision.semper.ui.analysis.VsgLatticeActivity
 import com.indicvision.semper.ui.home.SessionOpenHelper
 import org.junit.Assert.assertEquals

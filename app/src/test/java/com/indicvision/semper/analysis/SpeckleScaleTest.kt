@@ -1,6 +1,6 @@
 package com.indicvision.semper.analysis
 
-import com.indicvision.semper.ui.analysis.SpeckleScale
+import com.indicvision.semper.ui.analysis.recommend.SpeckleScale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull

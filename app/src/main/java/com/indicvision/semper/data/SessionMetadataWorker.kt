@@ -3,7 +3,9 @@ package com.indicvision.semper.data
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.indicvision.semper.DicKeys
+import com.indicvision.semper.data.cloud.CloudSync
+import com.indicvision.semper.data.cloud.SessionMetadataSync
+import com.indicvision.semper.navigation.DicKeys
 
 /**
  * Runs [SessionMetadataSync.send] for one session. It waits out an upload

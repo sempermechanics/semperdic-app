@@ -4,7 +4,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.data.TransferNotifications
+import com.indicvision.semper.data.cloud.TransferNotifications
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue

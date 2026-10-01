@@ -5,8 +5,8 @@ import android.content.Context
 import android.content.Intent
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.indicvision.semper.R
-import com.indicvision.semper.data.SessionRecord
-import com.indicvision.semper.data.SkippedNode
+import com.indicvision.semper.data.session.SessionRecord
+import com.indicvision.semper.data.session.SkippedNode
 import com.indicvision.semper.ui.viewer.ViewerArgs
 import com.indicvision.semper.ui.viewer.ViewerSweepArgs
 
@@ -21,9 +21,12 @@ object SessionOpenHelper {
      * Opens [session], or says why it cannot be opened when its frames are no
      * longer on this phone — a session deleted locally but kept in the cloud
      * still shows on both the Home list and the settings page.
+     *
+     * [hasLocalData] is the answer the list read off the main thread; a tap
+     * never lists the session directory itself.
      */
-    fun openOrExplain(activity: Activity, session: SessionRecord) {
-        if (!session.hasLocalData()) {
+    fun openOrExplain(activity: Activity, session: SessionRecord, hasLocalData: Boolean) {
+        if (!hasLocalData) {
             MaterialAlertDialogBuilder(activity)
                 .setTitle(R.string.session_data_gone_title)
                 .setMessage(R.string.session_data_gone_body)

@@ -3,12 +3,12 @@ package com.indicvision.semper.ui.auth
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import com.indicvision.semper.data.AccessStatus
-import com.indicvision.semper.data.LegalTerms
+import com.indicvision.semper.data.account.AccessStatus
+import com.indicvision.semper.data.account.LegalTerms
 import com.indicvision.semper.ui.home.HomeActivity
 
 /**
- * Maps [AuthRepository][com.indicvision.semper.data.AuthRepository] access-status
+ * Maps [AuthRepository][com.indicvision.semper.data.account.AuthRepository] access-status
  * strings to the next Activity. Splash, Auth, and PendingApproval all call this
  * so the three screens cannot drift on which statuses mean "in".
  *

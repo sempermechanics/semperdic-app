@@ -9,8 +9,8 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.work.impl.WorkManagerImpl
 import androidx.work.testing.WorkManagerTestInitHelper
 import com.indicvision.semper.R
-import com.indicvision.semper.data.DicSettings
 import com.indicvision.semper.data.net.TokenStore
+import com.indicvision.semper.data.prefs.DicSettings
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

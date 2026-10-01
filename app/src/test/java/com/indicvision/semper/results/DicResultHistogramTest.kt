@@ -2,8 +2,8 @@
 
 package com.indicvision.semper.results
 
-import com.indicvision.semper.DicResult
-import com.indicvision.semper.FieldHistogram
+import com.indicvision.semper.field.DicResult
+import com.indicvision.semper.field.FieldHistogram
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull

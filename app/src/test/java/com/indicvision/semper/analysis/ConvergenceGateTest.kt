@@ -1,7 +1,7 @@
 package com.indicvision.semper.analysis
 
-import com.indicvision.semper.ui.analysis.AnalysisViewModel
-import com.indicvision.semper.ui.analysis.ConvergenceGate
+import com.indicvision.semper.ui.analysis.run.ConvergenceGate
+import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

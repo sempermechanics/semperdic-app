@@ -5,7 +5,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Sidecar persistence for [com.indicvision.semper.ui.viewer.SummaryAnimation.globalRanges]'s
+ * Sidecar persistence for [com.indicvision.semper.ui.viewer.summary.SummaryAnimation.globalRanges]'s
  * per-frame, per-field sigma-clamped (p02, p98) — the same values
  * [VisualizationEngine.valueRanges] already computes, just computed once at
  * analysis time (when the frame's data is already decoded in memory) instead
@@ -13,7 +13,7 @@ import java.nio.ByteOrder
  *
  * Purely a cache: a missing, truncated, or field-list-mismatched file must
  * fall back to decoding the frames directly
- * ([com.indicvision.semper.ui.viewer.SummaryAnimation.globalRanges] does this),
+ * ([com.indicvision.semper.ui.viewer.summary.SummaryAnimation.globalRanges] does this),
  * so an old session written before this existed, or one restored onto an
  * older/newer app build, still works — it just re-pays the decode cost this
  * cache exists to avoid.

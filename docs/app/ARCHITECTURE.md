@@ -23,33 +23,53 @@ SplashActivity
 Access-status routing is centralized in
 [`AccessRouter`](../../app/src/main/java/com/indicvision/semper/ui/auth/AccessRouter.kt)
 using constants from
-[`AccessStatus`](../../app/src/main/java/com/indicvision/semper/data/AccessStatus.kt).
+[`AccessStatus`](../../app/src/main/java/com/indicvision/semper/data/account/AccessStatus.kt).
 Do not re-encode `"APPROVED"` / `"PENDING"` switches in new screens — call the
 router.
 
 Intent extras shared across Activities live in
-[`DicKeys`](../../app/src/main/java/com/indicvision/semper/DicKeys.kt).
+[`DicKeys`](../../app/src/main/java/com/indicvision/semper/navigation/DicKeys.kt).
 
 ## Package map
+
+Layout and rules (about 15 files per package at most; what stays pinned and
+why): [ADR-015](../adr/ADR-015-package-layout.md). Tests mirror the package
+of the class they test.
 
 | Package | Role |
 |---|---|
 | `ui/auth/` | Splash, sign-in, pending approval, Google / AccessRouter helpers |
 | `ui/home/` | Session list, selection, open-session intents |
-| `ui/analysis/` | Setup wizard (ViewStub steps 2/3; `AnalysisWizardSlots` / `AnalysisWizardCoach`; `goToStep` on the activity; step-settings body via `WizardStepSettingsContentView`), ROI, VSG sweep, `DicBatchRunner.kt` (`AnalysisViewModel.runBatchAnalysisBody`) + `DicFieldIo`, import/overlay helpers, ViewModel |
-| `ui/viewer/` | Heatmaps (each frame on its own photo at the displaced positions, [ADR-011](../adr/ADR-011-viewer-deformed-frame.md)), tap-to-probe, report factory, the ⓘ details sheet, `ViewerFieldPills` |
+| `ui/analysis/` | The three analysis Activities only: `StaticAnalysisActivity` (setup wizard, `goToStep`), `RoiDrawActivity`, `VsgLatticeActivity` |
+| `ui/analysis/wizard/` | `AnalysisViewModel`, `WizardState` (process death, [ADR-005](../adr/ADR-005-wizard-process-death.md)), wizard chrome / slots / coach (ViewStub steps 2/3), nav, ready and cancel gates, settings sheet, `WizardStepSettingsContentView` |
+| `ui/analysis/run/` | `DicBatchRunner.kt` (`AnalysisViewModel.runBatchAnalysisBody`) + `DicFieldIo`, `BatchRunController`, `ConvergenceGate`, `RunSpec` ([ADR-004](../adr/ADR-004-runspec.md)), run codes, engine failures, compute overlay |
+| `ui/analysis/frames/` | Frame import, ordering (adapter, menu), deformed batch, video-extract helper |
+| `ui/analysis/roi/` | ROI studio: `StudioOverlayView`, its mask encoder, `RoiViewport`, `RoiResolveHelper` |
+| `ui/analysis/recommend/` | `SubsetRecommender`, speckle scale, noise floor, good-practice and strain-window copy, EXIF patch map |
+| `ui/analysis/sweep/` | VSG sweep: setup, `VsgStudy` / runner, lattice and plot views, line-cut preview |
+| `ui/viewer/` | `ResultViewerActivity`, `SaveExportActivity`, their ViewModels, `ViewerArgs` ([ADR-003](../adr/ADR-003-viewerargs-read-side.md)), scrub cache, `ViewerFieldPills`, the ⓘ details sheet; heatmaps draw each frame on its own photo at the displaced positions ([ADR-011](../adr/ADR-011-viewer-deformed-frame.md)) |
+| `ui/viewer/share/` | `ShareCenter`, export builder / jobs / UI, `SendToSheet`, `ViewerReportFactory` |
+| `ui/viewer/summary/` | Summary GIF (`SummaryAnimation`), caption, summary helper |
+| `ui/viewer/inspect/` | Tap-to-probe: `InspectOverlayView`, `PointSpatialIndex`, `TouchImageView`, field histogram view |
 | `ui/settings/` | Settings screen; scroll body inflates via `SettingsScrollContentView`; account/storage/prefs/your-data/help live in `Settings*Section`; restore/download/delete stay on `SettingsActivity` |
 | `ui/admin/` | Admin screen — approve/revoke users via `/v1/admin/*` |
 | `ui/limit/` | Session-quota screen |
 | `ui/common/` | Insets, motion, `MediaPickerSheet` (Import / wizard dropzones), `CrispToast`, `TransferBannerController` |
-| `data/` | Auth, session store, cloud sync/upload/restore/download, storage budget, param clipboard |
+| `data/` | The six WorkManager workers only; WorkManager stores their class names, so they never move |
+| `data/session/` | `SessionStore` / `SessionRecord`, `SessionPaths`, `SessionRepository`, zip and `.dat` codecs, storage budget, cache janitor |
+| `data/cloud/` | `CloudSync`, upload bundling / metadata / outcomes, deletes, backup listing, account export, transfer log and notifications |
+| `data/cloud/restore/` | `CloudRestore`, restore start, download outcomes and progress |
+| `data/account/` | `AuthRepository`, access status, device key and env, licence entitlements / errors, seat lease and heartbeat, legal terms, TOTP |
+| `data/prefs/` | `DicSettings`, `CoachPrefs`, `ParamClipboard`, `WizardDraft` |
 | `data/net/` | Backend HTTP client (`IndicApi`), its two OkHttp interceptors (`RetryOnTransient`, `AppCheckHeader`), token store/provider |
 | `report/` | PDF / CSV / visualization |
-| `analytics/` | `SemperAnalytics` — consent-gated Firebase Analytics events |
-| `imaging/` | `BitmapDecode`, `ImageEncode` — decode/encode away from the UI classes |
-| `navigation/` | `AppIntents` — intent factories so `data` / `report` never import a `ui` Activity |
-| `util/` | `BrandAssets`, `Digests`, `OverlayFormats` |
-| *(root)* | `SemperApp`, `Diagnostics`, `CrashReportingTree`, `DicKeys`, `DicResult`, `FieldHistogram` |
+| `imaging/` | `BitmapDecode`, `ImageEncode`, AVI reader, PNG encoder — decode/encode away from the UI classes |
+| `imaging/video/` | Video frame extraction: hardware / AVI decoders, keyframes, batch writer, `ImageLuma` |
+| `field/` | `DicResult`, `DatDecoder`, `FieldHistogram` — the decoded displacement/strain field |
+| `diagnostics/` | `Diagnostics`, `CrashReportingTree`, `EngineDebug`, `SemperAnalytics` (consent-gated Firebase Analytics events) |
+| `navigation/` | `AppIntents` — intent factories so `data` / `report` never import a `ui` Activity — and `DicKeys`, the shared intent extras |
+| `util/` | `BrandAssets`, `Digests`, `OverlayFormats`, `AtomicFiles`, caller cancellation |
+| *(root)* | `SemperApp`, `SemperNativeLib` / `ProgressCallback` (JNI symbol names; never move) |
 
 Style for shared UI logic: plain `object` / small classes named `*Helper`,
 `*Extractor`, `*Router`, `*Bundler` — same pattern as
@@ -60,7 +80,7 @@ launchers in the Activity.
 ## Session layout on disk
 
 Each saved analysis lives under the app's session directory (see
-[`SessionStore`](../../app/src/main/java/com/indicvision/semper/data/SessionStore.kt)):
+[`SessionStore`](../../app/src/main/java/com/indicvision/semper/data/session/SessionStore.kt)):
 
 ```
 <sessionId>/
@@ -121,7 +141,7 @@ it is in `monitor` or `enforce`. See
 
 ## Licensing & entitlements
 
-The app never decides its own plan — `data/LicenseEntitlements.kt` is the one
+The app never decides its own plan — `data/account/LicenseEntitlements.kt` is the one
 place that answers "am I demo or licensed," and it reads through
 `data/net/AppRemoteConfig.kt`, which caches whatever the backend's
 `GET /v1/config` last reported (`plan`, `cloudBackupEnabled`, `shareEnabled`,
@@ -142,7 +162,7 @@ gating input anywhere in `LicenseEntitlements`.
 
 | Concern | File |
 |---|---|
-| Plan resolution / gating | `data/LicenseEntitlements.kt` |
+| Plan resolution / gating | `data/account/LicenseEntitlements.kt` |
 | Cached config, wire → prefs | `data/net/AppRemoteConfig.kt` (`AppConfigDto` in `ApiDtos.kt`) |
 | Redeem a key | `IndicApi.activateLicense()` |
 | Expiry notice | `LicenseEntitlements.expiryNoticeDays()` — advisory only; suppressed on a cache older than a week. `mode` stays the only gate. See [WORKFLOWS.md §9.3](WORKFLOWS.md#9-session-limit) |
@@ -155,10 +175,10 @@ with no framework behind it:
 
 | Concern | Files | Notes |
 |---|---|---|
-| Local disk budget | `data/StorageBudget.kt`, `data/CacheJanitor.kt` | Measures analyses and cache; frees the local frames of **backed-up** analyses only. A user-set GB budget is enforced from `SemperApp.onCreate`, so it runs before any screen |
+| Local disk budget | `data/session/StorageBudget.kt`, `data/session/CacheJanitor.kt` | Measures analyses and cache; frees the local frames of **backed-up** analyses only. A user-set GB budget is enforced from `SemperApp.onCreate`, so it runs before any screen |
 | Crash reporting | `Diagnostics.kt`, `CrashReportingTree.kt` | Crashlytics collection is **off in the manifest** and enabled only on consent (first-run prompt or the Settings toggle). `CrashReportingTree` is a release-only Timber tree feeding breadcrumbs and non-fatals |
-| Product analytics | `analytics/SemperAnalytics.kt` | Same consent flag as Crashlytics (`DicSettings.diagnosticsEnabled`) — events are dropped, not queued, when it is off. Params must stay PII-free: enums, coarse buckets, success/fail. The consent copy names both halves (**Send crash reports and usage data**) — keep it and [PRIVACY_POLICY.md](../legal/PRIVACY_POLICY.md) §2.4 in step with the event set |
-| Parameter hand-off | `data/ParamClipboard.kt` | Holds one subset/step/VSG (px) triple, copied from the sweep lattice's parameter chip and pasted into the analysis wizard's advanced parameters |
+| Product analytics | `diagnostics/SemperAnalytics.kt` | Same consent flag as Crashlytics (`DicSettings.diagnosticsEnabled`) — events are dropped, not queued, when it is off. Params must stay PII-free: enums, coarse buckets, success/fail. The consent copy names both halves (**Send crash reports and usage data**) — keep it and [PRIVACY_POLICY.md](../legal/PRIVACY_POLICY.md) §2.4 in step with the event set |
+| Parameter hand-off | `data/prefs/ParamClipboard.kt` | Holds one subset/step/VSG (px) triple, copied from the sweep lattice's parameter chip and pasted into the analysis wizard's advanced parameters |
 
 An analysis whose local frames were freed becomes a **cloud-only row**: Home
 still lists it, badges it, and downloads it on open rather than reporting the
@@ -166,7 +186,7 @@ data as gone. The "session data gone" path now means *no* copy exists anywhere.
 
 ## Export hand-off
 
-Exports do not go straight to the system chooser. `ui/viewer/ShareCenter.kt`
+Exports do not go straight to the system chooser. `ui/viewer/share/ShareCenter.kt`
 hands off to `SendToSheet`, a bottom sheet offering **Save to Files** (SAF) or
 **Share**. For the single-photo target the artifact is built first and then
 offered through the transparent `SaveExportActivity`; for the five slow targets
@@ -232,7 +252,7 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
 
 | I want to… | Start here |
 |---|---|
-| Change sign-in providers / access gate | `data/AuthRepository.kt`, `docs/backend/AUTH_SETUP.md` |
+| Change sign-in providers / access gate | `data/account/AuthRepository.kt`, `docs/backend/AUTH_SETUP.md` |
 | Change post-auth navigation | `ui/auth/AccessRouter.kt` |
 | Change the analysis wizard UI | `StaticAnalysisActivity.goToStep`; slot chrome / coach in `AnalysisWizardSlots` / `AnalysisWizardCoach`; later steps inflate through ViewStubs |
 | Change the full-field batch loop | `DicBatchRunner` + `DicFieldIo` (shared with VSG). Do not split `computeFullFieldDirect` out of that loop |
@@ -242,11 +262,11 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
 | Change parameter-sweep setup UI | `SweepSetupHelper` (run loop stays in the Activity + `VsgStudyRunner`) |
 | Change the sweep result lattice | `ui/analysis/VsgLatticeActivity.kt`, `VsgLatticeView`, `VsgPlotView` |
 | Change heatmap / probe | `ui/viewer/ResultViewerActivity.kt` + `Viewer*` helpers |
-| Change how exports are handed off | `ui/viewer/ShareCenter.kt`, `SendToSheet.kt`, `SaveExportActivity.kt` |
-| Change transfer progress UI | `ui/common/TransferBannerController.kt` (Settings + viewer), `data/TransferNotifications.kt` (the one channel) |
+| Change how exports are handed off | `ui/viewer/share/ShareCenter.kt`, `SendToSheet.kt`, `SaveExportActivity.kt` |
+| Change transfer progress UI | `ui/common/TransferBannerController.kt` (Settings + viewer), `data/cloud/TransferNotifications.kt` (the one channel) |
 | Change the new-analysis media sheet | `ui/common/MediaPickerSheet.kt` / `MediaSourceChooser.kt` — shared by the Home **+** and both wizard dropzones |
-| Add an analytics event | `analytics/SemperAnalytics.kt` — keep params PII-free and consent-gated |
-| Change storage reclaim behaviour | `data/StorageBudget.kt`, `data/CacheJanitor.kt` |
+| Add an analytics event | `diagnostics/SemperAnalytics.kt` — keep params PII-free and consent-gated |
+| Change storage reclaim behaviour | `data/session/StorageBudget.kt`, `data/session/CacheJanitor.kt` |
 | Change crash-reporting consent | `Diagnostics.kt`, `CrashReportingTree.kt` |
 | Change the C++ engine | The engine is a submodule — see [ENGINE_APP_CONTRACT.md](../engine/ENGINE_APP_CONTRACT.md), not this page |
 

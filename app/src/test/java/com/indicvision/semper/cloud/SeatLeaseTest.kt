@@ -1,6 +1,6 @@
 package com.indicvision.semper.cloud
 
-import com.indicvision.semper.data.SeatLease
+import com.indicvision.semper.data.account.SeatLease
 import com.indicvision.semper.data.net.AppConfigDto
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals

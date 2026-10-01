@@ -1,11 +1,11 @@
 package com.indicvision.semper.analysis
 
-import com.indicvision.semper.data.SessionRecordSettings
+import com.indicvision.semper.data.session.SessionRecordSettings
 import com.indicvision.semper.fixtures.sessionRecord
-import com.indicvision.semper.ui.analysis.AnalysisNavHelper
-import com.indicvision.semper.ui.analysis.AnalysisViewModel
-import com.indicvision.semper.ui.analysis.RunSpec
-import com.indicvision.semper.ui.analysis.VsgStudy
+import com.indicvision.semper.ui.analysis.run.RunSpec
+import com.indicvision.semper.ui.analysis.sweep.VsgStudy
+import com.indicvision.semper.ui.analysis.wizard.AnalysisNavHelper
+import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
 import com.indicvision.semper.ui.home.SessionOpenHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

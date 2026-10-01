@@ -5,8 +5,8 @@ import android.view.View
 import android.widget.TextView
 import androidx.core.view.isVisible
 import com.indicvision.semper.R
-import com.indicvision.semper.data.DeviceKeyManager
-import com.indicvision.semper.data.LicenseEntitlements
+import com.indicvision.semper.data.account.DeviceKeyManager
+import com.indicvision.semper.data.account.LicenseEntitlements
 import com.indicvision.semper.data.net.TokenStore
 import com.indicvision.semper.ui.admin.AdminActivity
 

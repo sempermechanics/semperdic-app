@@ -37,6 +37,9 @@ internal object AviReader {
 
     private const val HALF_US = 0.5
 
+    /** The rate assumed for a stream whose file states none. */
+    const val FALLBACK_FPS = 30.0
+
     /** Random access over the file being demuxed. */
     interface Source {
         val size: Long
@@ -85,8 +88,19 @@ internal object AviReader {
         val hasIndex: Boolean,
         val frames: List<Frame>,
     ) {
+        /** False when the file states no frame rate, so [effectiveFps] is assumed. */
+        val fpsKnown: Boolean get() = fps > 0.0
+
+        /**
+         * The rate the frames are timed at: [fps], or a nominal
+         * [FALLBACK_FPS] when the file states none. An AVI with no rate still
+         * has a length and frames to sample, and timing them at zero fps
+         * mapped every sampling time onto frame 0.
+         */
+        val effectiveFps: Double get() = if (fpsKnown) fps else FALLBACK_FPS
+
         val durationMs: Long
-            get() = if (fps > 0.0) ((frames.size / fps) * 1000.0).toLong() else 0L
+            get() = ((frames.size / effectiveFps) * 1000.0).toLong()
 
         /**
          * The frame on screen at [timeUs], clamped to the stream. Half a
@@ -94,9 +108,12 @@ internal object AviReader {
          * just before it, and must still name that frame, not the one before.
          */
         fun frameIndexAt(timeUs: Long): Int {
-            if (frames.isEmpty() || fps <= 0.0) return 0
-            return ((timeUs + HALF_US) * fps / 1_000_000.0).toInt().coerceIn(0, frames.size - 1)
+            if (frames.isEmpty()) return 0
+            return ((timeUs + HALF_US) * effectiveFps / 1_000_000.0).toInt().coerceIn(0, frames.size - 1)
         }
+
+        /** When frame [index] starts, at [effectiveFps]. */
+        fun presentationTimeUs(index: Int): Long = (index * 1_000_000.0 / effectiveFps).toLong()
 
         /** The last keyframe at or before [index]; 0 when the stream marks none. */
         fun keyframeAt(index: Int): Int {

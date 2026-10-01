@@ -1,9 +1,9 @@
 package com.indicvision.semper.results
 
-import com.indicvision.semper.DicResult
+import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.report.VisualizationEngine
-import com.indicvision.semper.ui.viewer.PointSpatialIndex
-import com.indicvision.semper.ui.viewer.ViewerInspectHelper
+import com.indicvision.semper.ui.viewer.inspect.PointSpatialIndex
+import com.indicvision.semper.ui.viewer.inspect.ViewerInspectHelper
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

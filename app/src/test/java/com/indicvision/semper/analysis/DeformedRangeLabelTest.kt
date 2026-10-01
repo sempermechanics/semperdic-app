@@ -1,6 +1,6 @@
 package com.indicvision.semper.analysis
 
-import com.indicvision.semper.ui.analysis.deformedRangeLabel
+import com.indicvision.semper.ui.analysis.wizard.deformedRangeLabel
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

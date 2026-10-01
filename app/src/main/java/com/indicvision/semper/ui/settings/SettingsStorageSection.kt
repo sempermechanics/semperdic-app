@@ -10,11 +10,11 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
 import com.indicvision.semper.R
-import com.indicvision.semper.data.CacheJanitor
-import com.indicvision.semper.data.DicSettings
-import com.indicvision.semper.data.LicenseEntitlements
-import com.indicvision.semper.data.SessionStore
-import com.indicvision.semper.data.StorageBudget
+import com.indicvision.semper.data.account.LicenseEntitlements
+import com.indicvision.semper.data.prefs.DicSettings
+import com.indicvision.semper.data.session.CacheJanitor
+import com.indicvision.semper.data.session.SessionStore
+import com.indicvision.semper.data.session.StorageBudget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

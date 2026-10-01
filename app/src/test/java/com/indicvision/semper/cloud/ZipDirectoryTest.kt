@@ -2,7 +2,7 @@
 
 package com.indicvision.semper.cloud
 
-import com.indicvision.semper.data.ZipDirectory
+import com.indicvision.semper.data.session.ZipDirectory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull

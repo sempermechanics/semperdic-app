@@ -2,8 +2,8 @@ package com.indicvision.semper.fixtures
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import com.indicvision.semper.data.SessionStore
 import com.indicvision.semper.data.net.TokenStore
+import com.indicvision.semper.data.session.SessionStore
 import org.junit.rules.ExternalResource
 
 /**

@@ -2,8 +2,8 @@ package com.indicvision.semper.data.net
 
 import android.content.Context
 import com.indicvision.semper.BuildConfig
-import com.indicvision.semper.data.DevAuth
-import com.indicvision.semper.data.DeviceKeyManager
+import com.indicvision.semper.data.account.DevAuth
+import com.indicvision.semper.data.account.DeviceKeyManager
 import com.indicvision.semper.util.AtomicFiles
 import com.indicvision.semper.util.Digests
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +32,23 @@ private const val REFUSAL_PEEK_BYTES = 4096L
 
 /** Seat routes take no body; the backend reads the caller from the token. */
 private const val EMPTY_JSON = "{}"
+
+/**
+ * Whether [resp] is the server refusing a client nonce. Finding out reads the
+ * body, which can fail (a connection reset mid-body); [resp] is closed then,
+ * since the caller never gets it back to close.
+ */
+internal fun isClientNonceRefusal(resp: Response): Boolean {
+    if (resp.code != HttpStatus.UNAUTHORIZED) return false
+    var read = false
+    try {
+        val refused = ClientNonce.isRefusal(resp.code, resp.peekBody(REFUSAL_PEEK_BYTES).string())
+        read = true
+        return refused
+    } finally {
+        if (!read) resp.close()
+    }
+}
 
 /**
  * Client for the Semper GCP backend (Cloud Run / FastAPI).
@@ -581,9 +598,7 @@ class IndicApi private constructor(context: Context) : CloudApi {
     ): Response {
         if (ClientNonce.usable()) {
             val resp = sendSigned(idToken, method, path, bodyBytes, ClientNonce.mint())
-            val refused = resp.code == HttpStatus.UNAUTHORIZED &&
-                ClientNonce.isRefusal(resp.code, resp.peekBody(REFUSAL_PEEK_BYTES).string())
-            if (!refused) return resp
+            if (!isClientNonceRefusal(resp)) return resp
             resp.close()
             ClientNonce.markRefused()
             Timber.i("Client nonce refused; using server challenges for this process")

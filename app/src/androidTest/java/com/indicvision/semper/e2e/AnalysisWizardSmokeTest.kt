@@ -16,7 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.android.material.appbar.MaterialToolbar
 import com.indicvision.semper.R
-import com.indicvision.semper.data.CoachPrefs
+import com.indicvision.semper.data.prefs.CoachPrefs
 import com.indicvision.semper.ui.analysis.StaticAnalysisActivity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

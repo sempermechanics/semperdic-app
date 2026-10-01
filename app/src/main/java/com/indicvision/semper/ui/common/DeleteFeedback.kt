@@ -8,7 +8,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.google.android.material.snackbar.Snackbar
 import com.indicvision.semper.R
-import com.indicvision.semper.data.SessionDeletes
+import com.indicvision.semper.data.cloud.SessionDeletes
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 

@@ -1,10 +1,10 @@
 package com.indicvision.semper.session
 
-import com.indicvision.semper.data.SessionRecord
-import com.indicvision.semper.data.SkippedNode
+import com.indicvision.semper.data.session.SessionRecord
+import com.indicvision.semper.data.session.SkippedNode
 import com.indicvision.semper.fixtures.sessionRecord
-import com.indicvision.semper.ui.analysis.AnalysisRunCodes
-import com.indicvision.semper.ui.analysis.EngineFailure
+import com.indicvision.semper.ui.analysis.run.AnalysisRunCodes
+import com.indicvision.semper.ui.analysis.run.EngineFailure
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals

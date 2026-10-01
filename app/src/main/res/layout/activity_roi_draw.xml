@@ -144,7 +144,7 @@
             android:contentDescription="@string/roi_canvas_image"
             android:scaleType="fitCenter" />
 
-        <com.indicvision.semper.ui.analysis.StudioOverlayView
+        <com.indicvision.semper.ui.analysis.roi.StudioOverlayView
             android:id="@+id/overlayRoi"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />

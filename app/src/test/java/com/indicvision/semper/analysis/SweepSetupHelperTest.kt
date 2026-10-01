@@ -4,9 +4,9 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
-import com.indicvision.semper.ui.analysis.AnalysisViewModel
-import com.indicvision.semper.ui.analysis.SweepSetupHelper
-import com.indicvision.semper.ui.analysis.VsgStudy
+import com.indicvision.semper.ui.analysis.sweep.SweepSetupHelper
+import com.indicvision.semper.ui.analysis.sweep.VsgStudy
+import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

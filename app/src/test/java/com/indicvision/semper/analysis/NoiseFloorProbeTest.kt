@@ -1,7 +1,7 @@
 package com.indicvision.semper.analysis
 
 import android.graphics.Rect
-import com.indicvision.semper.ui.analysis.NoiseFloorProbe
+import com.indicvision.semper.ui.analysis.recommend.NoiseFloorProbe
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
