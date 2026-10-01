@@ -3,6 +3,11 @@ package com.indicvision.semper.data.net
 import android.content.Context
 import androidx.core.content.edit
 import com.indicvision.semper.data.account.LicenseEntitlements
+import com.indicvision.semper.data.prefs.PrefFiles.RemoteConfig
+import com.indicvision.semper.data.prefs.get
+import com.indicvision.semper.data.prefs.privatePrefs
+import com.indicvision.semper.data.prefs.put
+import timber.log.Timber
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -22,36 +27,10 @@ import java.util.TimeZone
 @Suppress("TooManyFunctions")
 object AppRemoteConfig {
 
-    private const val PREFS = "indic_remote_config"
-    private const val K_MAX_SESSIONS = "max_sessions"
-    private const val K_MAX_FILES = "max_files_per_session"
-    private const val K_MAX_FRAMES = "max_frames"
-    private const val K_DAT_CODEC_ENCODING = "dat_codec_encoding_enabled"
-    private const val K_MODE = "mode"
-    private const val K_CLOUD_BACKUP = "cloud_backup_enabled"
-    private const val K_SHARE = "share_enabled"
-    private const val K_LICENSE_PREFIX = "license_prefix"
-    private const val K_LICENSE_KIND = "license_kind"
-    private const val K_FAIL_STREAK = "config_fail_streak"
     private const val FAIL_STREAK_HINT = 3
-    private const val K_LICENSE_DURATION = "license_duration"
-    private const val K_LICENSE_EXPIRES_AT = "license_expires_at"
-    private const val K_IN_GRACE = "license_in_grace"
-    private const val K_SEATING = "license_seating"
-    private const val K_HEARTBEAT_MINUTES = "lease_heartbeat_minutes"
-
-    /**
-     * When [apply] last stored a response. Without it the cache has no age:
-     * "the license expired" and "we have not asked in three weeks" look
-     * identical, and only the first of those should ever produce a warning.
-     */
-    private const val K_FETCHED_AT = "fetched_at"
 
     /** Pre-rename value of [LicenseEntitlements.MODE_LICENSED], still sent as the `plan` mirror. */
     private const val LEGACY_PLAN_PROFESSIONAL = "professional"
-
-    /** Pref key a build predating the rename wrote; read once on upgrade. */
-    private const val K_LEGACY_PLAN = "plan"
 
     /** Pre-rename value of `"institution"`, still sent by an older backend. */
     private const val LEGACY_KIND_CAMPUS = "campus"
@@ -83,33 +62,36 @@ object AppRemoteConfig {
     private fun normalizeKind(raw: String): String =
         if (raw == LEGACY_KIND_CAMPUS) "institution" else raw
 
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private fun prefs(context: Context) = privatePrefs(context, RemoteConfig.NAME)
 
     /**
      * Persist a successful config response. The session-limit hard stop is
      * recomputed live by [TokenStore.isSessionLimitReached] from the used count
      * against [maxSessions], so storing the ceiling here is all that is needed —
      * no write back into TokenStore, no [localSessionCount] to fold in.
+     *
+     * [now] is stored as the fetch time. Without it the cache has no age:
+     * "the license expired" and "we have not asked in three weeks" look
+     * identical, and only the first of those should ever produce a warning.
      */
     fun apply(context: Context, config: AppConfigDto, now: Long = System.currentTimeMillis()) {
         prefs(context).edit {
-            putInt(K_MAX_SESSIONS, config.maxSessions.coerceAtLeast(0))
-            putInt(K_MAX_FILES, config.maxFilesPerSession.coerceAtLeast(0))
-            putInt(K_MAX_FRAMES, config.maxFrames.coerceAtLeast(0))
-            putBoolean(K_DAT_CODEC_ENCODING, config.datCodecEncodingEnabled)
-            putString(K_MODE, resolveMode(config))
-            putBoolean(K_CLOUD_BACKUP, config.cloudBackupEnabled)
-            putBoolean(K_SHARE, config.shareEnabled)
-            putString(K_LICENSE_PREFIX, config.licensePrefix)
-            putString(K_LICENSE_KIND, normalizeKind(config.licenseKind))
-            putString(K_LICENSE_DURATION, resolveDuration(config))
-            putLong(K_LICENSE_EXPIRES_AT, parseInstant(config.licenseExpiresAt))
-            putBoolean(K_IN_GRACE, config.inGrace)
-            putString(K_SEATING, resolveSeating(config))
-            putInt(K_HEARTBEAT_MINUTES, config.leaseHeartbeatMinutes.coerceAtLeast(0))
-            putLong(K_FETCHED_AT, now)
-            putInt(K_FAIL_STREAK, 0)
+            put(RemoteConfig.MAX_SESSIONS, config.maxSessions.coerceAtLeast(0))
+            put(RemoteConfig.MAX_FILES_PER_SESSION, config.maxFilesPerSession.coerceAtLeast(0))
+            put(RemoteConfig.MAX_FRAMES, config.maxFrames.coerceAtLeast(0))
+            put(RemoteConfig.DAT_CODEC_ENCODING, config.datCodecEncodingEnabled)
+            put(RemoteConfig.MODE, resolveMode(config))
+            put(RemoteConfig.CLOUD_BACKUP, config.cloudBackupEnabled)
+            put(RemoteConfig.SHARE, config.shareEnabled)
+            put(RemoteConfig.LICENSE_PREFIX, config.licensePrefix)
+            put(RemoteConfig.LICENSE_KIND, normalizeKind(config.licenseKind))
+            put(RemoteConfig.LICENSE_DURATION, resolveDuration(config))
+            put(RemoteConfig.LICENSE_EXPIRES_AT, parseInstant(config.licenseExpiresAt))
+            put(RemoteConfig.IN_GRACE, config.inGrace)
+            put(RemoteConfig.SEATING, resolveSeating(config))
+            put(RemoteConfig.HEARTBEAT_MINUTES, config.leaseHeartbeatMinutes.coerceAtLeast(0))
+            put(RemoteConfig.FETCHED_AT, now)
+            put(RemoteConfig.FAIL_STREAK, 0)
         }
     }
 
@@ -157,10 +139,24 @@ object AppRemoteConfig {
         else -> DURATION_PERPETUAL
     }
 
+    /**
+     * Stores the outcome of one `/v1/config` fetch: [apply] when it answered,
+     * [recordFetchFailure] when not. Returns whether it answered.
+     */
+    fun record(context: Context, fetched: Result<AppConfigDto>): Boolean {
+        fetched
+            .onSuccess { apply(context, it) }
+            .onFailure {
+                recordFetchFailure(context)
+                Timber.d(it, "Could not fetch app remote config")
+            }
+        return fetched.isSuccess
+    }
+
     /** Record a failed /v1/config fetch (uploads stay gated until config lands). */
     fun recordFetchFailure(context: Context) {
         val prefs = prefs(context)
-        prefs.edit { putInt(K_FAIL_STREAK, prefs.getInt(K_FAIL_STREAK, 0) + 1) }
+        prefs.edit { put(RemoteConfig.FAIL_STREAK, prefs[RemoteConfig.FAIL_STREAK] + 1) }
     }
 
     /**
@@ -168,17 +164,17 @@ object AppRemoteConfig {
      * still unknown — surface a "can't sync yet" hint so this is not silent.
      */
     fun shouldHintSyncBlocked(context: Context): Boolean =
-        !isKnown(context) && prefs(context).getInt(K_FAIL_STREAK, 0) >= FAIL_STREAK_HINT
+        !isKnown(context) && prefs(context)[RemoteConfig.FAIL_STREAK] >= FAIL_STREAK_HINT
 
     /** True once the backend has reported a positive maxSessions. */
     fun isKnown(context: Context): Boolean = maxSessions(context) > 0
 
-    fun maxSessions(context: Context): Int = prefs(context).getInt(K_MAX_SESSIONS, 0)
+    fun maxSessions(context: Context): Int = prefs(context)[RemoteConfig.MAX_SESSIONS]
 
-    fun maxFilesPerSession(context: Context): Int = prefs(context).getInt(K_MAX_FILES, 0)
+    fun maxFilesPerSession(context: Context): Int = prefs(context)[RemoteConfig.MAX_FILES_PER_SESSION]
 
     /** Deformed-frame ceiling from cloud; 0 until config is known. */
-    fun maxFrames(context: Context): Int = prefs(context).getInt(K_MAX_FRAMES, 0)
+    fun maxFrames(context: Context): Int = prefs(context)[RemoteConfig.MAX_FRAMES]
 
     /**
      * Whether this account may upload `.dat` entries through [DatCodec][com.indicvision.semper.data.session.DatCodec].
@@ -187,7 +183,7 @@ object AppRemoteConfig {
      * synced config, or whose last fetch failed, never guesses "on".
      */
     fun datCodecEncodingEnabled(context: Context): Boolean =
-        prefs(context).getBoolean(K_DAT_CODEC_ENCODING, false)
+        prefs(context)[RemoteConfig.DAT_CODEC_ENCODING]
 
     /**
      * Collapse the dual-keyed config response to one mode.
@@ -208,7 +204,7 @@ object AppRemoteConfig {
     /**
      * The cached mode, or demo when nothing has been cached yet.
      *
-     * Falls back to [K_LEGACY_PLAN], the pref key a build predating the rename
+     * Falls back to [RemoteConfig.LEGACY_PLAN], the pref key a build predating the rename
      * wrote. Without that fallback, upgrading the app would read demo for a
      * licensed account from launch until the next successful /v1/config fetch
      * — which, offline, may not come for a long time. The cached value is not
@@ -217,8 +213,8 @@ object AppRemoteConfig {
      */
     fun mode(context: Context): String {
         val prefs = prefs(context)
-        prefs.getString(K_MODE, null)?.let { return it }
-        val legacy = prefs.getString(K_LEGACY_PLAN, null)
+        prefs[RemoteConfig.MODE]?.let { return it }
+        val legacy = prefs[RemoteConfig.LEGACY_PLAN]
         return if (legacy == LEGACY_PLAN_PROFESSIONAL) {
             LicenseEntitlements.MODE_LICENSED
         } else {
@@ -227,19 +223,19 @@ object AppRemoteConfig {
     }
 
     fun cloudBackupEnabled(context: Context): Boolean =
-        prefs(context).getBoolean(K_CLOUD_BACKUP, false)
+        prefs(context)[RemoteConfig.CLOUD_BACKUP]
 
-    fun shareEnabled(context: Context): Boolean = prefs(context).getBoolean(K_SHARE, false)
+    fun shareEnabled(context: Context): Boolean = prefs(context)[RemoteConfig.SHARE]
 
     fun licensePrefix(context: Context): String =
-        prefs(context).getString(K_LICENSE_PREFIX, "") ?: ""
+        prefs(context)[RemoteConfig.LICENSE_PREFIX]
 
     /** `""`, `"individual"`, or `"institution"` — display/support metadata only. */
     fun licenseKind(context: Context): String =
-        prefs(context).getString(K_LICENSE_KIND, "") ?: ""
+        prefs(context)[RemoteConfig.LICENSE_KIND]
 
     /** Epoch millis of the last successful fetch, or 0 if there has never been one. */
-    fun fetchedAtMillis(context: Context): Long = prefs(context).getLong(K_FETCHED_AT, 0L)
+    fun fetchedAtMillis(context: Context): Long = prefs(context)[RemoteConfig.FETCHED_AT]
 
     /**
      * Whether the cache is older than [maxAgeMillis].
@@ -265,22 +261,22 @@ object AppRemoteConfig {
 
     /** `perpetual` or `timed`; perpetual until a response says otherwise. */
     fun licenseDuration(context: Context): String =
-        prefs(context).getString(K_LICENSE_DURATION, DURATION_PERPETUAL) ?: DURATION_PERPETUAL
+        prefs(context)[RemoteConfig.LICENSE_DURATION]
 
     /** Epoch millis the license expires, or [NO_INSTANT] when perpetual. */
     fun licenseExpiresAtMillis(context: Context): Long =
-        prefs(context).getLong(K_LICENSE_EXPIRES_AT, NO_INSTANT)
+        prefs(context)[RemoteConfig.LICENSE_EXPIRES_AT]
 
     /** Past expiry but still fully entitled — warn, do not gate. */
-    fun inGrace(context: Context): Boolean = prefs(context).getBoolean(K_IN_GRACE, false)
+    fun inGrace(context: Context): Boolean = prefs(context)[RemoteConfig.IN_GRACE]
 
     /** `assigned` or `floating`; assigned until a response says otherwise. */
     fun licenseSeating(context: Context): String =
-        prefs(context).getString(K_SEATING, SEATING_ASSIGNED) ?: SEATING_ASSIGNED
+        prefs(context)[RemoteConfig.SEATING]
 
     /** How often to renew a held seat, in minutes. */
     fun leaseHeartbeatMinutes(context: Context): Int {
-        val stored = prefs(context).getInt(K_HEARTBEAT_MINUTES, 0)
+        val stored = prefs(context)[RemoteConfig.HEARTBEAT_MINUTES]
         return if (stored > 0) stored else DEFAULT_HEARTBEAT_MINUTES
     }
 

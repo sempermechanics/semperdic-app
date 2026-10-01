@@ -10,6 +10,8 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.indicvision.semper.data.account.SeatHeartbeat
 import com.indicvision.semper.data.account.SeatLease
+import com.indicvision.semper.data.cloud.WorkTags
+import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
 /**
@@ -31,37 +33,24 @@ class LicenseConfigWorker(
     }
 
     companion object {
-        const val UNIQUE_NAME = "license-config-refresh"
+        const val UNIQUE_NAME = WorkTags.LICENSE_CONFIG_NAME
         private const val PERIOD_HOURS = 4L
 
         fun enqueue(context: Context) {
             runCatching {
-                val work = PeriodicWorkRequestBuilder<LicenseConfigWorker>(
-                    PERIOD_HOURS,
-                    TimeUnit.HOURS,
-                )
-                    .setConstraints(
-                        Constraints.Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .build(),
-                    )
-                    .addTag("license-config")
+                val work = PeriodicWorkRequestBuilder<LicenseConfigWorker>(PERIOD_HOURS, TimeUnit.HOURS)
+                    .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                    .addTag(WorkTags.LICENSE_CONFIG)
                     .build()
-                WorkManager.getInstance(context.applicationContext).enqueueUniquePeriodicWork(
-                    UNIQUE_NAME,
-                    ExistingPeriodicWorkPolicy.KEEP,
-                    work,
-                )
+                WorkManager.getInstance(context.applicationContext)
+                    .enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.KEEP, work)
             }.onFailure {
-                timber.log.Timber.w(it, "Could not schedule license config refresh")
+                Timber.w(it, "Could not schedule license config refresh")
             }
         }
 
         fun cancel(context: Context) {
-            runCatching {
-                WorkManager.getInstance(context.applicationContext)
-                    .cancelUniqueWork(UNIQUE_NAME)
-            }
+            runCatching { WorkManager.getInstance(context.applicationContext).cancelUniqueWork(UNIQUE_NAME) }
         }
     }
 }

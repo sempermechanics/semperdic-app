@@ -141,6 +141,46 @@ class AuthRepositoryTest {
     }
 
     @Test
+    fun `other refusals from the server are a server error with their status`() = runBlocking {
+        for (code in listOf(403, 404, 429)) {
+            api.onMe = { throw IndicApi.ApiException(code, "") }
+            api.onGetConfig = { throw IOException("config down") }
+
+            val error = repo.refreshStatus().exceptionOrNull()
+
+            assertTrue("$code: got $error", error != null && error !is AuthRepository.AccessLostException)
+            assertEquals("Could not verify account (server error $code).", error!!.message)
+        }
+    }
+
+    @Test
+    fun `a device bound to another account loses access`() = runBlocking {
+        api.onMe = { throw IndicApi.DeviceConflictException() }
+        api.onGetConfig = { throw IOException("config down") }
+
+        assertTrue(repo.refreshStatus().exceptionOrNull() is AuthRepository.AccessLostException)
+    }
+
+    @Test
+    fun `failures that say nothing about the account fall back to the cached status`() = runBlocking {
+        val notAnAnswer = listOf<() -> Nothing>(
+            { throw IndicApi.DeviceNotActiveException() },
+            { throw IndicApi.NoSeatAvailableException() },
+            { throw IndicApi.TermsVersionMismatchException() },
+        )
+        for (failure in notAnAnswer) {
+            api.onMe = { failure() }
+            api.onGetConfig = { throw IOException("config down") }
+            TokenStore.setStatus(context, AccessStatus.PENDING)
+            val unknown = repo.refreshStatus().exceptionOrNull()
+            assertTrue("got $unknown", unknown != null && unknown !is AuthRepository.AccessLostException)
+
+            TokenStore.setStatus(context, AccessStatus.APPROVED)
+            assertEquals(AccessStatus.OFFLINE_CACHE_APPROVED, repo.refreshStatus().getOrThrow())
+        }
+    }
+
+    @Test
     fun `offline keeps an approved account in, and nobody else`() = runBlocking {
         api.onMe = { throw IOException("no route") }
         api.onGetConfig = { throw IOException("no route") }

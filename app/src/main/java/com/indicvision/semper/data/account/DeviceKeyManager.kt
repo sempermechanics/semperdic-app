@@ -1,7 +1,3 @@
-// Keystore/crypto: literal key sizes read clearest inline, so MagicNumber is
-// suppressed here.
-@file:Suppress("MagicNumber")
-
 package com.indicvision.semper.data.account
 
 import android.content.Context
@@ -10,6 +6,10 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.core.content.edit
+import com.indicvision.semper.data.prefs.PrefFiles.Device
+import com.indicvision.semper.data.prefs.get
+import com.indicvision.semper.data.prefs.privatePrefs
+import com.indicvision.semper.data.prefs.put
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.Signature
@@ -33,8 +33,9 @@ class DeviceKeyManager(private val context: Context) {
 
     companion object {
         private const val KEY_ALIAS = "IndicDeviceKeyEc"
-        private const val PREFS = "indic_device"
-        private const val K_DEVICE_ID = "device_id"
+
+        /** PEM wraps its base64 body at 64 characters a line (RFC 7468). */
+        private const val PEM_LINE_LENGTH = 64
 
         // The infamous Android 2.2 bug value shared by many devices — never use it.
         private const val LEGACY_BAD_ANDROID_ID = "9774d56d682e549c"
@@ -51,8 +52,8 @@ class DeviceKeyManager(private val context: Context) {
          */
         @Suppress("HardwareIds") // ANDROID_ID is app-scoped, not a hardware identifier
         fun deviceId(context: Context): String {
-            val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            prefs.getString(K_DEVICE_ID, null)?.let { return it }
+            val prefs = privatePrefs(context, Device.NAME)
+            prefs[Device.DEVICE_ID]?.let { return it }
             val androidId = Settings.Secure.getString(
                 context.contentResolver,
                 Settings.Secure.ANDROID_ID,
@@ -62,7 +63,7 @@ class DeviceKeyManager(private val context: Context) {
             } else {
                 "dev-" + UUID.randomUUID().toString()
             }
-            prefs.edit { putString(K_DEVICE_ID, id) }
+            prefs.edit { put(Device.DEVICE_ID, id) }
             return id
         }
     }
@@ -93,7 +94,7 @@ class DeviceKeyManager(private val context: Context) {
     fun getPublicKeyPem(): String {
         val der = keyStore.getCertificate(KEY_ALIAS).publicKey.encoded
         val b64 = Base64.encodeToString(der, Base64.NO_WRAP)
-        val wrapped = b64.chunked(64).joinToString("\n")
+        val wrapped = b64.chunked(PEM_LINE_LENGTH).joinToString("\n")
         return "-----BEGIN PUBLIC KEY-----\n$wrapped\n-----END PUBLIC KEY-----\n"
     }
 

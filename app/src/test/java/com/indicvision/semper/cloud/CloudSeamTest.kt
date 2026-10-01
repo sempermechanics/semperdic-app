@@ -82,6 +82,18 @@ class CloudSeamTest {
         assertEquals(0, tokens.asked)
     }
 
+    @Test
+    fun `sign-out returns a held floating seat and applies the config the release answers`() = runBlocking {
+        AppRemoteConfig.apply(context, floatingSeat())
+        api.onReleaseLease = { AppConfigDto(maxSessions = 25, mode = "demo") }
+
+        SeatLease.releaseBestEffort(context, api, tokens)
+
+        assertEquals(listOf("releaseLease"), api.calls)
+        assertEquals("demo", AppRemoteConfig.mode(context))
+        assertEquals(25, AppRemoteConfig.maxSessions(context))
+    }
+
     // ------------------------------------------------------------ reconcile
 
     private fun reconcile() = runBlocking {

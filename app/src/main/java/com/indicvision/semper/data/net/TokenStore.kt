@@ -7,6 +7,12 @@ package com.indicvision.semper.data.net
 import android.content.Context
 import androidx.core.content.edit
 import com.indicvision.semper.data.account.LicenseEntitlements
+import com.indicvision.semper.data.prefs.PrefFiles.Onboarding
+import com.indicvision.semper.data.prefs.PrefFiles.Session
+import com.indicvision.semper.data.prefs.PrefKey
+import com.indicvision.semper.data.prefs.get
+import com.indicvision.semper.data.prefs.privatePrefs
+import com.indicvision.semper.data.prefs.put
 
 /**
  * Local session cache alongside Firebase Auth: the signed-in identity plus the
@@ -18,54 +24,33 @@ import com.indicvision.semper.data.account.LicenseEntitlements
  */
 object TokenStore {
 
-    private const val PREFS = "indic_session"
+    private fun prefs(context: Context) = privatePrefs(context, Session.NAME)
 
     /** Survives sign-out so a per-account beta ack is not re-prompted on every login. */
-    private const val ONBOARDING_PREFS = "indic_onboarding"
-    private const val K_UID = "uid"
-    private const val K_EMAIL = "email"
-    private const val K_STATUS = "last_status" // last server-confirmed access_status
-    private const val K_ROLE = "role" // "admin" | "user"
-    private const val K_DEVICE_REGISTERED = "device_registered"
-    private const val K_QUOTA_USED = "quota_used" // the server's count at the last reconcile
-    private const val K_LOCAL_COUNT = "quota_local_count"
-    private const val K_LIMIT_FORCED = "session_limit_forced"
-    private const val K_BETA_ACKED_PREFIX = "beta_notice_acked_"
-
-    /** The ack made with no account signed in; no Firebase uid can collide with it. */
-    private const val K_BETA_ACKED_SIGNED_OUT = "signed_out_beta_notice_acked"
-    private const val K_TERMS_REQUIRED = "terms_required_version"
-    private const val K_TERMS_ACCEPTED = "terms_accepted_version"
-    private const val K_TERMS_SYNCED = "terms_accepted_synced"
-    private const val K_IMPROVEMENT_CONSENT = "improvement_consent" // "true" | "false" | absent
-
-    private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-
-    private fun onboardingPrefs(context: Context) =
-        context.applicationContext.getSharedPreferences(ONBOARDING_PREFS, Context.MODE_PRIVATE)
+    private fun onboardingPrefs(context: Context) = privatePrefs(context, Onboarding.NAME)
 
     /** Cache the signed-in identity (from the Firebase user) for offline UI. */
     fun saveIdentity(context: Context, uid: String?, email: String?) {
         prefs(context).edit {
-            putString(K_UID, uid)
-            putString(K_EMAIL, email)
+            put(Session.UID, uid)
+            put(Session.EMAIL, email)
         }
     }
 
-    fun cachedUid(context: Context): String? = prefs(context).getString(K_UID, null)
-    fun cachedEmail(context: Context): String? = prefs(context).getString(K_EMAIL, null)
+    fun cachedUid(context: Context): String? = prefs(context)[Session.UID]
+    fun cachedEmail(context: Context): String? = prefs(context)[Session.EMAIL]
 
-    fun cachedStatus(context: Context): String? = prefs(context).getString(K_STATUS, null)
-    fun setStatus(context: Context, status: String) = prefs(context).edit { putString(K_STATUS, status) }
+    fun cachedStatus(context: Context): String? = prefs(context)[Session.STATUS]
+    fun setStatus(context: Context, status: String) = prefs(context).edit { put(Session.STATUS, status) }
 
-    fun cachedRole(context: Context): String? = prefs(context).getString(K_ROLE, null)
-    fun setRole(context: Context, role: String?) = prefs(context).edit { putString(K_ROLE, role) }
+    fun cachedRole(context: Context): String? = prefs(context)[Session.ROLE]
+    fun setRole(context: Context, role: String?) = prefs(context).edit { put(Session.ROLE, role) }
 
     fun isAdmin(context: Context): Boolean = cachedRole(context) == "admin"
 
-    fun isDeviceRegistered(context: Context): Boolean = prefs(context).getBoolean(K_DEVICE_REGISTERED, false)
+    fun isDeviceRegistered(context: Context): Boolean = prefs(context)[Session.DEVICE_REGISTERED]
     fun setDeviceRegistered(context: Context, v: Boolean) {
-        prefs(context).edit { putBoolean(K_DEVICE_REGISTERED, v) }
+        prefs(context).edit { put(Session.DEVICE_REGISTERED, v) }
     }
 
     // ── Cloud analysis quota (max sessions per account) ──────────────────
@@ -82,7 +67,7 @@ object TokenStore {
      * offline or with cloud off "25 / 25" and the hard stop outlived the delete.
      */
     fun quotaUsed(context: Context): Int = prefs(context).let {
-        maxOf(it.getInt(K_QUOTA_USED, 0), it.getInt(K_LOCAL_COUNT, 0))
+        maxOf(it[Session.QUOTA_USED], it[Session.LOCAL_COUNT])
     }
 
     /** Session ceiling, owned by [AppRemoteConfig]; 0 until the backend reports it. */
@@ -99,9 +84,9 @@ object TokenStore {
      */
     fun setQuota(context: Context, used: Int, localCount: Int = 0) {
         prefs(context).edit {
-            putInt(K_QUOTA_USED, used)
-            putInt(K_LOCAL_COUNT, localCount)
-            putBoolean(K_LIMIT_FORCED, false)
+            put(Session.QUOTA_USED, used)
+            put(Session.LOCAL_COUNT, localCount)
+            put(Session.LIMIT_FORCED, false)
         }
     }
 
@@ -113,7 +98,7 @@ object TokenStore {
      * Only [setQuota] and [onLocalSessionsRemoved] lift it.
      */
     fun refreshSessionLimit(context: Context, localCount: Int) {
-        prefs(context).edit { putInt(K_LOCAL_COUNT, localCount) }
+        prefs(context).edit { put(Session.LOCAL_COUNT, localCount) }
     }
 
     /**
@@ -124,14 +109,14 @@ object TokenStore {
      */
     fun onLocalSessionsRemoved(context: Context, localCount: Int) {
         prefs(context).edit {
-            putInt(K_LOCAL_COUNT, localCount)
-            putBoolean(K_LIMIT_FORCED, false)
+            put(Session.LOCAL_COUNT, localCount)
+            put(Session.LIMIT_FORCED, false)
         }
     }
 
     /** Force the hard stop (e.g. an upload rejected 409 without fresh numbers). */
     fun setSessionLimitReached(context: Context, v: Boolean) {
-        prefs(context).edit { putBoolean(K_LIMIT_FORCED, v) }
+        prefs(context).edit { put(Session.LIMIT_FORCED, v) }
     }
 
     /**
@@ -139,12 +124,10 @@ object TokenStore {
      * Both modes stop at the backend's ceiling once [AppRemoteConfig] has it.
      * Before that, demo uses the 25-run ceiling and licensed has none.
      */
-    @Suppress("ReturnCount")
-    fun isSessionLimitReached(context: Context): Boolean {
-        if (LicenseEntitlements.unlimitedAnalysis(context)) return false
-        if (prefs(context).getBoolean(K_LIMIT_FORCED, false)) return true
-        val max = LicenseEntitlements.analysisCap(context)
-        return quotaUsed(context) >= max
+    fun isSessionLimitReached(context: Context): Boolean = when {
+        LicenseEntitlements.unlimitedAnalysis(context) -> false
+        prefs(context)[Session.LIMIT_FORCED] -> true
+        else -> quotaUsed(context) >= LicenseEntitlements.analysisCap(context)
     }
 
     /**
@@ -156,25 +139,24 @@ object TokenStore {
      * and does not stand in for an account's: the first sign-in still asks.
      */
     fun hasAckedBetaNotice(context: Context): Boolean =
-        onboardingPrefs(context).getBoolean(betaAckKey(context), false)
+        onboardingPrefs(context)[betaAckKey(context)]
 
     fun setBetaNoticeAcked(context: Context) {
-        onboardingPrefs(context).edit { putBoolean(betaAckKey(context), true) }
+        onboardingPrefs(context).edit { put(betaAckKey(context), true) }
     }
 
-    private fun betaAckKey(context: Context): String =
-        cachedUid(context)?.let { K_BETA_ACKED_PREFIX + it } ?: K_BETA_ACKED_SIGNED_OUT
+    private fun betaAckKey(context: Context): PrefKey<Boolean> = Onboarding.betaAcked(cachedUid(context))
 
     // ------------------------------------------------------------ legal / consent
 
     /** The Terms version the backend last said it requires; null until /v1/me has answered. */
-    fun termsRequiredVersion(context: Context): String? = prefs(context).getString(K_TERMS_REQUIRED, null)
+    fun termsRequiredVersion(context: Context): String? = prefs(context)[Session.TERMS_REQUIRED]
     fun setTermsRequiredVersion(context: Context, version: String) {
-        prefs(context).edit { putString(K_TERMS_REQUIRED, version) }
+        prefs(context).edit { put(Session.TERMS_REQUIRED, version) }
     }
 
     /** The Terms version this user agreed to on this device; null until the gate was passed. */
-    fun termsAcceptedVersion(context: Context): String? = prefs(context).getString(K_TERMS_ACCEPTED, null)
+    fun termsAcceptedVersion(context: Context): String? = prefs(context)[Session.TERMS_ACCEPTED]
 
     /**
      * Record acceptance locally. [synced] is false until the backend confirmed it,
@@ -182,19 +164,19 @@ object TokenStore {
      */
     fun setTermsAccepted(context: Context, version: String, synced: Boolean) {
         prefs(context).edit {
-            putString(K_TERMS_ACCEPTED, version)
-            putBoolean(K_TERMS_SYNCED, synced)
+            put(Session.TERMS_ACCEPTED, version)
+            put(Session.TERMS_SYNCED, synced)
         }
     }
 
-    fun isTermsAcceptanceSynced(context: Context): Boolean = prefs(context).getBoolean(K_TERMS_SYNCED, false)
+    fun isTermsAcceptanceSynced(context: Context): Boolean = prefs(context)[Session.TERMS_SYNCED]
 
     /** null = never answered. Never defaults to true: consent is only ever an explicit choice. */
     fun improvementConsent(context: Context): Boolean? =
-        prefs(context).getString(K_IMPROVEMENT_CONSENT, null)?.toBooleanStrictOrNull()
+        prefs(context)[Session.IMPROVEMENT_CONSENT]?.toBooleanStrictOrNull()
 
     fun setImprovementConsent(context: Context, granted: Boolean) {
-        prefs(context).edit { putString(K_IMPROVEMENT_CONSENT, granted.toString()) }
+        prefs(context).edit { put(Session.IMPROVEMENT_CONSENT, granted.toString()) }
     }
 
     /** Wipe the local session cache (sign-out). Keystore device key is left intact. */

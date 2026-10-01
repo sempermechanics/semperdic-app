@@ -3,6 +3,7 @@ package com.indicvision.semper.data.prefs
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.indicvision.semper.data.prefs.PrefFiles.Settings
 
 /**
  * Behavioral settings surfaced in the Home settings drawer. Plain
@@ -24,24 +25,15 @@ object DicSettings {
      */
     const val MAX_MAX_FRAMES = 500
 
-    private const val PREFS = "dic_settings"
-    private const val KEY_SCHEMA = "schema"
-
     /** Bump when a key is retired, and drop it in [migrate]. */
     private const val SCHEMA_VERSION = 1
-    private const val KEY_SAVE_TO_CLOUD = "save_to_cloud"
-    private const val KEY_UPLOAD_WIFI_ONLY = "upload_wifi_only"
-    private const val KEY_MAX_FRAMES = "max_frames"
-    private const val KEY_AUTO_FREE_GB = "auto_free_gb"
-    private const val KEY_DIAGNOSTICS = "diagnostics_enabled"
-    private const val KEY_DIAGNOSTICS_ASKED = "diagnostics_asked"
 
     /** [autoFreeBudgetGb] value meaning "never free space automatically". */
     const val AUTO_FREE_OFF = 0
     const val MIN_AUTO_FREE_GB = 1
     const val MAX_AUTO_FREE_GB = 64
 
-    private fun prefs(context: Context): SharedPreferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private fun prefs(context: Context): SharedPreferences = privatePrefs(context, Settings.NAME)
 
     /**
      * Drops preferences whose setting no longer exists, so an upgraded device
@@ -49,11 +41,11 @@ object DicSettings {
      */
     fun migrate(context: Context) {
         val prefs = prefs(context)
-        if (prefs.getInt(KEY_SCHEMA, 0) >= SCHEMA_VERSION) return
+        if (prefs[Settings.SCHEMA] >= SCHEMA_VERSION) return
         prefs.edit {
             // "Keep every re-run" — the toggle is gone; one row per set of inputs.
-            remove("keep_every_rerun")
-            putInt(KEY_SCHEMA, SCHEMA_VERSION)
+            remove(Settings.KEEP_EVERY_RERUN)
+            put(Settings.SCHEMA, SCHEMA_VERSION)
         }
     }
 
@@ -67,32 +59,32 @@ object DicSettings {
      * it is not shown again after a considered "no".
      */
     fun diagnosticsEnabled(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_DIAGNOSTICS, false)
+        prefs(context)[Settings.DIAGNOSTICS_ENABLED]
 
     fun setDiagnosticsEnabled(context: Context, value: Boolean) =
         prefs(context).edit {
-            putBoolean(KEY_DIAGNOSTICS, value)
-            putBoolean(KEY_DIAGNOSTICS_ASKED, true)
+            put(Settings.DIAGNOSTICS_ENABLED, value)
+            put(Settings.DIAGNOSTICS_ASKED, true)
         }
 
     /** True once the first-run diagnostics choice has been made either way. */
     fun diagnosticsAsked(context: Context): Boolean =
-        prefs(context).getBoolean(KEY_DIAGNOSTICS_ASKED, false)
+        prefs(context)[Settings.DIAGNOSTICS_ASKED]
 
     /** Master switch for the upload worker; off = sessions stay "local only". */
-    fun saveToCloud(context: Context): Boolean = prefs(context).getBoolean(KEY_SAVE_TO_CLOUD, true)
+    fun saveToCloud(context: Context): Boolean = prefs(context)[Settings.SAVE_TO_CLOUD]
 
     fun setSaveToCloud(context: Context, value: Boolean) =
-        prefs(context).edit { putBoolean(KEY_SAVE_TO_CLOUD, value) }
+        prefs(context).edit { put(Settings.SAVE_TO_CLOUD, value) }
 
     /**
      * When true, uploads (post-analysis and reconcile repair) wait for unmetered
      * Wi‑Fi. Default false = any connected network.
      */
-    fun uploadWifiOnly(context: Context): Boolean = prefs(context).getBoolean(KEY_UPLOAD_WIFI_ONLY, false)
+    fun uploadWifiOnly(context: Context): Boolean = prefs(context)[Settings.UPLOAD_WIFI_ONLY]
 
     fun setUploadWifiOnly(context: Context, value: Boolean) =
-        prefs(context).edit { putBoolean(KEY_UPLOAD_WIFI_ONLY, value) }
+        prefs(context).edit { put(Settings.UPLOAD_WIFI_ONLY, value) }
 
     /**
      * Hard ceiling for deformed frames: the cloud [remoteMaxFrames] when > 0,
@@ -103,11 +95,10 @@ object DicSettings {
 
     /** Cap on deformed frames per analysis (picker + video extraction). */
     fun maxFrames(context: Context, remoteMaxFrames: Int): Int =
-        prefs(context).getInt(KEY_MAX_FRAMES, DEFAULT_MAX_FRAMES)
-            .coerceIn(MIN_MAX_FRAMES, frameCeiling(remoteMaxFrames))
+        clampMaxFrames(prefs(context)[Settings.MAX_FRAMES], remoteMaxFrames)
 
     fun setMaxFrames(context: Context, value: Int, remoteMaxFrames: Int) = prefs(context).edit {
-        putInt(KEY_MAX_FRAMES, value.coerceIn(MIN_MAX_FRAMES, frameCeiling(remoteMaxFrames)))
+        put(Settings.MAX_FRAMES, clampMaxFrames(value, remoteMaxFrames))
     }
 
     /**
@@ -116,14 +107,16 @@ object DicSettings {
      * nothing is ever removed without the user asking — the default, since a
      * session that vanishes on its own is a worse surprise than a full disk.
      */
-    fun autoFreeBudgetGb(context: Context): Int =
-        prefs(context).getInt(KEY_AUTO_FREE_GB, AUTO_FREE_OFF)
-            .let { if (it <= AUTO_FREE_OFF) AUTO_FREE_OFF else it.coerceIn(MIN_AUTO_FREE_GB, MAX_AUTO_FREE_GB) }
+    fun autoFreeBudgetGb(context: Context): Int = clampAutoFree(prefs(context)[Settings.AUTO_FREE_GB])
 
     fun setAutoFreeBudgetGb(context: Context, value: Int) = prefs(context).edit {
-        putInt(
-            KEY_AUTO_FREE_GB,
-            if (value <= AUTO_FREE_OFF) AUTO_FREE_OFF else value.coerceIn(MIN_AUTO_FREE_GB, MAX_AUTO_FREE_GB),
-        )
+        put(Settings.AUTO_FREE_GB, clampAutoFree(value))
     }
+
+    private fun clampMaxFrames(value: Int, remoteMaxFrames: Int): Int =
+        value.coerceIn(MIN_MAX_FRAMES, frameCeiling(remoteMaxFrames))
+
+    /** [AUTO_FREE_OFF] for zero or less, else a budget in range. */
+    private fun clampAutoFree(gb: Int): Int =
+        if (gb <= AUTO_FREE_OFF) AUTO_FREE_OFF else gb.coerceIn(MIN_AUTO_FREE_GB, MAX_AUTO_FREE_GB)
 }

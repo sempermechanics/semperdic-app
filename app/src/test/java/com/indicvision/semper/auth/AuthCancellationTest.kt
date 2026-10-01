@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.cloud.FakeCloudApi
 import com.indicvision.semper.cloud.FakeTokens
 import com.indicvision.semper.data.account.AuthRepository
+import com.indicvision.semper.data.account.SignInMethod
 import com.indicvision.semper.data.prefs.DicSettings
 import com.indicvision.semper.diagnostics.SemperAnalytics
 import kotlinx.coroutines.CancellationException
@@ -50,7 +51,7 @@ class AuthCancellationTest {
     fun `a sign-in cancelled mid-flight is not reported as a failed sign-in`() = runBlocking {
         val started = CompletableDeferred<Unit>()
         val job = launch(Dispatchers.Default) {
-            repo.firebaseThen("password") {
+            repo.firebaseThen(SignInMethod.PASSWORD) {
                 started.complete(Unit)
                 awaitCancellation()
             }
@@ -67,7 +68,7 @@ class AuthCancellationTest {
     fun `a Firebase Task cancelled while the caller still waits is a failed sign-in`() = runBlocking {
         // Task.await() throws CancellationException for a cancelled Task even though
         // this coroutine is active; rethrowing it would end the caller silently.
-        val result = repo.firebaseThen("google") { throw CancellationException("Task was cancelled") }
+        val result = repo.firebaseThen(SignInMethod.GOOGLE) { throw CancellationException("Task was cancelled") }
 
         assertTrue(result.isFailure)
         assertEquals("Task was cancelled", result.exceptionOrNull()?.message)
@@ -78,7 +79,7 @@ class AuthCancellationTest {
     fun `an ordinary sign-in failure keeps its cause`() = runBlocking {
         val boom = IllegalStateException("network down")
 
-        val result = repo.firebaseThen("google") { throw boom }
+        val result = repo.firebaseThen(SignInMethod.GOOGLE) { throw boom }
 
         assertEquals("network down", result.exceptionOrNull()?.message)
         assertEquals(boom, result.exceptionOrNull()?.cause)

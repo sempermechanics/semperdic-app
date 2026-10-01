@@ -5,6 +5,7 @@ import androidx.annotation.AnyThread
 import androidx.annotation.WorkerThread
 import com.indicvision.semper.data.session.CacheJanitor
 import com.indicvision.semper.util.AtomicFiles
+import com.indicvision.semper.util.writeVia
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -86,9 +87,7 @@ class WizardDraft(private val dir: File) {
             if (bytes == null) {
                 target.delete()
             } else {
-                val tmp = File(dir, "$name.tmp")
-                tmp.writeBytes(bytes)
-                AtomicFiles.promote(tmp, target)
+                AtomicFiles.writeVia(target, tmp = File(dir, "$name.tmp")) { it.writeBytes(bytes) }
             }
             File(dir, MARKER).writeText(System.currentTimeMillis().toString())
         } catch (e: IOException) {
