@@ -37,6 +37,7 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.MainThread
+import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
@@ -49,12 +50,13 @@ import com.indicvision.semper.data.LicenseEntitlements
 import com.indicvision.semper.data.SessionPaths
 import com.indicvision.semper.imaging.BitmapDecode
 import com.indicvision.semper.report.ReportBuilder
-import com.indicvision.semper.report.ReportData
 import com.indicvision.semper.report.ReportImageNames
+import com.indicvision.semper.report.RoiData
 import com.indicvision.semper.report.VisualizationEngine
 import com.indicvision.semper.ui.common.CrispToast
 import com.indicvision.semper.ui.common.FaqRedirect
 import com.indicvision.semper.ui.common.Insets
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -109,8 +111,14 @@ class ResultViewerActivity : AppCompatActivity() {
     internal lateinit var shareBanner: com.indicvision.semper.ui.common.TransferBannerController
     private val chromeHideDelayMs = 2_500L
 
+    /** Shows the running exports, which live in [viewerVm] and outlive this screen's rotations. */
+    internal lateinit var shareExports: ShareExportUi
+
     /** Stashed while the SAF save-as picker is open for a slow share export. */
     internal var pendingShareKind: String? = null
+
+    /** Run once the frame set is read; see [whenFrameSetLoaded]. */
+    private val afterFrameSet = mutableListOf<() -> Unit>()
 
     private val createShareDocument = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -119,7 +127,23 @@ class ResultViewerActivity : AppCompatActivity() {
         pendingShareKind = null
         val uri = result.data?.data
         if (result.resultCode != RESULT_OK || uri == null || kind == null) return@registerForActivityResult
+        viewerVm.setPendingSave(kind, uri)
+        startPendingSave()
+    }
+
+    /**
+     * Starts the ViewModel's pending save-as export once the frames it covers
+     * are known. Taking it clears it, so a viewer recreated after the export
+     * started does not start it again.
+     */
+    private fun startPendingSave() = whenFrameSetLoaded {
+        val (kind, uri) = viewerVm.takePendingSave() ?: return@whenFrameSetLoaded
         ShareCenter(this).writeKindToUri(kind, uri)
+    }
+
+    /** Runs [action] now if the frame set is read, else right after [onFrameSetRead]. */
+    private fun whenFrameSetLoaded(action: () -> Unit) {
+        if (frameSetLoaded) action() else afterFrameSet += action
     }
 
     private lateinit var inspect: ViewerInspectHelper
@@ -220,7 +244,8 @@ class ResultViewerActivity : AppCompatActivity() {
     private var currentHeatmapMin = 0f
     private var currentHeatmapMax = 0f
 
-    private val customBoundsMap = mutableMapOf<Int, Pair<Float, Float>>()
+    /** Fixed colour scales per field; in the ViewModel so a rotation keeps them. */
+    private val customBoundsMap: MutableMap<Int, Pair<Float, Float>> get() = viewerVm.customBounds
 
     private lateinit var etFrameNumber: EditText
     private lateinit var tvFrameTotal: TextView
@@ -288,6 +313,8 @@ class ResultViewerActivity : AppCompatActivity() {
         shareBanner = com.indicvision.semper.ui.common.TransferBannerController(
             findViewById(R.id.transferBannerRoot),
         )
+        // Re-attaches any export a rotation left running.
+        shareExports = ShareExportUi(this, viewerVm.exports).also { it.attach() }
 
         Insets.padTop(findViewById(R.id.viewerTopStack))
         // Lifted, not padded, above the keyboard: the image is fitted to the
@@ -320,6 +347,9 @@ class ResultViewerActivity : AppCompatActivity() {
             // Sweeps never use the summary slot (combinations are not a time series).
             showingSummary = args.startFrame == null
         }
+        // A save-as picked before the last viewer had listed its frames (a
+        // rotation, or process death) waits in the ViewModel for this one.
+        if (viewerVm.hasPendingSave) startPendingSave()
 
         imgW = args.imgW
         imgH = args.imgH
@@ -338,60 +368,23 @@ class ResultViewerActivity : AppCompatActivity() {
         roiH = args.roiH
 
         val refPath = args.refPath.ifBlank { null }
-        if ((imgW <= 0 || imgH <= 0) && refPath != null) {
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(refPath, bounds)
-            if (bounds.outWidth > 0 && bounds.outHeight > 0) {
-                imgW = bounds.outWidth
-                imgH = bounds.outHeight
-            }
-        }
-        // True sensor dims stay on the intent for math / probe / export; the
-        // on-screen bitmap is decoded off-main at ImageView scale.
-        imgMain.setTrueImageDimensions(imgW, imgH)
-        updateHeatmapFitBounds(data = null)
-        if (refPath != null) {
-            decodeReferenceForDisplay(refPath)
-        }
-
-        val batchDirPath = args.batchDirPath
         originalDefNames = args.frameNames
         refImagePath = refPath
-        // Prefer the raw deformed originals persisted in the session dir (survive
-        // reopen/eviction); fall back to the just-analysed session's temp paths.
-        val rawDeformedDir = batchDirPath?.let { File(it, SessionPaths.RAW_DEFORMED_SUBDIR) }
-        defImagePaths = rawDeformedDir?.takeIf { it.isDirectory }
-            ?.listFiles()?.sortedBy { it.name }?.map { it.absolutePath }
-            ?: args.defFilePaths
-
-        if (batchDirPath != null) {
-            val dir = File(batchDirPath)
-            if (dir.exists() && dir.isDirectory) {
-                batchFiles = dir.listFiles { file -> file.extension == "dat" }?.sortedBy { it.name } ?: emptyList()
-                plannedFrames = SessionPaths.plannedFrameIndices(batchFiles)
-                maxDatBytes = batchFiles.maxOfOrNull { it.length() } ?: 0L
-            }
-        }
+        // Every writer puts the image size on the Intent; only an old one makes
+        // the reference's header be read for it, off the main thread below.
+        val dimsKnown = imgW > 0 && imgH > 0
+        if (dimsKnown) showReference(refPath)
 
         summary = ViewerSummaryHelper(this)
 
-        if (batchFiles.isNotEmpty()) {
-            // A START_FRAME (or restored index) past the batch would load nothing.
-            currentFrameIndex = currentFrameIndex.coerceIn(0, batchFiles.lastIndex)
-            tvFrameTotal.text = getString(R.string.frame_total_fmt, batchFiles.size)
-            loadFrameData(currentFrameIndex)
-            // Summary GIF / share animations are single-setting only.
-            if (!isSweep && batchFiles.size > 1) summary.start()
-            if (showingSummary && !isSweep) {
-                enterSummary()
-            } else {
-                showingSummary = false
-                updateNavButtons()
-                bumpChrome()
-            }
-        } else {
-            showingSummary = false
-            FaqRedirect.snackbar(this, R.string.no_batch_data, R.string.url_faq_no_batch_data)
+        // The directory listings, and a stat per frame, used to run here on the
+        // main thread on every open. The first frame (and, with it, everything
+        // the batch drives) starts once they are read, as it did before.
+        val knownW = imgW
+        val knownH = imgH
+        lifecycleScope.launch {
+            val set = withContext(frameSetDispatcher) { readFrameSet(refPath, knownW, knownH) }
+            onFrameSetRead(set, refPath, dimsKnown)
         }
 
         btnPrevFrame.setOnClickListener {
@@ -449,6 +442,105 @@ class ResultViewerActivity : AppCompatActivity() {
             inspect.refreshCrosshairs()
             bumpChrome()
         }
+    }
+
+    /** What [onCreate] needs from disk before the first frame can load; see [readFrameSet]. */
+    private class FrameSet(
+        val imgW: Int,
+        val imgH: Int,
+        val defImagePaths: List<String>,
+        val batchFiles: List<File>,
+        val plannedFrames: List<Int>,
+        val maxDatBytes: Long,
+    )
+
+    /** True once [onFrameSetRead] has run: [batchFiles] and the rest are final. */
+    internal var frameSetLoaded = false
+        private set
+
+    /** Where [readFrameSet] runs. A test holds it to see what onCreate does without it. */
+    @VisibleForTesting
+    internal var frameSetDispatcher: CoroutineDispatcher = Dispatchers.IO
+
+    /**
+     * Reads the batch listing, the deformed originals, each frame's size and (for an
+     * Intent without it) the reference's dimensions. Disk only — call it off the
+     * main thread.
+     */
+    private fun readFrameSet(refPath: String?, knownW: Int, knownH: Int): FrameSet {
+        var w = knownW
+        var h = knownH
+        if ((w <= 0 || h <= 0) && refPath != null) {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(refPath, bounds)
+            if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                w = bounds.outWidth
+                h = bounds.outHeight
+            }
+        }
+        val batchDirPath = args.batchDirPath
+        // Prefer the raw deformed originals persisted in the session dir (survive
+        // reopen/eviction); fall back to the just-analysed session's temp paths.
+        val rawDeformedDir = batchDirPath?.let { File(it, SessionPaths.RAW_DEFORMED_SUBDIR) }
+        val defPaths = rawDeformedDir?.takeIf { it.isDirectory }
+            ?.listFiles()?.sortedBy { it.name }?.map { it.absolutePath }
+            ?: args.defFilePaths
+        val dir = batchDirPath?.let { File(it) }?.takeIf { it.isDirectory }
+        val files = dir?.listFiles { file -> file.extension == "dat" }?.sortedBy { it.name }.orEmpty()
+        return FrameSet(
+            imgW = w,
+            imgH = h,
+            defImagePaths = defPaths,
+            batchFiles = files,
+            plannedFrames = SessionPaths.plannedFrameIndices(files),
+            // Once, here: the prefetch heap guard used to stat() every file per load.
+            maxDatBytes = files.maxOfOrNull { it.length() } ?: 0L,
+        )
+    }
+
+    /** Puts the reference on screen at its true dimensions (decoded off-main, display size). */
+    private fun showReference(refPath: String?) {
+        // True sensor dims stay on the intent for math / probe / export; the
+        // on-screen bitmap is decoded off-main at ImageView scale.
+        imgMain.setTrueImageDimensions(imgW, imgH)
+        updateHeatmapFitBounds(data = null)
+        if (refPath != null) {
+            decodeReferenceForDisplay(refPath)
+        }
+    }
+
+    /** The rest of [onCreate], once [readFrameSet] is back: open the batch on its first frame or summary. */
+    private fun onFrameSetRead(set: FrameSet, refPath: String?, referenceShownAlready: Boolean) {
+        imgW = set.imgW
+        imgH = set.imgH
+        if (!referenceShownAlready) showReference(refPath)
+        defImagePaths = set.defImagePaths
+        batchFiles = set.batchFiles
+        plannedFrames = set.plannedFrames
+        maxDatBytes = set.maxDatBytes
+        frameSetLoaded = true
+
+        if (batchFiles.isNotEmpty()) {
+            // A START_FRAME (or restored index) past the batch would load nothing.
+            currentFrameIndex = currentFrameIndex.coerceIn(0, batchFiles.lastIndex)
+            tvFrameTotal.text = getString(R.string.frame_total_fmt, batchFiles.size)
+            loadFrameData(currentFrameIndex)
+            // Summary GIF / share animations are single-setting only.
+            if (!isSweep && batchFiles.size > 1) summary.start()
+            if (showingSummary && !isSweep) {
+                enterSummary()
+            } else {
+                showingSummary = false
+                updateNavButtons()
+                bumpChrome()
+            }
+        } else {
+            showingSummary = false
+            FaqRedirect.snackbar(this, R.string.no_batch_data, R.string.url_faq_no_batch_data)
+        }
+        val waiting = afterFrameSet.toList()
+        afterFrameSet.clear()
+        waiting.forEach { it() }
     }
 
     /**
@@ -606,6 +698,8 @@ class ResultViewerActivity : AppCompatActivity() {
             btnFieldFab.animate().cancel()
             layoutColorScale.animate().cancel()
         }
+        // The exports themselves run on in the ViewModel; only their dialogs go.
+        if (::shareExports.isInitialized) shareExports.detach()
         loadFrameJob?.cancel()
         visualizationJob?.cancel()
         scrubDebounceJob?.cancel()
@@ -1092,11 +1186,21 @@ class ResultViewerActivity : AppCompatActivity() {
         isGeneratingHeatmap = false
     }
 
-    private fun buildReportData(): ReportData? =
-        rawData?.let { ViewerReportFactory.buildReportData(this, currentFrameIndex, it) }
-
-    private fun buildReportData(frameIndex: Int, data: FloatArray): ReportData? =
-        ViewerReportFactory.buildReportData(this, frameIndex, data)
+    /** What a report page reads from this viewer, as plain data an export can keep. */
+    private fun reportSource(): ViewerReportFactory.Source = ViewerReportFactory.Source(
+        args = args,
+        imgW = imgW,
+        imgH = imgH,
+        baseStep = baseStep,
+        sweepSteps = sweepSteps,
+        sweepSubsets = sweepSubsets,
+        sweepStrainWins = sweepStrainWins,
+        roi = RoiData(roiX, roiY, roiW, roiH),
+        frameNames = originalDefNames,
+        plannedFrames = plannedFrames,
+        defImagePaths = defImagePaths,
+        displayBase = cachedBaseImage,
+    )
 
     /**
      * The planned frame behind the [position]-th `.dat` on disk. A frame the
@@ -1121,16 +1225,15 @@ class ResultViewerActivity : AppCompatActivity() {
      * keeps the user's own file names and sorts them alphabetically, not in
      * frame order.
      */
-    internal fun deformedImagePathAt(position: Int): String? {
-        if (isSweep) return defImagePaths.firstOrNull()
-        val planned = plannedFrameIndex(position)
-        val rawDir = args.batchDirPath?.let { File(it, SessionPaths.RAW_DEFORMED_SUBDIR) }
-        val persisted = originalDefNames.getOrNull(planned)?.let { name -> rawDir?.let { File(it, name) } }
-        return persisted?.takeIf { it.isFile }?.absolutePath
-            ?: args.defFilePaths.getOrNull(planned)?.takeIf { File(it).isFile }
-    }
+    internal fun deformedImagePathAt(position: Int): String? =
+        ViewerReportFactory.deformedImagePath(
+            args,
+            isSweep,
+            defImagePaths,
+            originalDefNames,
+            plannedFrameIndex(position),
+        )
 
-    /** Everything ShareCenter needs, captured from the viewer's state. */
     /**
      * A filename-safe base for exports, drawn from the specimen/reference name so
      * shared files read like "IMG_0768_report.pdf" instead of a generic prefix.
@@ -1165,8 +1268,14 @@ class ResultViewerActivity : AppCompatActivity() {
      */
     internal val args: ViewerArgs by lazy { ViewerArgs.from(intent) { sessionRecord } }
 
+    /**
+     * Everything an export needs, or null before the frame set is read or when
+     * there are no frames. The frame on screen may still be loading ([rawData]
+     * null): only the photo kinds need it, and they read it from disk then.
+     */
     internal fun buildShareSnapshot(): ShareCenter.Snapshot? {
-        val data = rawData ?: return null
+        if (!frameSetLoaded || batchFiles.isEmpty()) return null
+        val data = rawData
         // Snapshot can open with ref path alone while display decode is still in flight.
         val base = cachedBaseImage
         val summaryHelper = summary
@@ -1189,8 +1298,13 @@ class ResultViewerActivity : AppCompatActivity() {
             refImagePath = refImagePath,
             defImagePaths = defImagePaths,
             summary = if (isSweep) null else summaryHelper.animation,
-            summaryBounds = { index -> if (isSweep) null else summaryHelper.boundsFor(index) },
-            buildReportAt = { index, frameData -> buildReportData(index, frameData) },
+            summaryBounds = if (isSweep) {
+                emptyMap()
+            } else {
+                SummaryAnimation.FIELDS.mapNotNull { (_, index) -> summaryHelper.boundsFor(index)?.let { index to it } }
+                    .toMap()
+            },
+            reportSource = reportSource(),
             referenceName = args.refName,
             strainMethod = args.strainMethod,
             subset = args.subsetSize,

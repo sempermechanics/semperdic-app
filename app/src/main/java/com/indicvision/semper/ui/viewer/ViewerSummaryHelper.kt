@@ -5,14 +5,17 @@
 
 package com.indicvision.semper.ui.viewer
 
+import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.graphics.drawable.Animatable
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.view.View
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
@@ -56,14 +59,20 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
     var isShowing: Boolean = false
         private set
 
-    /** Shared with the share sheet, so both build into the same cached files. */
+    /**
+     * Shared with the share sheet, so both build into the same cached files.
+     * Holds plain values only: an export job keeps it past a rotation, so it
+     * must not reach back into this viewer.
+     */
     internal val animation: SummaryAnimation by lazy {
+        val sweepSteps = host.sweepSteps
+        val baseStep = host.baseStep
         SummaryAnimation(
             SummaryAnimation.Spec(
                 batchFiles = host.summaryBatchFiles(),
                 imgW = host.imgW,
                 imgH = host.imgH,
-                stepAt = { index -> host.sweepSteps?.getOrNull(index) ?: host.baseStep },
+                stepAt = { index -> sweepSteps?.getOrNull(index) ?: baseStep },
                 outputDir = CacheJanitor.shareDir(host.cacheDir),
                 backgroundColor = ContextCompat.getColor(host, R.color.viewer_canvas),
                 fitBounds = host.summaryFitBounds(),
@@ -202,33 +211,42 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
                 showStatus(host.getString(R.string.summary_failed))
                 return@launch
             }
+            val decoded = decodeForDisplay(file)
+            // The decode suspended: the field or the slot may have moved on.
+            if (host.currentDataIndex != dataIndex || !isShowing) return@launch
             shownField = dataIndex
-            display(file)
+            display(decoded)
             host.refreshSummaryScaleLabels(dataIndex, bounds)
         }
     }
 
-    private fun display(file: File) {
+    /**
+     * The GIF as something the slot can show, decoded off the main thread: an
+     * animated drawable from API 28, else its first frame. Null when it does not
+     * decode.
+     */
+    private suspend fun decodeForDisplay(file: File): Drawable? = withContext(Dispatchers.IO) {
         // AnimatedImageDrawable arrived in API 28; below that the same GIF still
         // builds and shares, it just does not move on screen.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val drawable = runCatching {
-                ImageDecoder.decodeDrawable(ImageDecoder.createSource(file))
-            }.getOrElse {
-                Timber.w(it, "Could not decode the summary animation")
-                showStatus(host.getString(R.string.summary_failed))
-                return
-            }
-            image.setImageDrawable(drawable)
+            runCatching { ImageDecoder.decodeDrawable(ImageDecoder.createSource(file)) }
+                .onFailure { Timber.w(it, "Could not decode the summary animation") }
+                .getOrNull()
+        } else {
+            runCatching { BitmapFactory.decodeFile(file.path) }.getOrNull()?.toDrawable(host.resources)
+        }
+    }
+
+    private fun display(drawable: Drawable?) {
+        if (drawable == null) {
+            showStatus(host.getString(R.string.summary_failed))
+            return
+        }
+        image.setImageDrawable(drawable)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             statusPanel.isVisible = false
             (drawable as? Animatable)?.start()
         } else {
-            val still = runCatching { android.graphics.BitmapFactory.decodeFile(file.path) }.getOrNull()
-            if (still == null) {
-                showStatus(host.getString(R.string.summary_failed))
-                return
-            }
-            image.setImageBitmap(still)
             showStatus(host.getString(R.string.summary_needs_android_9))
         }
     }

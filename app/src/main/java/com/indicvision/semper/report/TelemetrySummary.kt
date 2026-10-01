@@ -1,6 +1,7 @@
 package com.indicvision.semper.report
 
 import com.indicvision.semper.DicResult
+import java.util.Locale
 
 /** One frame's accepted-point ZNSSD: the mean, and how many points it is over. */
 internal data class ZnssdFrame(val mean: Float, val points: Int) {
@@ -36,7 +37,28 @@ internal data class TelemetrySummary(
     /** A note above the tables when their numbers are not all the document's; null when they are. */
     val scopeNote: String?,
 ) {
+    /**
+     * The telemetry page's quality table. Formatted in [Locale.US], like every
+     * other number in the report: the default locale printed "12,5" on a German
+     * phone beside "0.00123" from [ReportBuilder.formatMetric].
+     */
+    fun qualityRows(stats: EngineStats): List<List<String>> = listOf(
+        listOf(avgZnssdLabel, "%.5f".format(Locale.US, avgZnssd)),
+        listOf(convergenceLabel, "%.2f %%".format(Locale.US, stats.convergencePercent)),
+        listOf("Average ICGN Iterations", "%.2f".format(Locale.US, stats.avgIcgnIterations)),
+    )
+
     companion object {
+        /** The telemetry page's wall-time table, in [Locale.US] (see [qualityRows]). */
+        fun timingRows(stats: EngineStats): List<List<String>> = listOf(
+            listOf("AKAZE + RANSAC Phase", "%.1f ms".format(Locale.US, stats.akazeRansacMs)),
+            listOf("Hessian Pre-Pass", "%.1f ms".format(Locale.US, stats.hessianPrepassMs)),
+            listOf("Delaunay Mesh Phase", "%.1f ms".format(Locale.US, stats.delaunayMs)),
+            listOf("Strain Calculation Phase", "%.1f ms".format(Locale.US, stats.strainMs)),
+            listOf("TOTAL WALL TIME", "%.1f ms".format(Locale.US, stats.wallTimeMs)),
+            listOf("Average Throughput", "%.2f pts/ms".format(Locale.US, stats.avgThroughputPtsPerMs)),
+        )
+
         /** A single-frame report: every number is that frame's analysis. */
         fun single(data: ReportData) = TelemetrySummary(
             avgZnssdLabel = "Global Average ZNSSD (Correlation)",

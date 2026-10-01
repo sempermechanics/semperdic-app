@@ -1,17 +1,17 @@
 package com.indicvision.semper.ui.viewer
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.annotation.MainThread
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.os.BundleCompat
 import androidx.lifecycle.lifecycleScope
 import com.indicvision.semper.R
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import timber.log.Timber
 import java.io.File
 
 /**
@@ -21,35 +21,28 @@ import java.io.File
 @MainThread
 class SaveExportActivity : AppCompatActivity() {
 
+    private val copier: SaveExportViewModel by viewModels()
+
     private var pendingFile: File? = null
+
+    /** True while the document picker is open; its result may reach a recreated instance. */
+    private var awaitingPicker = false
+
+    /** The picked document, kept so a rotation mid-copy can still finish the copy. */
+    private var destUri: Uri? = null
 
     private val createDocument = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
+        awaitingPicker = false
         val uri = result.data?.data
         val file = pendingFile?.takeIf { it.exists() }
         if (result.resultCode != RESULT_OK || uri == null || file == null) {
             finish()
             return@registerForActivityResult
         }
-        lifecycleScope.launch {
-            val ok = withContext(Dispatchers.IO) {
-                runCatching {
-                    // Treat the copy as successful only if bytes actually landed —
-                    // an opened-but-empty stream shouldn't report "Saved".
-                    val copied = contentResolver.openOutputStream(uri)?.use { out ->
-                        file.inputStream().use { it.copyTo(out) }
-                    } ?: 0L
-                    copied > 0L
-                }.onFailure { Timber.e(it, "Save to Files failed") }.getOrDefault(false)
-            }
-            Toast.makeText(
-                this@SaveExportActivity,
-                if (ok) R.string.save_success else R.string.save_failed,
-                Toast.LENGTH_LONG,
-            ).show()
-            finish()
-        }
+        destUri = uri
+        copyInto(uri, file)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,18 +56,64 @@ class SaveExportActivity : AppCompatActivity() {
             return
         }
         pendingFile = file
-        createDocument.launch(
-            Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = mime
-                putExtra(Intent.EXTRA_TITLE, file.name)
-            },
-        )
+        if (savedInstanceState == null) {
+            awaitingPicker = true
+            createDocument.launch(
+                Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = mime
+                    putExtra(Intent.EXTRA_TITLE, file.name)
+                },
+            )
+            return
+        }
+        // Recreated (a rotation, or the process came back). Launching the picker
+        // again would stack a second one over the first.
+        awaitingPicker = savedInstanceState.getBoolean(STATE_AWAITING_PICKER)
+        val uri = BundleCompat.getParcelable(savedInstanceState, STATE_DEST_URI, Uri::class.java)
+        when {
+            // The picker still open answers this instance.
+            awaitingPicker -> Unit
+            // A copy was started: wait on it (still running after a rotation),
+            // or run it again after process death, rather than leave this
+            // transparent proxy over the app doing nothing.
+            uri != null -> {
+                destUri = uri
+                copyInto(uri, file)
+            }
+            else -> finish()
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(STATE_AWAITING_PICKER, awaitingPicker)
+        destUri?.let { outState.putParcelable(STATE_DEST_URI, it) }
+    }
+
+    /**
+     * Waits on the copy into [uri], then reports and finishes. The copy itself
+     * runs in [SaveExportViewModel], so an instance recreated mid-copy waits on
+     * the same one rather than starting another into the same document.
+     */
+    private fun copyInto(uri: Uri, file: File) {
+        val copy = copier.copyOnce(uri, file)
+        lifecycleScope.launch {
+            val ok = copy.await()
+            Toast.makeText(
+                this@SaveExportActivity,
+                if (ok) R.string.save_success else R.string.save_failed,
+                Toast.LENGTH_LONG,
+            ).show()
+            finish()
+        }
     }
 
     companion object {
         const val EXTRA_PATH = "save_export_path"
         const val EXTRA_MIME = "save_export_mime"
+        private const val STATE_AWAITING_PICKER = "save_export_awaiting_picker"
+        private const val STATE_DEST_URI = "save_export_dest_uri"
 
         fun intent(host: android.content.Context, file: File, mime: String): Intent =
             Intent(host, SaveExportActivity::class.java).apply {

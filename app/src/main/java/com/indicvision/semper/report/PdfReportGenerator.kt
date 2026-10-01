@@ -89,9 +89,13 @@ object PdfReportGenerator {
                 if (telemetrySource == null) telemetrySource = data
                 znssdFrames += ZnssdFrame(data.globalAvgZnssd, data.znssdAcceptedPoints)
 
-                drawCoverPage(layout, data, frameTitle(index), frameCount)
-                drawFieldPages(layout, data)
-                recycleImages(data)
+                try {
+                    drawCoverPage(layout, data, frameTitle(index), frameCount)
+                    drawFieldPages(layout, data)
+                } finally {
+                    // A page that fails to draw still frees this frame's images.
+                    recycleImages(data)
+                }
             }
 
             telemetrySource?.let {
@@ -147,6 +151,10 @@ object PdfReportGenerator {
         } catch (e: Exception) {
             emit(Progress.Error(e))
         } finally {
+            // PdfDocument.close() throws IllegalStateException while a page is
+            // unfinished, so a draw that failed mid-page would otherwise replace
+            // the Error (or a cancellation) with that throw and skip the close.
+            layout.finishCurrentPage()
             pdfDocument.close()
             recycleLogo(brandLogo)
         }
@@ -261,11 +269,7 @@ object PdfReportGenerator {
         layout.drawSectionHeader("2. Optimization & Quality")
         layout.drawTable(
             headers = listOf("Metric", "Value"),
-            rows = listOf(
-                listOf(summary.avgZnssdLabel, "%.5f".format(summary.avgZnssd)),
-                listOf(summary.convergenceLabel, "%.2f %%".format(stats.convergencePercent)),
-                listOf("Average ICGN Iterations", "%.2f".format(stats.avgIcgnIterations)),
-            ),
+            rows = summary.qualityRows(stats),
             colWeights = listOf(0.7f, 0.3f),
         )
 
@@ -281,14 +285,7 @@ object PdfReportGenerator {
         layout.drawSectionHeader("4. Hardware Profiling (Wall Time)")
         layout.drawTable(
             headers = listOf("Execution Phase", "Time (ms)"),
-            rows = listOf(
-                listOf("AKAZE + RANSAC Phase", "%.1f ms".format(stats.akazeRansacMs)),
-                listOf("Hessian Pre-Pass", "%.1f ms".format(stats.hessianPrepassMs)),
-                listOf("Delaunay Mesh Phase", "%.1f ms".format(stats.delaunayMs)),
-                listOf("Strain Calculation Phase", "%.1f ms".format(stats.strainMs)),
-                listOf("TOTAL WALL TIME", "%.1f ms".format(stats.wallTimeMs)),
-                listOf("Average Throughput", "%.2f pts/ms".format(stats.avgThroughputPtsPerMs)),
-            ),
+            rows = TelemetrySummary.timingRows(stats),
             colWeights = listOf(0.6f, 0.4f),
         )
     }

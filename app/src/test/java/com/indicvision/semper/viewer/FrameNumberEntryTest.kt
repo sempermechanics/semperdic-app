@@ -4,6 +4,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import com.indicvision.semper.R
+import com.indicvision.semper.fixtures.idleUntil
 import com.indicvision.semper.fixtures.launchViewer
 import com.indicvision.semper.fixtures.viewerArgs
 import com.indicvision.semper.fixtures.writeGridBatch
@@ -48,8 +49,9 @@ class FrameNumberEntryTest {
     private fun viewer(): ResultViewerActivity {
         // viewerArgs opens on a frame rather than the summary, which is what
         // the frame field is about.
+        // The batch is listed off the main thread, so wait for it rather than one idle.
         return launchViewer(viewerArgs(batchDir, GRID, STEP)).also {
-            shadowOf(it.mainLooper).idle()
+            idleUntil("the viewer") { it.frameSetLoaded }
         }
     }
 

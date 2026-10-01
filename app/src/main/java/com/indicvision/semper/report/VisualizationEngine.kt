@@ -91,6 +91,13 @@ object VisualizationEngine {
     fun gifPalette(background: Int): IntArray =
         IntArray(JET_LUT.size) { if (it == TRANSPARENT_INDEX) background else JET_LUT[it] }
 
+    /**
+     * The colours values are mapped to, lowest value first: every [JET_LUT] slot
+     * but [TRANSPARENT_INDEX]. Evenly spaced gradient stops over these draw a
+     * colour bar that matches the map.
+     */
+    fun rampColors(): IntArray = JET_LUT.copyOf(LAST_COLOR + 1)
+
     // PRECOMPUTED LOOKUP TABLE: Jet Colormap (256 colors). Built on first use so
     // the value-range helpers stay callable without an Android graphics stack.
     private val JET_LUT: IntArray by lazy {

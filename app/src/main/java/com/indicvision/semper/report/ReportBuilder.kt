@@ -99,10 +99,13 @@ object ReportBuilder {
         val newHeight = (height * ratio).toInt()
 
         val scaled = this.scale(newWidth, newHeight)
-        val strippedBmp = createBitmap(newWidth, newHeight, Bitmap.Config.RGB_565)
-        Canvas(strippedBmp).drawBitmap(scaled, 0f, 0f, Paint(Paint.FILTER_BITMAP_FLAG))
-        if (scaled != this) scaled.recycle()
-        return strippedBmp
+        try {
+            val strippedBmp = createBitmap(newWidth, newHeight, Bitmap.Config.RGB_565)
+            Canvas(strippedBmp).drawBitmap(scaled, 0f, 0f, Paint(Paint.FILTER_BITMAP_FLAG))
+            return strippedBmp
+        } finally {
+            if (scaled != this) scaled.recycle()
+        }
     }
 
     /** Percentile-clamped global max/min indices for one field column. */
@@ -289,24 +292,35 @@ object ReportBuilder {
             // Compose at the capped size, then downscale for the PDF. The composite is
             // a throwaway — compressForPdf() returns a *new* small bitmap, so the
             // original must be recycled here or we leak one ARGB_8888 bitmap per field.
-            val composite = createBitmap(renderW, renderH, Bitmap.Config.ARGB_8888).also { bmp ->
-                val tempCanvas = Canvas(bmp)
-                // baseImg may be larger than the capped composite; scale it in.
-                tempCanvas.drawBitmap(baseImg, null, Rect(0, 0, renderW, renderH), Paint(Paint.FILTER_BITMAP_FLAG))
-                tempCanvas.drawBitmap(heatmapBmp, 0f, 0f, Paint().apply { alpha = 180 })
-                bakeAnnotationsToCanvas(
-                    tempCanvas, renderW, renderH, actualMin, actualMax,
-                    FIELD_KEYS[fieldIndex], unit, extrema.maxIdx, extrema.minIdx, data,
-                    dataIndex = dataIndex,
-                    drawMinMarker = params.drawMinMarker,
-                    coordScale = renderScale,
-                    imageName = params.deformedImageName,
-                )
+            // Both full-size bitmaps are freed in finally: a draw that throws must not
+            // strand them (up to ~100 MB each before REPORT_MAX_EDGE capped them).
+            val bakedHeatmap = try {
+                val composite = createBitmap(renderW, renderH, Bitmap.Config.ARGB_8888)
+                try {
+                    val tempCanvas = Canvas(composite)
+                    // baseImg may be larger than the capped composite; scale it in.
+                    tempCanvas.drawBitmap(
+                        baseImg,
+                        null,
+                        Rect(0, 0, renderW, renderH),
+                        Paint(Paint.FILTER_BITMAP_FLAG),
+                    )
+                    tempCanvas.drawBitmap(heatmapBmp, 0f, 0f, Paint().apply { alpha = 180 })
+                    bakeAnnotationsToCanvas(
+                        tempCanvas, renderW, renderH, actualMin, actualMax,
+                        FIELD_KEYS[fieldIndex], unit, extrema.maxIdx, extrema.minIdx, data,
+                        dataIndex = dataIndex,
+                        drawMinMarker = params.drawMinMarker,
+                        coordScale = renderScale,
+                        imageName = params.deformedImageName,
+                    )
+                    composite.compressForPdf()
+                } finally {
+                    composite.recycle()
+                }
+            } finally {
+                heatmapBmp.recycle()
             }
-            val bakedHeatmap = composite.compressForPdf()
-            composite.recycle()
-
-            heatmapBmp.recycle()
 
             if (isCorrelation) {
                 correlationHeatmap = bakedHeatmap
@@ -424,21 +438,24 @@ object ReportBuilder {
         val barRight = barLeft + barWidth
         val barBottom = barTop + barHeight
 
-        val jetColors = intArrayOf(
-            Color.rgb(127, 0, 0),
-            Color.rgb(255, 0, 0),
-            Color.rgb(255, 255, 0),
-            Color.rgb(0, 255, 255),
-            Color.rgb(0, 0, 255),
-            Color.rgb(0, 0, 127),
-        )
+        // The map's own ramp, lowest value at the bottom. A six-stop jet drawn here
+        // before put pure red at 80 % of the scale where the map has it at 87.5 %,
+        // off by up to 83 levels in a channel, so values read off the bar were wrong.
         canvas.drawRect(
             barLeft,
             barTop,
             barRight,
             barBottom,
             Paint().apply {
-                shader = LinearGradient(0f, barTop, 0f, barBottom, jetColors, null, Shader.TileMode.CLAMP)
+                shader = LinearGradient(
+                    0f,
+                    barBottom,
+                    0f,
+                    barTop,
+                    VisualizationEngine.rampColors(),
+                    null,
+                    Shader.TileMode.CLAMP,
+                )
             },
         )
         canvas.drawRect(

@@ -41,6 +41,7 @@ import com.indicvision.semper.R
 import com.indicvision.semper.data.CacheJanitor
 import com.indicvision.semper.data.CoachPrefs
 import com.indicvision.semper.data.ParamClipboard
+import com.indicvision.semper.data.SessionPaths
 import com.indicvision.semper.data.SessionStore
 import com.indicvision.semper.data.SkippedNode
 import com.indicvision.semper.ui.common.CoachMarkController
@@ -102,13 +103,14 @@ class VsgLatticeActivity : AppCompatActivity() {
     }
 
     /**
-     * Line-cut profiles per solved combination, in frame order — one entry per strain
-     * component. The raw `.dat` payload is never retained: at ~1M points a frame is
-     * 32 MB, so holding every frame of a sweep was O(F·n) and could exhaust the heap
-     * on its own. A profile is a single grid row/column (~√n points), so this is
+     * Line-cut profiles per solved combination, keyed by frame index in ascending
+     * order ([sweepFrameProfiles]) — one entry per strain component. A frame that
+     * could not be read is absent. The raw `.dat` payload is never retained: at ~1M
+     * points a frame is 32 MB, so holding every frame of a sweep was O(F·n) and could
+     * exhaust the heap on its own. A profile is a single grid row/column (~√n points), so this is
      * O(F·√n) resident and the decode stays O(n) transient.
      */
-    private var frameProfiles: List<Map<Int, List<Pair<Float, Float>>>> = emptyList()
+    private var frameProfiles: Map<Int, Map<Int, List<Pair<Float, Float>>>> = emptyMap()
 
     /** Solved nodes in lattice order (ascending subset, then window). */
     private var solvedNodes: List<VsgLatticeView.Node> = emptyList()
@@ -425,27 +427,11 @@ class VsgLatticeActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val loaded = withContext(Dispatchers.IO) {
                 val dir = File(batchDirPath)
-                if (!dir.isDirectory) return@withContext emptyList()
+                if (!dir.isDirectory) return@withContext emptyMap()
                 val files = dir.listFiles { file -> file.extension == "dat" }
                     ?.sortedBy { it.name }
-                    ?: return@withContext emptyList()
-                files.mapIndexedNotNull { index, file ->
-                    try {
-                        // Decode → profile → discard, one frame at a time. Only the
-                        // profiles survive the loop, so peak is one frame, not all of them.
-                        val data = DicResult.decodeDatFile(file)
-                        if (data == null) {
-                            Timber.w("Invalid .dat size for %s", file.name)
-                            null
-                        } else {
-                            val step = steps.getOrNull(index)?.coerceAtLeast(1) ?: baseStep
-                            VsgStudy.profileAlong(data, componentsArray, line, step / 2f)
-                        }
-                    } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                        Timber.w(e, "Failed to read %s", file.name)
-                        null
-                    }
-                }
+                    ?: return@withContext emptyMap()
+                sweepFrameProfiles(files, steps, baseStep, componentsArray, line)
             }
             if (loaded.isEmpty()) return@launch
             frameProfiles = loaded
@@ -527,10 +513,10 @@ class VsgLatticeActivity : AppCompatActivity() {
      * one. Reads the profiles computed once at load; no frame is re-scanned per tap.
      */
     private fun buildFrameSeries(component: Int): List<FrameSeries> =
-        frameProfiles.mapIndexedNotNull { index, profiles ->
+        frameProfiles.mapNotNull { (index, profiles) ->
             val node = nodeByFrame[index]
             val points = profiles[component].orEmpty()
-            if (points.isEmpty()) return@mapIndexedNotNull null
+            if (points.isEmpty()) return@mapNotNull null
             val label = if (node != null) {
                 getString(R.string.vsg_lattice_param_labeled_fmt, node.subset, node.step, windowText(node))
             } else {
@@ -772,4 +758,39 @@ class VsgLatticeActivity : AppCompatActivity() {
     private fun openViewer(frameIndex: Int) {
         startActivity(args.copy(startFrame = frameIndex).toIntent(this))
     }
+}
+
+/**
+ * Line-cut profiles of a sweep's `.dat` [files] (sorted by name), keyed by the frame
+ * each was written for: [SessionPaths.frameIndexOf], else its listing position. That
+ * frame index is what the lattice's nodes and the sweep's per-frame [steps] are keyed
+ * by. A frame that cannot be read is left out, rather than closing the gap and moving
+ * every later profile onto the node before it.
+ *
+ * Decode → profile → discard, one frame at a time: only the profiles survive the
+ * loop, so peak is one frame, not all of them.
+ */
+internal fun sweepFrameProfiles(
+    files: List<File>,
+    steps: List<Int>,
+    baseStep: Int,
+    components: IntArray,
+    line: VsgStudy.StudyLine,
+): Map<Int, Map<Int, List<Pair<Float, Float>>>> {
+    val out = sortedMapOf<Int, Map<Int, List<Pair<Float, Float>>>>()
+    files.forEachIndexed { position, file ->
+        val frame = SessionPaths.frameIndexOf(file.name) ?: position
+        try {
+            val data = DicResult.decodeDatFile(file)
+            if (data == null) {
+                Timber.w("Invalid .dat size for %s", file.name)
+            } else {
+                val step = steps.getOrNull(frame)?.coerceAtLeast(1) ?: baseStep
+                out[frame] = VsgStudy.profileAlong(data, components, line, step / 2f)
+            }
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            Timber.w(e, "Failed to read %s", file.name)
+        }
+    }
+    return out
 }

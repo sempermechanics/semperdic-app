@@ -13,10 +13,13 @@ import com.indicvision.semper.report.VisualizationEngine
 import com.indicvision.semper.util.AtomicFiles
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import timber.log.Timber
 import java.io.File
 import java.io.OutputStream
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The result viewer's summary animation: every frame of one field, as a looping
@@ -56,10 +59,29 @@ class SummaryAnimation(private val spec: Spec) {
         val fitBounds: FloatArray? = null,
     )
 
-    /** Bounds a field's GIF on disk was rendered with, so a scale change rebuilds it. */
-    private val builtWith = mutableMapOf<Int, Pair<Float, Float>>()
+    /**
+     * Whose frames a GIF on disk was rendered from. The file names below carry
+     * the field, canvas colour and fit box but not the session, so two sessions'
+     * U animations share a name; the build record has to tell them apart.
+     *
+     * The folder and frame count alone also matched a session whose frames were
+     * re-solved in place (same folder, same count, new fields), so the frames'
+     * newest modification time and total size are part of it too. Those are
+     * disk reads: computed on first use, which is [build]'s, off the main thread.
+     */
+    private val owner: String by lazy {
+        val files = spec.batchFiles
+        val newest = files.maxOfOrNull { it.lastModified() } ?: 0L
+        val bytes = files.sumOf { it.length() }
+        "${files.firstOrNull()?.absoluteFile?.parent.orEmpty()}#${files.size}#$newest#$bytes"
+    }
 
-    /** Resolved once per encode so every frame shares the same crop. */
+    /**
+     * Resolved once per encode so every frame shares the same crop. Builds of
+     * different fields may run at once (the viewer's and the share sheet's);
+     * each resolves the same box, so the race is harmless once published safely.
+     */
+    @Volatile
     private var resolvedFit: FloatArray? = null
 
     fun fileFor(label: String): File =
@@ -81,9 +103,14 @@ class SummaryAnimation(private val spec: Spec) {
         )
     }
 
-    /** True when [fileFor] is on disk and was built against [bounds]. */
-    fun isBuilt(dataIndex: Int, label: String, bounds: Pair<Float, Float>): Boolean =
-        builtWith[dataIndex] == bounds && fileFor(label).isFile
+    /**
+     * True when [fileFor] is on disk and was built from these frames against
+     * [bounds]. Reads the frames' file stats on first use: off the main thread.
+     */
+    fun isBuilt(dataIndex: Int, label: String, bounds: Pair<Float, Float>): Boolean {
+        val out = fileFor(label)
+        return builds[out.absolutePath] == Built(owner, dataIndex, bounds) && out.isFile
+    }
 
     /**
      * Renders every frame of one field into a looping GIF and returns the file.
@@ -91,8 +118,14 @@ class SummaryAnimation(private val spec: Spec) {
      * bounds; the colour scale is baked into the pixels, so it cannot be reused
      * across scales.
      *
+     * The viewer's summary slot and the share sheet both call this, on
+     * background threads, for the same file. One build per output file runs at
+     * a time: a second caller waits, then takes the file the first one wrote
+     * rather than encoding into the same `.part` underneath it.
+     *
      * @param onProgress called with (framesDone, frameCount) on the calling
-     *   dispatcher — this runs off the main thread.
+     *   dispatcher — this runs off the main thread. A caller that waited and
+     *   reused the file gets no progress calls.
      */
     suspend fun build(
         dataIndex: Int,
@@ -104,7 +137,20 @@ class SummaryAnimation(private val spec: Spec) {
         if (frameCount == 0) return null
         val out = fileFor(label)
         if (isBuilt(dataIndex, label, bounds)) return out
+        return lockFor(out).withLock {
+            // The build this call waited on may have written exactly this file.
+            if (isBuilt(dataIndex, label, bounds)) out else encodeLocked(out, dataIndex, label, bounds, onProgress)
+        }
+    }
 
+    /** [build]'s encode, run only while holding [lockFor] of [out]. */
+    private suspend fun encodeLocked(
+        out: File,
+        dataIndex: Int,
+        label: String,
+        bounds: Pair<Float, Float>,
+        onProgress: (Int, Int) -> Unit,
+    ): File? {
         // Encode to a sibling first: a cancelled or failed build must never leave
         // a truncated file behind that the next call would treat as cached.
         val partial = AtomicFiles.partOf(out)
@@ -120,12 +166,15 @@ class SummaryAnimation(private val spec: Spec) {
             throw e
         }
 
+        // The old file is about to go: forget it first, so nobody reuses a
+        // record whose file this build is replacing.
+        builds.remove(out.absolutePath)
         out.delete()
         if (!partial.renameTo(out)) {
             partial.delete()
             return null
         }
-        builtWith[dataIndex] = bounds
+        builds[out.absolutePath] = Built(owner, dataIndex, bounds)
         return out
     }
 
@@ -214,7 +263,21 @@ class SummaryAnimation(private val spec: Spec) {
         return HeatmapFit.cropAndScale(plane, spec.imgW, spec.imgH, fit, MAX_EDGE)
     }
 
+    /** What the GIF at a path was rendered from. */
+    private data class Built(val owner: String, val dataIndex: Int, val bounds: Pair<Float, Float>)
+
     companion object {
+        /**
+         * Build records and locks, by output path, for the whole process rather
+         * than one instance: after a rotation the new viewer's instance and the
+         * one an export still holds write the same files, and must neither
+         * interleave in one `.part` nor re-encode what the other just wrote.
+         */
+        private val builds = ConcurrentHashMap<String, Built>()
+        private val locks = ConcurrentHashMap<String, Mutex>()
+
+        private fun lockFor(out: File): Mutex = locks.getOrPut(out.absolutePath) { Mutex() }
+
         /** Long-edge cap for animation frames — small enough to encode fast and share. */
         const val MAX_EDGE = 640
 
