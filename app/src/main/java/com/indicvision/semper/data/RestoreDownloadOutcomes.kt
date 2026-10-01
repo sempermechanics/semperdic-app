@@ -8,8 +8,14 @@ import java.util.zip.ZipException
  *
  * Session.zip streams through API Gateway → Cloud Run → Drive. A gateway /
  * Cloud Run deadline kill often surfaces as HTTP 5xx with an **empty** body
- * (not FastAPI's `{"detail":…}`). Those are retryable with `Range` from the
- * bytes already on disk — same as a mid-stream `IOException`.
+ * (not FastAPI's `{"detail":…}`). Within one download call those are retried
+ * with `Range` from the bytes already on disk — same as a mid-stream
+ * `IOException`. After an attempt that ended normally (success, failure or
+ * retry), the next WorkManager attempt starts the file over: CloudRestore deletes
+ * its temps and their `.part` sidecars on the way out. After process death that
+ * cleanup never ran, so the next attempt's download resumes from the leftover
+ * `.part`; the bundle's sha256 (and a legacy prefix's per-entry CRCs) catch a bad
+ * resume, and `metadata.json` is always fetched fresh.
  */
 object RestoreDownloadOutcomes {
 
@@ -67,7 +73,19 @@ object RestoreDownloadOutcomes {
         return haveBytes == target
     }
 
-    /** Zip or attestation failure — do not WorkManager-retry. */
+    /**
+     * Zip or attestation failure: the bytes are wrong. Never retried, and a bundle
+     * download does not paper over it by packing the phone's copy instead.
+     */
     fun isTerminalCorruptFailure(error: Throwable): Boolean =
         error is ZipException || error is CorruptTransferException
+
+    /**
+     * Whether a restore or bundle-download worker should give up rather than
+     * `Result.retry()`: a corrupt payload ([isTerminalCorruptFailure]) or a backup
+     * that lacks what the transfer needs ([UnrestorableBackupException]). Network
+     * drops, 5xx and a missing sign-in stay retryable.
+     */
+    fun isTerminalFailure(error: Throwable): Boolean =
+        isTerminalCorruptFailure(error) || error is UnrestorableBackupException
 }

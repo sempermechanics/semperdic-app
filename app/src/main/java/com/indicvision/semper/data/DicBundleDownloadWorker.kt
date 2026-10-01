@@ -30,10 +30,30 @@ import java.io.File
  * is picked **before** enqueue so this worker only writes to that location —
  * no Save/Share sheet afterward.
  */
-class DicBundleDownloadWorker(
+class DicBundleDownloadWorker internal constructor(
     context: Context,
     params: WorkerParameters,
+    private val source: BundleSource,
 ) : CoroutineWorker(context, params) {
+
+    /** The constructor WorkManager instantiates by reflection; keep it public. */
+    constructor(context: Context, params: WorkerParameters) : this(context, params, BundleSource.Cloud)
+
+    /** Where the cloud Session.zip comes from; a seam so tests can drive [doWork] without a backend. */
+    internal fun interface BundleSource {
+        suspend fun download(
+            context: Context,
+            cloudSessionId: String,
+            displayName: String,
+            onProgress: suspend (done: Long, total: Long) -> Unit,
+        ): File
+
+        companion object {
+            val Cloud = BundleSource { context, cloudSessionId, displayName, onProgress ->
+                CloudRestore.downloadBundleZip(context, cloudSessionId, displayName, onProgress = onProgress)
+            }
+        }
+    }
 
     override suspend fun getForegroundInfo(): ForegroundInfo =
         TransferNotifications.downloadForeground(applicationContext)
@@ -44,7 +64,7 @@ class DicBundleDownloadWorker(
         val displayName = inputData.getString(KEY_DISPLAY_NAME).orEmpty()
         val localSessionId = inputData.getString(KEY_LOCAL_SESSION_ID).orEmpty()
         val destUri = inputData.getString(KEY_DEST_URI)?.let(Uri::parse)
-            ?: return@withContext Result.failure(workDataOf(DicKeys.DOWNLOAD_ERROR to "no_dest"))
+            ?: return@withContext fail("no_dest")
 
         var staged: File? = null
         var releaseGrant = true
@@ -64,7 +84,7 @@ class DicBundleDownloadWorker(
                     mapOf("kind" to "bundle_download", "reason" to "empty"),
                 )
                 deleteDestDocument(destUri)
-                return@withContext Result.failure(workDataOf(DicKeys.DOWNLOAD_ERROR to "empty"))
+                return@withContext fail("empty")
             }
             if (!copyToDest(staged, destUri)) {
                 SemperAnalytics.event(
@@ -73,7 +93,7 @@ class DicBundleDownloadWorker(
                     mapOf("kind" to "bundle_download", "reason" to "write"),
                 )
                 deleteDestDocument(destUri)
-                return@withContext Result.failure(workDataOf(DicKeys.DOWNLOAD_ERROR to "write"))
+                return@withContext fail("write")
             }
             SemperAnalytics.event(
                 applicationContext,
@@ -104,7 +124,7 @@ class DicBundleDownloadWorker(
                 deleteDestDocument(destUri)
                 // The body, not the message: LicenseErrors parses the `detail` code
                 // out of it to say *why* (demo mode) instead of "check your connection".
-                Result.failure(workDataOf(DicKeys.DOWNLOAD_ERROR to e.body))
+                fail(e.body)
             } else {
                 Timber.w(e, "Bundle download failed; will retry")
                 TransferLog.phase(
@@ -119,16 +139,19 @@ class DicBundleDownloadWorker(
                 Result.retry()
             }
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            if (RestoreDownloadOutcomes.isTerminalCorruptFailure(e)) {
-                Timber.e(e, "Bundle download corrupt — giving up")
-                TransferLog.phase(TransferLog.PhaseFields("bundle_download", "corrupt"))
+            if (RestoreDownloadOutcomes.isTerminalFailure(e)) {
+                // Corrupt bytes, or a backup with nothing to download and no copy on
+                // this phone to pack instead (see downloadOrPack): no retry can help.
+                val reason = if (RestoreDownloadOutcomes.isTerminalCorruptFailure(e)) "corrupt" else "unusable"
+                Timber.e(e, "Bundle download cannot succeed (%s) — giving up", reason)
+                TransferLog.phase(TransferLog.PhaseFields("bundle_download", reason))
                 SemperAnalytics.event(
                     applicationContext,
                     SemperAnalytics.EXPORT_FAILED,
-                    mapOf("kind" to "bundle_download", "reason" to "corrupt"),
+                    mapOf("kind" to "bundle_download", "reason" to reason),
                 )
                 deleteDestDocument(destUri)
-                Result.failure(workDataOf(DicKeys.DOWNLOAD_ERROR to (e.message ?: e.javaClass.simpleName)))
+                fail(e.message ?: e.javaClass.simpleName)
             } else {
                 Timber.w(e, "Bundle download failed; will retry")
                 TransferLog.phase(TransferLog.PhaseFields("bundle_download", "retry"))
@@ -142,9 +165,23 @@ class DicBundleDownloadWorker(
     }
 
     /**
+     * End the work with [DicKeys.DOWNLOAD_ERROR] set to [reason].
+     *
+     * For this worker the value is a **reason code or the backend's raw response
+     * body**, never prose: Settings passes it through `LicenseErrors.downloadMessage`,
+     * which picks the licence / device / gone messages out of a backend `detail`
+     * and shows the generic download failure for anything else. A localised
+     * sentence here would always read as that generic failure.
+     * [DicRestoreWorker] fills the same key the other way round, with display-ready
+     * text its observers toast verbatim; see its `failWith`.
+     */
+    private fun fail(reason: String): Result = Result.failure(workDataOf(DicKeys.DOWNLOAD_ERROR to reason))
+
+    /**
      * Prefer the cloud Session.zip; if that backup has no bundle (legacy) or
      * the transfer fails for a non-transient reason that local packing can
-     * cover, fall back to packing the on-device session.
+     * cover, fall back to packing the on-device session. A corrupt download is
+     * the exception: it is reported, not hidden behind the phone's copy.
      */
     private suspend fun downloadOrPack(
         cloudSessionId: String,
@@ -152,7 +189,7 @@ class DicBundleDownloadWorker(
         localSessionId: String,
     ): File {
         try {
-            return CloudRestore.downloadBundleZip(
+            return source.download(
                 applicationContext,
                 cloudSessionId,
                 displayName,

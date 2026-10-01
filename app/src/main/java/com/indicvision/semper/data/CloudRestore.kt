@@ -15,10 +15,12 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import com.indicvision.semper.analytics.SemperAnalytics
+import com.indicvision.semper.data.net.CloudApi
 import com.indicvision.semper.data.net.CloudFileDto
 import com.indicvision.semper.data.net.CloudSessionDto
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.TokenProvider
+import com.indicvision.semper.data.net.TokenSource
 import com.indicvision.semper.report.EngineStats
 import com.indicvision.semper.util.AtomicFiles
 import com.indicvision.semper.util.Digests
@@ -31,6 +33,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber
 import java.io.File
@@ -194,17 +197,20 @@ object CloudRestore {
      * Settings management uses this so rows that still have a phone stub without
      * `.dat`s can still offer Download when a cloud copy exists.
      */
-    suspend fun listCompleted(context: Context): ListResult = withContext(Dispatchers.IO) {
-        fetchCompletedSessions(context.applicationContext)
+    suspend fun listCompleted(
+        context: Context,
+        api: CloudApi = IndicApi.get(context),
+        tokens: TokenSource = TokenProvider,
+    ): ListResult = withContext(Dispatchers.IO) {
+        fetchCompletedSessions(api, tokens)
     }
 
     /**
      * One Firestore-backed listing of COMPLETED sessions. Auth/config failures
      * stay distinct from an empty list. Does not filter by local presence.
      */
-    private suspend fun fetchCompletedSessions(appContext: Context): ListResult {
-        val api = IndicApi.get(appContext)
-        val token = TokenProvider.usableIdToken()
+    private suspend fun fetchCompletedSessions(api: CloudApi, tokens: TokenSource): ListResult {
+        val token = tokens.usableIdToken()
         return when {
             !api.enabled -> ListResult.ApiOff
             token == null -> ListResult.NeedSignIn
@@ -213,6 +219,7 @@ object CloudRestore {
                     .filter { it.status == "COMPLETED" }
                 if (sessions.isEmpty()) ListResult.Empty else ListResult.Ready(sessions)
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                e.rethrowIfCallerCancelled()
                 Timber.e(e, "listCompleted sessions failed")
                 ListResult.Failed(e.message ?: e.toString())
             }
@@ -224,25 +231,26 @@ object CloudRestore {
      * share. Does **not** unpack into a session directory or touch existing
      * local analysis files.
      *
-     * Throws when the backup has no bundle role (legacy per-file backups) or
-     * the transfer fails attestation.
+     * Throws [UnrestorableBackupException] when the backup has no bundle role
+     * (legacy per-file backups) and [CorruptTransferException] when the transfer
+     * fails attestation.
      */
+    @Suppress("LongParameterList") // api and tokens are test seams (ADR-002)
     suspend fun downloadBundleZip(
         context: Context,
         sessionId: String,
         displayName: String,
+        api: CloudApi = IndicApi.get(context),
+        tokens: TokenSource = TokenProvider,
         onProgress: suspend (done: Long, total: Long) -> Unit = { _, _ -> },
     ): File = withContext(Dispatchers.IO) {
         val appContext = context.applicationContext
-        val api = IndicApi.get(appContext)
-        val token = TokenProvider.usableIdToken()
+        val token = tokens.usableIdToken()
             ?: error("Not signed in")
 
-        val manifest = api.listSessionFiles(token, sessionId)
-        val files = manifest.files.filter { it.status == "COMPLETED" }
-        require(files.isNotEmpty()) { "This backup has no completed files" }
+        val files = completedFiles(api, token, sessionId)
         val bundleEntry = files.firstOrNull { it.role == "bundle" }
-            ?: error("This backup has no Session.zip")
+            ?: throw UnrestorableBackupException("backup_no_bundle")
 
         val outDir = CacheJanitor.shareDir(appContext.cacheDir)
         val safe = displayName.replace(Regex("[^A-Za-z0-9._-]+"), "_").trim('_')
@@ -275,7 +283,7 @@ object CloudRestore {
 
     /** Fold Extras.zip into [dest] so Save-to-Files still yields one complete archive. */
     private suspend fun mergeExtrasInto(
-        api: IndicApi,
+        api: CloudApi,
         token: String,
         extrasEntry: CloudFileDto,
         dest: File,
@@ -305,32 +313,31 @@ object CloudRestore {
      * @param onProgress cumulative units completed vs total (bytes for bundled
      * Session.zip restores; file counts for legacy per-file backups).
      */
+    @Suppress("LongParameterList") // api and tokens are test seams (ADR-002)
     suspend fun restore(
         context: Context,
         sessionId: String,
         targetLocalId: String,
+        api: CloudApi = IndicApi.get(context),
+        tokens: TokenSource = TokenProvider,
         onProgress: suspend (done: Long, total: Long) -> Unit = { _, _ -> },
     ): String = withContext(Dispatchers.IO) {
         val appContext = context.applicationContext
-        val api = IndicApi.get(appContext)
-        val token = TokenProvider.usableIdToken()
+        val token = tokens.usableIdToken()
             ?: error("Not signed in")
 
-        val manifest = api.listSessionFiles(token, sessionId)
-        val files = manifest.files.filter { it.status == "COMPLETED" }
-        require(files.isNotEmpty()) { "This backup has no completed files" }
+        val files = completedFiles(api, token, sessionId)
 
         // 1. metadata.json first — it's the blueprint for everything else.
         val metaEntry = files.firstOrNull { it.role == "metadata" }
-            ?: error("Backup is missing metadata.json")
-        val metaTmp = File(appContext.cacheDir, "restore_${sessionId}_metadata.json")
-        api.downloadFile(
+            ?: throw UnrestorableBackupException("backup_no_metadata")
+        val fetched = fetchMetadata(
+            api,
             token,
-            metaEntry.fileId,
-            metaTmp,
-            expectedBytes = metaEntry.sizeBytes.takeIf { it > 0L } ?: -1L,
+            metaEntry,
+            File(appContext.cacheDir, "restore_${sessionId}_metadata.json"),
         )
-        val meta = JSONObject(metaTmp.readText())
+        val meta = fetched.json
 
         // The enqueueing UI already created a row under this id. Never let
         // metadata select a second id and leave an orphan stub behind.
@@ -338,8 +345,7 @@ object CloudRestore {
         val existing = SessionStore.get(appContext, localId)
         val sessionDir = SessionStore.dirFor(appContext, localId)
         val rawDeformedDir = File(sessionDir, SessionPaths.RAW_DEFORMED_SUBDIR).apply { mkdirs() }
-        metaTmp.copyTo(File(sessionDir, "metadata.json"), overwrite = true)
-        metaTmp.delete()
+        File(sessionDir, "metadata.json").writeBytes(fetched.bytes)
 
         // 2. Everything else, into the layout a local run would have produced.
         // Three eras, one destination layout (see destFor):
@@ -376,6 +382,59 @@ object CloudRestore {
         ) { "Could not update the restored session index" }
         logRestoreSaving(outcome, metaEntry.sizeBytes, files)
         localId
+    }
+
+    /** The backup's COMPLETED files; none at all is a backup no retry will fix. */
+    private suspend fun completedFiles(api: CloudApi, token: String, sessionId: String): List<CloudFileDto> {
+        val files = api.listSessionFiles(token, sessionId).files.filter { it.status == "COMPLETED" }
+        if (files.isEmpty()) throw UnrestorableBackupException("backup_no_completed_files")
+        return files
+    }
+
+    /** `metadata.json` as downloaded (written back verbatim) and parsed. */
+    private class FetchedMetadata(val bytes: ByteArray, val json: JSONObject)
+
+    /**
+     * Download and check the backup's `metadata.json`.
+     *
+     * Every attempt starts from nothing: [tmp] and its `.part` / `.full` sidecars are
+     * cleared first, since the download resumes from a `.part` beside its destination
+     * and one an earlier attempt left could hold an older body of this file (the
+     * backend's metadata replace route rewrites it when an analysis is edited after
+     * its backup, e.g. a deflection correction). The declared sha256 is checked like
+     * the bundle's, when the file
+     * list carries one; a mismatch or a body that is not JSON is corrupt (terminal).
+     */
+    private suspend fun fetchMetadata(
+        api: CloudApi,
+        token: String,
+        entry: CloudFileDto,
+        tmp: File,
+    ): FetchedMetadata {
+        tmp.delete()
+        AtomicFiles.deleteSidecars(tmp)
+        try {
+            api.downloadFile(
+                token,
+                entry.fileId,
+                tmp,
+                expectedBytes = entry.sizeBytes.takeIf { it > 0L } ?: -1L,
+            )
+            val bytes = tmp.readBytes()
+            val expectedSha = entry.sha256?.lowercase()?.takeIf { it.length == 64 }
+            if (expectedSha != null && Digests.toHex(Digests.sha256(bytes)) != expectedSha) {
+                throw CorruptTransferException("metadata_sha256_mismatch")
+            }
+            val json = try {
+                JSONObject(String(bytes, Charsets.UTF_8))
+            } catch (e: JSONException) {
+                throw CorruptTransferException("metadata_json_invalid", e)
+            }
+            return FetchedMetadata(bytes, json)
+        } finally {
+            tmp.delete()
+            AtomicFiles.deleteSidecars(tmp)
+        }
     }
 
     /** Log restore completion; structured line is PII-free, Timber line is coarse totals only. */
@@ -461,7 +520,8 @@ object CloudRestore {
     }
 
     /** The on-disk shape of a restored session — where artifacts land. */
-    private data class Layout(val sessionDir: File, val rawDeformedDir: File)
+    @VisibleForTesting
+    internal data class Layout(val sessionDir: File, val rawDeformedDir: File)
 
     /**
      * Whether this backup's `Session.zip` holds only the restore payload.
@@ -534,7 +594,7 @@ object CloudRestore {
 
     /** Everything one bundle fetch needs; these always travel together. */
     private data class BundleFetch(
-        val api: IndicApi,
+        val api: CloudApi,
         val token: String,
         val sessionId: String,
         val appContext: Context,
@@ -706,7 +766,7 @@ object CloudRestore {
 
     /** Legacy per-file backups: download each artifact into place. Returns refPath. */
     private suspend fun restoreLegacyFiles(
-        api: IndicApi,
+        api: CloudApi,
         token: String,
         files: List<CloudFileDto>,
         layout: Layout,
@@ -759,10 +819,17 @@ object CloudRestore {
 
     /**
      * Where one artifact lands on disk, by role — the single mapping both
-     * restore paths share. Guards against zip-slip: an entry may not escape
-     * the session directory.
+     * restore paths share. Guards against zip-slip: an entry must resolve to a
+     * path strictly **inside** the session directory.
+     *
+     * The containment test compares whole path segments. A plain string-prefix
+     * test let `../<id>X/…` through, since a sibling directory whose name merely
+     * starts with this session's id shares its path as a prefix. An entry that
+     * escapes is a hostile or broken archive, so it fails as a
+     * [CorruptTransferException]: terminal, never retried.
      */
-    private fun destFor(role: String, name: String, layout: Layout): File {
+    @VisibleForTesting
+    internal fun destFor(role: String, name: String, layout: Layout): File {
         val dest = when {
             role == "raw" && name == "Reference.png" -> File(layout.sessionDir, "reference.png")
             role == "raw" -> File(layout.rawDeformedDir, name)
@@ -774,11 +841,14 @@ object CloudRestore {
             // beside the session for export.
             else -> File(layout.sessionDir, name)
         }
-        val canonical = dest.canonicalPath
-        require(
-            canonical.startsWith(layout.sessionDir.canonicalPath) ||
-                canonical.startsWith(layout.rawDeformedDir.canonicalPath),
-        ) { "Artifact path escapes session dir: $role/$name" }
+        // rawDeformedDir sits inside sessionDir, so the session dir is the only bound.
+        val root = layout.sessionDir.canonicalPath
+        if (!dest.canonicalPath.startsWith(root + File.separator)) {
+            throw CorruptTransferException(
+                "artifact_path_escapes_session",
+                IllegalArgumentException("$role/$name"),
+            )
+        }
         dest.parentFile?.mkdirs()
         return dest
     }

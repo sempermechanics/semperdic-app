@@ -2,6 +2,7 @@ package com.indicvision.semper.cloud
 
 import com.indicvision.semper.data.CorruptTransferException
 import com.indicvision.semper.data.RestoreDownloadOutcomes
+import com.indicvision.semper.data.UnrestorableBackupException
 import com.indicvision.semper.data.net.HttpStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -100,5 +101,21 @@ class RestoreDownloadOutcomesTest {
                 java.io.IOException("connection reset"),
             ),
         )
+    }
+
+    @Test
+    fun `a backup missing what the transfer needs is terminal but not corrupt`() {
+        val unusable = UnrestorableBackupException("backup_no_metadata")
+
+        assertTrue(RestoreDownloadOutcomes.isTerminalFailure(unusable))
+        // Not corrupt: a bundle download may still pack the phone's own copy instead.
+        assertFalse(RestoreDownloadOutcomes.isTerminalCorruptFailure(unusable))
+        assertTrue(RestoreDownloadOutcomes.isTerminalFailure(CorruptTransferException("entry_crc_mismatch")))
+    }
+
+    @Test
+    fun `network drops and a missing sign-in stay retryable`() {
+        assertFalse(RestoreDownloadOutcomes.isTerminalFailure(java.io.IOException("connection reset")))
+        assertFalse(RestoreDownloadOutcomes.isTerminalFailure(IllegalStateException("Not signed in")))
     }
 }
