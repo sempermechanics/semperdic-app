@@ -5,7 +5,12 @@ package com.indicvision.semper.ui.settings
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.indicvision.semper.Diagnostics
@@ -33,6 +38,9 @@ import timber.log.Timber
 class SettingsYourDataSection(
     private val activity: SettingsActivity,
 ) {
+    /** The progress dialog this screen shows while [AccountDeletionRun] runs. */
+    private var deletionProgress: AlertDialog? = null
+
     fun wire() {
         activity.findViewById<View>(R.id.btnExportData).setOnClickListener { exportMyData() }
         activity.findViewById<View>(R.id.btnExportCloudData).setOnClickListener { exportCloudAccountData() }
@@ -46,6 +54,7 @@ class SettingsYourDataSection(
             Diagnostics.setEnabled(activity, checked)
         }
         wireLegal()
+        observeAccountDeletion()
     }
 
     /**
@@ -200,26 +209,68 @@ class SettingsYourDataSection(
         activity.launchReauth()
     }
 
+    /**
+     * Starts the deletion in [AccountDeletionRun], outside this Activity, so a
+     * rotation (which recreates Settings) cannot cancel it half-way. A tap
+     * while one is already running does nothing: its dialog is up.
+     */
     fun deleteAccount() {
-        val progress = MaterialAlertDialogBuilder(activity)
+        AccountDeletionRun.start(activity)
+    }
+
+    /**
+     * Renders the run on whichever Settings instance is started: the dialog
+     * while it runs, then the outcome once. An outcome that lands while
+     * Settings is stopped waits for it; the window is never leaked, because
+     * the dialog goes with the Activity that owns it.
+     */
+    private fun observeAccountDeletion() {
+        activity.lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onDestroy(owner: LifecycleOwner) = dismissDeletionProgress()
+            },
+        )
+        activity.lifecycleScope.launch {
+            activity.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                AccountDeletionRun.state.collect { state ->
+                    when (state) {
+                        AccountDeletionRun.State.Idle -> dismissDeletionProgress()
+                        AccountDeletionRun.State.Running -> showDeletionProgress()
+                        is AccountDeletionRun.State.Done -> {
+                            dismissDeletionProgress()
+                            AccountDeletionRun.consume()?.let { onAccountDeletion(it) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showDeletionProgress() {
+        if (deletionProgress?.isShowing == true) return
+        deletionProgress = MaterialAlertDialogBuilder(activity)
             .setMessage(R.string.delete_account_working)
             .setCancelable(false)
             .show()
-        activity.lifecycleScope.launch {
-            val outcome = CloudSync.deleteAccount(activity)
-            progress.dismiss()
-            when (outcome) {
-                CloudSync.AccountDeletion.DELETED -> {
-                    activity.toast(activity.getString(R.string.delete_account_done))
-                    AuthRoute.toSignIn(activity)
-                }
-                CloudSync.AccountDeletion.IDENTITY_KEPT -> {
-                    activity.toast(activity.getString(R.string.delete_account_identity_kept))
-                    AuthRoute.toSignIn(activity)
-                }
-                CloudSync.AccountDeletion.CLOUD_UNREACHABLE ->
-                    activity.toast(activity.getString(R.string.delete_account_failed))
+    }
+
+    private fun dismissDeletionProgress() {
+        deletionProgress?.dismiss()
+        deletionProgress = null
+    }
+
+    private fun onAccountDeletion(outcome: CloudSync.AccountDeletion) {
+        when (outcome) {
+            CloudSync.AccountDeletion.DELETED -> {
+                activity.toast(activity.getString(R.string.delete_account_done))
+                AuthRoute.toSignIn(activity)
             }
+            CloudSync.AccountDeletion.IDENTITY_KEPT -> {
+                activity.toast(activity.getString(R.string.delete_account_identity_kept))
+                AuthRoute.toSignIn(activity)
+            }
+            CloudSync.AccountDeletion.CLOUD_UNREACHABLE ->
+                activity.toast(activity.getString(R.string.delete_account_failed))
         }
     }
 

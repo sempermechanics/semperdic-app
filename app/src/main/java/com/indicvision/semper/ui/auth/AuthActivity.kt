@@ -27,6 +27,7 @@ import com.indicvision.semper.data.net.TokenStore
 import com.indicvision.semper.ui.common.CrispToast
 import com.indicvision.semper.ui.common.Insets
 import com.indicvision.semper.util.suspendRunCatching
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -397,6 +398,10 @@ class AuthActivity : AppCompatActivity() {
                 Timber.w(e, "No Google account available for sign-in")
                 setLoading(false)
                 showSnackbar(getString(R.string.auth_google_no_account), isError = true)
+            } catch (e: CancellationException) {
+                // The screen is going away (or being recreated): there is no one
+                // to tell, and "Job was cancelled" is not a sign-in failure.
+                throw e
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 setLoading(false)
                 showSnackbar(e.message ?: getString(R.string.auth_google_failed), isError = true)

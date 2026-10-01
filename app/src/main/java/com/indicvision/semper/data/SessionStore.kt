@@ -381,7 +381,7 @@ object SessionStore {
             is IndexRead.Ok -> snap.records.size
             else -> 0
         }
-        TokenStore.refreshSessionLimit(context, remaining)
+        TokenStore.onLocalSessionsRemoved(context, remaining)
     }
 
     /**
@@ -396,7 +396,7 @@ object SessionStore {
             is IndexRead.Ok -> snap.records.size
             else -> 0
         }
-        TokenStore.refreshSessionLimit(context, remaining)
+        TokenStore.onLocalSessionsRemoved(context, remaining)
     }
 
     /**
@@ -424,7 +424,7 @@ object SessionStore {
         root(context).deleteRecursively()
         root(context).mkdirs()
         indexCorrupt = false
-        TokenStore.refreshSessionLimit(context, 0)
+        TokenStore.onLocalSessionsRemoved(context, 0)
     }
 
     private sealed class IndexRead {

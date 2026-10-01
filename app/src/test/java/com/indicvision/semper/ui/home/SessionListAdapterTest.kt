@@ -95,8 +95,8 @@ class SessionListAdapterTest {
     private fun bind(position: Int): SessionListAdapter.Holder =
         adapter.createViewHolder(parent, 0).also { adapter.bindViewHolder(it, position) }
 
-    private fun submit(vararg records: SessionRecord) {
-        adapter.submit(records.toList())
+    private fun submit(vararg records: SessionRecord, withoutLocalData: Set<String> = emptySet()) {
+        adapter.submit(records.toList(), withoutLocalData)
         changed.clear()
         fullRefreshes = 0
     }
@@ -167,9 +167,28 @@ class SessionListAdapterTest {
 
     @Test
     fun `a synced row with no local frames says it is only in the cloud`() {
-        submit(record("s", sync = SessionRecord.SyncState.SYNCED))
-        adapter.setCloudOnlyIds(setOf("s"))
+        submit(record("s", sync = SessionRecord.SyncState.SYNCED), withoutLocalData = setOf("s"))
         assertEquals(activity.getString(R.string.badge_cloud_only), bind(0).badge.text.toString())
+    }
+
+    @Test
+    fun `a row without frames that is not backed up keeps its own badge`() {
+        submit(
+            record("p", sync = SessionRecord.SyncState.PENDING),
+            record("s", sync = SessionRecord.SyncState.SYNCED),
+            withoutLocalData = setOf("p"),
+        )
+        assertEquals(activity.getString(R.string.badge_pending), bind(0).badge.text.toString())
+        assertEquals("frames on the phone", activity.getString(R.string.badge_synced), bind(1).badge.text.toString())
+    }
+
+    @Test
+    fun `phone presence is what the list was submitted with, not a disk read`() {
+        // Every record here points at a directory that does not exist; the
+        // adapter must answer from the IO-computed set alone.
+        submit(record("a"), record("b"), withoutLocalData = setOf("b"))
+        assertTrue(adapter.hasLocalData("a"))
+        assertFalse(adapter.hasLocalData("b"))
     }
 
     @Test
@@ -273,18 +292,7 @@ class SessionListAdapterTest {
         changed.clear()
 
         adapter.setUploadProgress(progress.toMap())
-        adapter.setCloudOnlyIds(emptySet())
         assertTrue(changed.isEmpty())
-    }
-
-    @Test
-    fun `cloud-only changes rebind the rows entering and leaving the set`() {
-        submit(record("a"), record("b"), record("c"))
-        adapter.setCloudOnlyIds(setOf("a"))
-        changed.clear()
-
-        adapter.setCloudOnlyIds(setOf("c"))
-        assertEquals(setOf(0, 2), changed.toSet())
     }
 
     @Test

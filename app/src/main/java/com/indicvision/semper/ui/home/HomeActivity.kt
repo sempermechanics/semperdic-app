@@ -42,6 +42,7 @@ import com.indicvision.semper.data.net.TokenStore
 import com.indicvision.semper.ui.analysis.AnalysisNavHelper
 import com.indicvision.semper.ui.analysis.StaticAnalysisActivity
 import com.indicvision.semper.ui.common.CoachMarkController
+import com.indicvision.semper.ui.common.ConflatedRefresh
 import com.indicvision.semper.ui.common.CrispToast
 import com.indicvision.semper.ui.common.DeleteFeedback
 import com.indicvision.semper.ui.common.Insets
@@ -50,6 +51,7 @@ import com.indicvision.semper.ui.common.MediaSourceChooser
 import com.indicvision.semper.ui.limit.SessionLimitActivity
 import com.indicvision.semper.ui.settings.SettingsActivity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -91,6 +93,31 @@ class HomeActivity : AppCompatActivity() {
     private val justQueuedDeletes = mutableSetOf<String>()
     private var activeUploadProgress: Map<String, SessionListAdapter.RowProgress> = emptyMap()
     private var activeRestoreProgress: Map<String, SessionListAdapter.RowProgress> = emptyMap()
+
+    /** The phone-list read in flight ([refreshList]). */
+    private var listRefresh: Job? = null
+
+    /**
+     * The cloud check, one at a time: a burst of requests runs it at most once
+     * more, deep if any asked for deep. It is not cancelled mid-call, and it
+     * starts after the list read that was in flight when it began.
+     */
+    private val cloudCheck: ConflatedRefresh<Boolean> by lazy {
+        ConflatedRefresh<Boolean>(lifecycleScope, merge = { a, b -> a || b }) { deep ->
+            var completed = false
+            try {
+                listRefresh?.join()
+                reconcileWithCloud(deep)
+                completed = true
+            } finally {
+                // The spinner tracks the cloud check, not the local list read —
+                // that's the part worth waiting for. After a check that ended
+                // normally it stays while a pull-to-refresh waits its turn; a
+                // check that threw or was cancelled takes the queue with it.
+                if (!completed || !cloudCheck.hasPending) swipeRefresh.isRefreshing = false
+            }
+        }
+    }
 
     private val backCallback = object : androidx.activity.OnBackPressedCallback(false) {
         override fun handleOnBackPressed() = selection.clearSelection()
@@ -288,8 +315,8 @@ class HomeActivity : AppCompatActivity() {
      * Background uploads run in WorkManager, so a failure would otherwise be
      * silent (only the row badge changed). Watch the "upload" work tag and, when
      * a run ends in a terminal failure carrying a reason, tell the user with a
-     * Retry action. Quota-full is excluded — it has its own persistent screen and
-     * returns no reason.
+     * Retry action. Quota-full returns no reason: it opens the persistent limit
+     * screen instead.
      */
     private fun observeUploadFailures() {
         WorkManager.getInstance(this)
@@ -317,7 +344,14 @@ class HomeActivity : AppCompatActivity() {
                         WorkInfo.State.FAILED -> {
                             if (!shownUploadFailures.add(info.id)) return@forEach
                             val reason = info.outputData.getString(DicKeys.UPLOAD_FAIL_REASON)
-                                ?: return@forEach // no reason = handled elsewhere (e.g. quota)
+                            if (reason == null) {
+                                // No reason: a refusal at the account's limit, which
+                                // forces the stop. Open the limit screen from here so
+                                // it shows whether or not the worker also opens it
+                                // (it is singleTop, so the two cannot stack).
+                                if (TokenStore.isSessionLimitReached(this)) openSessionLimitScreen()
+                                return@forEach
+                            }
                             showUploadFailure(reason)
                         }
                         else -> Unit
@@ -466,15 +500,21 @@ class HomeActivity : AppCompatActivity() {
      *   here that the cloud check has nothing to add to.
      */
     private fun refresh(deep: Boolean = false, reconcile: Boolean = true) {
-        lifecycleScope.launch {
+        refreshList()
+        if (reconcile) cloudCheck.request(deep)
+    }
+
+    /**
+     * Re-reads the phone's list. Latest wins: a newer call cancels the read
+     * still in flight, so an older list can never be submitted after a newer
+     * one (refresh runs on resume, on every finished transfer, delete, rename
+     * and restore, often several within a second).
+     */
+    private fun refreshList() {
+        listRefresh?.cancel()
+        listRefresh = lifecycleScope.launch {
             val sessions = visibleSessions()
-            val cloudOnly = withContext(Dispatchers.IO) {
-                sessions.filter {
-                    it.syncState == SessionRecord.SyncState.SYNCED && !it.hasLocalData()
-                }.map { it.id }.toSet()
-            }
-            adapter.submit(sessions)
-            adapter.setCloudOnlyIds(cloudOnly)
+            submitSessions(sessions)
             // Demo: analyses are recorded silently and there is no restore, so
             // the list carries no sync badge, bar or "only in cloud" state.
             adapter.setSyncVisible(showsCloudState())
@@ -486,14 +526,6 @@ class HomeActivity : AppCompatActivity() {
             selection.updateSelectionBar()
             // Local count alone can trip the hard-stop flag (before cloud reconcile).
             TokenStore.refreshSessionLimit(this@HomeActivity, sessions.size)
-            if (!reconcile) return@launch
-            try {
-                reconcileWithCloud(deep)
-            } finally {
-                // The spinner tracks the cloud check, not the local list read —
-                // that's the part worth waiting for.
-                swipeRefresh.isRefreshing = false
-            }
         }
     }
 
@@ -595,7 +627,7 @@ class HomeActivity : AppCompatActivity() {
                 updateCloudBackups()
                 if (outcome.repaired > 0) {
                     // The rows changed underneath us — show the corrected state.
-                    adapter.submit(visibleSessions())
+                    refreshList()
                     if (!showsCloudState()) return
                     Toast.makeText(
                         this,
@@ -627,7 +659,8 @@ class HomeActivity : AppCompatActivity() {
     // ── Row actions ──────────────────────────────────────────────────────
 
     private fun openSession(record: SessionRecord) {
-        if (record.hasLocalData()) {
+        val hasLocal = adapter.hasLocalData(record.id)
+        if (hasLocal) {
             startActivity(SessionOpenHelper.intentFor(this, record))
             return
         }
@@ -636,7 +669,7 @@ class HomeActivity : AppCompatActivity() {
         // A demo account cannot pull its recorded copy back, so a row with
         // no local data is simply unopenable — no download offer.
         if (!hasCloud || !showsCloudState()) {
-            SessionOpenHelper.openOrExplain(this, record)
+            SessionOpenHelper.openOrExplain(this, record, hasLocal)
             return
         }
         MaterialAlertDialogBuilder(this)
@@ -757,6 +790,17 @@ class HomeActivity : AppCompatActivity() {
             .firstOrNull { it.state == WorkInfo.State.FAILED }
             ?.outputData?.getString(DicKeys.UPLOAD_FAIL_REASON)
     }.getOrNull()
+
+    /**
+     * Shows [sessions] with which of them still have frames on this phone,
+     * read here on IO so binding, selecting and opening a row never do.
+     */
+    private suspend fun submitSessions(sessions: List<SessionRecord>) {
+        val withoutLocalData = withContext(Dispatchers.IO) {
+            sessions.filterNot { it.hasLocalData() }.map { it.id }.toSet()
+        }
+        adapter.submit(sessions, withoutLocalData)
+    }
 
     /** The phone's analyses, less any a queued delete is about to remove. */
     private suspend fun visibleSessions(): List<SessionRecord> {

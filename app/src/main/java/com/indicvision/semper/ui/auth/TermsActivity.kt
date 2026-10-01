@@ -21,7 +21,9 @@ import com.indicvision.semper.R
 import com.indicvision.semper.data.AuthRepository
 import com.indicvision.semper.data.LegalTerms
 import com.indicvision.semper.data.net.IndicApi
+import com.indicvision.semper.ui.common.AuthRoute
 import com.indicvision.semper.ui.common.Insets
+import com.indicvision.semper.ui.common.SignOutRun
 import com.indicvision.semper.ui.home.HomeActivity
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -86,6 +88,7 @@ class TermsActivity : AppCompatActivity() {
                 override fun handleOnBackPressed() = onDecline()
             },
         )
+        SignOutRun.observe(this, onRunning = { setLoading(true) }) { AuthRoute.toSignIn(this) }
     }
 
     private fun onAgree() {
@@ -111,21 +114,14 @@ class TermsActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Sign-out releases a floating seat over the network first, so it runs in
+     * [SignOutRun], where a rotation cannot cut it short; this screen (or the
+     * one recreated in its place) routes to sign-in when it is done, whether
+     * or not the release succeeded.
+     */
     private fun onDecline() {
-        // Sign-out releases a floating seat over the network first, so it is
-        // suspending; the local exit happens whether or not that succeeds.
-        lifecycleScope.launch {
-            try {
-                signOut()
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                Timber.e(e, "Sign-out on decline failed, forcing local exit.")
-            } finally {
-                val intent = Intent(this@TermsActivity, AuthActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                startActivity(intent)
-                finish()
-            }
-        }
+        SignOutRun.start(TermsActivity::class.java, signOut)
     }
 
     private fun continueToDestination() {

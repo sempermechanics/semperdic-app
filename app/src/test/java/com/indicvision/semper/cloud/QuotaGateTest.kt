@@ -2,6 +2,8 @@ package com.indicvision.semper.cloud
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.indicvision.semper.data.RestoreStart
+import com.indicvision.semper.data.SessionStore
 import com.indicvision.semper.data.net.AppConfigDto
 import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.net.TokenStore
@@ -84,6 +86,41 @@ class QuotaGateTest {
 
         // A reconcile with under-limit numbers clears the forced stop.
         TokenStore.setQuota(ctx, used = 1, localCount = 1)
+        assertFalse(TokenStore.isSessionLimitReached(ctx))
+    }
+
+    @Test
+    fun `a forced stop survives a local count refresh`() {
+        // Home's start and refresh, a run's pre-check and every save fold the
+        // phone's count in; none of them brings fresh server numbers.
+        AppRemoteConfig.apply(ctx, AppConfigDto(maxSessions = 5, maxFilesPerSession = 600, maxFrames = 150))
+        TokenStore.setSessionLimitReached(ctx, true)
+
+        TokenStore.refreshSessionLimit(ctx, localCount = 1)
+
+        assertTrue(TokenStore.isSessionLimitReached(ctx))
+    }
+
+    @Test
+    fun `a forced stop survives a restore saving its row`() {
+        AppRemoteConfig.apply(ctx, AppConfigDto(maxSessions = 5, maxFilesPerSession = 600, maxFrames = 150))
+        TokenStore.setSessionLimitReached(ctx, true)
+
+        val row = RestoreStart.newRow(ctx, "cloud-1", "local-1", "Steel plate", now = 0L)
+        assertTrue(SessionStore.upsert(ctx, row, allowOverLimit = true))
+
+        assertTrue("saving a row is not fresh server numbers", TokenStore.isSessionLimitReached(ctx))
+    }
+
+    @Test
+    fun `deleting from the phone lifts a forced stop`() {
+        AppRemoteConfig.apply(ctx, AppConfigDto(maxSessions = 5, maxFilesPerSession = 600, maxFrames = 150))
+        val row = RestoreStart.newRow(ctx, "cloud-1", "local-1", "Steel plate", now = 0L)
+        assertTrue(SessionStore.upsert(ctx, row, allowOverLimit = true))
+        TokenStore.setSessionLimitReached(ctx, true)
+
+        SessionStore.delete(ctx, "local-1")
+
         assertFalse(TokenStore.isSessionLimitReached(ctx))
     }
 

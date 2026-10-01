@@ -1,6 +1,7 @@
 package com.indicvision.semper.auth
 
 import android.content.Context
+import android.os.Looper
 import android.widget.Button
 import android.widget.CheckBox
 import androidx.test.core.app.ApplicationProvider
@@ -11,7 +12,10 @@ import com.indicvision.semper.ui.auth.AccessRouter
 import com.indicvision.semper.ui.auth.AuthActivity
 import com.indicvision.semper.ui.auth.PendingApprovalActivity
 import com.indicvision.semper.ui.auth.TermsActivity
+import com.indicvision.semper.ui.common.SignOutRun
 import com.indicvision.semper.ui.home.HomeActivity
+import kotlinx.coroutines.CompletableDeferred
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -22,6 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.android.controller.ActivityController
 
 /**
  * The clickwrap gate. What matters legally: nobody reaches Home or Pending
@@ -34,8 +39,20 @@ class TermsGateTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
 
+    /** Every gate a test opens; destroyed after it, so none reads the next test's sign-out. */
+    private val built = mutableListOf<ActivityController<TermsActivity>>()
+
     @Before
-    fun freshDevice() = TokenStore.clear(context)
+    fun freshDevice() {
+        TokenStore.clear(context)
+        SignOutRun.resetForTest()
+    }
+
+    @After
+    fun tearDown() {
+        built.forEach { runCatching { it.pause().stop().destroy() } }
+        SignOutRun.resetForTest()
+    }
 
     @Test
     fun `a fresh device needs acceptance and is routed through the gate`() {
@@ -134,8 +151,38 @@ class TermsGateTest {
         )
     }
 
-    private fun launchGate(): TermsActivity {
-        val intent = TermsActivity.intent(context, HomeActivity::class.java)
-        return Robolectric.buildActivity(TermsActivity::class.java, intent).setup().get()
+    @Test
+    fun `a rotation mid-decline still finishes the sign-out, and the new gate routes`() {
+        // The seat release is a network call; a rotation during it used to
+        // cancel the sign-out (session kept) while the old gate routed anyway.
+        val controller = gateController()
+        val release = CompletableDeferred<Unit>()
+        var signedOut = false
+        controller.get().signOut = {
+            release.await()
+            signedOut = true
+        }
+
+        controller.get().findViewById<Button>(R.id.btnDecline).performClick()
+        controller.recreate()
+        shadowOf(Looper.getMainLooper()).idle()
+        assertNull("nothing routes before the sign-out ends", shadowOf(controller.get()).nextStartedActivity)
+
+        release.complete(Unit)
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue("the sign-out ran to the end", signedOut)
+        assertEquals(
+            AuthActivity::class.java.name,
+            shadowOf(controller.get()).nextStartedActivity.component?.className,
+        )
+        assertTrue(controller.get().isFinishing)
     }
+
+    private fun gateController(): ActivityController<TermsActivity> {
+        val intent = TermsActivity.intent(context, HomeActivity::class.java)
+        return Robolectric.buildActivity(TermsActivity::class.java, intent).setup().also { built += it }
+    }
+
+    private fun launchGate(): TermsActivity = gateController().get()
 }

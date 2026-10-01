@@ -5,6 +5,7 @@ import android.os.Looper
 import android.view.View
 import android.widget.ImageButton
 import android.widget.TextView
+import androidx.annotation.MainThread
 import androidx.core.view.isVisible
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.indicvision.semper.R
@@ -74,6 +75,11 @@ class TransferBannerController(
         }
     }
 
+    /**
+     * Whether [id] is on the strip. Main thread only: [transfers] is changed
+     * on the main thread (see [onMain]) and read here without a lock.
+     */
+    @MainThread
     fun contains(id: String): Boolean = id in transfers
 
     fun size(): Int = transfers.size

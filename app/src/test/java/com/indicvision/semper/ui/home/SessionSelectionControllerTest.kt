@@ -128,7 +128,11 @@ class SessionSelectionControllerTest {
     private val b by lazy { record("b") }
     private val c by lazy { record("c") }
 
-    private fun list(vararg records: SessionRecord) = adapter.submit(records.toList())
+    private fun list(vararg records: SessionRecord) = submit(records.toList())
+
+    /** Submits as Home does: phone presence read from disk once, up front. */
+    private fun submit(records: List<SessionRecord>) =
+        adapter.submit(records, records.filterNot { it.hasLocalData() }.map { it.id }.toSet())
 
     private fun latestDialog(): Dialog = ShadowDialog.getLatestDialog()
 
@@ -278,7 +282,7 @@ class SessionSelectionControllerTest {
         // 2026-09-25: this took a "Delete cloud" pass and then a "Delete
         // device" pass, and the second re-sent every DELETE.
         val rows = (1..10).map { record("r$it", cloud = true) }
-        adapter.submit(rows)
+        submit(rows)
         controller.selectAll()
         delete.performClick()
         assertEquals(
@@ -408,6 +412,24 @@ class SessionSelectionControllerTest {
 
         assertEquals(listOf(listOf("r1", "r2")), restored)
         assertFalse("selection ends", controller.inSelectionMode)
+    }
+
+    @Test
+    fun `selection decides from the list's phone presence, not from the disk`() {
+        // The list was read while the frames were still there; they have gone
+        // since. A toggle must not list the directory (it ran on the main
+        // thread per selected row, per tap): it acts on what was read.
+        val row = record("gone", local = true, cloud = true)
+        list(row)
+        File(row.sessionDir).listFiles()?.forEach { it.delete() }
+
+        controller.startSelection(row)
+        assertEquals("still on the phone as far as the list knows", View.GONE, restore.visibility)
+        controller.confirmDelete(row)
+        assertEquals(
+            activity.getString(R.string.delete_confirm_body_cloud),
+            latestDialog().findViewById<TextView>(R.id.tvDeleteMessage).text.toString(),
+        )
     }
 
     @Test

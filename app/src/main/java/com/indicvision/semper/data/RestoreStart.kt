@@ -68,11 +68,12 @@ object RestoreStart {
     }
 
     /**
-     * Whether a restore of [cloudSessionId] is queued or running. Settings
-     * still asks this on the main thread (a short read of WorkManager's
-     * database), as it did before this helper existed, so it carries no
-     * thread annotation.
+     * Whether a restore of [cloudSessionId] is queued or running. Blocks on a
+     * read of WorkManager's database, so call it off the main thread; screens
+     * answer "is this row busy?" from the `restore` tag they already observe
+     * instead (Settings' `BusyTransfers`).
      */
+    @WorkerThread
     fun isRunning(context: Context, cloudSessionId: String): Boolean {
         if (cloudSessionId.isBlank()) return false
         return runCatching {

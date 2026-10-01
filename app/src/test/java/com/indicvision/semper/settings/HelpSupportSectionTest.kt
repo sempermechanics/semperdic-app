@@ -6,6 +6,7 @@ import android.widget.TextView
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.R
 import com.indicvision.semper.ui.settings.SettingsActivity
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -14,6 +15,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.android.controller.ActivityController
 
 /**
  * Settings → Help & support. The section is the only place in the app a user who
@@ -23,12 +25,21 @@ import org.robolectric.Shadows.shadowOf
 @RunWith(RobolectricTestRunner::class)
 class HelpSupportSectionTest {
 
+    /**
+     * Every Settings a test opens, destroyed after it: a live one left behind
+     * would still observe the account-deletion and sign-out runs of later tests.
+     */
+    private val built = mutableListOf<ActivityController<SettingsActivity>>()
+
+    @After
+    fun destroySettings() = built.forEach { runCatching { it.pause().stop().destroy() } }
+
     private val supportEmail: String =
         ApplicationProvider.getApplicationContext<android.content.Context>()
             .getString(R.string.support_email)
 
     private fun settings(): SettingsActivity =
-        Robolectric.buildActivity(SettingsActivity::class.java).setup().get()
+        Robolectric.buildActivity(SettingsActivity::class.java).setup().also { built += it }.get()
 
     @Test
     fun `section starts collapsed like every other settings section`() {

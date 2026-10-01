@@ -47,10 +47,12 @@ import com.indicvision.semper.data.net.CloudSessionDto
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.ui.auth.AuthActivity
 import com.indicvision.semper.ui.common.AuthRoute
+import com.indicvision.semper.ui.common.ConflatedRefresh
 import com.indicvision.semper.ui.common.CrispToast
 import com.indicvision.semper.ui.common.DeleteChoiceDialog
 import com.indicvision.semper.ui.common.DeleteFeedback
 import com.indicvision.semper.ui.common.Insets
+import com.indicvision.semper.ui.common.SignOutRun
 import com.indicvision.semper.ui.common.TransferBannerController
 import com.indicvision.semper.ui.home.SessionOpenHelper
 import kotlinx.coroutines.Dispatchers
@@ -100,7 +102,7 @@ class SettingsActivity : AppCompatActivity() {
     private val shownRestoreOutcomes = mutableSetOf<java.util.UUID>()
 
     /** Restore / Save-to-Files download keys currently busy — disables row actions. */
-    private val downloadingKeys = mutableSetOf<String>()
+    private val busy = BusyTransfers()
 
     internal lateinit var transferBanner: TransferBannerController
     private lateinit var yourDataSection: SettingsYourDataSection
@@ -236,36 +238,47 @@ class SettingsActivity : AppCompatActivity() {
 
     // ── Analyses data management ─────────────────────────────────────────
 
+    /**
+     * The per-analysis list load, one at a time: it lists the cloud over the
+     * network and is asked for from nine places (restore, delete, backup,
+     * storage cleanup, finished work…). Overlapping loads used to land out of
+     * order; now a burst runs at most one more load, after the current one.
+     */
+    private val analysesRefresh by lazy {
+        ConflatedRefresh<Unit>(lifecycleScope, merge = { _, _ -> }) { loadAnalysesData() }
+    }
+
     internal fun wireAnalysesDataSection() {
         // Storage cleanup re-enters here; the section does not exist on demo.
         if (!LicenseEntitlements.cloudBackupEnabled(this)) return
+        analysesRefresh.request(Unit)
+    }
+
+    private suspend fun loadAnalysesData() {
         analysesProgress.isVisible = true
         analysesState.isVisible = false
+        val records = withContext(Dispatchers.IO) { SessionStore.list(this@SettingsActivity) }
+        // Full COMPLETED list (not listRestorable): stubs without local .dat
+        // still need a Download action when the cloud copy exists.
+        val result = CloudRestore.listCompleted(this@SettingsActivity)
+        analysesProgress.isVisible = false
 
-        lifecycleScope.launch {
-            val records = withContext(Dispatchers.IO) { SessionStore.list(this@SettingsActivity) }
-            // Full COMPLETED list (not listRestorable): stubs without local .dat
-            // still need a Download action when the cloud copy exists.
-            val result = CloudRestore.listCompleted(this@SettingsActivity)
-            analysesProgress.isVisible = false
-
-            cloudStateMessage(result)?.let {
-                analysesState.isVisible = true
-                analysesState.text = it
-            }
-            val cloud = (result as? CloudRestore.ListResult.Ready)?.sessions.orEmpty()
-            val entries = withContext(Dispatchers.IO) {
-                AnalysisEntries.merge(records, cloud).map { entry ->
-                    val id = entry.record?.id ?: return@map entry
-                    entry.copy(localBytes = SessionStore.sizeOf(this@SettingsActivity, id))
-                }
-            }
-            if (entries.isEmpty()) {
-                analysesState.isVisible = true
-                analysesState.setText(R.string.analyses_data_empty)
-            }
-            analysesAdapter.submit(entries)
+        cloudStateMessage(result)?.let {
+            analysesState.isVisible = true
+            analysesState.text = it
         }
+        val cloud = (result as? CloudRestore.ListResult.Ready)?.sessions.orEmpty()
+        val entries = withContext(Dispatchers.IO) {
+            AnalysisEntries.merge(records, cloud).map { entry ->
+                val id = entry.record?.id ?: return@map entry
+                entry.copy(localBytes = SessionStore.sizeOf(this@SettingsActivity, id))
+            }
+        }
+        if (entries.isEmpty()) {
+            analysesState.isVisible = true
+            analysesState.setText(R.string.analyses_data_empty)
+        }
+        analysesAdapter.submit(entries)
     }
 
     /**
@@ -286,8 +299,8 @@ class SettingsActivity : AppCompatActivity() {
      */
     private fun openOrDownloadAnalysis(entry: AnalysisEntry) {
         val record = entry.record
-        if (record?.hasLocalData() == true) {
-            SessionOpenHelper.openOrExplain(this, record)
+        if (record != null && entry.hasLocalData) {
+            SessionOpenHelper.openOrExplain(this, record, hasLocalData = true)
             return
         }
         if (entry.cloud != null) {
@@ -295,14 +308,14 @@ class SettingsActivity : AppCompatActivity() {
             return
         }
         if (record != null) {
-            SessionOpenHelper.openOrExplain(this, record)
+            SessionOpenHelper.openOrExplain(this, record, hasLocalData = false)
         }
     }
 
     private fun confirmLocalDownload(entry: AnalysisEntry) {
         if (!entry.offersDownload()) return
         val key = entry.downloadKey()
-        if (key in downloadingKeys || isBundleDownloadRunning(key) || isRestoreWorkRunning(key)) {
+        if (busy.isBusy(key)) {
             Toast.makeText(this, R.string.download_analysis_already, Toast.LENGTH_SHORT).show()
             return
         }
@@ -326,7 +339,7 @@ class SettingsActivity : AppCompatActivity() {
             return
         }
         val key = pending.cloudSessionId
-        if (key in downloadingKeys || isBundleDownloadRunning(key)) {
+        if (busy.isBusy(key)) {
             Toast.makeText(this, R.string.download_analysis_already, Toast.LENGTH_SHORT).show()
             return
         }
@@ -341,6 +354,9 @@ class SettingsActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.save_failed, Toast.LENGTH_LONG).show()
             return
         }
+        // Marked before the enqueue, so the job is not lost if it finishes
+        // before the observed list ever shows it running.
+        markDownloading(key)
         val enqueued = runCatching {
             CloudRestore.enqueueBundleDownload(
                 this,
@@ -358,10 +374,10 @@ class SettingsActivity : AppCompatActivity() {
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
                 )
             }
+            unmarkDownloading(key)
             Toast.makeText(this, R.string.download_analysis_failed, Toast.LENGTH_LONG).show()
             return
         }
-        markDownloading(key, true)
         transferBanner.upsert(
             TransferBannerController.Transfer(
                 id = key,
@@ -375,8 +391,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun confirmCloudRestore(entry: AnalysisEntry) {
         if (!entry.offersRestore()) return
         val key = entry.downloadKey()
-        if (key in downloadingKeys || isBundleDownloadRunning(key) || isRestoreWorkRunning(key)) {
-            markDownloading(key, true)
+        if (busy.isBusy(key)) {
+            markDownloading(key)
             Toast.makeText(this, R.string.download_analysis_already, Toast.LENGTH_SHORT).show()
             return
         }
@@ -393,28 +409,29 @@ class SettingsActivity : AppCompatActivity() {
     private fun restoreBackup(entry: AnalysisEntry) {
         val cloud = entry.cloud ?: return
         val key = entry.downloadKey()
-        if (isRestoreWorkRunning(cloud.sessionId) || key in downloadingKeys) {
-            markDownloading(key, true)
+        if (busy.isBusy(key)) {
+            markDownloading(key)
             Toast.makeText(this, R.string.download_analysis_already, Toast.LENGTH_SHORT).show()
             return
         }
         // Prefer the existing phone row id so a freed stub / re-download fills
         // in-place rather than creating a second "restored-…" id.
         val targetLocalId = entry.record?.id ?: CloudRestore.targetLocalId(cloud)
+        // Marked before the IO hop: the restore can run and finish inside it.
+        markDownloading(key)
         lifecycleScope.launch {
             val started = withContext(Dispatchers.IO) {
                 RestoreStart.start(this@SettingsActivity, cloud.sessionId, targetLocalId, entry.name)
             }
             if (started == RestoreStart.Result.ALREADY_RUNNING) {
-                markDownloading(key, true)
                 Toast.makeText(this@SettingsActivity, R.string.download_analysis_already, Toast.LENGTH_SHORT).show()
                 return@launch
             }
             if (started != RestoreStart.Result.STARTED) {
+                unmarkDownloading(key)
                 Toast.makeText(this@SettingsActivity, R.string.restore_failed_generic, Toast.LENGTH_LONG).show()
                 return@launch
             }
-            markDownloading(key, true)
             transferBanner.upsert(
                 TransferBannerController.Transfer(
                     id = key,
@@ -427,32 +444,20 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun isRestoreWorkRunning(cloudSessionId: String): Boolean =
-        RestoreStart.isRunning(this, cloudSessionId)
-
-    private fun isBundleDownloadRunning(cloudSessionId: String): Boolean {
-        if (cloudSessionId.isBlank()) return false
-        val wm = runCatching { WorkManager.getInstance(this) }.getOrNull()
-        return wm != null &&
-            runCatching {
-                wm.getWorkInfosForUniqueWork(CloudRestore.bundleDownloadWorkName(cloudSessionId)).get()
-                    .any { !it.state.isFinished }
-            }.getOrDefault(false)
+    private fun markDownloading(key: String) {
+        busy.mark(key)
+        publishBusy()
     }
 
-    private fun markDownloading(key: String, busy: Boolean) {
-        if (busy) downloadingKeys.add(key) else downloadingKeys.remove(key)
-        analysesAdapter.setDownloadingKeys(downloadingKeys.toSet())
+    private fun unmarkDownloading(key: String) {
+        busy.unmark(key)
+        publishBusy()
     }
 
-    /** Drop finished restore / download keys. */
-    private fun syncDownloadingKeys() {
-        val next = mutableSetOf<String>()
-        downloadingKeys.filter { isRestoreWorkRunning(it) || isBundleDownloadRunning(it) }.forEach { next += it }
-        downloadingKeys.clear()
-        downloadingKeys.addAll(next)
-        analysesAdapter.setDownloadingKeys(downloadingKeys.toSet())
-    }
+    /** Show the busy rows again; [BusyTransfers] already dropped the ones whose work ended. */
+    private fun syncDownloadingKeys() = publishBusy()
+
+    private fun publishBusy() = analysesAdapter.setDownloadingKeys(busy.keys())
 
     /**
      * A restore runs in [com.indicvision.semper.data.DicRestoreWorker], so without
@@ -470,6 +475,8 @@ class SettingsActivity : AppCompatActivity() {
         workManager
             .getWorkInfosByTagLiveData("restore")
             .observe(this) { infos ->
+                busy.onRestoreWork(infos.orEmpty())
+                publishBusy()
                 infos.orEmpty().forEach { info ->
                     val cloudId = info.tags.firstOrNull { it.startsWith("restore-") }
                         ?.removePrefix("restore-")
@@ -537,6 +544,9 @@ class SettingsActivity : AppCompatActivity() {
         workManager
             .getWorkInfosByTagLiveData(CloudRestore.TAG_BUNDLE_DOWNLOAD)
             .observe(this) { infos ->
+                // Running, queued and blocked rows go busy through this list.
+                busy.onDownloadWork(infos.orEmpty())
+                publishBusy()
                 infos.orEmpty().forEach { info ->
                     val cloudId = info.tags
                         .firstOrNull { it.startsWith("${CloudRestore.TAG_BUNDLE_DOWNLOAD}-") }
@@ -561,7 +571,6 @@ class SettingsActivity : AppCompatActivity() {
                                 } else if (info.state == WorkInfo.State.RUNNING) {
                                     transferBanner.updateProgress(key, pct)
                                 }
-                                markDownloading(key, true)
                             }
                         }
                         WorkInfo.State.FAILED -> {
@@ -749,14 +758,15 @@ class SettingsActivity : AppCompatActivity() {
                 .setTitle(R.string.logout_confirm_title)
                 .setMessage(R.string.logout_confirm_body)
                 .setPositiveButton(R.string.action_sign_out) { _, _ ->
-                    lifecycleScope.launch {
-                        AuthRepository(this@SettingsActivity).signOut()
-                        AuthRoute.toSignIn(this@SettingsActivity)
-                    }
+                    // Outside this screen, so a rotation cannot half sign out;
+                    // the observer below routes once it is done.
+                    val repo = AuthRepository(applicationContext)
+                    SignOutRun.start(SettingsActivity::class.java) { repo.signOut() }
                 }
                 .setNegativeButton(R.string.action_cancel, null)
                 .show()
         }
+        SignOutRun.observe(this) { AuthRoute.toSignIn(this) }
     }
 
     // ── Formatting ───────────────────────────────────────────────────────

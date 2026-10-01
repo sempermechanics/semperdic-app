@@ -1,5 +1,6 @@
 package com.indicvision.semper.ui.settings
 
+import androidx.annotation.WorkerThread
 import com.indicvision.semper.data.SessionRecord
 import com.indicvision.semper.data.net.CloudSessionDto
 
@@ -29,10 +30,17 @@ data class AnalysisEntry(
      * without a filesystem.
      */
     val localBytes: Long = 0L,
+    /**
+     * Whether this phone still holds frame data for [record]. Read from disk
+     * once, off the main thread, by [AnalysisEntries.merge]: the row's wording
+     * and actions read it on every bind and tap, which used to list the
+     * session directory on the main thread each time.
+     */
+    val hasLocalData: Boolean = false,
 ) {
     val location: AnalysisLocation
         get() = when {
-            cloud != null && (record == null || !record.hasLocalData()) -> AnalysisLocation.CLOUD_ONLY
+            cloud != null && !hasLocalData -> AnalysisLocation.CLOUD_ONLY
             cloud != null -> AnalysisLocation.PHONE_AND_CLOUD
             record?.syncState == SessionRecord.SyncState.LOCAL_ONLY -> AnalysisLocation.PHONE_ONLY
             else -> AnalysisLocation.PHONE_SYNC_STATE
@@ -50,8 +58,7 @@ data class AnalysisEntry(
      * Cloud Restore into app storage: only when cloud is listed and this phone
      * does not already have frame data.
      */
-    fun offersRestore(): Boolean =
-        cloud != null && (record == null || !record.hasLocalData())
+    fun offersRestore(): Boolean = cloud != null && !hasLocalData
 
     /** Stable id for in-flight Download jobs and WorkManager restore names. */
     fun downloadKey(): String =
@@ -79,8 +86,16 @@ object AnalysisEntries {
      * A backup is claimed by at most one record — first match wins. Otherwise
      * two records carrying the same stale cloud id would each show the same
      * backup, with two bins deleting the one thing.
+     *
+     * [hasLocal] decides [AnalysisEntry.hasLocalData]; by default it lists each
+     * record's session directory, so call this off the main thread.
      */
-    fun merge(records: List<SessionRecord>, cloud: List<CloudSessionDto>): List<AnalysisEntry> {
+    @WorkerThread
+    fun merge(
+        records: List<SessionRecord>,
+        cloud: List<CloudSessionDto>,
+        hasLocal: (SessionRecord) -> Boolean = { it.hasLocalData() },
+    ): List<AnalysisEntry> {
         val byLocalId = cloud.filter { it.localSessionId.isNotBlank() }.associateBy { it.localSessionId }
         val matched = mutableSetOf<String>()
         val onPhone = records.map { record ->
@@ -91,7 +106,7 @@ object AnalysisEntries {
                         it.sessionId !in matched
                 }
             match?.let { matched += it.sessionId }
-            AnalysisEntry(record.name, record, match)
+            AnalysisEntry(record.name, record, match, hasLocalData = hasLocal(record))
         }
         val cloudOnly = cloud.filterNot { it.sessionId in matched }
             .map { AnalysisEntry(it.specimen ?: it.sessionId, null, it) }

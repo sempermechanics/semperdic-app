@@ -49,6 +49,22 @@ class AnalysisEntriesTest {
     }
 
     @Test
+    fun `a row's place and Restore come from the flag read at merge, not from the disk`() {
+        // Rows bind and are tapped on the main thread; listing a session
+        // directory there per bind is what the flag replaces.
+        val withFrames = record("local-1", withLocalData = true)
+        val cloud = CloudSessionDto(sessionId = "cloud-1", localSessionId = "local-1")
+
+        val readAsGone = AnalysisEntries.merge(listOf(withFrames), listOf(cloud), hasLocal = { false }).single()
+        assertEquals(AnalysisLocation.CLOUD_ONLY, readAsGone.location)
+        assertEquals(true, readAsGone.offersRestore())
+
+        val readAsThere = AnalysisEntries.merge(listOf(withFrames), listOf(cloud), hasLocal = { true }).single()
+        assertEquals(AnalysisLocation.PHONE_AND_CLOUD, readAsThere.location)
+        assertEquals(false, readAsThere.offersRestore())
+    }
+
+    @Test
     fun `cloud row joins its local record by localSessionId`() {
         val entries = AnalysisEntries.merge(
             records = listOf(record("local-1", name = "Steel plate")),

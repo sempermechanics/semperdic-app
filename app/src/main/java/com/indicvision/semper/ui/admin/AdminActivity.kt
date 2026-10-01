@@ -18,6 +18,7 @@ import com.indicvision.semper.data.net.AdminUserDto
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.TokenProvider
 import com.indicvision.semper.ui.common.Insets
+import com.indicvision.semper.util.suspendRunCatching
 import kotlinx.coroutines.launch
 
 /**
@@ -59,19 +60,20 @@ class AdminActivity : AppCompatActivity() {
                 finish()
                 return@launch
             }
-            try {
-                val users = api.listUsers(token, "PENDING")
-                adapter.submit(users)
-                tvEmpty.visibility = if (users.isEmpty()) View.VISIBLE else View.GONE
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                Toast.makeText(
-                    this@AdminActivity,
-                    getString(R.string.admin_load_error, e.message ?: ""),
-                    Toast.LENGTH_LONG,
-                ).show()
-            } finally {
-                setLoading(false)
-            }
+            // Cancellation (the screen closed) propagates: it is not a load error.
+            suspendRunCatching { api.listUsers(token, "PENDING") }
+                .onSuccess { users ->
+                    adapter.submit(users)
+                    tvEmpty.visibility = if (users.isEmpty()) View.VISIBLE else View.GONE
+                }
+                .onFailure { e ->
+                    Toast.makeText(
+                        this@AdminActivity,
+                        getString(R.string.admin_load_error, e.message ?: ""),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            setLoading(false)
         }
     }
 
@@ -83,24 +85,25 @@ class AdminActivity : AppCompatActivity() {
                 setLoading(false)
                 return@launch
             }
-            try {
-                api.setUserStatus(token, user.uid, action)
-                val label = user.email ?: user.uid
-                val msg = if (action == "approve") {
-                    getString(R.string.admin_approved_toast, label)
-                } else {
-                    getString(R.string.admin_denied_toast, label)
+            suspendRunCatching { api.setUserStatus(token, user.uid, action) }
+                .onSuccess {
+                    val label = user.email ?: user.uid
+                    val msg = if (action == "approve") {
+                        getString(R.string.admin_approved_toast, label)
+                    } else {
+                        getString(R.string.admin_denied_toast, label)
+                    }
+                    Toast.makeText(this@AdminActivity, msg, Toast.LENGTH_SHORT).show()
+                    load() // refresh the list
                 }
-                Toast.makeText(this@AdminActivity, msg, Toast.LENGTH_SHORT).show()
-                load() // refresh the list
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                setLoading(false)
-                Toast.makeText(
-                    this@AdminActivity,
-                    getString(R.string.admin_action_error, e.message ?: ""),
-                    Toast.LENGTH_LONG,
-                ).show()
-            }
+                .onFailure { e ->
+                    setLoading(false)
+                    Toast.makeText(
+                        this@AdminActivity,
+                        getString(R.string.admin_action_error, e.message ?: ""),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
         }
     }
 

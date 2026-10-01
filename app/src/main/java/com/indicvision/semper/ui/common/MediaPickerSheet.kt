@@ -9,8 +9,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -19,6 +21,11 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.indicvision.semper.R
 import com.indicvision.semper.data.CoachPrefs
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * In-sheet Images picker. Files dismisses this sheet and hands off to SAF
@@ -31,6 +38,9 @@ class MediaPickerSheet private constructor(
     private val onBrowseSaf: () -> Unit,
     private val onPicked: (List<Uri>) -> Unit,
 ) {
+    /** Where the MediaStore query runs, fixed when the sheet opens. */
+    private val queryDispatcher: CoroutineDispatcher = Companion.queryDispatcher
+
     private val sheet = BottomSheetDialog(activity)
     private val root: View = activity.layoutInflater.inflate(R.layout.sheet_media_picker, null)
     private val title: TextView = root.findViewById(R.id.tvMediaTitle)
@@ -68,6 +78,9 @@ class MediaPickerSheet private constructor(
             .start()
     }
 
+    /** The gallery query in flight; a newer reload (permission granted) replaces it. */
+    private var reloadJob: Job? = null
+
     private var expandWaitBehavior: BottomSheetBehavior<View>? = null
     private var expandWaitCallback: BottomSheetBehavior.BottomSheetCallback? = null
 
@@ -91,6 +104,7 @@ class MediaPickerSheet private constructor(
         btnAllow.setOnClickListener { requestPermission() }
         btnUse.setOnClickListener { confirm() }
         sheet.setOnDismissListener {
+            reloadJob?.cancel()
             list.removeCallbacks(unlockSelection)
             clearExpandWait()
             coach.dismiss(markSeen = false)
@@ -185,17 +199,28 @@ class MediaPickerSheet private constructor(
     }
 
     private fun reload() {
+        reloadJob?.cancel()
         if (!MediaStoreBrowser.hasReadAccess(activity)) {
             adapter.submit(emptyList())
             showEmpty(needPermission = true)
             return
         }
-        val items = runCatching {
-            MediaStoreBrowser.query(
-                context = activity,
-                includeVideo = includeVideo,
-            )
-        }.getOrDefault(emptyList())
+        // A content-resolver query over the whole gallery: it can take a
+        // while on a big one, so it stays off the main thread.
+        reloadJob = activity.lifecycleScope.launch {
+            val items = withContext(queryDispatcher) {
+                runCatching {
+                    MediaStoreBrowser.query(
+                        context = activity,
+                        includeVideo = includeVideo,
+                    )
+                }.getOrDefault(emptyList())
+            }
+            if (sheet.isShowing) showItems(items)
+        }
+    }
+
+    private fun showItems(items: List<MediaStoreBrowser.Item>) {
         adapter.submit(items)
         empty.isVisible = items.isEmpty()
         list.isVisible = items.isNotEmpty()
@@ -321,6 +346,10 @@ class MediaPickerSheet private constructor(
 
     companion object {
         private const val REF_HINT_MS = 1000L
+
+        /** Seam for tests, which query inline so the grid fills as the main thread idles. */
+        @VisibleForTesting
+        internal var queryDispatcher: CoroutineDispatcher = Dispatchers.IO
 
         fun show(
             activity: AppCompatActivity,

@@ -2,9 +2,9 @@ package com.indicvision.semper.ui.auth
 
 import android.content.Context
 import android.content.Intent
-import com.indicvision.semper.DicKeys
 import com.indicvision.semper.data.AccessStatus
 import com.indicvision.semper.data.AuthRepository
+import com.indicvision.semper.ui.common.AuthRoute
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,10 +61,7 @@ object StatusRecheck {
         }
 
         data class SignIn(val message: String) : Reroute {
-            override fun intent(context: Context): Intent =
-                Intent(context, AuthActivity::class.java)
-                    .putExtra(DicKeys.ROUTING_ERROR, message)
-                    .clearTask()
+            override fun intent(context: Context): Intent = AuthRoute.signInIntent(context, message)
         }
     }
 

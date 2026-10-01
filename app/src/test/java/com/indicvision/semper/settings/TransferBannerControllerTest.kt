@@ -5,6 +5,7 @@ import android.widget.TextView
 import com.indicvision.semper.R
 import com.indicvision.semper.ui.common.TransferBannerController
 import com.indicvision.semper.ui.settings.SettingsActivity
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -13,6 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.android.controller.ActivityController
 
 /**
  * Banner chrome under a real themed Activity (Material indicators need a theme).
@@ -22,12 +24,21 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class TransferBannerControllerTest {
 
+    /**
+     * Every Settings a test opens, destroyed after it: a live one left behind
+     * would still observe the account-deletion and sign-out runs of later tests.
+     */
+    private val built = mutableListOf<ActivityController<SettingsActivity>>()
+
+    @After
+    fun destroySettings() = built.forEach { runCatching { it.pause().stop().destroy() } }
+
     private lateinit var root: View
     private lateinit var controller: TransferBannerController
 
     @Before
     fun setUp() {
-        val activity = Robolectric.buildActivity(SettingsActivity::class.java).setup().get()
+        val activity = Robolectric.buildActivity(SettingsActivity::class.java).setup().also { built += it }.get()
         root = activity.layoutInflater.inflate(R.layout.view_transfer_banner, null)
         controller = TransferBannerController(root)
     }
