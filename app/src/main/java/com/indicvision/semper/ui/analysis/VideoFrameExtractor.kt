@@ -20,6 +20,7 @@ import androidx.core.graphics.scale
 import com.indicvision.semper.R
 import com.indicvision.semper.imaging.BitmapDecode
 import com.indicvision.semper.imaging.ImageEncode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import timber.log.Timber
@@ -103,6 +104,13 @@ object VideoFrameExtractor {
     /**
      * Extract frames. Call from IO. Invokes [onProgress] from the background thread.
      * Returns [ExtractionResult] or null if insufficient frames.
+     *
+     * Cancelling the caller's job cancels the extraction: it throws
+     * [CancellationException] rather than falling through to the next rung,
+     * whose null would read as "not enough frames".
+     *
+     * @param rotationDegrees the clip's rotation from [readMeta], when the
+     *   caller already has it; null reads the metadata again
      */
     suspend fun extract(
         context: Context,
@@ -113,6 +121,7 @@ object VideoFrameExtractor {
         maxFrames: Int,
         cacheDir: File,
         preferKeyframes: Boolean = true,
+        rotationDegrees: Int? = null,
         onProgress: (percent: Int, status: String) -> Unit,
     ): ExtractionResult? {
         val stagingDir = FrameImportHelper.createStagingDir(cacheDir)
@@ -135,7 +144,7 @@ object VideoFrameExtractor {
             ) ?: extractWithHardwareDecoder(
                 context = context,
                 uri = uri,
-                rotationDegrees = readMeta(context, uri).rotationDegrees,
+                rotationDegrees = rotationDegrees ?: readMeta(context, uri).rotationDegrees,
                 fpsExtract = fpsExtract,
                 startMs = startMs,
                 endMs = endMs,
@@ -208,6 +217,9 @@ object VideoFrameExtractor {
                     stagingDir = stagingDir,
                     onProgress = onProgress,
                 )
+            } catch (e: CancellationException) {
+                // The user's Cancel: not a decoder failure for the next rung to retry.
+                throw e
             } catch (e: Exception) {
                 Timber.w(e, "Hardware decoding loop failed")
                 null
@@ -318,6 +330,8 @@ object VideoFrameExtractor {
                 startMs = startMs,
                 defPaths = defPaths,
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Timber.w(e, "Retriever extraction fallback failed")
             return null

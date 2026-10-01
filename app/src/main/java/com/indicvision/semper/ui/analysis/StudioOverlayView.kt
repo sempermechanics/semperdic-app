@@ -704,13 +704,17 @@ class StudioOverlayView @JvmOverloads constructor(
     }
 
     // OOM FIX: Generate Raw ALPHA_8 bytes
-    fun generateMaskBytes(): ByteArray = StudioOverlayMaskEncoder.encode(
-        StudioOverlayMaskEncoder.Input(
-            realImageWidth = realImageWidth,
-            realImageHeight = realImageHeight,
-            imageBounds = imageBounds,
-            holes = holes.toList(),
-        ),
+    fun generateMaskBytes(): ByteArray = StudioOverlayMaskEncoder.encode(maskInput())
+
+    /**
+     * A copy of what the mask is drawn from, for [StudioOverlayMaskEncoder.encode]
+     * off the main thread: the view's own rects keep changing under touch.
+     */
+    fun maskInput() = StudioOverlayMaskEncoder.Input(
+        realImageWidth = realImageWidth,
+        realImageHeight = realImageHeight,
+        imageBounds = RectF(imageBounds),
+        holes = holes.map { it.copy(rect = RectF(it.rect)) },
     )
 
     private companion object {

@@ -650,7 +650,7 @@ class SweepSetupHelper(
             }
             progress.isVisible = true
             framePreviewJob = activity.lifecycleScope.launch {
-                val bmp = withContext(Dispatchers.Default) { decodeFramePreview(path) }
+                val bmp = decodeFramePreview(path, viewModel.defFrameSizes[path])
                 if (index != selected) {
                     bmp?.recycle()
                     return@launch
@@ -758,25 +758,32 @@ class SweepSetupHelper(
 
     /**
      * Decode a deformed-frame path for the pick dialog. Handles ordinary
-     * containers, native-only formats (TIFF), and RAW RGBA blobs written at import.
+     * containers, native-only formats (TIFF), and RAW RGBA blobs written at import
+     * ([size] is the frame's measured size, for those).
+     *
+     * Each rung runs where it belongs: file reads on IO, the native decoder on
+     * [SemperNativeLib.nativeDispatcher] (every JNI call is pinned there), the
+     * JVM decodes on Default.
      */
     @Suppress("ReturnCount") // a ladder of decoders; each rung returns what it managed
-    private fun decodeFramePreview(path: String): Bitmap? {
-        BitmapDecode.decodeFileForView(path, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE)
-            ?.let { return it }
+    private suspend fun decodeFramePreview(path: String, size: Pair<Int, Int>?): Bitmap? {
+        withContext(Dispatchers.IO) {
+            BitmapDecode.decodeFileForView(path, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE)
+        }?.let { return it }
 
-        val file = File(path)
-        if (!file.exists()) return null
-        val bytes = runCatching { file.readBytes() }.getOrNull() ?: return null
+        val bytes = withContext(Dispatchers.IO) {
+            File(path).takeIf(File::exists)?.let { runCatching { it.readBytes() }.getOrNull() }
+        } ?: return null
 
-        runCatching {
-            SemperNativeLib.getPreviewFromBytes(bytes, PREVIEW_MAX_EDGE)
-        }.getOrNull()?.let { return it }
+        withContext(SemperNativeLib.nativeDispatcher) {
+            runCatching { SemperNativeLib.getPreviewFromBytes(bytes, PREVIEW_MAX_EDGE) }.getOrNull()
+        }?.let { return it }
 
-        decodeRawRgba(bytes, viewModel.defFrameSizes[path])?.let { return it }
-
-        // Last resort: bounds-free BitmapFactory (may still fail for RAW).
-        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        return withContext(Dispatchers.Default) {
+            decodeRawRgba(bytes, size)
+                // Last resort: bounds-free BitmapFactory (may still fail for RAW).
+                ?: BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        }
     }
 
     /** A RAW RGBA blob written at import, sampled down to preview size. */

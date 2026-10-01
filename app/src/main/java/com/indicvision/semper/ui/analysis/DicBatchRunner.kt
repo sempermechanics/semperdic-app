@@ -14,6 +14,7 @@
 package com.indicvision.semper.ui.analysis
 
 import android.content.Context
+import androidx.annotation.WorkerThread
 import com.indicvision.semper.DicResult
 import com.indicvision.semper.EngineDebug
 import com.indicvision.semper.ProgressCallback
@@ -22,6 +23,7 @@ import com.indicvision.semper.analytics.SemperAnalytics
 import com.indicvision.semper.data.CloudSync
 import com.indicvision.semper.data.SessionPaths
 import com.indicvision.semper.data.SessionRecord
+import com.indicvision.semper.data.SessionRecordSettings
 import com.indicvision.semper.data.SessionStore
 import com.indicvision.semper.report.EngineStats
 import com.indicvision.semper.report.FieldRangesStore
@@ -37,6 +39,7 @@ import kotlin.coroutines.CoroutineContext
  * JNI [SemperNativeLib.computeFullFieldDirect] stays in this loop — do not
  * fragment it. Buffer allocate / overrun / `.dat` write are [DicFieldIo].
  */
+@WorkerThread
 internal fun AnalysisViewModel.runBatchAnalysisBody(
     appContext: Context,
     spec: RunSpec,
@@ -231,10 +234,13 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
         }
 
         // Defensive bound: the engine must never report more points than the ROI
-        // grid the direct buffer was sized for (maxPoints). If it ever does (grid
-        // rounding / an engine off-by-one), the get() below would read past the
-        // buffer and crash the whole run with BufferUnderflowException. Treat it
-        // as an init-class engine failure with a clear log instead of crashing.
+        // grid the direct buffer was sized for (maxPoints). Today it cannot: its
+        // grid is exactly (rect_w / step) x (rect_h / step), the size allocated
+        // above (native/src/pipeline/full_field_solver.cpp, gridW / gridH), and
+        // it stops packing at the buffer's capacity rather than overrun it
+        // (full_field_solver_stats.cpp). Should either change, the get() below
+        // would read past the buffer and crash the run with
+        // BufferUnderflowException, so it is an init-class engine failure.
         if (DicFieldIo.wouldOverrun(validPointsCount, outputBuffer)) {
             Timber.e(
                 "Engine returned %d points but the buffer holds %d (frame %d) — failing frame",
@@ -310,7 +316,8 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     val keptRawNames = persistedRawNames.filterTo(HashSet()) { it.isNotBlank() }
     rawDeformedDir.listFiles()?.forEach { if (it.name !in keptRawNames) it.delete() }
 
-    repointDeformedPaths(resolvedDefPaths)
+    // On Main: the wizard's fields are not this thread's to write.
+    repointDeformedPathsOnMain(resolvedDefPaths)
 
     // With every frame moved out, the committed import is dead weight that
     // would otherwise survive until the next import. A partial run leaves it
@@ -321,6 +328,14 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
 
     val executionTimeMs = (System.currentTimeMillis() - params.processingStartTime).toInt()
     var recordSaved = false
+    // The names actually on disk in raw_deformed/ — reopening a session,
+    // exporting and cloud upload resolve images by these.
+    val defNames = persistedRawNames.mapIndexed { i, persisted ->
+        persisted.ifBlank {
+            (defOriginalNames.getOrNull(i) ?: resolvedDefPaths[i])
+                .baseName()
+        }
+    }
 
     // A cancelled first run saves nothing. A cancelled re-run is saved like a
     // partial one: the previous run's frames are already gone, so its row
@@ -350,14 +365,7 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
                 frameCount = solvedFrames,
                 stopCode = engineErrorCode.also { lastStopCode = it },
                 plannedFrameCount = plannedFrames.also { lastPlannedFrames = it },
-                // The names actually on disk in raw_deformed/ — reopening a
-                // session, exporting and cloud upload resolve images by these.
-                defNames = persistedRawNames.mapIndexed { i, persisted ->
-                    persisted.ifBlank {
-                        (defOriginalNames.getOrNull(i) ?: defFilePaths[i])
-                            .baseName()
-                    }
-                },
+                defNames = defNames,
                 engineStatsArray = engineStatsArray,
             ),
             enqueueCloudIfSaved = cloudEnabled,
@@ -370,12 +378,21 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
         }
     } else if (previous != null) {
         val framesOnDisk = batchDir.listFiles { f -> f.extension == "dat" }?.size ?: 0
-        val after = afterUnsavedRerun(previous, framesOnDisk, engineErrorCode, plannedFrames)
+        val after = afterUnsavedRerun(
+            previous,
+            UnsavedRerun(framesOnDisk, engineErrorCode, plannedFrames, spec.recordSettings(), defNames),
+        )
         when {
             after == null -> SessionStore.forget(appContext, localSessionId)
             // The row now lists the frames this run left on disk, so they are
             // kept even though the run wrote no record of its own.
-            after !== previous -> recordSaved = SessionStore.upsert(appContext, after)
+            after !== previous -> {
+                recordSaved = SessionStore.upsert(appContext, after)
+                // The viewer opens on this row (BatchRunController's partial
+                // run), so the run result carries its reference, stop and
+                // size as the full-record branch above does.
+                recordKeptRow(after)
+            }
         }
     }
 
@@ -388,7 +405,7 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
         failedFrameIndex = failedFrameIndex,
         failedFrameName = failedFrameIndex
             .takeIf { it >= 0 }
-            ?.let { defFilePaths.getOrNull(it)?.substringAfterLast('/') },
+            ?.let { resolvedDefPaths.getOrNull(it)?.substringAfterLast('/') },
         firstFrameCorrelatedPoints = firstFrameCorrelatedPoints,
         saved = recordSaved,
     )
@@ -424,6 +441,21 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
 }
 
 /**
+ * What a re-run that wrote no record of its own left behind.
+ *
+ * @property settings what the run solved with, which the frames on disk now
+ *   reflect
+ * @property defNames the frame names on disk, as a saved run records them
+ */
+internal data class UnsavedRerun(
+    val framesOnDisk: Int,
+    val stopCode: Int,
+    val plannedFrames: Int,
+    val settings: SessionRecordSettings,
+    val defNames: List<String>,
+)
+
+/**
  * What the Home row of a re-run that saved nothing should become. The run
  * deleted the previous frames before it started, so the row can no longer
  * describe them as on this phone.
@@ -432,24 +464,39 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
  *   cloud", and the cloud copy is the run it describes.
  * - Nothing on disk and no cloud copy: null, the row goes. There is no
  *   analysis left anywhere for it to open.
- * - Some frames on disk: it describes those, with no headline or stats from
- *   the run that is gone, and as not backed up.
+ * - Some frames on disk: it describes those. They are this run's, so the row
+ *   takes its settings and frame names, and is an ordinary analysis even if
+ *   it was a sweep; it keeps no headline or stats from the run that is gone,
+ *   and is not backed up.
  */
-internal fun afterUnsavedRerun(
-    previous: SessionRecord,
-    framesOnDisk: Int,
-    stopCode: Int,
-    plannedFrames: Int,
-): SessionRecord? = when {
-    framesOnDisk == 0 && previous.syncState == SessionRecord.SyncState.SYNCED -> previous
-    framesOnDisk == 0 -> null
+internal fun afterUnsavedRerun(previous: SessionRecord, run: UnsavedRerun): SessionRecord? = when {
+    run.framesOnDisk == 0 && previous.syncState == SessionRecord.SyncState.SYNCED -> previous
+    run.framesOnDisk == 0 -> null
     else -> previous.copy(
         updatedAt = System.currentTimeMillis(),
-        frameCount = framesOnDisk,
-        stopCode = stopCode,
-        plannedFrameCount = plannedFrames,
+        frameCount = run.framesOnDisk,
+        subset = run.settings.subset,
+        step = run.settings.step,
+        strainWindow = run.settings.strainWin,
+        use6x6 = run.settings.use6x6,
+        roiX = run.settings.roiX,
+        roiY = run.settings.roiY,
+        roiW = run.settings.roiW,
+        roiH = run.settings.roiH,
+        defNames = run.defNames,
+        stopCode = run.stopCode,
+        plannedFrameCount = run.plannedFrames,
         headline = "",
         engineStats = emptyList(),
         syncState = SessionRecord.SyncState.LOCAL_ONLY,
+        sweepSubsets = emptyList(),
+        sweepSteps = emptyList(),
+        sweepStrainWindows = emptyList(),
+        sweepLabels = emptyList(),
+        sweepSkipSubsets = emptyList(),
+        sweepSkipSteps = emptyList(),
+        sweepSkipStrainWindows = emptyList(),
+        sweepSkipCodes = emptyList(),
+        sweepSkippedNodes = emptyList(),
     )
 }

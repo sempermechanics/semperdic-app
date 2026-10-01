@@ -243,6 +243,13 @@ demand, never on open; report compositing is capped at
 start, the FAB, the quota chip, a pre-run check (`AnalysisNavHelper.ensureSessionQuota`)
 or a quota rejection during B1. Not a paywall: the way past it is an email.
 
+The pre-run check (and the seat check, `ensureSeat`) applies only to a run
+that would start a new Home row, `AnalysisViewModel.wouldCreateNewSession`
+(`workingLocalId == null`). A re-run of the same inputs passes. Picking a
+reference (`applyNewReference`, image or video, even the same file) or
+importing frames calls `clearPreviousResults`, which drops `workingLocalId`,
+so the next run is a new row and is checked.
+
 ---
 
 ## B. App — background and data workflows

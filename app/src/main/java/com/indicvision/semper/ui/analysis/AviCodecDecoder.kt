@@ -30,11 +30,6 @@ internal class AviCodecDecoder private constructor(
 ) : AutoCloseable {
 
     companion object {
-        private const val MICROS_PER_SECOND = 1_000_000.0
-
-        /** An AVI states no rate of its own more often than one would like. */
-        private const val FALLBACK_FPS = 30.0
-
         /** Enough to walk a long GOP, plus the reordering delay of B-frames. */
         private const val MAX_STEPS = 600
 
@@ -127,7 +122,7 @@ internal class AviCodecDecoder private constructor(
     }
 
     private fun drainTo(target: Int): GrayPngEncoder.Luma? {
-        val targetUs = presentationTimeUs(target)
+        val targetUs = video.presentationTimeUs(target)
         var steps = 0
         while (steps++ < MAX_STEPS) {
             if (feedIndex <= target) feedOne()
@@ -178,7 +173,7 @@ internal class AviCodecDecoder private constructor(
         val size = minOf(bytes.size, buffer.capacity())
         buffer.put(bytes, 0, size)
         val flags = if (frame.keyframe) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
-        codec.queueInputBuffer(inIndex, 0, size, presentationTimeUs(feedIndex), flags)
+        codec.queueInputBuffer(inIndex, 0, size, video.presentationTimeUs(feedIndex), flags)
         feedIndex++
     }
 
@@ -190,11 +185,6 @@ internal class AviCodecDecoder private constructor(
         } finally {
             image.close()
         }
-    }
-
-    private fun presentationTimeUs(index: Int): Long {
-        val fps = if (video.fps > 0.0) video.fps else FALLBACK_FPS
-        return (index * MICROS_PER_SECOND / fps).toLong()
     }
 
     override fun close() {

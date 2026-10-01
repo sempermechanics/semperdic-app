@@ -19,6 +19,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.MainThread
+import androidx.annotation.WorkerThread
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
@@ -29,8 +30,13 @@ import com.indicvision.semper.DicKeys
 import com.indicvision.semper.R
 import com.indicvision.semper.data.CacheJanitor
 import com.indicvision.semper.ui.common.Insets
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -66,6 +72,9 @@ class RoiDrawActivity : AppCompatActivity() {
 
     /** True while syncing manual fields from the overlay — skip apply-on-change loops. */
     private var syncingManualFields = false
+
+    /** True from a Save until the editor finishes: the mask is still being written. */
+    private var saving = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,48 +113,48 @@ class RoiDrawActivity : AppCompatActivity() {
         overlayRoi.realImageHeight = realImageHeight
 
         if (imageFilePath != null) {
-            val file = File(imageFilePath)
-            if (file.exists()) {
-                val bytes = file.readBytes()
-                // Twice the screen, as the beam-edge editor, so a zoomed-in
-                // crop edge still lands on visible speckle.
-                val screen = resources.displayMetrics
-                val maxEdge = PREVIEW_OVERSAMPLE * max(screen.widthPixels, screen.heightPixels)
-                val longEdge = max(realImageWidth, realImageHeight).takeIf { it > 0 } ?: maxEdge
+            // Twice the screen, as the beam-edge editor, so a zoomed-in
+            // crop edge still lands on visible speckle.
+            val screen = resources.displayMetrics
+            val maxEdge = PREVIEW_OVERSAMPLE * max(screen.widthPixels, screen.heightPixels)
+            val longEdge = max(realImageWidth, realImageHeight).takeIf { it > 0 } ?: maxEdge
 
-                lifecycleScope.launch {
-                    val loaded = ReferencePreviewLoader.load(
-                        ReferencePreviewLoader.Request(bytes, realImageWidth, realImageHeight, min(longEdge, maxEdge)),
-                    )
-                    realImageWidth = loaded.width
-                    realImageHeight = loaded.height
-                    overlayRoi.realImageWidth = realImageWidth
-                    overlayRoi.realImageHeight = realImageHeight
-                    val bitmap = loaded.bitmap
+            lifecycleScope.launch {
+                // The decoded reference: tens of megabytes for a RAW frame.
+                val bytes = withContext(Dispatchers.IO) { readReference(File(imageFilePath)) }
+                if (bytes == null) {
+                    Toast.makeText(this@RoiDrawActivity, R.string.roi_image_not_found, Toast.LENGTH_SHORT).show()
+                    finish()
+                    return@launch
+                }
+                val loaded = ReferencePreviewLoader.load(
+                    ReferencePreviewLoader.Request(bytes, realImageWidth, realImageHeight, min(longEdge, maxEdge)),
+                )
+                realImageWidth = loaded.width
+                realImageHeight = loaded.height
+                overlayRoi.realImageWidth = realImageWidth
+                overlayRoi.realImageHeight = realImageHeight
+                val bitmap = loaded.bitmap
 
-                    if (bitmap == null) {
-                        Toast.makeText(this@RoiDrawActivity, R.string.roi_decode_failed, Toast.LENGTH_LONG).show()
-                    } else {
-                        imgRoiCanvas.setImageBitmap(bitmap)
-                        imgRoiCanvas.post {
-                            overlayRoi.imageView = imgRoiCanvas
+                if (bitmap == null) {
+                    Toast.makeText(this@RoiDrawActivity, R.string.roi_decode_failed, Toast.LENGTH_LONG).show()
+                } else {
+                    imgRoiCanvas.setImageBitmap(bitmap)
+                    imgRoiCanvas.post {
+                        overlayRoi.imageView = imgRoiCanvas
 
-                            if (savedInstanceState != null) {
-                                val left = savedInstanceState.getFloat(DicKeys.ROI_L, -1f)
-                                if (left != -1f) {
-                                    val top = savedInstanceState.getFloat(DicKeys.ROI_T)
-                                    val right = savedInstanceState.getFloat(DicKeys.ROI_R)
-                                    val bottom = savedInstanceState.getFloat(DicKeys.ROI_B)
-                                    overlayRoi.restoreRelativeRoi(RectF(left, top, right, bottom))
-                                    fillManualFields(overlayRoi.getRelativeRoi())
-                                }
+                        if (savedInstanceState != null) {
+                            val left = savedInstanceState.getFloat(DicKeys.ROI_L, -1f)
+                            if (left != -1f) {
+                                val top = savedInstanceState.getFloat(DicKeys.ROI_T)
+                                val right = savedInstanceState.getFloat(DicKeys.ROI_R)
+                                val bottom = savedInstanceState.getFloat(DicKeys.ROI_B)
+                                overlayRoi.restoreRelativeRoi(RectF(left, top, right, bottom))
+                                fillManualFields(overlayRoi.getRelativeRoi())
                             }
                         }
                     }
                 }
-            } else {
-                Toast.makeText(this, R.string.roi_image_not_found, Toast.LENGTH_SHORT).show()
-                finish()
             }
         }
 
@@ -337,53 +346,59 @@ class RoiDrawActivity : AppCompatActivity() {
         saveAndFinish()
     }
 
+    /**
+     * Returns the ROI and its mask to the wizard. The rect is read here, on
+     * Main; the mask (one byte per reference pixel, tens of megabytes on a
+     * modern sensor) is built on Default and written on IO, so Save no longer
+     * freezes the editor for the length of both. Further taps are ignored
+     * until it is done.
+     */
     private fun saveAndFinish() {
-        val rectX: Int
-        val rectY: Int
-        val rectW: Int
-        val rectH: Int
-        val maskBytes: ByteArray
+        if (saving) return
+        val rect: Rect
+        val buildMask: () -> ByteArray
 
         if (!overlayRoi.hasValidRoi && overlayRoi.holes.isEmpty()) {
-            rectX = 0
-            rectY = 0
-            rectW = realImageWidth
-            rectH = realImageHeight
-            maskBytes = ByteArray(realImageWidth * realImageHeight) { 255.toByte() }
+            rect = Rect(0, 0, realImageWidth, realImageHeight)
+            val pixels = realImageWidth * realImageHeight
+            buildMask = { ByteArray(pixels) { 255.toByte() } }
             Toast.makeText(this, R.string.roi_full_image_selected, Toast.LENGTH_SHORT).show()
         } else {
-            if (overlayRoi.hasValidRoi) {
-                val px = roiPixels(overlayRoi.getRelativeRoi(), realImageWidth, realImageHeight)
-                rectX = px.left
-                rectY = px.top
-                rectW = px.width()
-                rectH = px.height()
+            rect = if (overlayRoi.hasValidRoi) {
+                roiPixels(overlayRoi.getRelativeRoi(), realImageWidth, realImageHeight)
             } else {
-                rectX = 0
-                rectY = 0
-                rectW = realImageWidth
-                rectH = realImageHeight
+                Rect(0, 0, realImageWidth, realImageHeight)
             }
 
-            if (rectW <= 0 || rectH <= 0) {
+            if (rect.width() <= 0 || rect.height() <= 0) {
                 Toast.makeText(this, R.string.roi_invalid_size, Toast.LENGTH_SHORT).show()
                 return
             }
-            maskBytes = overlayRoi.generateMaskBytes()
+            val input = overlayRoi.maskInput()
+            buildMask = { StudioOverlayMaskEncoder.encode(input) }
         }
 
+        saving = true
         val maskFile = File(cacheDir, CacheJanitor.ROI_MASK_CACHE)
-        java.io.FileOutputStream(maskFile).use { it.write(maskBytes) }
+        lifecycleScope.launch {
+            val maskBytes = withContext(Dispatchers.Default) { buildMask() }
+            val written = withContext(Dispatchers.IO) { writeMask(maskFile, maskBytes) }
+            if (!written) {
+                saving = false
+                Toast.makeText(this@RoiDrawActivity, R.string.failed_save_temp_file, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
 
-        val resultIntent = Intent()
-        resultIntent.putExtra(DicKeys.ROI_X, rectX)
-        resultIntent.putExtra(DicKeys.ROI_Y, rectY)
-        resultIntent.putExtra(DicKeys.ROI_W, rectW)
-        resultIntent.putExtra(DicKeys.ROI_H, rectH)
-        resultIntent.putExtra(DicKeys.MASK_FILE_PATH, maskFile.absolutePath)
+            val resultIntent = Intent()
+            resultIntent.putExtra(DicKeys.ROI_X, rect.left)
+            resultIntent.putExtra(DicKeys.ROI_Y, rect.top)
+            resultIntent.putExtra(DicKeys.ROI_W, rect.width())
+            resultIntent.putExtra(DicKeys.ROI_H, rect.height())
+            resultIntent.putExtra(DicKeys.MASK_FILE_PATH, maskFile.absolutePath)
 
-        setResult(Activity.RESULT_OK, resultIntent)
-        finish()
+            setResult(Activity.RESULT_OK, resultIntent)
+            finish()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -420,4 +435,23 @@ internal fun roiPixels(roi: RectF, imageWidth: Int, imageHeight: Int): Rect {
     val right = roi.right.roundToInt().coerceAtMost(imageWidth)
     val bottom = roi.bottom.roundToInt().coerceAtMost(imageHeight)
     return Rect(x, y, right, bottom)
+}
+
+/** The reference the wizard staged for the ROI editor, or null when it is gone. */
+@WorkerThread
+private fun readReference(file: File): ByteArray? = try {
+    file.takeIf(File::exists)?.readBytes()
+} catch (e: IOException) {
+    Timber.e(e, "Could not read the ROI reference")
+    null
+}
+
+/** Writes the ROI mask the wizard reads back; false when it could not. */
+@WorkerThread
+private fun writeMask(file: File, bytes: ByteArray): Boolean = try {
+    FileOutputStream(file).use { it.write(bytes) }
+    true
+} catch (e: IOException) {
+    Timber.e(e, "Could not write the ROI mask")
+    false
 }

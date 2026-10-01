@@ -17,6 +17,9 @@ package com.indicvision.semper.ui.analysis
 import android.content.Context
 import android.os.Bundle
 import android.os.Trace
+import androidx.annotation.AnyThread
+import androidx.annotation.MainThread
+import androidx.annotation.WorkerThread
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -25,6 +28,7 @@ import com.indicvision.semper.SemperNativeLib
 import com.indicvision.semper.analytics.SemperAnalytics
 import com.indicvision.semper.data.CloudSync
 import com.indicvision.semper.data.SessionPaths
+import com.indicvision.semper.data.SessionRecord
 import com.indicvision.semper.data.SessionRecordSettings
 import com.indicvision.semper.data.SessionRepository
 import com.indicvision.semper.data.SessionStore
@@ -197,6 +201,31 @@ class AnalysisViewModel(private val saved: SavedStateHandle = SavedStateHandle()
 
     internal fun recordRunSettings(settings: SessionRecordSettings) {
         _runResult.update { it.copy(settings = settings) }
+    }
+
+    /**
+     * The run result of a re-run whose frames went into the existing Home row
+     * [row] rather than a record of its own: the viewer then opens on that
+     * row's reference, stop code, planned size and settings.
+     */
+    internal fun recordKeptRow(row: SessionRecord) {
+        _runResult.update {
+            it.copy(
+                refPath = row.refPath,
+                stopCode = row.stopCode,
+                plannedFrames = row.plannedFrameCount,
+                settings = SessionRecordSettings(
+                    subset = row.subset,
+                    step = row.step,
+                    strainWin = row.strainWindow,
+                    roiX = row.roiX,
+                    roiY = row.roiY,
+                    roiW = row.roiW,
+                    roiH = row.roiH,
+                    use6x6 = row.use6x6,
+                ),
+            )
+        }
     }
 
     // Buffered (not conflated): a StateFlow would drop intermediate per-frame /
@@ -517,7 +546,11 @@ class AnalysisViewModel(private val saved: SavedStateHandle = SavedStateHandle()
      * this view model was handed at import time go stale the moment a run
      * finishes; a re-run reading them would find nothing. [defFrameSizes] is
      * keyed by path, so it is re-keyed alongside.
+     *
+     * Main thread only, like every wizard input field; a run on the native
+     * thread goes through [repointDeformedPathsOnMain].
      */
+    @MainThread
     internal fun repointDeformedPaths(resolved: List<String>) {
         val previous = defFilePaths
         defFrameSizes = defFrameSizes.mapKeys { (path, _) ->
@@ -527,10 +560,24 @@ class AnalysisViewModel(private val saved: SavedStateHandle = SavedStateHandle()
     }
 
     /**
+     * [repointDeformedPaths] for a run on the native thread, which must not
+     * write the wizard's fields: the Activity reads them on Main, and the two
+     * used to race. Posted rather than awaited, because the run's loop cannot
+     * suspend; it is posted before the run's outcome is emitted, and both reach
+     * the Activity through the main queue in that order, so the outcome
+     * handler already sees the moved paths.
+     */
+    @AnyThread
+    internal fun repointDeformedPathsOnMain(resolved: List<String>) {
+        viewModelScope.launch(Dispatchers.Main) { repointDeformedPaths(resolved) }
+    }
+
+    /**
      * The deformed frame the sweep was solved against is persisted once, under
      * the name every combination shares — a sweep varies settings, not images.
      */
     @Suppress("LongParameterList") // the run's outputs a sweep session is assembled from
+    @WorkerThread
     private fun persistSweepSession(
         appContext: Context,
         localSessionId: String,
@@ -548,7 +595,7 @@ class AnalysisViewModel(private val saved: SavedStateHandle = SavedStateHandle()
         val rawName = sessions.persistRawDeformed(batchDir, frameIndex, defFilePaths, defOriginalNames)
         if (rawName.isNotBlank()) {
             val moved = File(batchDir, SessionPaths.RAW_DEFORMED_SUBDIR).resolve(rawName)
-            repointDeformedPaths(
+            repointDeformedPathsOnMain(
                 defFilePaths.toMutableList().also { it[frameIndex] = moved.absolutePath },
             )
         }
@@ -649,6 +696,40 @@ class AnalysisViewModel(private val saved: SavedStateHandle = SavedStateHandle()
         lastRefPath = null
         lastDefPath = null
         workingLocalId = null
+    }
+
+    /**
+     * Takes [bytes] as the reference, from a picked image or a video's first
+     * frame. Both pickers come through here, so they cannot disagree.
+     *
+     * - **A new input.** Like a new set of frames, it resets the previous
+     *   results, so the next run starts a new Home row and is checked against
+     *   the quota and seat gates ([wouldCreateNewSession]) instead of
+     *   overwriting the previous reference's session.
+     * - **The ROI and mask follow the pixel size.** Both are in the pixels of
+     *   the image they were drawn on (the mask is one byte per pixel). A
+     *   reference of a different size drops them and goes back to the full
+     *   frame. One of the same size keeps them: that is another shot of the
+     *   same set-up, and the user's crop still lands where they drew it.
+     *   [RoiResolveHelper.resolve] clips whatever is kept to the image anyway.
+     */
+    fun applyNewReference(bytes: ByteArray, name: String, width: Int, height: Int) {
+        val sameSize = width == realRefWidth && height == realRefHeight
+        clearPreviousResults()
+        if (!sameSize) {
+            hasCustomRoi = false
+            roiMaskBytes = null
+        }
+        realRefWidth = width
+        realRefHeight = height
+        refName = name
+        refBytes = bytes
+        if (!hasCustomRoi) {
+            roiX = 0
+            roiY = 0
+            roiW = width
+            roiH = height
+        }
     }
 
     /**
@@ -795,8 +876,8 @@ class AnalysisViewModel(private val saved: SavedStateHandle = SavedStateHandle()
     /** Where the heavy inputs are mirrored; null until [attachDraft] (and in JVM tests). */
     private var draft: WizardDraft? = null
 
-    /** One writer at a time, so an older reference can never land after a newer one. */
-    private val draftIo = Dispatchers.IO.limitedParallelism(1)
+    /** The draft's one lane: a restore reads after every write queued before it. */
+    private val draftIo = WizardDraft.io
 
     /** False while [restoreDraft] puts back what the draft already holds. */
     private var mirrorToDraft = true
@@ -804,9 +885,10 @@ class AnalysisViewModel(private val saved: SavedStateHandle = SavedStateHandle()
     /** The Bundle a process death left, until [restoreDraft] reads the draft behind it. */
     private var pendingRestore: Bundle? = null
 
+    /** Queues [write] on the draft's lane; it outlives this view model (see [WizardDraft.queue]). */
     private fun stage(write: (WizardDraft) -> Unit) {
         val target = draft?.takeIf { mirrorToDraft } ?: return
-        viewModelScope.launch(draftIo) { write(target) }
+        WizardDraft.queue(target, write)
     }
 
     /**
@@ -845,7 +927,7 @@ class AnalysisViewModel(private val saved: SavedStateHandle = SavedStateHandle()
         }
     }
 
-    /** The wizard was left for good: nothing will restore from the draft. */
+    /** The wizard was left for good: nothing will restore from the draft. Returns at once. */
     fun discardDraft() {
         draft?.discard()
     }
@@ -873,10 +955,21 @@ class AnalysisViewModel(private val saved: SavedStateHandle = SavedStateHandle()
         workingLocalId = null
     }
 
-    /** What the system saves as the Activity stops: the scalars, once the frame list is on disk. */
+    /**
+     * What the system saves as the Activity stops: the scalars, with the frame
+     * list queued for the draft.
+     *
+     * The list is written on the draft's lane, not here: the main thread used
+     * to block on the draft's lock behind a reference write still in flight.
+     * A restore reads on the same lane, after it. The Bundle carries a
+     * fingerprint of the list it queued, so a process killed before that
+     * write lands restores as LOST (the draft's list is not the one the
+     * Bundle names), never as an older list with the newer scalars.
+     */
     internal fun saveWizardState(): Bundle {
-        draft?.writeFrames(WizardState.encodeFrames(WizardState.frames(this)))
-        return WizardState.save(this)
+        val framesJson = WizardState.encodeFrames(WizardState.frames(this))
+        stage { it.writeFrames(framesJson) }
+        return WizardState.save(this, framesJson)
     }
 
     init {

@@ -245,7 +245,9 @@ gone.
 | Every sweep combination failed | The lattice, every node hollow — tap one for its reason. **View** and **Save graph** are disabled |
 
 Re-running the same inputs updates the same analysis. Different inputs make a
-new one.
+new one, which counts towards your quota. Picking the reference again counts as
+different inputs, even when it is the same image, and so does importing the
+frames again.
 
 ---
 
@@ -628,6 +630,8 @@ individual licence is released and re-offered to the same address, so signing
 up again with it is licensed straight away.
 
 **Quota.** The Home chip reads `Using N of M analyses` and turns red at the cap.
+Only a run that makes a new analysis is checked against it: a re-run of the
+same inputs is not, but one after picking a new reference or new frames is.
 Not a paywall — email support from the limit screen, or delete something and
 tap **Re-check**.
 

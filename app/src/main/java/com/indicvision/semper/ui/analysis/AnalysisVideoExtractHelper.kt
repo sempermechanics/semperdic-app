@@ -43,6 +43,7 @@ object AnalysisVideoExtractHelper {
         tvResult: TextView,
         overlayHelper: ComputeOverlayHelper,
         preferKeyframes: Boolean = true,
+        rotationDegrees: Int? = null,
         onApplied: (AppliedResult) -> Unit,
         onFinished: () -> Unit,
     ): Job {
@@ -60,6 +61,7 @@ object AnalysisVideoExtractHelper {
                     maxFrames = DicSettings.maxFrames(activity, AppRemoteConfig.maxFrames(activity)),
                     cacheDir = cacheDir,
                     preferKeyframes = preferKeyframes,
+                    rotationDegrees = rotationDegrees,
                     onProgress = { percent, status ->
                         overlayHelper.update(percent = percent.toFloat(), status = status)
                     },
@@ -77,17 +79,7 @@ object AnalysisVideoExtractHelper {
                         return@withContext
                     }
 
-                    viewModel.clearPreviousResults()
-                    viewModel.realRefWidth = result.refWidth
-                    viewModel.realRefHeight = result.refHeight
-                    viewModel.refBytes = result.refPng
-                    viewModel.refName = result.refName
-                    if (!viewModel.hasCustomRoi) {
-                        viewModel.roiX = 0
-                        viewModel.roiY = 0
-                        viewModel.roiW = result.refWidth
-                        viewModel.roiH = result.refHeight
-                    }
+                    viewModel.applyNewReference(result.refPng, result.refName, result.refWidth, result.refHeight)
                     viewModel.defFilePaths = result.batch.filePaths
                     viewModel.defOriginalNames = result.batch.originalNames
                     viewModel.defFrameSizes = result.batch.frameSizes

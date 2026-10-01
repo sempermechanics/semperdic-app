@@ -2,6 +2,10 @@ package com.indicvision.semper.analysis
 
 import android.app.Application
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.data.CacheJanitor
 import com.indicvision.semper.data.WizardDraft
@@ -11,7 +15,10 @@ import com.indicvision.semper.ui.analysis.FrameImportHelper
 import com.indicvision.semper.ui.analysis.FrameOrderDirection
 import com.indicvision.semper.ui.analysis.FrameOrderMode
 import com.indicvision.semper.ui.analysis.WizardState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -24,6 +31,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import kotlin.concurrent.thread
 
 /**
  * The wizard across a process death (ADR-005): the scalars through the
@@ -174,6 +183,62 @@ class WizardStateTest {
     }
 
     @Test
+    fun `a frame list whose write never landed loses the draft, even at the same count`() {
+        val before = editedWizard()
+        // What the previous stop wrote.
+        draft.writeReference(REF)
+        draft.writeMask(MASK)
+        draft.writeFrames(WizardState.encodeFrames(WizardState.frames(before)))
+        // Reordered since: same frames, same count, other order.
+        before.defFilePaths = before.defFilePaths.reversed()
+        before.defOriginalNames = before.defOriginalNames.reversed()
+        before.defFrameDates = before.defFrameDates.reversed()
+        // No draft attached to before: this stop's frame-list write never lands.
+        val saved = before.saveWizardState()
+        val after = AnalysisViewModel(SavedStateHandle(mapOf(WizardState.KEY to saved))).also { it.attachDraft(draft) }
+
+        assertEquals(DraftRestore.LOST, runBlocking { after.restoreDraft() })
+        assertTrue(after.defFilePaths.isEmpty())
+    }
+
+    @Test
+    fun `a Bundle an older app saved restores on the frame count alone`() {
+        val before = editedWizard()
+        draft.writeReference(REF)
+        draft.writeMask(MASK)
+        draft.writeFrames(WizardState.encodeFrames(WizardState.frames(before)))
+        val saved = before.saveWizardState().apply { remove("framesFingerprint") }
+        val after = AnalysisViewModel(SavedStateHandle(mapOf(WizardState.KEY to saved))).also { it.attachDraft(draft) }
+
+        assertEquals(DraftRestore.RESTORED, runBlocking { after.restoreDraft() })
+        assertEquals(before.defFilePaths, after.defFilePaths)
+    }
+
+    @Test
+    fun `the frame list a stop queued is written after its view model is cleared`() {
+        val store = ViewModelStore()
+        val factory = viewModelFactory { initializer { editedWizard() } }
+        val vm = ViewModelProvider(store, factory)[AnalysisViewModel::class.java]
+        vm.attachDraft(draft)
+        drainDraftLane()
+        // Keep the lane busy, so the stop's write is still queued when the
+        // view model goes ("Don't keep activities").
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        CoroutineScope(WizardDraft.io).launch {
+            started.countDown()
+            release.await()
+        }
+        started.await()
+        vm.saveWizardState()
+        store.clear()
+        release.countDown()
+        drainDraftLane()
+
+        assertEquals(WizardState.encodeFrames(WizardState.frames(vm)), draft.readFrames())
+    }
+
+    @Test
     fun `a fresh wizard restores nothing`() {
         val vm = AnalysisViewModel().also { it.attachDraft(draft) }
         assertEquals(DraftRestore.NONE, runBlocking { vm.restoreDraft() })
@@ -205,11 +270,68 @@ class WizardStateTest {
     fun `a discarded draft ignores a write still queued behind it`() {
         draft.discard()
         draft.writeReference(REF)
+        drainDraftLane()
         assertFalse(WizardDraft.dirIn(ctx.filesDir).exists())
+    }
+
+    /** Waits for every draft write and delete queued so far. */
+    private fun drainDraftLane() = runBlocking { withContext(WizardDraft.io) {} }
+
+    /**
+     * Holds the draft's lock, as a reference write of tens of megabytes does,
+     * while [onMain] runs on another thread; true when [onMain] returned
+     * without waiting for it.
+     */
+    private fun returnsWhileDraftIsBusy(onMain: () -> Unit): Boolean {
+        val held = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val writer = thread {
+            synchronized(draft) {
+                held.countDown()
+                release.await()
+            }
+        }
+        held.await()
+        val main = thread { onMain() }
+        main.join(BUSY_WAIT_MS)
+        val returned = !main.isAlive
+        release.countDown()
+        writer.join()
+        main.join()
+        return returned
+    }
+
+    @Test
+    fun `leaving the wizard does not wait for a draft write in flight`() {
+        draft.writeReference(REF)
+
+        assertTrue("discard blocked on the draft's lock", returnsWhileDraftIsBusy { draft.discard() })
+        drainDraftLane()
+        assertFalse(WizardDraft.dirIn(ctx.filesDir).exists())
+    }
+
+    @Test
+    fun `stopping the wizard does not wait for a draft write in flight`() {
+        val vm = editedWizard().also { it.attachDraft(draft) }
+        drainDraftLane()
+        // Set before the draft was attached, so not mirrored: what the setters write.
+        draft.writeReference(REF)
+        draft.writeMask(MASK)
+
+        var saved: android.os.Bundle? = null
+        val returned = returnsWhileDraftIsBusy { saved = vm.saveWizardState() }
+        assertTrue("saveWizardState blocked on the draft's lock", returned)
+        drainDraftLane()
+
+        assertEquals(2, saved?.getInt("frameCount"))
+        val after = AnalysisViewModel(SavedStateHandle(mapOf(WizardState.KEY to saved))).also { it.attachDraft(draft) }
+        assertEquals(DraftRestore.RESTORED, runBlocking { after.restoreDraft() })
+        assertEquals(vm.defFilePaths, after.defFilePaths)
     }
 
     private companion object {
         val REF = ByteArray(64) { it.toByte() }
         val MASK = ByteArray(16) { 1 }
+        const val BUSY_WAIT_MS = 2_000L
     }
 }

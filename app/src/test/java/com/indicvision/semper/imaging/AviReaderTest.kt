@@ -316,6 +316,26 @@ class AviReaderTest {
     }
 
     @Test
+    fun `a file that states no frame rate is timed at the fallback rate`() {
+        // No rate in strh and none in avih: the importer still has to sample it.
+        val file = riff(
+            "AVI ",
+            headerList(width = 8, height = 8, scale = 0, rate = 0, microSecPerFrame = 0) +
+                list("movi", (1..60).map { chunk("00dc", payload(it, 4)) }.reduce(ByteArray::plus)),
+        )
+
+        val video = checkNotNull(read(file))
+        assertEquals(0.0, video.fps, 0.0)
+        assertFalse(video.fpsKnown)
+        assertEquals(AviReader.FALLBACK_FPS, video.effectiveFps, 0.0)
+        assertEquals(2000L, video.durationMs)
+        // One sample a second across the clip must name distinct frames,
+        // or the import collapses to one frame and refuses the video.
+        assertEquals(listOf(0, 30, 59), listOf(0L, 1_000_000L, 2_000_000L).map(video::frameIndexAt))
+        assertEquals(1_000_000L, video.presentationTimeUs(30))
+    }
+
+    @Test
     fun `anything that is not an AVI is refused`() {
         assertNull(read(ByteArray(64)))
         assertNull(read("RIFFxxxxWAVEfmt ".toByteArray(Charsets.US_ASCII)))

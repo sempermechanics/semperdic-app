@@ -44,11 +44,6 @@ internal class AviVideoDecoder private constructor(
 ) : AutoCloseable {
 
     companion object {
-        /** An AVI states no rate of its own more often than one would like. */
-        private const val FALLBACK_FPS = 30.0
-
-        private const val MILLIS_PER_SECOND = 1000.0
-
         /** Frame payloads are complete JPEGs under any of these. */
         private val MJPEG_FOURCCS = setOf("MJPG", "MJPEG", "JPEG", "JPGL", "AVI1", "AVRN", "DMB1", "MJPA")
 
@@ -87,21 +82,19 @@ internal class AviVideoDecoder private constructor(
 
     /**
      * A stream that states no frame rate still has a length: the wizard's
-     * segment slider needs one, so the frames are timed at a nominal 30 fps and
-     * [VideoMeta.fpsKnown] says the rate was assumed.
+     * segment slider needs one, so the frames are timed at
+     * [AviReader.Video.effectiveFps] and [VideoMeta.fpsKnown] says the rate
+     * was assumed.
      */
     val meta: VideoMeta
-        get() {
-            val fps = if (video.fps > 0.0) video.fps else FALLBACK_FPS
-            return VideoMeta(
-                durationMs = ((video.frames.size / fps) * MILLIS_PER_SECOND).toLong(),
-                fps = fps,
-                fpsKnown = video.fps > 0.0,
-                width = video.width,
-                height = video.height,
-                rotationDegrees = 0,
-            )
-        }
+        get() = VideoMeta(
+            durationMs = video.durationMs,
+            fps = video.effectiveFps,
+            fpsKnown = video.fpsKnown,
+            width = video.width,
+            height = video.height,
+            rotationDegrees = 0,
+        )
 
     /** False when the container opened but nothing here can decode its codec. */
     val canDecode: Boolean

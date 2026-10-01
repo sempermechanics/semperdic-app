@@ -40,40 +40,49 @@ internal class HardwareVideoDecoder private constructor(
         /**
          * Creates and starts a [HardwareVideoDecoder] for [uri], or returns null if hardware
          * decoding cannot be initialized.
+         *
+         * Every way out but success releases the extractor (and the codec, once
+         * made): a clip with no video track, or a track with no MIME type, used
+         * to return from inside the `try` and leak the extractor's native handle.
          */
         fun create(context: Context, uri: Uri, rotationDegrees: Int): HardwareVideoDecoder? {
             val extractor = MediaExtractor()
             var codec: MediaCodec? = null
+            var created: HardwareVideoDecoder? = null
             try {
                 extractor.setDataSource(context, uri, null)
-                val trackIndex = findVideoTrack(extractor) ?: return null
-                val format = extractor.getTrackFormat(trackIndex)
-                val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
+                val trackIndex = findVideoTrack(extractor)
+                val format = trackIndex?.let(extractor::getTrackFormat)
+                val mime = format?.getString(MediaFormat.KEY_MIME)
+                if (trackIndex != null && format != null && mime != null) {
+                    format.setInteger(
+                        MediaFormat.KEY_COLOR_FORMAT,
+                        MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible,
+                    )
 
-                format.setInteger(
-                    MediaFormat.KEY_COLOR_FORMAT,
-                    MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible,
-                )
+                    val decoder = MediaCodec.createDecoderByType(mime)
+                    codec = decoder
+                    decoder.configure(format, null, null, 0)
+                    decoder.start()
+                    extractor.selectTrack(trackIndex)
 
-                val decoder = MediaCodec.createDecoderByType(mime)
-                codec = decoder
-                decoder.configure(format, null, null, 0)
-                decoder.start()
-                extractor.selectTrack(trackIndex)
-
-                return HardwareVideoDecoder(
-                    extractor = extractor,
-                    codec = decoder,
-                    trackIndex = trackIndex,
-                    format = format,
-                    rotationDegrees = rotationDegrees,
-                )
+                    created = HardwareVideoDecoder(
+                        extractor = extractor,
+                        codec = decoder,
+                        trackIndex = trackIndex,
+                        format = format,
+                        rotationDegrees = rotationDegrees,
+                    )
+                }
             } catch (e: Exception) {
                 Timber.w(e, "HardwareVideoDecoder initialization failed")
-                runCatching { codec?.release() }
-                runCatching { extractor.release() }
-                return null
+            } finally {
+                if (created == null) {
+                    runCatching { codec?.release() }
+                    runCatching { extractor.release() }
+                }
             }
+            return created
         }
 
         private fun findVideoTrack(extractor: MediaExtractor): Int? {

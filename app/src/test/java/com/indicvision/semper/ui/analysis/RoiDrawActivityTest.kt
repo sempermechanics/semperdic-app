@@ -68,6 +68,11 @@ class RoiDrawActivityTest {
         idleUntil("the preview to reach the overlay") { overlay.imageView != null }
     }
 
+    /** Waits for Save: the mask is built and written off the main thread before the editor finishes. */
+    private fun awaitFinish(activity: RoiDrawActivity) {
+        idleUntil("the editor to finish") { activity.isFinishing }
+    }
+
     private fun RoiDrawActivity.hud() = findViewById<TextView>(R.id.tvHud).text.toString()
 
     private fun RoiDrawActivity.type(x: String, y: String, w: String, h: String) {
@@ -93,9 +98,9 @@ class RoiDrawActivityTest {
     fun `Full Image returns the whole frame and an all-included mask`() {
         val activity = launch(intent(path = null)).get()
         activity.click(R.id.btnFullImageRoi)
+        awaitFinish(activity)
 
         assertEquals(Activity.RESULT_OK, shadowOf(activity).resultCode)
-        assertTrue(activity.isFinishing)
         assertEquals(listOf(0, 0, IMG_W, IMG_H), activity.resultRect())
         val mask = File(shadowOf(activity).resultIntent.getStringExtra(DicKeys.MASK_FILE_PATH)!!)
         assertEquals(File(activity.cacheDir, CacheJanitor.ROI_MASK_CACHE), mask)
@@ -109,12 +114,32 @@ class RoiDrawActivityTest {
     fun `saving with nothing drawn also means the full image`() {
         val activity = launch(intent(path = null)).get()
         activity.click(R.id.btnSaveRoi)
+        awaitFinish(activity)
         assertEquals(listOf(0, 0, IMG_W, IMG_H), activity.resultRect())
+    }
+
+    @Test
+    fun `Save writes the mask off the main thread and then finishes`() {
+        val activity = launch(intent(path = null)).get()
+        activity.click(R.id.btnSaveRoi)
+        // A second tap while the mask is written must not start another save.
+        activity.click(R.id.btnSaveRoi)
+
+        // The click returned without the 256 000-byte mask written on Main.
+        assertFalse("Save blocked the main thread until the mask was on disk", activity.isFinishing)
+        awaitFinish(activity)
+        assertEquals(Activity.RESULT_OK, shadowOf(activity).resultCode)
+        val mask = File(shadowOf(activity).resultIntent.getStringExtra(DicKeys.MASK_FILE_PATH)!!)
+        assertEquals(IMG_W.toLong() * IMG_H, mask.length())
+        // One save, not two: a save of the full image toasts as it starts, so
+        // a second toast means the second tap built and wrote the mask again.
+        assertEquals(1, ShadowToast.shownToastCount())
     }
 
     @Test
     fun `a missing reference file closes the editor with a message`() {
         val activity = launch(intent(path = File(temp.root, "gone.png").path)).get()
+        awaitFinish(activity)
 
         assertTrue(activity.isFinishing)
         assertEquals(activity.getString(R.string.roi_image_not_found), ShadowToast.getTextOfLatestToast())
@@ -140,6 +165,7 @@ class RoiDrawActivityTest {
 
         assertEquals(activity.getString(R.string.roi_hud_dimensions, 300, 150, 100, 200), activity.hud())
         activity.click(R.id.btnSaveRoi)
+        awaitFinish(activity)
         assertEquals(listOf(100, 200, 300, 150), activity.resultRect())
         val mask = File(shadowOf(activity).resultIntent.getStringExtra(DicKeys.MASK_FILE_PATH)!!)
         assertTrue("one mask byte per image pixel or more", mask.length() >= IMG_W.toLong() * IMG_H)
@@ -166,6 +192,7 @@ class RoiDrawActivityTest {
         activity.type("600", "0", "500", "100")
         activity.click(R.id.btnApplyManualRoi)
         activity.click(R.id.btnSaveRoi)
+        awaitFinish(activity)
 
         assertEquals(listOf(600, 0, IMG_W - 600, 100), activity.resultRect())
     }

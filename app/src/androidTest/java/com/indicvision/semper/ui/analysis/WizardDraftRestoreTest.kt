@@ -111,7 +111,8 @@ class WizardDraftRestoreTest {
         }
         awaitDraft("reference") { draft.readReference() != null }
         vm.discardDraft()
-        assertTrue(!WizardDraft.dirIn(context.filesDir).exists())
+        // Deleted on the draft's own lane, so onDestroy never waits for it.
+        awaitDraft("deletion") { !WizardDraft.dirIn(context.filesDir).exists() }
     }
 
     private companion object {

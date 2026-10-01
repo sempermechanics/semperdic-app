@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.io.File
+import java.security.MessageDigest
 
 /**
  * The wizard's editing state across a process death (ADR-005).
@@ -36,6 +37,13 @@ internal object WizardState {
     private const val HAS_CUSTOM_ROI = "hasCustomRoi"
     private const val ROI = "roi"
     private const val FRAME_COUNT = "frameCount"
+
+    /**
+     * SHA-256 of the frame list [save] was handed, as the draft should hold
+     * it. Absent in a Bundle an older app saved; [readInputs] then falls back
+     * to [FRAME_COUNT] alone.
+     */
+    private const val FRAMES_FINGERPRINT = "framesFingerprint"
     private const val ORDER_MODE = "orderMode"
     private const val ORDER_DIRECTION = "orderDirection"
     private const val FRAME_SIZE_ERROR = "frameSizeError"
@@ -62,7 +70,8 @@ internal object WizardState {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun save(vm: AnalysisViewModel): Bundle = Bundle().apply {
+    /** The scalars of [vm], with the fingerprint of [framesJson], the list queued for the draft. */
+    fun save(vm: AnalysisViewModel, framesJson: String): Bundle = Bundle().apply {
         putInt(STEP, vm.wizardStep)
         putBoolean(SETTINGS_REVIEWED, vm.settingsReviewed)
         putBoolean(SUBSET_USER_MODIFIED, vm.subsetUserModified)
@@ -95,6 +104,7 @@ internal object WizardState {
         putBoolean(LINE_CUT_HORIZONTAL, vm.lineCutHorizontal)
         putInt(VSG_FRAME_INDEX, vm.vsgFrameIndex)
         putString(WORKING_LOCAL_ID, vm.workingLocalId)
+        putString(FRAMES_FINGERPRINT, fingerprint(framesJson))
     }
 
     /** The scalars of a [save]d Bundle; the draft's parts follow through [readInputs]. */
@@ -156,8 +166,11 @@ internal object WizardState {
 
     /**
      * The draft parts [b] says the wizard held, or null when any is missing:
-     * the reference or mask file, or one of the staged frames (the OS may
-     * evict `cacheDir` under storage pressure). A partial restore would be a
+     * the reference or mask file, one of the staged frames (the OS may evict
+     * `cacheDir` under storage pressure), or the frame list itself. The list
+     * must be the very one [save] fingerprinted, not merely as long: a kill
+     * before its write landed leaves the previous list, which may hold the
+     * same number of frames in another order. A partial restore would be a
      * wizard that looks ready but solves something else, so it is all or none.
      */
     @WorkerThread
@@ -166,13 +179,23 @@ internal object WizardState {
         val wantMask = b.getBoolean(HAS_MASK)
         val reference = if (wantReference) draft.readReference() else null
         val mask = if (wantMask) draft.readMask() else null
-        val frames = draft.readFrames()?.let(::decodeFrames) ?: Frames()
+        val framesText = draft.readFrames()
+        val frames = framesText?.let(::decodeFrames) ?: Frames()
+        val expected = b.getString(FRAMES_FINGERPRINT)
+        val sameList = expected == null || expected == fingerprint(framesText ?: encodeFrames(Frames()))
         val complete = (reference != null) == wantReference &&
             (mask != null) == wantMask &&
+            sameList &&
             frames.paths.size == b.getInt(FRAME_COUNT) &&
             frames.paths.all { File(it).isFile }
         return if (complete) Inputs(reference, mask, frames) else null
     }
+
+    /** Hex SHA-256 of [framesJson]'s UTF-8 bytes. */
+    fun fingerprint(framesJson: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(framesJson.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
 
     private fun decodeFrames(text: String): Frames? = try {
         json.decodeFromString(Frames.serializer(), text)

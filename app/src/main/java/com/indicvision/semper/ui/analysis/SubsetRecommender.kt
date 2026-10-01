@@ -374,7 +374,7 @@ object SubsetRecommender {
             } else {
                 BitmapRegionDecoder.newInstance(bytes, 0, bytes.size, false)
             }
-            if (decoder != null) return RegionSource(decoder)
+            if (decoder != null) return upright(RegionSource(decoder), bytes, w, h, decoder.width, decoder.height)
         }.onFailure {
             // Some formats (like TIFF) are supported by OpenCV but not by
             // BitmapRegionDecoder. We'll try to decode the whole bitmap.
@@ -389,13 +389,31 @@ object SubsetRecommender {
         }
 
         val opts = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
-        val bmp: Bitmap? = runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts) }.getOrNull()
-            // Last resort: OpenCV decodes what the platform cannot (TIFF above
-            // all). Full width, so the gradients stay at native resolution.
-            // JNI — the caller must already be on the native dispatcher.
-            ?: runCatching { SemperNativeLib.getPreviewFromBytes(bytes, w) }.getOrNull()
+        runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts) }.getOrNull()?.let { stored ->
+            return upright(BitmapSource(stored), bytes, w, h, stored.width, stored.height)
+        }
+        // Last resort: OpenCV decodes what the platform cannot (TIFF above
+        // all). Full width, so the gradients stay at native resolution, and
+        // already upright, as the engine sees it.
+        // JNI — the caller must already be on the native dispatcher.
+        return runCatching { SemperNativeLib.getPreviewFromBytes(bytes, w) }.getOrNull()?.let { BitmapSource(it) }
+    }
 
-        return bmp?.let { BitmapSource(it) }
+    /**
+     * [stored], a decoder that ignores EXIF orientation, read in the upright
+     * [w] x [h] pixels the ROI and sample points are in ([ExifPatchMap]).
+     */
+    @Suppress("LongParameterList") // the image as measured both ways
+    private fun upright(
+        stored: PatchSource,
+        bytes: ByteArray,
+        w: Int,
+        h: Int,
+        storedW: Int,
+        storedH: Int,
+    ): PatchSource {
+        val map = ExifPatchMap.forImage(ExifPatchMap.orientationOf(bytes), w, h, storedW, storedH) ?: return stored
+        return OrientedSource(stored, map)
     }
 
     private fun grayFromPixels(pixels: IntArray, count: Int): FloatArray {
@@ -457,6 +475,12 @@ object SubsetRecommender {
         override fun close() {
             runCatching { decoder.recycle() }
         }
+    }
+
+    private class OrientedSource(private val stored: PatchSource, private val map: ExifPatchMap) : PatchSource {
+        override fun readGray(x0: Int, y0: Int, side: Int): FloatArray? = map.read(x0, y0, side, stored::readGray)
+
+        override fun close() = stored.close()
     }
 
     private class BitmapSource(private val bmp: Bitmap) : PatchSource {
