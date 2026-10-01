@@ -34,6 +34,23 @@ private const val REFUSAL_PEEK_BYTES = 4096L
 private const val EMPTY_JSON = "{}"
 
 /**
+ * Whether [resp] is the server refusing a client nonce. Finding out reads the
+ * body, which can fail (a connection reset mid-body); [resp] is closed then,
+ * since the caller never gets it back to close.
+ */
+internal fun isClientNonceRefusal(resp: Response): Boolean {
+    if (resp.code != HttpStatus.UNAUTHORIZED) return false
+    var read = false
+    try {
+        val refused = ClientNonce.isRefusal(resp.code, resp.peekBody(REFUSAL_PEEK_BYTES).string())
+        read = true
+        return refused
+    } finally {
+        if (!read) resp.close()
+    }
+}
+
+/**
  * Client for the Semper GCP backend (Cloud Run / FastAPI).
  *
  * Every mutating call carries a Google **ID token** (user proof) plus a
@@ -581,9 +598,7 @@ class IndicApi private constructor(context: Context) : CloudApi {
     ): Response {
         if (ClientNonce.usable()) {
             val resp = sendSigned(idToken, method, path, bodyBytes, ClientNonce.mint())
-            val refused = resp.code == HttpStatus.UNAUTHORIZED &&
-                ClientNonce.isRefusal(resp.code, resp.peekBody(REFUSAL_PEEK_BYTES).string())
-            if (!refused) return resp
+            if (!isClientNonceRefusal(resp)) return resp
             resp.close()
             ClientNonce.markRefused()
             Timber.i("Client nonce refused; using server challenges for this process")

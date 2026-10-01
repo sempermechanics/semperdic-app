@@ -12,6 +12,7 @@
 package com.indicvision.semper.data
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
@@ -21,19 +22,21 @@ import com.indicvision.semper.R
 import com.indicvision.semper.analytics.SemperAnalytics
 import com.indicvision.semper.data.net.ApiErrors
 import com.indicvision.semper.data.net.AppRemoteConfig
+import com.indicvision.semper.data.net.CloudApi
 import com.indicvision.semper.data.net.FileCompleteRequest
 import com.indicvision.semper.data.net.FileSpecDto
-import com.indicvision.semper.data.net.HttpStatus
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.IndicApiHttp
 import com.indicvision.semper.data.net.MAX_CHUNK_BYTES
 import com.indicvision.semper.data.net.MIN_CHUNK_BYTES
 import com.indicvision.semper.data.net.SessionCreateRequest
 import com.indicvision.semper.data.net.TokenProvider
+import com.indicvision.semper.data.net.TokenSource
 import com.indicvision.semper.data.net.TokenStore
 import com.indicvision.semper.navigation.AppIntents
 import com.indicvision.semper.util.Digests
 import com.indicvision.semper.util.suspendRunCatching
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -148,6 +151,50 @@ private fun abandonIfInputsGone(context: Context, record: SessionRecord, staging
     return true
 }
 
+/**
+ * Delete cloud session [cloudSessionId], then forget it locally. If the delete
+ * fails the pointer stays, so a later run deletes it rather than orphaning it
+ * against the quota. Returns whether the pointer is now clear (true for no
+ * session at all). Top-level, like [abandonIfInputsGone].
+ */
+private suspend fun discardCloudSession(
+    context: Context,
+    api: CloudApi,
+    idToken: String,
+    localId: String,
+    cloudSessionId: String,
+): Boolean {
+    if (cloudSessionId.isBlank()) return true
+    return suspendRunCatching { api.deleteSession(idToken, cloudSessionId) }
+        .onSuccess { SessionStore.setCloudSessionId(context, localId, "") }
+        .onFailure { Timber.w("Could not delete unusable session (%s) — keeping its pointer", it.javaClass.simpleName) }
+        .isSuccess
+}
+
+/**
+ * Whether one of this app's activities is on screen. Only then may a worker
+ * start an activity: Android 10+ blocks background activity starts. Read from
+ * the process's own importance — `lifecycle-process` is not on the compile
+ * classpath. A foreground service alone (this worker) ranks below FOREGROUND.
+ */
+private fun appInForeground(): Boolean {
+    val info = android.app.ActivityManager.RunningAppProcessInfo()
+    android.app.ActivityManager.getMyMemoryState(info)
+    return info.importance <= android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+}
+
+/**
+ * How [DicUploadWorker] reaches the backend and a token. WorkManager builds the
+ * worker, so these cannot be constructor parameters (ADR-002); tests swap them
+ * for `FakeCloudApi` / `FakeTokens` and put them back.
+ */
+@VisibleForTesting
+internal object DicUploadSeams {
+    var api: (Context) -> CloudApi = { IndicApi.get(it) }
+    var tokens: TokenSource = TokenProvider
+    var inForeground: () -> Boolean = ::appInForeground
+}
+
 class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun getForegroundInfo(): ForegroundInfo =
@@ -189,6 +236,27 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
 
         /** Cloud Tasks / Drive failed to open targets — terminal for this session. */
         data object ProvisionFailed : Resume
+
+        /**
+         * The backend could not say (5xx, 429, a bare 404): keep the session and
+         * its pointer, and ask again later. Not evidence the session is gone.
+         */
+        data class Unreachable(val requestId: String?) : Resume
+    }
+
+    /** What doWork does with a cloud session ([nextStep]). */
+    private sealed interface Step {
+        /** Upload [plan]'s files into it. */
+        data class Upload(val plan: Plan) : Step
+
+        /** It is already complete: record the sync. */
+        data object Synced : Step
+
+        /** End this run with [result], a retry. */
+        data class Retry(val result: Result) : Step
+
+        /** End the backup with [reason] for the user. */
+        data class Fail(val reason: String) : Step
     }
 
     /**
@@ -201,7 +269,7 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
      * partial set and mark it "synced". This is the guard against a false sync.
      */
     private suspend fun resumeSession(
-        api: IndicApi,
+        api: CloudApi,
         idToken: String,
         cloudSessionId: String,
         artifacts: List<Artifact>,
@@ -209,22 +277,30 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         val state = try {
             api.sessionUploads(idToken, cloudSessionId)
         } catch (e: IndicApi.ApiException) {
-            Timber.w("Cannot query upload state (HTTP %d) — will rebuild", e.code)
             logUpload("resume_query_failed", httpStatus = e.code, requestId = e.requestId)
-            return Resume.Rebuild
+            // Rebuilding deletes the half-uploaded session, so only a definite
+            // "gone" may lead there — never an outage or a throttle.
+            if (UploadErrors.isSessionGone(e.code, e.body)) {
+                Timber.w("Cloud session gone (HTTP %d) — will rebuild", e.code)
+                return Resume.Rebuild
+            }
+            Timber.w("Cannot query upload state (HTTP %d) — keeping the session", e.code)
+            return Resume.Unreachable(e.requestId)
         }
         if (state.status == "COMPLETED") return Resume.Done
 
         val byKey = artifacts.associateBy { it.role to it.name }
         val work = ArrayList<UploadJob>(state.uploads.size)
         var allMatch = true
-        for (u in state.uploads) {
+        for ((index, u) in state.uploads.withIndex()) {
             val art = byKey[u.role to u.name]
             if (art == null || art.file.length() != u.sizeBytes) {
+                // Role, index and size only: a name can be the user's own file
+                // name, and WARN reaches Crashlytics.
                 Timber.w(
-                    "Session incompatible: pending %s/%s (declared %d B) has no matching artifact",
+                    "Session incompatible: pending %s #%d (declared %d B) has no matching artifact",
                     u.role,
-                    u.name,
+                    index,
                     u.sizeBytes,
                 )
                 allMatch = false
@@ -271,7 +347,7 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
      * rather than holding a foreground worker open indefinitely.
      */
     private suspend fun awaitProvisioned(
-        api: IndicApi,
+        api: CloudApi,
         idToken: String,
         cloudSessionId: String,
         artifacts: List<Artifact>,
@@ -290,46 +366,77 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
     }
 
     /**
-     * Turn a [Resume] from create/poll into a [Plan], or null / throw for the
-     * caller to retry or fail.
+     * Ask the backend about cloud session [cloudSessionId] and decide what to
+     * do with it: upload into it, or end this run. A session still provisioning
+     * is polled first ([awaitProvisioned]).
+     *
+     * One place for both the create and the resume path. Every way of giving a
+     * session up deletes it in the cloud before the local pointer goes
+     * ([discardCloudSession]): a dropped pointer to a live session holds a
+     * quota slot nobody can see, and the backend's create is idempotent on
+     * `localSessionId` for an incomplete session, so recreating without the
+     * delete is handed the same unusable session straight back.
      */
-    private suspend fun planFromResume(
-        api: IndicApi,
+    private suspend fun nextStep(
+        api: CloudApi,
         idToken: String,
         localId: String,
         cloudSessionId: String,
-        resumed: Resume,
-    ): Plan? = when (resumed) {
-        is Resume.Continue -> Plan(cloudSessionId, resumed.work)
-        Resume.Rebuild, Resume.Done -> {
-            Timber.w("Session create/poll ended %s — clear pointer for recreate", resumed)
-            logUpload(if (resumed == Resume.Done) "create_done" else "create_rebuild")
-            SessionStore.setCloudSessionId(applicationContext, localId, "")
-            null
+        artifacts: List<Artifact>,
+    ): Step {
+        val first = resumeSession(api, idToken, cloudSessionId, artifacts)
+        val resumed = if (first is Resume.Wait) {
+            // Do NOT Result.retry() immediately — that burned WorkManager
+            // attempts in ~2s with no progress. Poll in-process first.
+            Timber.w("Session still provisioning — polling for upload targets")
+            awaitProvisioned(api, idToken, cloudSessionId, artifacts)
+        } else {
+            first
         }
-        Resume.Wait -> {
-            Timber.w("Session still PROVISIONING after create poll budget")
-            logUpload("create_wait")
-            null
-        }
-        Resume.ProvisionFailed -> {
-            Timber.e("Session provision failed — not retrying create loop")
-            logUpload("provision_failed")
-            suspendRunCatching { api.deleteSession(idToken, cloudSessionId) }
-            SessionStore.setCloudSessionId(applicationContext, localId, "")
-            throw ProvisionFailedException()
+        return when (resumed) {
+            is Resume.Continue -> {
+                Timber.w("Uploading %d of %d files", resumed.work.size, artifacts.size)
+                Step.Upload(Plan(cloudSessionId, resumed.work))
+            }
+            // Everything already landed; a prior run died before it could
+            // record the sync locally.
+            Resume.Done -> Step.Synced
+            Resume.Rebuild -> {
+                // Manifest mismatch / gone — erase the cloud row, keep staging,
+                // recreate on the next run.
+                Timber.w("Discarding unusable session — keeping staging for recreate")
+                discardCloudSession(applicationContext, api, idToken, localId, cloudSessionId)
+                Step.Retry(retryLater("resume Rebuild — will recreate session"))
+            }
+            Resume.ProvisionFailed -> {
+                Timber.e("Session provision failed — failing backup (no create loop)")
+                discardCloudSession(applicationContext, api, idToken, localId, cloudSessionId)
+                SessionStore.setSyncState(applicationContext, localId, SessionRecord.SyncState.FAILED)
+                SemperAnalytics.event(
+                    applicationContext,
+                    SemperAnalytics.CLOUD_UPLOAD_FAILED,
+                    mapOf("reason" to "provision"),
+                )
+                Step.Fail(applicationContext.getString(R.string.cloud_backup_failed_provision))
+            }
+            // The session id is stored, so the next run resumes it rather than
+            // creating a second one.
+            Resume.Wait -> Step.Retry(retryLater("still PROVISIONING after in-process poll budget"))
+            is Resume.Unreachable -> Step.Retry(
+                retryLater("upload state unavailable — keeping session", resumed.requestId),
+            )
         }
     }
 
     /**
-     * Declare the whole analysis and obtain one resumable target per file.
+     * Declare the whole analysis and obtain one resumable target per file;
+     * returns the new session's id, already stored as the pointer.
      *
      * The backend opens those targets in a Cloud Task rather than inside the
      * request (600 files was ~1200 sequential Drive round-trips in a 60s
      * budget), so the response may come back PROVISIONING with an empty upload
-     * list. In that case we record the session id and poll the resume endpoint
-     * until the targets exist. Returns null when provisioning has not finished
-     * in time — the caller retries the whole job later.
+     * list. The caller then polls the resume endpoint until the targets exist
+     * ([nextStep]).
      *
      * **Never** map `SessionCreateResponse.uploads` by list index. Those
      * targets are listed in Firestore document-id order
@@ -339,12 +446,12 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
      * Always resolve via [resumeSession] / [awaitProvisioned] (role+name+size).
      */
     private suspend fun createSession(
-        api: IndicApi,
+        api: CloudApi,
         idToken: String,
         localId: String,
         record: SessionRecord,
         artifacts: List<Artifact>,
-    ): Plan? {
+    ): String {
         val specs = artifacts.map {
             FileSpecDto(it.name, it.role, it.file.length(), it.sha256Hex ?: Digests.sha256Hex(it.file))
         }
@@ -363,21 +470,7 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         // Persist the pointer before anything can fail: a session that exists in
         // the cloud but is not recorded here would be orphaned against quota.
         SessionStore.setCloudSessionId(applicationContext, localId, session.sessionId)
-
-        return when (val first = resumeSession(api, idToken, session.sessionId, artifacts)) {
-            is Resume.Continue -> Plan(session.sessionId, first.work)
-            Resume.Wait -> {
-                Timber.w("Session is provisioning — waiting for upload targets")
-                planFromResume(
-                    api,
-                    idToken,
-                    localId,
-                    session.sessionId,
-                    awaitProvisioned(api, idToken, session.sessionId, artifacts),
-                )
-            }
-            else -> planFromResume(api, idToken, localId, session.sessionId, first)
-        }
+        return session.sessionId
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -387,13 +480,14 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         // which looked like "preparing finished → pending → preparing again".
         setForeground(getForegroundInfo())
 
-        val api = IndicApi.get(applicationContext)
+        val api = DicUploadSeams.api(applicationContext)
+        val tokens = DicUploadSeams.tokens
         if (!api.enabled) {
             // Succeeding quietly left the row "upload pending" for good.
             CloudSync.settleWithoutBackend(applicationContext)
             return@withContext Result.success()
         }
-        val idToken = TokenProvider.usableIdToken()
+        val idToken = tokens.usableIdToken()
         if (idToken == null) {
             return@withContext retryLater("no usable Firebase ID token")
         }
@@ -449,8 +543,8 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
 
             // ── session-level metadata (generated once, then reused) ────────
             val metaFile = File(stagingDir, "metadata.json")
-            if (!metaFile.exists()) {
-                metaFile.writeText(SessionUploadMetadata.buildMetadataJson(record, applicationContext))
+            UploadWorkOutcomes.stageMetadataJson(metaFile) {
+                SessionUploadMetadata.buildMetadataJson(record, applicationContext)
             }
             artifacts += Artifact("metadata", "metadata.json", metaFile)
 
@@ -640,101 +734,22 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
             // staging is cleared when the pointer is blank, so resuming a session
             // found any other way would upload freshly-sized files into a session
             // that expects the old sizes → a size mismatch.
-            val existingId = record.cloudSessionId.ifBlank { null }
-            val plan: Plan = if (existingId == null) {
+            val cloudId = record.cloudSessionId.ifBlank {
                 Timber.w("Upload — creating a new cloud session")
                 logUpload("create_session")
                 createSession(api, idToken, localId, record, uploadSet)
-                    // Still provisioning when we ran out of patience. The session
-                    // id is already stored, so the next run resumes it rather
-                    // than creating a second one.
-                    ?: return@withContext retryLater(
-                        "createSession returned null (still provisioning or rebuild)",
-                    )
-            } else {
-                when (val r = resumeSession(api, idToken, existingId, uploadSet)) {
-                    is Resume.Continue -> {
-                        Timber.w(
-                            "Resuming upload — %d of %d files still to upload",
-                            r.work.size,
-                            uploadSet.size,
-                        )
-                        Plan(existingId, r.work)
-                    }
-                    Resume.Done -> {
-                        // Everything already landed; a prior run died before it
-                        // could record the sync locally.
-                        Timber.w("Cloud session already complete")
-                        SessionStore.markSynced(applicationContext, localId)
-                        stagingDir.deleteRecursively()
-                        return@withContext Result.success()
-                    }
-                    Resume.Rebuild -> {
-                        // Manifest mismatch / gone — erase cloud row, keep staging,
-                        // recreate on the next run.
-                        Timber.w("Discarding unusable session — keeping staging for recreate")
-                        suspendRunCatching { api.deleteSession(idToken, existingId) }
-                            .onFailure { Timber.w(it, "Could not delete unusable session") }
-                        SessionStore.setCloudSessionId(applicationContext, localId, "")
-                        return@withContext retryLater("resume Rebuild — will recreate session")
-                    }
-                    Resume.ProvisionFailed -> {
-                        Timber.e("Session provision failed — failing backup (no create loop)")
-                        suspendRunCatching { api.deleteSession(idToken, existingId) }
-                            .onFailure { Timber.w(it, "Could not delete failed-provision session") }
-                        SessionStore.setCloudSessionId(applicationContext, localId, "")
-                        SessionStore.setSyncState(
-                            applicationContext,
-                            localId,
-                            SessionRecord.SyncState.FAILED,
-                        )
-                        return@withContext failure(
-                            applicationContext.getString(R.string.cloud_backup_failed_provision),
-                        )
-                    }
-                    Resume.Wait -> {
-                        // Do NOT Result.retry() immediately — that burned WorkManager
-                        // attempts in ~2s with no progress. Poll in-process first.
-                        Timber.w("Session still provisioning — polling for upload targets")
-                        when (val polled = awaitProvisioned(api, idToken, existingId, uploadSet)) {
-                            is Resume.Continue -> {
-                                Timber.w("Session provisioned — %d files to upload", polled.work.size)
-                                Plan(existingId, polled.work)
-                            }
-                            Resume.Done -> {
-                                SessionStore.markSynced(applicationContext, localId)
-                                stagingDir.deleteRecursively()
-                                return@withContext Result.success()
-                            }
-                            Resume.Rebuild -> {
-                                Timber.w("Session became unusable while polling — recreate")
-                                suspendRunCatching { api.deleteSession(idToken, existingId) }
-                                SessionStore.setCloudSessionId(applicationContext, localId, "")
-                                return@withContext retryLater(
-                                    "provision poll Rebuild — will recreate session",
-                                )
-                            }
-                            Resume.ProvisionFailed -> {
-                                Timber.e("Session provision failed while polling")
-                                suspendRunCatching { api.deleteSession(idToken, existingId) }
-                                SessionStore.setCloudSessionId(applicationContext, localId, "")
-                                SessionStore.setSyncState(
-                                    applicationContext,
-                                    localId,
-                                    SessionRecord.SyncState.FAILED,
-                                )
-                                return@withContext failure(
-                                    applicationContext.getString(R.string.cloud_backup_failed_provision),
-                                )
-                            }
-                            Resume.Wait -> {
-                                return@withContext retryLater(
-                                    "still PROVISIONING after in-process poll budget",
-                                )
-                            }
-                        }
-                    }
+            }
+            val plan = when (val step = nextStep(api, idToken, localId, cloudId, uploadSet)) {
+                is Step.Upload -> step.plan
+                Step.Synced -> {
+                    Timber.w("Cloud session already complete")
+                    SessionStore.markSynced(applicationContext, localId)
+                    stagingDir.deleteRecursively()
+                    UploadErrors.clearIntegrityRebuilds(sessionDir)
+                    return@withContext Result.success()
                 }
+                is Step.Retry -> return@withContext step.result
+                is Step.Fail -> return@withContext failure(step.reason)
             }
             SessionStore.setCloudSessionId(applicationContext, localId, plan.sessionId)
 
@@ -761,7 +776,7 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
                                 chunkBytes,
                             ) { n -> progDone.addAndGet(n) }
                             // Re-read the token: a long upload can outlive it.
-                            val tk = TokenProvider.usableIdToken() ?: idToken
+                            val tk = tokens.usableIdToken() ?: idToken
                             api.completeFile(
                                 tk,
                                 job.fileId,
@@ -776,19 +791,12 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
             Timber.i("Upload complete for %s (%d files, session %s)", localId, total, plan.sessionId)
             logUpload("complete", count = total)
             stagingDir.deleteRecursively() // done — staged files no longer needed
+            UploadErrors.clearIntegrityRebuilds(sessionDir)
             // A session only becomes droppable once it is backed up, so this is
             // the moment an over-budget phone can actually get space back.
             StorageBudget.enforce(applicationContext)
             SemperAnalytics.event(applicationContext, SemperAnalytics.CLOUD_UPLOAD_SUCCEEDED)
             Result.success()
-        } catch (_: ProvisionFailedException) {
-            SessionStore.setSyncState(applicationContext, localId, SessionRecord.SyncState.FAILED)
-            SemperAnalytics.event(
-                applicationContext,
-                SemperAnalytics.CLOUD_UPLOAD_FAILED,
-                mapOf("reason" to "provision"),
-            )
-            failure(applicationContext.getString(R.string.cloud_backup_failed_provision))
         } catch (e: IndicApi.DeviceNotActiveException) {
             // The server has no ACTIVE device record for us (revoked/reset) while
             // our local "registered" flag said otherwise. Re-register and retry
@@ -809,66 +817,95 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
             )
             failure(applicationContext.getString(R.string.cloud_backup_failed_device), e.requestId)
         } catch (e: IndicApi.ApiException) {
-            when {
-                // CONFLICT = analysis quota reached, PAYLOAD_TOO_LARGE = too many files.
-                UploadWorkOutcomes.isTerminalClientError(e.code) -> {
-                    Timber.e("Upload rejected (%d): %s", e.code, e.parsedDetail)
-                    // CONFLICT means the account's analysis quota is full — raise the
-                    // persistent limit gate so the user is told to email support.
-                    SessionStore.setSyncState(applicationContext, localId, SessionRecord.SyncState.FAILED)
-                    stagingDir.deleteRecursively()
-                    SemperAnalytics.event(
-                        applicationContext,
-                        SemperAnalytics.CLOUD_UPLOAD_FAILED,
-                        mapOf(
-                            "reason" to if (UploadWorkOutcomes.isQuotaExhausted(e.code, e.body)) {
-                                "quota"
-                            } else {
-                                "payload"
-                            },
+            // [record] was snapshotted at doWork start — createSession may have
+            // written cloudSessionId afterward. Re-read before a delete.
+            fun currentCloudId(): String = SessionStore.get(applicationContext, localId)
+                ?.cloudSessionId.orEmpty()
+                .ifBlank { record.cloudSessionId }
+
+            // Terminal: mark the row failed and drop its staging. The next
+            // attempt is a fresh one, so the integrity count starts over too.
+            fun giveUp(analyticsReason: String) {
+                Timber.e("Upload rejected (%d): %s", e.code, e.parsedDetail)
+                SessionStore.setSyncState(applicationContext, localId, SessionRecord.SyncState.FAILED)
+                stagingDir.deleteRecursively()
+                UploadErrors.clearIntegrityRebuilds(sessionDir)
+                SemperAnalytics.event(
+                    applicationContext,
+                    SemperAnalytics.CLOUD_UPLOAD_FAILED,
+                    mapOf("reason" to analyticsReason),
+                )
+            }
+
+            // The token read at the start can have expired during a long
+            // upload; a delete refused for it would keep a session we meant to drop.
+            suspend fun freshToken(): String = tokens.usableIdToken() ?: idToken
+
+            when (UploadErrors.classify(e.code, e.body)) {
+                UploadErrors.Kind.QUOTA -> {
+                    giveUp("quota")
+                    // Quota full has its own persistent "email support" screen.
+                    TokenStore.setSessionLimitReached(applicationContext, true)
+                    // Android blocks a background activity start, so open it only
+                    // while the app is on screen; otherwise Home opens it from the
+                    // gate above (and can read UPLOAD_FAIL_KIND).
+                    if (DicUploadSeams.inForeground()) {
+                        runCatching { applicationContext.startActivity(AppIntents.sessionLimit(applicationContext)) }
+                            .onFailure { Timber.w("Could not open the limit screen (%s)", it.javaClass.simpleName) }
+                    }
+                    Result.failure(
+                        workDataOf(
+                            UploadErrors.UPLOAD_FAIL_KIND to UploadErrors.FAIL_KIND_QUOTA,
+                            DicKeys.SESSION_LOCAL_ID to localId,
                         ),
                     )
-                    if (UploadWorkOutcomes.isQuotaExhausted(e.code, e.body)) {
-                        // Quota full has its own persistent "email support" screen —
-                        // surface it there, not via a transient Home snackbar.
-                        TokenStore.setSessionLimitReached(applicationContext, true)
-                        applicationContext.startActivity(AppIntents.sessionLimit(applicationContext))
-                        Result.failure()
-                    } else {
-                        // Payload too large — retrying won't help; tell the user.
-                        failure(
-                            applicationContext.getString(R.string.cloud_backup_failed_too_large),
-                            e.requestId,
-                        )
+                }
+                UploadErrors.Kind.TOO_LARGE -> {
+                    // Too many files for one analysis — retrying won't help; tell the user.
+                    giveUp("payload")
+                    failure(applicationContext.getString(R.string.cloud_backup_failed_too_large), e.requestId)
+                }
+                UploadErrors.Kind.REJECTED -> {
+                    // A 409 we have no handling for. It is not "too large" — say
+                    // only that it failed, with the ref to look it up.
+                    giveUp("rejected")
+                    failure(applicationContext.getString(R.string.cloud_backup_failed_generic), e.requestId)
+                }
+                // The session can't be finished (Drive's expected size no longer
+                // matches, the object or file record is gone). Erase it so it
+                // doesn't orphan and eat a quota slot, and keep Session.zip so the
+                // recreate is cheap.
+                UploadErrors.Kind.STALE_SESSION -> {
+                    Timber.e("Upload %d (%s) — discarding stale session, keeping staging", e.code, e.parsedDetail)
+                    discardCloudSession(applicationContext, api, freshToken(), localId, currentCloudId())
+                    retryLater("HTTP ${e.code} stale session — ${e.parsedDetail.take(120)}", e.requestId)
+                }
+                // Drive holds other bytes than ours. Completing again fails the
+                // same way, so start over — new session, freshly staged files —
+                // a bounded number of times.
+                UploadErrors.Kind.INTEGRITY -> {
+                    Timber.e("Upload %d (%s) — Drive bytes differ from the staged file", e.code, e.parsedDetail)
+                    when {
+                        // The session is still ours to resume, so its staging must
+                        // stay as declared: restaging under a live pointer would
+                        // resume the old session (bad object finalized) with new
+                        // bytes and burn every rebuild. Try the delete again later.
+                        !discardCloudSession(applicationContext, api, freshToken(), localId, currentCloudId()) ->
+                            retryLater("HTTP ${e.code} integrity — session not deleted yet", e.requestId)
+                        UploadErrors.recordIntegrityRebuild(sessionDir) > UploadErrors.MAX_INTEGRITY_REBUILDS -> {
+                            giveUp("integrity")
+                            failure(applicationContext.getString(R.string.cloud_backup_failed_generic), e.requestId)
+                        }
+                        else -> {
+                            stagingDir.deleteRecursively()
+                            retryLater("HTTP ${e.code} integrity — restaging", e.requestId)
+                        }
                     }
                 }
-                // 400 = the resumable session's expected size no longer matches our
-                // files (a session from an earlier build, or content that changed).
-                // The session is unrecoverable: drop the pointer + staged files so
-                // the next run rebuilds a fresh session that matches.
-                e.code == HttpStatus.BAD_REQUEST -> {
-                    // [record] was snapshotted at doWork start — createSession may
-                    // have written cloudSessionId afterward. Re-read before delete.
-                    val cloudId = SessionStore.get(applicationContext, localId)
-                        ?.cloudSessionId.orEmpty()
-                        .ifBlank { record.cloudSessionId }
-                    Timber.e(
-                        "Upload 400 (%s) — discarding stale session %s, keeping staging",
-                        e.parsedDetail,
-                        cloudId,
-                    )
-                    // Erase the half-uploaded session so it doesn't orphan and
-                    // eat a quota slot. Keep Session.zip so recreate is cheap.
-                    suspendRunCatching {
-                        if (cloudId.isNotBlank()) api.deleteSession(idToken, cloudId)
-                    }.onFailure { Timber.w(it, "Could not delete stale session") }
-                    SessionStore.setCloudSessionId(applicationContext, localId, "")
-                    retryLater("HTTP 400 stale session — ${e.parsedDetail.take(120)}", e.requestId)
-                }
-                else -> {
+                UploadErrors.Kind.TRANSIENT -> {
                     // Transient — keep the staged files so the retry resumes identically.
-                    Timber.e(e, "Upload HTTP %d — %s", e.code, e.parsedDetail)
-                    retryLater(e.message.orEmpty().take(RETRY_REASON_MAX_LEN))
+                    Timber.e("Upload HTTP %d — %s", e.code, e.parsedDetail)
+                    retryLater("HTTP ${e.code}: ${e.parsedDetail.take(RETRY_REASON_MAX_LEN)}", e.requestId)
                 }
             }
         } catch (e: OutOfMemoryError) {
@@ -882,11 +919,16 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
             SessionStore.setSyncState(applicationContext, localId, SessionRecord.SyncState.FAILED)
             stagingDir.deleteRecursively()
             failure(applicationContext.getString(R.string.cloud_backup_failed_oom))
+        } catch (e: CancellationException) {
+            // The worker was stopped (constraints lost, cancelled, quota). Not a
+            // failure: rethrow so WorkManager reschedules it, instead of logging
+            // every stop as an error (a Crashlytics non-fatal) and asking for a retry.
+            throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            Timber.e(e, "Upload failed; will retry")
-            retryLater(
-                "${e.javaClass.simpleName}: ${e.message?.take(160) ?: "(no message)"}",
-            )
+            // Class name only: an I/O message carries the file's path, and a
+            // deformed image's path is the user's own file name (→ Crashlytics).
+            Timber.e("Upload failed (%s); will retry", e.javaClass.simpleName)
+            retryLater(e.javaClass.simpleName)
         } finally {
             // Stop the progress sampler so this coroutine can complete (a live
             // child would otherwise keep the worker from returning).
@@ -1015,7 +1057,4 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         const val PROVISION_POLL_INITIAL_MS = 1_000L
         const val PROVISION_POLL_MAX_MS = 8_000L
     }
-
-    /** Drive/Cloud Tasks could not open resumable upload targets for this session. */
-    private class ProvisionFailedException : Exception()
 }

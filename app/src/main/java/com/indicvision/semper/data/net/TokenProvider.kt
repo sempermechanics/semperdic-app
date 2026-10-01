@@ -1,6 +1,9 @@
 package com.indicvision.semper.data.net
 
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.tasks.await
 import timber.log.Timber
 
@@ -16,13 +19,25 @@ object TokenProvider : TokenSource {
 
     override suspend fun usableIdToken(): String? {
         val user = FirebaseAuth.getInstance().currentUser ?: return null
-        return try {
-            // getIdToken(false) returns the cached token, refreshing it if within
-            // ~5 min of expiry — handled by the Firebase SDK.
-            user.getIdToken(false).await().token
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            Timber.w(e, "Could not get Firebase ID token")
-            null
-        }
+        // getIdToken(false) returns the cached token, refreshing it if within
+        // ~5 min of expiry — handled by the Firebase SDK.
+        return tokenOrNull { user.getIdToken(false).await().token }
+    }
+
+    /**
+     * [fetch]'s token, or null when it fails. A cancelled caller is rethrown,
+     * not turned into null: null reads as "signed out", so a stopped upload
+     * would otherwise log a token failure and schedule a retry it never needed.
+     * A cancelled Firebase *task* (the caller still active) is just a failure.
+     */
+    internal suspend fun tokenOrNull(fetch: suspend () -> String?): String? = try {
+        fetch()
+    } catch (e: CancellationException) {
+        currentCoroutineContext().ensureActive()
+        Timber.w(e, "Firebase ID token request was cancelled")
+        null
+    } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+        Timber.w(e, "Could not get Firebase ID token")
+        null
     }
 }

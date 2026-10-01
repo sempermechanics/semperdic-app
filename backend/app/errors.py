@@ -242,5 +242,11 @@ CLIENT_BRANCHED = frozenset(
         LICENSE_DEVICE_MISMATCH,
         APP_CHECK_REQUIRED,
         DRIVE_FILE_GONE,
+        # The upload worker rebuilds the session on the first and restages on
+        # the other two (`UploadErrors.kt`), rather than failing as "too large"
+        # or retrying the same bytes forever.
+        SIZE_OR_STATE_MISMATCH,
+        CHECKSUM_MISMATCH,
+        SIZE_MISMATCH,
     }
 )

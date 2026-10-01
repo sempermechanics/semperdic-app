@@ -67,6 +67,21 @@ object ApiErrors {
      */
     const val DRIVE_FILE_GONE = "drive_file_gone"
 
+    /**
+     * `:complete` found the file record changed or gone (409): the cloud session
+     * cannot be finished, so the upload deletes it and recreates it.
+     */
+    const val SIZE_OR_STATE_MISMATCH = "size_or_state_mismatch"
+
+    /**
+     * `:complete` found Drive's object has other bytes (422) — md5 or size. The
+     * upload restages and recreates, a bounded number of times.
+     */
+    const val CHECKSUM_MISMATCH = "checksum_mismatch"
+
+    /** See [CHECKSUM_MISMATCH]. */
+    const val SIZE_MISMATCH = "size_mismatch"
+
     /** Per-instance token bucket or gateway quota rejected the call (429). */
     const val RATE_LIMITED = "rate_limited"
 

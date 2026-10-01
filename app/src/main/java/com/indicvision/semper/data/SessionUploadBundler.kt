@@ -101,7 +101,8 @@ object SessionUploadBundler {
                 record.imgH,
             )
             if (originalBaseImg == null) {
-                Timber.e("No decodable base image (reference %s) — skipping reports", refFile.absolutePath)
+                // Size only: the path holds the user's file name, and ERROR reaches Crashlytics.
+                Timber.e("No decodable base image (reference %d B) — skipping reports", refFile.length())
                 null
             } else {
                 val scaled = originalBaseImg.scale(baseW, baseH)
@@ -323,7 +324,6 @@ object SessionUploadBundler {
             ctx.baseImg
         }
 
-        val statsArray = FloatArray(ENGINE_STATS_SIZE) { record.engineStats.getOrElse(it) { 0f } }
         val frameSubset = record.sweepSubsets.getOrElse(frameIndex) { record.subset }
         val frameStep = record.sweepSteps.getOrElse(frameIndex) { record.step }
         val frameWindow = record.sweepStrainWindows.getOrElse(frameIndex) { record.strainWindow }
@@ -342,7 +342,7 @@ object SessionUploadBundler {
                 strainWindow = frameWindow,
                 strainMethod = record.strainMethod.ifBlank { "VSG" },
                 roiData = RoiData(record.roiX, record.roiY, record.roiW, record.roiH),
-                engineStats = EngineStats.fromArray(statsArray),
+                engineStats = reportEngineStats(record.engineStats),
                 // The names the on-device report prints (ViewerReportFactory),
                 // not the bundle's folder names.
                 referenceImageName = ReportImageNames.reference(record.refName),
@@ -369,6 +369,19 @@ object SessionUploadBundler {
             if (originalDefImg !== null && originalDefImg !== defImg) originalDefImg.recycle()
         }
         ok
+    }
+
+    /**
+     * [stats] as the report reads them. Every slot the run stored is kept — the
+     * engine writes [EngineStats.SLOT_COUNT], and cutting that to the 16 core
+     * slots printed "Unknown" for mesh seeding and 0 ms for simplex / ICGN in
+     * every cloud PDF. Never padded past what was stored: a legacy 16-slot
+     * record read as 17 would claim mesh quality 0 ("Fallback") instead of
+     * unknown. Shorter (or empty) records are padded to the core slots, as before.
+     */
+    internal fun reportEngineStats(stats: List<Float>): EngineStats {
+        val size = stats.size.coerceIn(EngineStats.CORE_SLOT_COUNT, EngineStats.SLOT_COUNT)
+        return EngineStats.fromArray(FloatArray(size) { stats.getOrElse(it) { 0f } })
     }
 
     /**
@@ -402,6 +415,4 @@ object SessionUploadBundler {
             )
         }
     }
-
-    private const val ENGINE_STATS_SIZE = 16
 }

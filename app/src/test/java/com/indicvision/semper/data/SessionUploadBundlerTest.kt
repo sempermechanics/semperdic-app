@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.DicResult
 import com.indicvision.semper.fixtures.sessionRecord
+import com.indicvision.semper.report.EngineStats
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -131,6 +132,48 @@ class SessionUploadBundlerTest {
         assertEquals(SessionUploadBundler.BundleCounts(0, 0), staged.counts)
         assertEquals(listOf(0 to 1, 1 to 1), staged.ticks)
         assertEquals(0, File(staging, "reports").list()?.size ?: 0)
+    }
+
+    @Test
+    fun `an undecodable reference is logged without its path`() {
+        val dir = temp.newFolder("Jane_Doe_specimen")
+        SessionPaths.frameDat(dir, 0).writeBytes(datBytes())
+        LogCapture().use { log ->
+            stage(record(dir, "a.png"), null, true, temp.newFolder())
+            // ERROR reaches Crashlytics; the path names the user's files.
+            assertTrue(log.warnings.any { it.startsWith("No decodable base image") })
+            assertTrue(log.warnings.none { it.contains("Jane_Doe") })
+        }
+    }
+
+    @Test
+    fun `the report keeps every engine stats slot the run stored`() {
+        val stored = MutableList(EngineStats.SLOT_COUNT) { 1f }.apply {
+            this[EngineStats.SLOT_MESH_SEEDING] = 2f
+            this[EngineStats.SLOT_SIMPLEX_MS] = 12.5f
+            this[EngineStats.SLOT_ICGN_MS] = 40f
+        }
+        val stats = SessionUploadBundler.reportEngineStats(stored)
+        assertEquals(2, stats.meshSeedingQuality)
+        assertEquals(12.5f, stats.simplexMs)
+        assertEquals(40f, stats.icgnMs)
+    }
+
+    @Test
+    fun `legacy engine stats keep reading as they did`() {
+        // 16 core slots: mesh seeding was never recorded, so it stays unknown
+        // rather than reading a padded 0 as "Fallback".
+        val core = SessionUploadBundler.reportEngineStats(List(EngineStats.CORE_SLOT_COUNT) { 3f })
+        assertEquals(EngineStats.MESH_SEEDING_UNKNOWN, core.meshSeedingQuality)
+        assertEquals(3, core.totalPointsAttempted)
+        // 17 slots: mesh seeding present, simplex / ICGN times absent.
+        val withMesh = SessionUploadBundler.reportEngineStats(List(EngineStats.CORE_SLOT_COUNT) { 3f } + 1f)
+        assertEquals(1, withMesh.meshSeedingQuality)
+        assertEquals(0f, withMesh.icgnMs)
+        // Nothing stored: zeros and an unknown mesh, as before.
+        val none = SessionUploadBundler.reportEngineStats(emptyList())
+        assertEquals(0, none.totalPointsAttempted)
+        assertEquals(EngineStats.MESH_SEEDING_UNKNOWN, none.meshSeedingQuality)
     }
 
     @Test

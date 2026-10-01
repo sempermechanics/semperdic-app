@@ -1,9 +1,9 @@
 package com.indicvision.semper.data
 
 import androidx.work.ListenableWorker.Result
-import com.indicvision.semper.data.net.ApiErrors
-import com.indicvision.semper.data.net.HttpStatus
+import com.indicvision.semper.util.AtomicFiles
 import com.indicvision.semper.util.Digests
+import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipException
@@ -19,25 +19,33 @@ internal object UploadWorkOutcomes {
     /** Hex length of a SHA-256 digest (Session.zip.sha256 sidecar). */
     const val SHA256_HEX_LEN = 64
 
-    /** Map a backend [IndicApi]-style HTTP status to a WorkManager result. */
-    fun fromHttpCode(code: Int): Result = when (code) {
-        // Quota full / payload too large — retrying will not help.
-        HttpStatus.CONFLICT, HttpStatus.PAYLOAD_TOO_LARGE -> Result.failure()
-        // Stale resumable session — rebuild on the next attempt.
-        HttpStatus.BAD_REQUEST -> Result.retry()
+    /** Map a backend [IndicApi]-style HTTP status to a WorkManager result ([UploadErrors]). */
+    fun fromHttpCode(code: Int, body: String = ""): Result = when (UploadErrors.classify(code, body)) {
+        // Quota full / payload too large / refused — retrying will not help.
+        UploadErrors.Kind.QUOTA, UploadErrors.Kind.TOO_LARGE, UploadErrors.Kind.REJECTED -> Result.failure()
+        // Stale session or bad bytes — rebuild on the next attempt.
+        UploadErrors.Kind.STALE_SESSION, UploadErrors.Kind.INTEGRITY -> Result.retry()
         // Transient or unknown — keep staging and retry.
-        else -> Result.retry()
+        UploadErrors.Kind.TRANSIENT -> Result.retry()
     }
 
     /** Whether HTTP [code] and [body] mean the account analysis quota is full. */
     fun isQuotaExhausted(code: Int, body: String? = null): Boolean =
-        code == HttpStatus.CONFLICT &&
-            body != null &&
-            ApiErrors.hasCode(body, ApiErrors.SESSION_QUOTA_EXCEEDED)
+        body != null && UploadErrors.classify(code, body) == UploadErrors.Kind.QUOTA
 
-    /** Whether retrying cannot help (quota or payload size). */
-    fun isTerminalClientError(code: Int): Boolean =
-        code == HttpStatus.CONFLICT || code == HttpStatus.PAYLOAD_TOO_LARGE
+    /**
+     * Stage `metadata.json` once and reuse it, like the rest of the staging (a
+     * resumed session declared its size). Written to a sidecar and promoted, so
+     * a kill mid-write cannot leave a truncated file that every retry reuses;
+     * one an older build left behind (not a JSON object) is rewritten.
+     */
+    fun stageMetadataJson(metaFile: File, build: () -> String) {
+        val usable = metaFile.isFile && runCatching { JSONObject(metaFile.readText()) }.isSuccess
+        if (usable) return
+        val part = AtomicFiles.partOf(metaFile)
+        part.writeText(build())
+        AtomicFiles.promote(part, metaFile)
+    }
 
     /** Backend session states. Provisioning happens off the request path, so a
      * freshly created session has no upload targets yet. */

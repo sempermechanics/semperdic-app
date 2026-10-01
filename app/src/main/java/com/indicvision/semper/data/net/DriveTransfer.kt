@@ -4,6 +4,8 @@ import com.indicvision.semper.data.RestoreDownloadOutcomes
 import com.indicvision.semper.util.AtomicFiles
 import com.indicvision.semper.util.Digests
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okhttp3.Headers
 import okhttp3.MediaType
@@ -121,9 +123,12 @@ internal class DriveTransfer(
         // whole file? A file fully uploaded in a prior attempt (but whose
         // completeFile never ran) reports COMPLETE here; return its id with
         // a local md5 instead of trying to re-send zero bytes and failing.
+        // Never Drive's own md5Checksum: `:complete` checks the client md5
+        // against Drive's, so echoing Drive's back would prove nothing about
+        // whether Drive holds this file's bytes.
         val probe = probeStatus(uploadUrl, total)
-        probe.result?.let { (driveId, driveMd5) ->
-            return@withContext driveId to (driveMd5 ?: Digests.md5Hex(file))
+        probe.result?.let { (driveId, _) ->
+            return@withContext driveId to Digests.md5Hex(file)
         }
         var offset = probe.offset
 
@@ -136,6 +141,9 @@ internal class DriveTransfer(
                 hashRange(raf, buf, 0L, offset, digest)
             }
             while (offset < total) {
+                // The PUTs below block, so a stopped worker would otherwise
+                // push every remaining chunk before it noticed.
+                currentCoroutineContext().ensureActive()
                 raf.seek(offset)
                 val n = raf.read(buf, 0, minOf(chunk.toLong(), total - offset).toInt())
                 if (n <= 0) throw IOException("unexpected EOF at $offset/$total")
@@ -490,7 +498,8 @@ internal class DriveTransfer(
 
     private fun finalizeDownload(part: File, dest: File) {
         if (dest.exists() && !dest.delete()) {
-            Timber.w("Could not replace existing download target %s", dest)
+            // Size, not the path: it names the user's files, and WARN reaches Crashlytics.
+            Timber.w("Could not replace existing download target (%d B)", dest.length())
         }
         AtomicFiles.promote(part, dest)
     }
