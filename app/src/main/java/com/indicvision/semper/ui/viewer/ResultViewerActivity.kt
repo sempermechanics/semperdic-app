@@ -637,11 +637,6 @@ class ResultViewerActivity : AppCompatActivity() {
         chromeTop.postDelayed(hideChromeRunnable, chromeHideDelayMs)
     }
 
-    internal fun hideChrome() {
-        chromeTop.removeCallbacks(hideChromeRunnable)
-        fadeChrome(visible = false)
-    }
-
     /**
      * Centre double-tap while chrome is hidden: show the bars. Returns true when
      * consumed so zoom does not also run.

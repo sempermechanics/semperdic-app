@@ -1,17 +1,23 @@
 package com.indicvision.semper.data.cloud
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TransferLogTest {
 
+    /**
+     * Pins the exact key set of a fully populated line. The JSON goes to logs,
+     * so a new key is a PII decision: adding one must fail here first.
+     */
     @Test
-    fun `phase payload uses allowed keys only`() {
+    fun `phase payload carries exactly the eleven backend keys`() {
         val json = TransferLog.formatPhaseJson(
             TransferLog.PhaseFields(
                 phase = "upload",
                 outcome = "complete",
+                errorCode = "quota_exceeded",
                 requestId = "req-abc",
                 attempt = 2,
                 bytes = 4096L,
@@ -21,11 +27,25 @@ class TransferLogTest {
                 opClass = "backup",
             ),
         )
+        val keys = Regex("\"(\\w+)\":").findAll(json).map { it.groupValues[1] }.toList()
+        assertEquals(
+            setOf(
+                "event", "phase", "outcome", "errorCode", "requestId",
+                "attempt", "bytes", "stage", "httpStatus", "count", "opClass",
+            ),
+            keys.toSet(),
+        )
+        assertEquals("no key repeats", keys.size, keys.toSet().size)
         assertTrue(json.contains("\"event\":\"transfer_phase\""))
-        assertTrue(json.contains("\"phase\":\"upload\""))
-        assertTrue(json.contains("\"outcome\":\"complete\""))
         assertTrue(json.contains("\"requestId\":\"req-abc\""))
-        assertFalse(json.contains("errorCode"))
+    }
+
+    @Test
+    fun `phase payload omits null fields`() {
+        val json = TransferLog.formatPhaseJson(
+            TransferLog.PhaseFields(phase = "upload", outcome = "complete"),
+        )
+        assertEquals("{\"event\":\"transfer_phase\",\"phase\":\"upload\",\"outcome\":\"complete\"}", json)
     }
 
     @Test

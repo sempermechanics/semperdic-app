@@ -17,6 +17,7 @@ import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import com.indicvision.semper.R
+import com.indicvision.semper.ui.common.dp
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -45,9 +46,6 @@ class LineCutPreviewView @JvmOverloads constructor(
         /** Cap overlay resolution so large masks stay cheap to rebuild. */
         const val OVERLAY_MAX_EDGE = 512
     }
-
-    private val density = resources.displayMetrics.density
-    private fun dp(value: Float) = value * density
 
     private val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val overlayPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)

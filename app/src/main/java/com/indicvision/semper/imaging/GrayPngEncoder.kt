@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber", "TooManyFunctions")
+@file:Suppress("TooManyFunctions")
 
 package com.indicvision.semper.imaging
 

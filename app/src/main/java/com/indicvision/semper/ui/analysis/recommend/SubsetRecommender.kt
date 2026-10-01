@@ -175,7 +175,6 @@ object SubsetRecommender {
      * `maxSize + 2` (one pixel of margin for the central differences).
      * Returns [maxSize] when the threshold is never reached.
      */
-    @Suppress("LongParameterList")
     fun subsetSizeForPatch(
         patch: FloatArray,
         patchSide: Int,

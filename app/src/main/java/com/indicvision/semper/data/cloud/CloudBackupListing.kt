@@ -34,7 +34,9 @@ object CloudBackupListing {
 
     /** Save what a successful listing found. Only COMPLETED backups can be restored. */
     fun record(context: Context, sessions: List<CloudSessionDto>) {
-        val backups = sessions.filter { it.status == "COMPLETED" && it.sessionId.isNotBlank() }.map {
+        val backups = sessions.filter {
+            it.status == UploadWorkOutcomes.STATUS_COMPLETED && it.sessionId.isNotBlank()
+        }.map {
             Backup(it.sessionId, it.localSessionId, it.specimen.orEmpty(), it.totalBytes)
         }
         val ids = backups.map { it.cloudId }.toSet()

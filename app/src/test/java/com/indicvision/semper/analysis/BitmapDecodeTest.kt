@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package com.indicvision.semper.analysis
 
 import com.indicvision.semper.imaging.BitmapDecode

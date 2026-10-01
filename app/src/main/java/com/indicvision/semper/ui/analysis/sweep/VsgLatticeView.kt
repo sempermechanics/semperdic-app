@@ -16,6 +16,7 @@ import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.withSave
 import com.indicvision.semper.R
+import com.indicvision.semper.ui.common.dp
 import kotlin.math.hypot
 
 /**
@@ -129,9 +130,6 @@ class VsgLatticeView @JvmOverloads constructor(
         const val TOUCH_RADIUS_DP = 22f
         const val SELECT_RING_DP = 3f
     }
-
-    private val density = resources.displayMetrics.density
-    private fun dp(value: Float) = value * density
 
     /** Axis labels in px, scaled for the user's font-size setting. */
     private val axisLabelPx =

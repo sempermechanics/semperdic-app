@@ -45,9 +45,6 @@ object DicKeys {
     const val STRAIN_METHOD = "STRAIN_METHOD"
     const val ENGINE_STATS = "ENGINE_STATS"
     const val ROUTING_ERROR = "ROUTING_ERROR"
-    const val POINTS_CONVERGED = "POINTS_CONVERGED"
-    const val EXEC_TIME = "EXEC_TIME"
-    const val AVG_ITERS = "AVG_ITERS"
 
     // ── AnalysisViewModel  DicUploadWorker (WorkManager Data)
     const val SESSION_LOCAL_ID = "SESSION_LOCAL_ID"
@@ -70,16 +67,12 @@ object DicKeys {
     /** Reason on a download worker's terminal Result.failure(). */
     const val DOWNLOAD_ERROR = "error"
     const val STEP = "STEP"
-    const val SUBSET = "SUBSET"
-    const val STRAIN_WIN = "STRAIN_WIN"
     const val IMG_W = "IMG_W"
     const val IMG_H = "IMG_H"
     const val ROI_X = "ROI_X"
     const val ROI_Y = "ROI_Y"
     const val ROI_W = "ROI_W"
     const val ROI_H = "ROI_H"
-    const val FRAME_NAME = "FRAME_NAME"
-    const val DAT_PATH = "DAT_PATH"
 
     // ── Parameter sweep (VsgStudy) → ResultViewerActivity
     // A sweep varies the settings instead of the image, so each frame of the

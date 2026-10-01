@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.indicvision.semper.R
+import com.indicvision.semper.data.account.AccessStatus
 import com.indicvision.semper.data.net.AdminUserDto
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.TokenProvider
@@ -61,7 +62,7 @@ class AdminActivity : AppCompatActivity() {
                 return@launch
             }
             // Cancellation (the screen closed) propagates: it is not a load error.
-            suspendRunCatching { api.listUsers(token, "PENDING") }
+            suspendRunCatching { api.listUsers(token, AccessStatus.PENDING) }
                 .onSuccess { users ->
                     adapter.submit(users)
                     tvEmpty.visibility = if (users.isEmpty()) View.VISIBLE else View.GONE

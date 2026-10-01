@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber", "TooGenericExceptionCaught", "ReturnCount", "NestedBlockDepth")
+@file:Suppress("TooGenericExceptionCaught", "ReturnCount", "NestedBlockDepth")
 
 package com.indicvision.semper.imaging.video
 

@@ -13,6 +13,7 @@ import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.indicvision.semper.R
+import com.indicvision.semper.ui.common.dp
 import java.io.File
 import java.util.Locale
 
@@ -114,8 +115,7 @@ class FrameOrderAdapter(
         private const val DRAG_ANIM_MS = 120L
 
         fun applyDragging(view: View, dragging: Boolean, animate: Boolean = true) {
-            val density = view.resources.displayMetrics.density
-            val elevation = if (dragging) DRAG_ELEVATION_DP * density else 0f
+            val elevation = if (dragging) view.dp(DRAG_ELEVATION_DP) else 0f
             val scale = if (dragging) DRAG_SCALE else 1f
             ViewCompat.setElevation(view, elevation)
             if (animate) {

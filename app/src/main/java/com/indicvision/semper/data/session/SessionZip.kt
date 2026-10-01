@@ -3,6 +3,7 @@
 package com.indicvision.semper.data.session
 
 import com.indicvision.semper.data.cloud.CorruptTransferException
+import com.indicvision.semper.data.net.ArtifactRoles
 import com.indicvision.semper.util.AtomicFiles
 import com.indicvision.semper.util.Digests
 import timber.log.Timber
@@ -58,7 +59,7 @@ internal object SessionZip {
      * check because restore's ranged-prefix reader ([RESTORE_ENTRY_PREFIXES]) needs
      * to stay in step with it.
      */
-    fun isRestoreEssential(role: String): Boolean = role == "dat" || role == "raw"
+    fun isRestoreEssential(role: String): Boolean = role == ArtifactRoles.DAT || role == ArtifactRoles.RAW
 
     /**
      * Entry-name prefixes a restore fetches from a **legacy** single-archive backup.

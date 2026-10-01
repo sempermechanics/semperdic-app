@@ -39,7 +39,6 @@ object VsgStudyRunner {
 
     private const val PERCENT = 100
 
-    @Suppress("LongParameterList") // one-shot bundle of engine inputs
     data class Params(
         val plan: List<VsgStudy.Point>,
         /** The single deformed frame every combination is solved against. */

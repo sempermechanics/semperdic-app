@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package com.indicvision.semper.imaging
 
 import org.junit.Assert.assertArrayEquals

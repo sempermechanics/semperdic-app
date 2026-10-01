@@ -1,4 +1,4 @@
-@file:Suppress("CyclomaticComplexMethod", "MagicNumber", "LongParameterList")
+@file:Suppress("CyclomaticComplexMethod", "LongParameterList")
 
 package com.indicvision.semper.ui.analysis.wizard
 

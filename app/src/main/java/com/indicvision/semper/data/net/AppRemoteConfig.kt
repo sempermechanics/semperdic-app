@@ -2,6 +2,7 @@ package com.indicvision.semper.data.net
 
 import android.content.Context
 import androidx.core.content.edit
+import com.indicvision.semper.data.account.LicenseEntitlements
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -46,10 +47,7 @@ object AppRemoteConfig {
      */
     private const val K_FETCHED_AT = "fetched_at"
 
-    private const val MODE_DEMO = "demo"
-    private const val MODE_LICENSED = "licensed"
-
-    /** Pre-rename value of [MODE_LICENSED], still sent as the `plan` mirror. */
+    /** Pre-rename value of [LicenseEntitlements.MODE_LICENSED], still sent as the `plan` mirror. */
     private const val LEGACY_PLAN_PROFESSIONAL = "professional"
 
     /** Pref key a build predating the rename wrote; read once on upgrade. */
@@ -201,10 +199,10 @@ object AppRemoteConfig {
      * entitlement is never inferred from a value we do not understand.
      */
     private fun resolveMode(config: AppConfigDto): String = when {
-        config.mode == MODE_LICENSED -> MODE_LICENSED
-        config.mode == MODE_DEMO -> MODE_DEMO
-        config.plan == LEGACY_PLAN_PROFESSIONAL -> MODE_LICENSED
-        else -> MODE_DEMO
+        config.mode == LicenseEntitlements.MODE_LICENSED -> LicenseEntitlements.MODE_LICENSED
+        config.mode == LicenseEntitlements.MODE_DEMO -> LicenseEntitlements.MODE_DEMO
+        config.plan == LEGACY_PLAN_PROFESSIONAL -> LicenseEntitlements.MODE_LICENSED
+        else -> LicenseEntitlements.MODE_DEMO
     }
 
     /**
@@ -221,7 +219,11 @@ object AppRemoteConfig {
         val prefs = prefs(context)
         prefs.getString(K_MODE, null)?.let { return it }
         val legacy = prefs.getString(K_LEGACY_PLAN, null)
-        return if (legacy == LEGACY_PLAN_PROFESSIONAL) MODE_LICENSED else MODE_DEMO
+        return if (legacy == LEGACY_PLAN_PROFESSIONAL) {
+            LicenseEntitlements.MODE_LICENSED
+        } else {
+            LicenseEntitlements.MODE_DEMO
+        }
     }
 
     fun cloudBackupEnabled(context: Context): Boolean =

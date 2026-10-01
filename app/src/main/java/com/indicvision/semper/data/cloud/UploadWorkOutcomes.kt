@@ -93,7 +93,7 @@ internal object UploadWorkOutcomes {
         val hasPdf = reports.listFiles()?.any {
             it.isFile && it.name.endsWith(".pdf", ignoreCase = true)
         } == true
-        val processed = File(stagingDir, "processed")
+        val processed = File(stagingDir, SessionPaths.PROCESSED_SUBDIR)
         val hasProcessed = processed.isDirectory &&
             processed.walkTopDown().any { it.isFile }
         return csvOk && hasPdf && hasProcessed

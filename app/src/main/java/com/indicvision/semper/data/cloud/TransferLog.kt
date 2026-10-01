@@ -5,11 +5,6 @@ import timber.log.Timber
 /** PII-safe JSON log lines for upload/restore phases; field names match the backend. */
 object TransferLog {
 
-    private val allowedKeys = setOf(
-        "event", "outcome", "errorCode", "requestId", "phase",
-        "attempt", "bytes", "stage", "httpStatus", "count", "opClass",
-    )
-
     /** Optional metadata for a transfer-phase log line. */
     data class PhaseFields(
         val phase: String,
@@ -46,7 +41,7 @@ object TransferLog {
             append('{')
             var first = true
             for ((key, value) in packed) {
-                if (value == null || key !in allowedKeys) continue
+                if (value == null) continue
                 if (!first) append(',')
                 first = false
                 append('"').append(key).append("\":")

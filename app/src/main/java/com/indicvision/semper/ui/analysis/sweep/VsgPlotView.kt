@@ -28,6 +28,7 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withClip
 import androidx.core.graphics.withRotation
 import com.indicvision.semper.R
+import com.indicvision.semper.ui.common.dp
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
@@ -181,10 +182,6 @@ class VsgPlotView @JvmOverloads constructor(
         /** Smallest viewport span as a fraction of the full data extent. */
         const val MIN_SPAN_FRACTION = 0.05f
     }
-
-    private val density = resources.displayMetrics.density
-
-    private fun dp(value: Float) = value * density
 
     /** Axis labels in px, scaled for the user's font-size setting. */
     private val axisLabelPx =

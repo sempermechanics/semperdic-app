@@ -247,7 +247,7 @@ internal class DriveTransfer(
      * chunk (and while streaming a full-body 200) so restore UI can show
      * download percent instead of sitting at 0% for the whole Session.zip.
      */
-    @Suppress("CyclomaticComplexMethod", "LongMethod", "NestedBlockDepth", "LongParameterList")
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "LongParameterList")
     /**
      * @param rangeStart absolute offset in the remote object that [dest] should begin
      *   at. Non-zero fetches a **window** rather than the whole object — used by

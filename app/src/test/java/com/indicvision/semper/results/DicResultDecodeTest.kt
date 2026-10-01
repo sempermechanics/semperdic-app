@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package com.indicvision.semper.results
 
 import com.indicvision.semper.field.DatDecoder

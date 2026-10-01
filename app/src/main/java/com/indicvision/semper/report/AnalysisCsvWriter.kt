@@ -1,5 +1,5 @@
-// CSV row writers take many columns by design; return-count guards stay local.
-@file:Suppress("LongParameterList", "TooManyFunctions", "ReturnCount")
+// CSV row writers take many columns by design.
+@file:Suppress("LongParameterList")
 
 package com.indicvision.semper.report
 

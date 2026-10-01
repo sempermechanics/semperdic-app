@@ -38,7 +38,6 @@
     <string name="reset">Reset</string>
     <string name="apply">Apply</string>
     <string name="exit">Exit</string>
-    <string name="find">Find</string>
     <string name="auto_scale">Auto-Scale</string>
 
     <!-- ROI draw studio -->
@@ -83,10 +82,6 @@
     <string name="failed_load_reference">Failed to load reference image. Please try another file.</string>
     <string name="roi_too_small">ROI is too small. It must be larger than the subset size.</string>
     <string name="analysis_failed_title">Analysis failed</string>
-    <string name="analysis_no_data_title">No data produced</string>
-    <string name="analysis_no_data">The engine ran but every point was rejected, so there is no field to show.
-
-That is usually the speckle or the region: too little contrast for correlation to lock on, or an ROI sitting over something featureless. Try a larger subset, or redraw the region over well-speckled surface.</string>
     <string name="analysis_unexpected_title">Analysis stopped unexpectedly</string>
     <string name="analysis_unexpected_fmt">The run ended with an error it could not describe:
 
@@ -101,15 +96,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     
 
     <!-- Result viewer -->
-    <string name="toggle_inspect">Inspect</string>
-    <string name="toggle_max_min">Max/Min</string>
     <string name="no_batch_data">No valid batch data found.</string>
     <string name="viewer_frame_oom">Not enough memory to open this frame. Try closing other apps, or view a smaller analysis.</string>
-    <string name="coord_dialog_title">Go to pixel coordinate</string>
-    <string name="coord_hint_x">X coordinate (0 to %1$d)</string>
-    <string name="coord_hint_y">Y coordinate (0 to %1$d)</string>
-    <string name="coord_out_of_bounds">Coordinates are out of bounds.</string>
-    <string name="invalid_input">Invalid input.</string>
     <string name="scale_dialog_title">Custom scale: %1$s</string>
     <string name="scale_max_value">Maximum value (%1$s)</string>
     <string name="scale_min_value">Minimum value (%1$s)</string>
@@ -140,7 +128,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="forgot_password">Forgot Password?</string>
     <string name="or">or</string>
     <string name="continue_with_google">Continue with Google</string>
-    <string name="x_y">X, Y</string>
     <string name="min_0_0">Min: 0.0</string>
     <string name="max_0_0">Max: 0.0</string>
     <string name="frame_1_1">Frame: 1 / 1</string>
@@ -148,10 +135,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <!-- Result viewer: summary animation and frame jump -->
     <string name="summary_title">Summary</string>
     <string name="summary_gif">Summary GIF</string>
-    <plurals name="summary_counter_fmt">
-        <item quantity="one">Summary GIF</item>
-        <item quantity="other">Summary GIF</item>
-    </plurals>
     <!-- The scale bar's colour mapping is clamped to the 2nd/98th percentile
          (VisualizationEngine.computeSigmaClampedRange), not the field's true
          extrema: measured on real sessions, that clamp discards real signal
@@ -169,8 +152,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="summary_needs_android_9">Showing the first frame — animation needs Android 9 or newer.</string>
     <string name="frame_number_hint">#</string>
     <string name="frame_total_fmt">" / %1$d"</string>
-    <string name="tap_image_to_inspect">Tap image to inspect</string>
-    <string name="max_nmin">Max: --\nMin: --</string>
     <string name="video">Video</string>
     <string name="reference_image">Reference Image</string>
     <string name="reference_image_preview">Reference image preview</string>
@@ -255,16 +236,12 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="delete_device_only_done">Removed from this phone. Tap the row to restore it from the cloud.</string>
     <string name="download_analysis_title">Restore this analysis?</string>
     <string name="download_analysis_body">This analysis is only in the cloud on this phone. Restore it to open the results.</string>
-    <string name="download_analysis_save_body">Choose where to save the Session.zip. The analysis already on this phone is left unchanged.</string>
-    <string name="download_analysis_save_title">Download to files?</string>
     <string name="download_local_action">Download</string>
     <string name="download_analysis_working">Downloading…</string>
     <string name="download_analysis_already">This analysis is already downloading.</string>
     <string name="download_analysis_failed">Couldn\'t download this analysis. Check your connection and try again.</string>
-    <string name="viewer_settings_used_desc">Show the settings used for this analysis</string>
     <string name="viewer_details_desc">Frame stats and settings used</string>
     <string name="viewer_details_title">Details</string>
-    <string name="viewer_details_home">Go to Home</string>
     <string name="viewer_edge_title_fmt">%1$s · %2$s</string>
     <string name="settings_used_title">Settings used</string>
     <string name="setting_subset">Subset size</string>
@@ -280,15 +257,11 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="setting_roi_fmt">%1$d × %2$d at (%3$d, %4$d)</string>
     <string name="setting_size_fmt">%1$d × %2$d px</string>
     <string name="export_data">Export my data</string>
-    <string name="export_data_share">Share your Semper session export</string>
-    <string name="export_data_working">Preparing your session export…</string>
     <string name="export_progress_fmt">Exporting session %1$d of %2$d</string>
     <string name="export_data_failed">Couldn\'t prepare the export. Free up some storage and try again.</string>
     <!-- Cloud account export (GDPR portability) — distinct from the local session
          zip above: this is what the backend holds, not what is on this phone. -->
     <string name="export_cloud_data">Download my cloud account data</string>
-    <string name="export_cloud_data_working">Downloading your account data…</string>
-    <string name="export_cloud_data_share">Share your Semper account data</string>
     <string name="export_cloud_data_failed">Couldn\'t download your account data. Check your connection and try again.</string>
     <string name="export_cloud_data_offline">Cloud sync isn\'t set up on this build, so there\'s no cloud data to download.</string>
     <!-- Diagnostics consent -->
@@ -398,10 +371,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="download_not_licensed">Downloading from the cloud isn\'t available in demo mode.</string>
     <string name="share_licensed_only">Sharing exports needs an active licence.</string>
     <string name="sync_status_up_to_date">Cloud backups up to date</string>
-    <string name="home_empty_restore">Restore from cloud</string>
     <string name="home_empty_start">Start analysis</string>
-    <string name="delete_device_kept_snackbar">Kept in the cloud</string>
-    <string name="delete_device_restore_action">Restore…</string>
     <string name="setting_max_frames">Max frames</string>
     <string name="setting_max_frames_info">A ceiling, not a target: it can only reduce a run, never add frames. It caps imported frames and frames sampled from a video. More frames = longer analysis and more memory.</string>
     <string name="info">Info</string>
@@ -538,11 +508,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <!-- Compact lattice: unit folded onto the rightmost subset tick instead of a
          separate axis title (see VsgLatticeView.compact). -->
     <string name="vsg_lattice_axis_subset_unit_fmt">%1$d px</string>
-    <string name="vsg_lattice_view_results">View results</string>
-    <string name="vsg_lattice_open_analysis">Open analysis</string>
     <string name="vsg_lattice_param_fmt">ss:%1$d · st:%2$d · %3$s</string>
     <string name="vsg_lattice_param_labeled_fmt">subset size %1$d · step size %2$d · %3$s</string>
-    <string name="vsg_lattice_scrub_x_fmt">x=%1$.1f</string>
     <string name="vsg_lattice_scrub_xy_fmt">x=%1$.1f  y=%2$.4g</string>
     <string name="vsg_lattice_scrub_x_multi_fmt">x=%1$.1f  %2$s</string>
     <string name="vsg_lattice_curves_all">All</string>
@@ -628,7 +595,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="coach_analysis_mode">Single solve or parameter sweep?</string>
     <string name="coach_analysis_roi">Choose RoI or defaults to full image.</string>
     <string name="coach_analysis_advanced">Change parameters when you need finer control.</string>
-    <string name="coach_sweep_subset">Set the subset size range for sweep granularity.</string>
     <string name="coach_sweep_lattice">This is the planned lattice — each node is one analysis.</string>
     <string name="coach_sweep_line_cut">Strain will be read along this centre line of the region of interest.</string>
     <string name="coach_sweep_graph">Each node is one combination: subset size across, strain window up. Filled nodes solved — tap one to focus its curve, double-tap to open it. Hollow ones failed; tap for the reason.</string>
@@ -669,9 +635,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="field_exx">Exx</string>
     <string name="field_eyy">Eyy</string>
     <string name="field_exy">Exy</string>
-    <string name="stat_max">MAX</string>
-    <string name="stat_min">MIN</string>
-    <string name="stat_mean">MEAN</string>
     <string name="stat_empty">--</string>
     <string name="viewer_stats_fmt">max %1$s at (%2$d, %3$d)\nmin %4$s at (%5$d, %6$d)\nmean %7$s %8$s</string>
     <string name="viewer_stats_plain_fmt">max %1$s · min %2$s · mean %3$s %4$s</string>
@@ -985,10 +948,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <plurals name="def_count_fmt">
         <item quantity="one">1 deformed frame</item>
         <item quantity="other">%1$d deformed frames</item>
-    </plurals>
-    <plurals name="inputs_meta_fmt">
-        <item quantity="one">Reference · 1 deformed frame</item>
-        <item quantity="other">Reference · %1$d deformed frames</item>
     </plurals>
     <plurals name="share_caption_fmt">
         <item quantity="one">frame %1$d of %2$d shown · photos share the current frame</item>

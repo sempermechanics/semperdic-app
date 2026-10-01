@@ -19,6 +19,7 @@ import com.indicvision.semper.data.LicenseConfigWorker
 import com.indicvision.semper.data.cloud.CloudBackupListing
 import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.net.CloudApi
+import com.indicvision.semper.data.net.HttpStatus
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.MeResponse
 import com.indicvision.semper.data.net.TokenProvider
@@ -658,7 +659,7 @@ class AuthRepository(
         } catch (e: IndicApi.DeviceInUseException) {
             deviceBindingFailure(e)
         } catch (e: IndicApi.ApiException) {
-            if (e.code == HTTP_UNAUTHORIZED) {
+            if (e.code == HttpStatus.UNAUTHORIZED) {
                 // Gateway/backend rejected the Firebase ID token (wrong audience,
                 // expired, or malformed). Surface a short server hint when present
                 // so "Session expired" is not the only clue for a misconfigured
@@ -727,9 +728,6 @@ class AuthRepository(
     class AccessLostException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
     private companion object {
-        /** HTTP 401 from the backend: the session token is no longer valid. */
-        const val HTTP_UNAUTHORIZED = 401
-
         /** Cap server error detail length in user-facing 401 snackbars. */
         const val API_ERROR_HINT_MAX_CHARS = 120
 

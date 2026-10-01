@@ -205,7 +205,6 @@ data class ViewerArgs(
         private fun string(key: String, ofRecord: (SessionRecord) -> String?, default: String?): String? =
             fill(key, ofRecord, default) { it.getStringExtra(key) }
 
-        @Suppress("LongMethod") // one line per key, in wire order
         fun read(): ViewerArgs {
             val imgW = int(DicKeys.IMG_W, { it.imgW }, 0)
             val imgH = int(DicKeys.IMG_H, { it.imgH }, 0)

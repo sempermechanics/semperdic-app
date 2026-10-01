@@ -1,11 +1,4 @@
-@file:Suppress(
-    "MagicNumber",
-    "LongParameterList",
-    "NestedBlockDepth",
-    "TooGenericExceptionCaught",
-    "ReturnCount",
-    "LoopWithTooManyJumpStatements",
-)
+@file:Suppress("MagicNumber", "LongParameterList", "NestedBlockDepth", "TooGenericExceptionCaught", "ReturnCount")
 
 @file:SuppressLint("InlinedApi")
 

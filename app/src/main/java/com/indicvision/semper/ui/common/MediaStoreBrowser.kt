@@ -66,7 +66,6 @@ object MediaStoreBrowser {
         if (Build.VERSION.SDK_INT >= SDK_RELATIVE_PATH) {
             MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
         } else {
-            @Suppress("DEPRECATION")
             MediaStore.Files.getContentUri("external")
         }
 

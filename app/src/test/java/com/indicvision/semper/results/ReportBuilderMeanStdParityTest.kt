@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package com.indicvision.semper.results
 
 import androidx.core.graphics.createBitmap

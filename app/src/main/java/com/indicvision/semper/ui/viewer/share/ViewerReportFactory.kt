@@ -1,6 +1,6 @@
 // Report assembly maps many result fields and engine-stat indices into the
 // report model; the literal indices/constants read clearest inline.
-@file:Suppress("CyclomaticComplexMethod", "MagicNumber")
+@file:Suppress("MagicNumber")
 
 package com.indicvision.semper.ui.viewer.share
 

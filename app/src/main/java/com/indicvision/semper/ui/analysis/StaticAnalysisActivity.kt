@@ -1512,7 +1512,6 @@ class StaticAnalysisActivity : AppCompatActivity() {
             onAdvancedReset = {
                 commitParamFields()
                 viewModel.subsetUserModified = false
-                @Suppress("MagicNumber") // documented defaults: 41 / 5 / 5 points
                 etSubsetSize.value = defaultSubsetSize().toFloat()
                 etStepSize.value = 5f
                 etStrainWindow.value = VsgStudy.DEFAULT_WINDOW_POINTS.toFloat()

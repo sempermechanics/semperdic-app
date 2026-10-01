@@ -1,4 +1,4 @@
-@file:Suppress("TooManyFunctions", "LongMethod")
+@file:Suppress("TooManyFunctions")
 
 package com.indicvision.semper.ui.settings
 

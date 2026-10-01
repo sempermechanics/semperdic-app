@@ -50,7 +50,7 @@ object DevAuth {
     fun install(context: Context) {
         if (!active) return
         TokenStore.saveIdentity(context, DEV_UID, DEV_EMAIL)
-        TokenStore.setStatus(context, "APPROVED")
+        TokenStore.setStatus(context, AccessStatus.APPROVED)
         TokenStore.setRole(context, "user")
         AppRemoteConfig.apply(
             context,
@@ -58,7 +58,7 @@ object DevAuth {
                 maxSessions = DEV_QUOTA_MAX,
                 maxFilesPerSession = 600,
                 maxFrames = DicSettings.MAX_MAX_FRAMES,
-                mode = "licensed",
+                mode = LicenseEntitlements.MODE_LICENSED,
                 plan = "professional",
                 cloudBackupEnabled = true,
                 shareEnabled = true,

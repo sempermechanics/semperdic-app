@@ -1,13 +1,7 @@
 // Upload worker: doWork orchestrates one cohesive resumable-upload flow (session
 // create → per-file chunked PUT → complete), kept together with its literal step
 // and retry constants; splitting it would scatter a single linear protocol.
-@file:Suppress(
-    "MagicNumber",
-    "LongMethod",
-    "CyclomaticComplexMethod",
-    "NestedBlockDepth",
-    "ReturnCount",
-)
+@file:Suppress("MagicNumber", "LongMethod", "CyclomaticComplexMethod", "ReturnCount")
 
 package com.indicvision.semper.data
 
@@ -28,6 +22,7 @@ import com.indicvision.semper.data.cloud.UploadProgressSampler
 import com.indicvision.semper.data.cloud.UploadWorkOutcomes
 import com.indicvision.semper.data.net.ApiErrors
 import com.indicvision.semper.data.net.AppRemoteConfig
+import com.indicvision.semper.data.net.ArtifactRoles
 import com.indicvision.semper.data.net.CloudApi
 import com.indicvision.semper.data.net.FileCompleteRequest
 import com.indicvision.semper.data.net.FileSpecDto
@@ -300,7 +295,7 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
             Timber.w("Cannot query upload state (HTTP %d) — keeping the session", e.code)
             return Resume.Unreachable(e.requestId)
         }
-        if (state.status == "COMPLETED") return Resume.Done
+        if (state.status == UploadWorkOutcomes.STATUS_COMPLETED) return Resume.Done
 
         val byKey = artifacts.associateBy { it.role to it.name }
         val work = ArrayList<UploadJob>(state.uploads.size)
@@ -529,7 +524,7 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         // timestamps) would no longer match, so Drive's resumable URI and the
         // completeFile size check would never reconcile. Generating once and
         // reusing also skips the expensive report/zip work on every retry.
-        val stagingDir = File(sessionDir, "upload_staging")
+        val stagingDir = File(sessionDir, SessionPaths.UPLOAD_STAGING_SUBDIR)
         // Only wipe incomplete staging. A blank cloudSessionId after Rebuild /
         // provision failure must NOT destroy a finished Session.zip — that was
         // forcing a full prepare loop on every WorkManager retry.
@@ -559,12 +554,12 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
             UploadWorkOutcomes.stageMetadataJson(metaFile) {
                 SessionUploadMetadata.buildMetadataJson(record, applicationContext)
             }
-            artifacts += Artifact("metadata", "metadata.json", metaFile)
+            artifacts += Artifact(ArtifactRoles.METADATA, "metadata.json", metaFile)
 
             // ── reference image (already stable on disk) ────────────────────
             val refFile = File(record.refPath)
             if (refFile.exists() && refFile.length() > 0) {
-                artifacts += Artifact("raw", SessionZip.REFERENCE_NAME, refFile)
+                artifacts += Artifact(ArtifactRoles.RAW, SessionZip.REFERENCE_NAME, refFile)
             }
 
             // ── per frame: original image, .dat, csv ────────────────────────
@@ -578,7 +573,7 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
                 val defOriginal = File(rawDeformedDir, defName)
                 if (defOriginal.exists() && defOriginal.length() > 0) {
                     if (addedRaw.add(defName)) {
-                        artifacts += Artifact("raw", defName, defOriginal)
+                        artifacts += Artifact(ArtifactRoles.RAW, defName, defOriginal)
                     }
                 } else {
                     Timber.w("Deformed image missing for %s", frameName)
@@ -589,7 +584,7 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
                 // and reports. The CSV is one combined file (below), not per frame.
                 val datFile = SessionPaths.frameDat(sessionDir, index)
                 if (datFile.exists()) {
-                    artifacts += Artifact("dat", datFile.name, datFile)
+                    artifacts += Artifact(ArtifactRoles.DAT, datFile.name, datFile)
                 } else {
                     Timber.w("No .dat for %s (%s)", frameName, datFile.name)
                 }
@@ -600,7 +595,7 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
             //    compresses the staged plain files, so no nested archives) ────
             val analysisCsv = File(stagingDir, "analysis_data.csv")
             val reportsDir = File(stagingDir, "reports")
-            val processedDir = File(stagingDir, "processed")
+            val processedDir = File(stagingDir, SessionPaths.PROCESSED_SUBDIR)
             // Marker written only after a COMPLETE report generation pass — a
             // dir half-filled by a killed run, or a pass that skipped every
             // PDF/heatmap, must not be mistaken for done.
@@ -653,20 +648,24 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
                     }
                 }
             }
-            if (analysisCsv.length() > 0) artifacts += Artifact("csv", "analysis_data.csv", analysisCsv)
+            if (analysisCsv.length() > 0) artifacts += Artifact(ArtifactRoles.CSV, "analysis_data.csv", analysisCsv)
 
             if (record.defNames.isNotEmpty()) {
                 val pdfs = reportsDir.listFiles()
                     ?.filter { it.isFile }
                     ?.sortedBy { it.name }
                     .orEmpty()
-                pdfs.forEach { artifacts += Artifact("reports", it.name, it) }
+                pdfs.forEach { artifacts += Artifact(ArtifactRoles.REPORTS, it.name, it) }
                 // Heatmaps now sit in per-frame subfolders; walk them and keep the
                 // "<frame>/<field>.png" relative path as the artifact name, so the
                 // bundle entry becomes processed/<frame>/<field>.png.
                 val pngs = processedDir.walkTopDown().filter { it.isFile }.sortedBy { it.path }.toList()
                 pngs.forEach {
-                    artifacts += Artifact("processed", it.relativeTo(processedDir).invariantSeparatorsPath, it)
+                    artifacts += Artifact(
+                        ArtifactRoles.PROCESSED,
+                        it.relativeTo(processedDir).invariantSeparatorsPath,
+                        it,
+                    )
                 }
                 if (pdfs.isEmpty()) Timber.e("No frame reports generated during bundle staging")
                 if (pngs.isEmpty()) Timber.e("No processed heatmaps generated during bundle staging")
@@ -692,7 +691,7 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
             // derived deliverables (csv/, reports/, processed/) go to Extras.zip.
             // Nothing reads those back after a restore; they are regenerated on
             // export, so a restore can skip them entirely.
-            val payload = artifacts.filter { it.role != "metadata" }
+            val payload = artifacts.filter { it.role != ArtifactRoles.METADATA }
             val uploadSet = if (payload.isEmpty()) {
                 artifacts.toList()
             } else {
@@ -719,10 +718,10 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
                     onZipBytes,
                 )
 
-                artifacts.filter { it.role == "metadata" } +
+                artifacts.filter { it.role == ArtifactRoles.METADATA } +
                     listOfNotNull(
-                        restoreZip?.let { Artifact("bundle", BUNDLE_NAME, it.file, it.sha256) },
-                        extrasZip?.let { Artifact("extras", EXTRAS_NAME, it.file, it.sha256) },
+                        restoreZip?.let { Artifact(ArtifactRoles.BUNDLE, BUNDLE_NAME, it.file, it.sha256) },
+                        extrasZip?.let { Artifact(ArtifactRoles.EXTRAS, EXTRAS_NAME, it.file, it.sha256) },
                     )
             }
 

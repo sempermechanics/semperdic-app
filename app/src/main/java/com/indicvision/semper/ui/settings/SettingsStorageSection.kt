@@ -1,5 +1,3 @@
-@file:Suppress("TooManyFunctions")
-
 package com.indicvision.semper.ui.settings
 
 import android.view.View

@@ -905,11 +905,6 @@ verified, both are live; §1.13a covers the in-app reset form it opens.
 | **Convergence view** (peak strain and noise vs VSG) | documented in `VsgPlotView` / `VsgStudy` | Never built — only line-cut plots exist |
 | `VsgStudyRunner.ERROR_ENGINE_FAILED` | `VsgStudyRunner` | Declared, never assigned or matched |
 | Frame-order *picker* mode | `FrameOrderHelper` | Only the initial state; the sort menu offers no way back once you sort |
-| `home_empty_restore` string | `strings.xml` | Orphaned when the empty state became **Start analysis** (§3.19) |
-| `download_analysis_save_title` / `_save_body` | `strings.xml` | Orphaned when Download started picking its SAF destination *before* enqueue — there is no confirm dialog left to title |
-| `delete_device_restore_action` string | `strings.xml` | Unused |
-| `viewer_details_home` ("Go to Home") | `strings.xml` | Orphaned when Home moved out of the ⓘ peek sheet into the viewer's top chrome (§8.4.7) |
-| `summary_counter_fmt` plurals | `strings.xml` | Orphaned when the summary counter became the flat "Summary GIF" (§8.2a.1) |
 
 ### Behavioural gaps worth knowing
 

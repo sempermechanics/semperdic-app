@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber", "LongParameterList")
+@file:Suppress("LongParameterList")
 
 package com.indicvision.semper.imaging
 

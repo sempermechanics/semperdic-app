@@ -1,17 +1,8 @@
 // runBatchAnalysis / runVsgSweep stream frames through the native engine in one
-// cohesive loop. Method size, branching, jump statements and per-frame catch
-// are inherent; suppress rather than baseline so new findings elsewhere fail CI.
+// cohesive loop. Method size, early returns and per-frame catch are inherent;
+// suppress rather than baseline so new findings elsewhere fail CI.
 
-@file:Suppress(
-    "CyclomaticComplexMethod",
-    "LongMethod",
-    "LoopWithTooManyJumpStatements",
-    "MagicNumber",
-    "TooGenericExceptionCaught",
-    "LargeClass",
-    "NestedBlockDepth",
-    "ReturnCount",
-)
+@file:Suppress("LongMethod", "MagicNumber", "TooGenericExceptionCaught", "ReturnCount")
 
 package com.indicvision.semper.ui.analysis.wizard
 import android.content.Context

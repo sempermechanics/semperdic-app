@@ -20,6 +20,8 @@ import com.indicvision.semper.data.DicUploadWorker
 import com.indicvision.semper.data.cloud.CorruptTransferException
 import com.indicvision.semper.data.cloud.SessionUploadMetadata
 import com.indicvision.semper.data.cloud.TransferLog
+import com.indicvision.semper.data.cloud.UploadWorkOutcomes
+import com.indicvision.semper.data.net.ArtifactRoles
 import com.indicvision.semper.data.net.CloudApi
 import com.indicvision.semper.data.net.CloudFileDto
 import com.indicvision.semper.data.net.CloudSessionDto
@@ -231,7 +233,7 @@ object CloudRestore {
             token == null -> ListResult.NeedSignIn
             else -> try {
                 val sessions = api.listSessions(token).sessions
-                    .filter { it.status == "COMPLETED" }
+                    .filter { it.status == UploadWorkOutcomes.STATUS_COMPLETED }
                 if (sessions.isEmpty()) ListResult.Empty else ListResult.Ready(sessions)
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 e.rethrowIfCallerCancelled()
@@ -264,7 +266,7 @@ object CloudRestore {
             ?: error("Not signed in")
 
         val files = completedFiles(api, token, sessionId)
-        val bundleEntry = files.firstOrNull { it.role == "bundle" }
+        val bundleEntry = files.firstOrNull { it.role == ArtifactRoles.BUNDLE }
             ?: throw UnrestorableBackupException("backup_no_bundle")
 
         val outDir = CacheJanitor.shareDir(appContext.cacheDir)
@@ -291,7 +293,7 @@ object CloudRestore {
         // Since the payload was split, Session.zip alone is no longer the whole
         // analysis. "Save to Files" is the deliverables use case, so pull Extras.zip
         // too and hand over one merged archive — the same single file as before.
-        files.firstOrNull { it.role == "extras" }?.let { mergeExtrasInto(api, token, it, dest, outDir) }
+        files.firstOrNull { it.role == ArtifactRoles.EXTRAS }?.let { mergeExtrasInto(api, token, it, dest, outDir) }
         onProgress(totalForUi, totalForUi)
         dest
     }
@@ -344,7 +346,7 @@ object CloudRestore {
         val files = completedFiles(api, token, sessionId)
 
         // 1. metadata.json first — it's the blueprint for everything else.
-        val metaEntry = files.firstOrNull { it.role == "metadata" }
+        val metaEntry = files.firstOrNull { it.role == ArtifactRoles.METADATA }
             ?: throw UnrestorableBackupException("backup_no_metadata")
         val fetched = fetchMetadata(
             api,
@@ -371,7 +373,7 @@ object CloudRestore {
         //                safely possible.
         //  - pre-bundle: every artifact listed as its own file.
         val layout = Layout(sessionDir, rawDeformedDir)
-        val bundleEntry = files.firstOrNull { it.role == "bundle" }
+        val bundleEntry = files.firstOrNull { it.role == ArtifactRoles.BUNDLE }
         val outcome = if (bundleEntry != null) {
             val fetch = BundleFetch(api, token, sessionId, appContext, bundleEntry, layout)
             if (isSplitLayout(meta.optString("schema"))) {
@@ -787,7 +789,7 @@ object CloudRestore {
         layout: Layout,
         onProgress: suspend (done: Long, total: Long) -> Unit,
     ): String {
-        val rest = files.filter { it.role != "metadata" }
+        val rest = files.filter { it.role != ArtifactRoles.METADATA }
         val done = AtomicInteger(0)
         val refPath = AtomicReference("")
         val total = rest.size.toLong().coerceAtLeast(1L)
@@ -846,12 +848,12 @@ object CloudRestore {
     @VisibleForTesting
     internal fun destFor(role: String, name: String, layout: Layout): File {
         val dest = when {
-            role == "raw" && name == "Reference.png" -> File(layout.sessionDir, "reference.png")
-            role == "raw" -> File(layout.rawDeformedDir, name)
+            role == ArtifactRoles.RAW && name == SessionZip.REFERENCE_NAME -> File(layout.sessionDir, "reference.png")
+            role == ArtifactRoles.RAW -> File(layout.rawDeformedDir, name)
             // Per-frame reports/heatmaps into their own subfolders — one PDF and
             // five PNGs per frame flat in the session dir would drown the .dat files.
-            role == "reports" -> File(layout.sessionDir, "reports/$name")
-            role == "processed" -> File(layout.sessionDir, "processed/$name")
+            role == ArtifactRoles.REPORTS -> File(layout.sessionDir, "reports/$name")
+            role == ArtifactRoles.PROCESSED -> File(layout.sessionDir, "${SessionPaths.PROCESSED_SUBDIR}/$name")
             // dat lives flat in the session dir; csv is regenerable and kept
             // beside the session for export.
             else -> File(layout.sessionDir, name)

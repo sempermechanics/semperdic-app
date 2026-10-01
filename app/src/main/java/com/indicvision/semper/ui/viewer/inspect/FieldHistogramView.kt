@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import com.indicvision.semper.R
 import com.indicvision.semper.field.FieldHistogram
 import com.indicvision.semper.report.ReportBuilder
+import com.indicvision.semper.ui.common.dp
 
 /**
  * Gray histogram of one field's accepted values. No grid, no top or right spine.
@@ -31,9 +32,6 @@ class FieldHistogramView @JvmOverloads constructor(
     private var histogram: FieldHistogram? = null
     private var unit: String = ""
     private var selectedBin: Int = -1
-
-    private val density = resources.displayMetrics.density
-    private fun dp(value: Float) = value * density
 
     private val labelPx =
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 11f, resources.displayMetrics)

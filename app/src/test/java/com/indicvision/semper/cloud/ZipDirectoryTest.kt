@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package com.indicvision.semper.cloud
 
 import com.indicvision.semper.data.session.ZipDirectory

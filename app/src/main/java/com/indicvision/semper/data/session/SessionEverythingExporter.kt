@@ -200,7 +200,7 @@ object SessionEverythingExporter {
         rawDeformedDir.listFiles()?.forEach { f -> putFile(zipOut, "$rawPrefix/${f.name}", f) }
         putFile(zipOut, "analysis_data.csv", csvFile)
         File(work, "reports").listFiles()?.forEach { f -> putFile(zipOut, "reports/${f.name}", f) }
-        val processed = File(work, "processed")
+        val processed = File(work, SessionPaths.PROCESSED_SUBDIR)
         processed.walkTopDown().filter { it.isFile }.forEach { f ->
             putFile(zipOut, "photos_$ts/results/${f.relativeTo(processed).invariantSeparatorsPath}", f)
         }

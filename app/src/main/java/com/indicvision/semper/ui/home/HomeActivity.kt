@@ -573,7 +573,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun updateQuotaIndicator(localSessionCount: Int) {
-        val max = TokenStore.effectiveQuotaMax(this)
+        val max = TokenStore.quotaMax(this)
         val used = TokenStore.quotaUsed(this).coerceAtLeast(localSessionCount)
         if (max <= 0) {
             if (AppRemoteConfig.shouldHintSyncBlocked(this) && IndicApi.get(this).enabled) {

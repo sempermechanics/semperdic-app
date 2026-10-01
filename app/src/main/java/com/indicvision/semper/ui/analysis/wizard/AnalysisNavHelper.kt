@@ -1,5 +1,3 @@
-@file:Suppress("LongParameterList")
-
 package com.indicvision.semper.ui.analysis.wizard
 
 import android.app.Activity

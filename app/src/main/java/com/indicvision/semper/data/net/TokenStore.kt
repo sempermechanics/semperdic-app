@@ -92,12 +92,6 @@ object TokenStore {
     fun isQuotaKnown(context: Context): Boolean = quotaMax(context) > 0
 
     /**
-     * Cached cloud max, or 0 when the backend has not reported one yet.
-     * Callers must not invent a local default — use [isQuotaKnown] / fail closed.
-     */
-    fun effectiveQuotaMax(context: Context): Int = quotaMax(context)
-
-    /**
      * Refresh the cached USED count. [localCount] is folded in so the client
      * blocks new analyses even before the next cloud reconcile. Fresh numbers
      * clear any forced stop; the hard stop itself is recomputed live in

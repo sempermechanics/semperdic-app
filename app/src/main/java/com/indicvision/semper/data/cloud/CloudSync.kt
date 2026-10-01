@@ -18,6 +18,7 @@ import com.indicvision.semper.data.account.AuthRepository
 import com.indicvision.semper.data.account.LicenseEntitlements
 import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.net.CloudApi
+import com.indicvision.semper.data.net.HttpStatus
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.TokenProvider
 import com.indicvision.semper.data.net.TokenSource
@@ -153,7 +154,7 @@ object CloudSync {
 
                 // Only COMPLETED cloud sessions count as a real backup.
                 val backedUp = cloud.sessions
-                    .filter { it.status == "COMPLETED" && it.localSessionId.isNotBlank() }
+                    .filter { it.status == UploadWorkOutcomes.STATUS_COMPLETED && it.localSessionId.isNotBlank() }
                     .map { it.localSessionId }
                     .toSet()
 
@@ -421,7 +422,7 @@ object CloudSync {
     }
 
     private fun failureOf(e: Exception): EraseResult =
-        if (e is IndicApi.ApiException && e.code == HTTP_TOO_MANY_REQUESTS) {
+        if (e is IndicApi.ApiException && e.code == HttpStatus.TOO_MANY_REQUESTS) {
             EraseResult.RATE_LIMITED
         } else {
             EraseResult.LOCAL_ONLY_CLOUD_UNREACHABLE
@@ -535,7 +536,6 @@ object CloudSync {
     }
 
     private const val BACKOFF_SECONDS = 30L
-    private const val HTTP_TOO_MANY_REQUESTS = 429
     private const val K_LAST_RECONCILE_AT = "last_reconcile_at"
     private const val RECONCILE_MIN_INTERVAL_MS = 5 * 60 * 1000L
     private const val MS_PER_SECOND = 1000L

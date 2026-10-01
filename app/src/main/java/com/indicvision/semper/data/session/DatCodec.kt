@@ -1,9 +1,7 @@
-// Binary record layout: the literal byte offsets and field counts ARE the archive
-// format and read clearest inline, so MagicNumber is suppressed — mirrors DicResult's
-// own file-level suppression for the same reason. TooManyFunctions: encode/decode,
-// lattice detection, SoA+shuffle+deflate and reassembly all belong together as one
-// codec, same rationale as SessionZip's own suppression.
-@file:Suppress("MagicNumber", "TooManyFunctions")
+// Binary record layout. TooManyFunctions: encode/decode, lattice detection,
+// SoA+shuffle+deflate and reassembly all belong together as one codec, same
+// rationale as SessionZip's own suppression.
+@file:Suppress("TooManyFunctions")
 
 package com.indicvision.semper.data.session
 

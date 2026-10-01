@@ -22,7 +22,6 @@ import java.io.File
  * answered. A lambda can throw, including `CancellationException`, to script a
  * failure.
  */
-@Suppress("TooManyFunctions") // mirrors CloudApi
 class FakeCloudApi(override var enabled: Boolean = true) : CloudApi {
 
     val calls = mutableListOf<String>()

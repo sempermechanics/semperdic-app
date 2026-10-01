@@ -89,8 +89,8 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
      * Kicks off the one pass that fixes every field's colour scale.
      *
      * `ResultViewerActivity` starts it on every open of a multi-frame, non-sweep session,
-     * since single frames also take their colour scale from the sequence range
-     * ([sequenceRange]); [show] calls it too. It is idempotent, so repeated calls do
+     * since single frames also take their colour scale from the sequence range;
+     * [show] calls it too. It is idempotent, so repeated calls do
      * not re-scan. A batch run writes the [FieldRangesStore] sidecar, and then the pass
      * decodes nothing. Without it (older or restored sessions) the pass decodes and
      * range-scans **every frame**, about 1 MB of garbage per frame at 19 200 points,
@@ -158,9 +158,6 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
     /** Bounds for [dataIndex]: a user-set fixed scale wins, else the global range. */
     fun boundsFor(dataIndex: Int): Pair<Float, Float>? =
         host.customBoundsFor(dataIndex) ?: ranges[dataIndex]
-
-    /** Whole-sequence range for [dataIndex], ignoring any custom override. */
-    fun sequenceRange(dataIndex: Int): Pair<Float, Float>? = ranges[dataIndex]
 
     /** The label the frame counter shows while the summary is up. */
     fun counterText(): String = host.getString(R.string.summary_gif)

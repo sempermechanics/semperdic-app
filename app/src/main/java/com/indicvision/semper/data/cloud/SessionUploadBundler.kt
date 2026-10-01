@@ -73,7 +73,7 @@ object SessionUploadBundler {
         onFrame: (done: Int, total: Int) -> Unit = { _, _ -> },
     ): BundleCounts = withContext(Dispatchers.Default) {
         val reportsDir = File(stagingDir, "reports").apply { if (writeReports) mkdirs() }
-        val processedDir = File(stagingDir, "processed").apply { if (writeReports) mkdirs() }
+        val processedDir = File(stagingDir, SessionPaths.PROCESSED_SUBDIR).apply { if (writeReports) mkdirs() }
         var reports = 0
         var processed = 0
 

@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package com.indicvision.semper.viewer
 
 import com.indicvision.semper.ui.viewer.ScrubFrameCache
