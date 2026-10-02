@@ -4,6 +4,10 @@ import android.content.Context
 import androidx.annotation.WorkerThread
 import androidx.core.content.edit
 import com.indicvision.semper.data.net.CloudSessionDto
+import com.indicvision.semper.data.prefs.PrefFiles.CloudListing
+import com.indicvision.semper.data.prefs.get
+import com.indicvision.semper.data.prefs.privatePrefs
+import com.indicvision.semper.data.prefs.put
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SessionStore
 import org.json.JSONArray
@@ -28,10 +32,6 @@ object CloudBackupListing {
     /** One finished backup: enough to name it, size it and restore it. */
     data class Backup(val cloudId: String, val localId: String, val name: String, val bytes: Long)
 
-    private const val PREFS = "indic_cloud_listing"
-    private const val KEY_BACKUPS = "backups"
-    private const val KEY_HIDDEN = "hidden"
-
     /** Save what a successful listing found. Only COMPLETED backups can be restored. */
     fun record(context: Context, sessions: List<CloudSessionDto>) {
         val backups = sessions.filter {
@@ -44,18 +44,18 @@ object CloudBackupListing {
         // A hidden backup that has since gone from the cloud needs no memory.
         val hidden = hiddenIds(context).filterTo(mutableSetOf()) { it in ids }
         prefs.edit {
-            putString(KEY_BACKUPS, encode(backups))
-            putStringSet(KEY_HIDDEN, hidden)
+            put(CloudListing.BACKUPS, encode(backups))
+            put(CloudListing.HIDDEN, hidden)
         }
     }
 
-    fun load(context: Context): List<Backup> = decode(prefs(context).getString(KEY_BACKUPS, null))
+    fun load(context: Context): List<Backup> = decode(prefs(context)[CloudListing.BACKUPS])
 
     /** This backup was deleted: stop offering it before the next reconcile says so. */
     fun forget(context: Context, cloudId: String) {
         if (cloudId.isBlank()) return
         val left = load(context).filterNot { it.cloudId == cloudId }
-        prefs(context).edit { putString(KEY_BACKUPS, encode(left)) }
+        prefs(context).edit { put(CloudListing.BACKUPS, encode(left)) }
     }
 
     /** Another account, or none: nothing saved here applies any more. */
@@ -83,14 +83,12 @@ object CloudBackupListing {
 
     /** Stop offering these on Home. A backup added later is offered again. */
     fun hide(context: Context, cloudIds: Collection<String>) {
-        prefs(context).edit { putStringSet(KEY_HIDDEN, hiddenIds(context) + cloudIds) }
+        prefs(context).edit { put(CloudListing.HIDDEN, hiddenIds(context) + cloudIds) }
     }
 
-    private fun hiddenIds(context: Context): Set<String> =
-        prefs(context).getStringSet(KEY_HIDDEN, null).orEmpty().toSet()
+    private fun hiddenIds(context: Context): Set<String> = prefs(context)[CloudListing.HIDDEN]
 
-    private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private fun prefs(context: Context) = privatePrefs(context, CloudListing.NAME)
 }
 
 // Saved as a JSON array of backups; unreadable JSON offers nothing until the next reconcile.

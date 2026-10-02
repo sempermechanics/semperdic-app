@@ -33,7 +33,6 @@ class LicenseConfigWorker(
     }
 
     companion object {
-        const val UNIQUE_NAME = WorkTags.LICENSE_CONFIG_NAME
         private const val PERIOD_HOURS = 4L
 
         fun enqueue(context: Context) {
@@ -43,14 +42,16 @@ class LicenseConfigWorker(
                     .addTag(WorkTags.LICENSE_CONFIG)
                     .build()
                 WorkManager.getInstance(context.applicationContext)
-                    .enqueueUniquePeriodicWork(UNIQUE_NAME, ExistingPeriodicWorkPolicy.KEEP, work)
+                    .enqueueUniquePeriodicWork(WorkTags.LICENSE_CONFIG_NAME, ExistingPeriodicWorkPolicy.KEEP, work)
             }.onFailure {
                 Timber.w(it, "Could not schedule license config refresh")
             }
         }
 
         fun cancel(context: Context) {
-            runCatching { WorkManager.getInstance(context.applicationContext).cancelUniqueWork(UNIQUE_NAME) }
+            runCatching {
+                WorkManager.getInstance(context.applicationContext).cancelUniqueWork(WorkTags.LICENSE_CONFIG_NAME)
+            }
         }
     }
 }

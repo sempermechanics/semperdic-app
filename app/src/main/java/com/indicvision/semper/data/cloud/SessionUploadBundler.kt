@@ -1,28 +1,25 @@
-// Bundler stages a whole session's files (reference, raw frames, .dat, csv,
-// reports) in one cohesive pass over the full file set; kept together so the
-// staging order stays in one place.
-@file:Suppress("CyclomaticComplexMethod", "LongMethod", "LongParameterList")
-
 package com.indicvision.semper.data.cloud
 
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Bitmap
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.scale
 import com.indicvision.semper.R
+import com.indicvision.semper.data.session.SessionLayout
 import com.indicvision.semper.data.session.SessionPaths
 import com.indicvision.semper.data.session.SessionRecord
+import com.indicvision.semper.data.session.StagingLayout
+import com.indicvision.semper.data.session.imageSize
+import com.indicvision.semper.data.session.paramsAt
 import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.imaging.BitmapDecode
 import com.indicvision.semper.imaging.ImageEncode
 import com.indicvision.semper.report.AnalysisCsvWriter
-import com.indicvision.semper.report.EngineStats
-import com.indicvision.semper.report.FieldRangesStore
 import com.indicvision.semper.report.FieldResult
 import com.indicvision.semper.report.PdfReportGenerator
 import com.indicvision.semper.report.ReportBuilder
-import com.indicvision.semper.report.ReportImageNames
-import com.indicvision.semper.report.RoiData
+import com.indicvision.semper.report.ReportSource
 import com.indicvision.semper.report.VisualizationEngine
 import com.indicvision.semper.ui.viewer.HeatmapFit
 import com.indicvision.semper.ui.viewer.summary.SummaryAnimation
@@ -50,8 +47,9 @@ object SessionUploadBundler {
      * plain files in the staging dir (Session.zip compresses everything at the
      * end, so there is no point deflating them twice into nested archives):
      *  - `csv/analysis_data.csv` (via [csvFile])
-     *  - `reports/Master_Report_Frame_N.pdf`
-     *  - `processed/Frame_N_<field>.png` — the U/V/Exx/Eyy/Exy heatmaps
+     *  - `reports/Master_Report_<frame>.pdf`
+     *  - `processed/<frame>/<field>.png` — the U/V/Exx/Eyy/Exy heatmaps
+     *  - `processed/animations/` — per-field GIFs, for a single-setting run
      *
      * They're built together deliberately: [ReportBuilder.buildReport] already
      * bakes the field heatmaps to make the PDF, so writing them out here costs
@@ -61,6 +59,7 @@ object SessionUploadBundler {
      * bitmaps are recycled before moving on, so memory stays flat regardless of
      * frame count. Parallel bake is intentionally avoided (OOM risk on large ROIs).
      */
+    @Suppress("LongParameterList") // the entry point the upload and the Save-to-Files export share
     suspend fun stageCsvAndBundles(
         context: Context,
         record: SessionRecord,
@@ -72,12 +71,12 @@ object SessionUploadBundler {
         writeReports: Boolean,
         onFrame: (done: Int, total: Int) -> Unit = { _, _ -> },
     ): BundleCounts = withContext(Dispatchers.Default) {
-        val reportsDir = File(stagingDir, "reports").apply { if (writeReports) mkdirs() }
-        val processedDir = File(stagingDir, SessionPaths.PROCESSED_SUBDIR).apply { if (writeReports) mkdirs() }
-        var reports = 0
-        var processed = 0
-
-        val canReport = writeReports && record.imgW > 0 && record.imgH > 0
+        val staging = StagingLayout(stagingDir)
+        if (writeReports) {
+            staging.reportsDir.mkdirs()
+            staging.processedDir.mkdirs()
+        }
+        val canReport = writeReports && record.imageSize.isKnown
         if (writeReports && !canReport) {
             Timber.e("Bad image dimensions for %s — skipping reports", record.id)
         }
@@ -87,303 +86,87 @@ object SessionUploadBundler {
         // before the first frame callback, which looked like a hung prepare badge.
         onFrame(0, frameTotal)
 
-        // The reference is the SAME image in every frame's report — decode and
-        // scale it once for the whole session, not once per frame. Falls back
-        // to a deformed frame if the reference won't decode. Capped to
-        // REPORT_MAX_EDGE: the report only ever downscales it (to 600 px), so a
-        // full-res resident base is pure memory pressure.
-        val (baseW, baseH) =
-            VisualizationEngine.cappedDims(record.imgW, record.imgH, VisualizationEngine.REPORT_MAX_EDGE)
-        val baseImg: Bitmap? = if (canReport) {
-            val originalBaseImg = decodeBaseImage(
-                refFile,
-                rawDeformedDir,
-                record.defNames.firstOrNull(),
-                record.imgW,
-                record.imgH,
-            )
-            if (originalBaseImg == null) {
-                // Size only: the path holds the user's file name, and ERROR reaches Crashlytics.
-                Timber.e("No decodable base image (reference %d B) — skipping reports", refFile.length())
-                null
-            } else {
-                val scaled = originalBaseImg.scale(baseW, baseH)
-                if (scaled !== originalBaseImg) originalBaseImg.recycle()
-                scaled
-            }
-        } else {
-            null
+        val baseImg = if (canReport) scaledBaseImage(record, refFile, rawDeformedDir) else null
+        val render = baseImg?.let {
+            RenderContext(record, it, File(context.cacheDir, "upload_${record.id}_frame.pdf"), context.resources)
         }
-
-        val scratch = if (baseImg != null) {
-            File(context.cacheDir, "upload_${record.id}_frame.pdf")
-        } else {
-            null
-        }
-        val ctx = if (baseImg != null && scratch != null) {
-            RenderContext(record, baseImg, scratch, context.resources)
-        } else {
-            null
-        }
-
-        val sweepImage = record.defNames.firstOrNull().orEmpty()
-        val csvMetadata = AnalysisCsvWriter.Metadata(
-            referenceName = record.refName,
-            strainMethod = record.strainMethod.ifBlank { "VSG" },
-            imgW = record.imgW,
-            imgH = record.imgH,
-            roiX = record.roiX,
-            roiY = record.roiY,
-            roiW = record.roiW,
-            roiH = record.roiH,
-        )
-        val csvAppender = csvFile?.let { AnalysisCsvWriter.open(it, record.isSweep, csvMetadata) }
+        val csv = csvFile?.let { AnalysisCsvWriter.open(it, record.isSweep, csvMetadata(record)) }
+        val pass = FramePass(record, sessionDir, rawDeformedDir, staging, render, csv)
         try {
             record.defNames.forEachIndexed { index, defName ->
                 // Rendering is blocking; check per frame so a cancelled export
                 // or upload stops within one frame, not one session.
                 ensureActive()
-                val datFile = SessionPaths.frameDat(sessionDir, index)
-                if (!datFile.exists()) {
-                    onFrame(index + 1, frameTotal)
-                    return@forEachIndexed
-                }
-                val data = DicResult.decodeDatFile(datFile)
-                if (data == null) {
-                    onFrame(index + 1, frameTotal)
-                    return@forEachIndexed
-                }
-
-                val frame = AnalysisCsvWriter.Frame(
-                    image = if (record.isSweep) {
-                        sweepImage
-                    } else {
-                        record.defNames.getOrElse(index) { "Frame_${index + 1}" }
-                    },
-                    subset = record.sweepSubsets.getOrElse(index) { record.subset },
-                    step = record.sweepSteps.getOrElse(index) { record.step },
-                    strainWindow = record.sweepStrainWindows.getOrElse(index) { record.strainWindow },
-                    data = { data },
-                )
-                csvAppender?.appendFieldStats(frame, data)
-                csvAppender?.append(frame)
-
-                if (ctx == null) {
-                    onFrame(index + 1, frameTotal)
-                    return@forEachIndexed
-                }
-
-                val frameName = if (record.isSweep) {
-                    record.sweepLabels.getOrElse(index) { "Combination_${index + 1}" }
-                        .replace('/', '-').replace('\\', '-')
-                } else {
-                    "Frame_${index + 1}"
-                }
-                val defFile = File(rawDeformedDir, defName)
-
-                // One processed/<frame>/ subfolder per combination, so its five
-                // field maps stay together instead of all frames' maps landing
-                // flat in processed/.
-                val frameDir = File(processedDir, frameName)
-                frameDir.mkdirs()
-                val ok = renderFrame(ctx, data, defFile, frameName, index) { fields ->
-                    fields.forEach { field ->
-                        File(frameDir, "${field.fieldKey}.png").outputStream().buffered().use { out ->
-                            field.bakedHeatmap.compress(Bitmap.CompressFormat.PNG, ImageEncode.PNG_QUALITY_MAX, out)
-                        }
-                        processed++
-                    }
-                }
-                if (!ok || scratch!!.length() == 0L) {
-                    Timber.w("Report generation failed for %s", frameName)
-                    onFrame(index + 1, frameTotal)
-                    return@forEachIndexed
-                }
-                scratch.copyTo(File(reportsDir, "Master_Report_$frameName.pdf"), overwrite = true)
-                reports++
+                pass.stageFrame(index, defName)
                 onFrame(index + 1, frameTotal)
             }
         } finally {
-            csvAppender?.close()
-            scratch?.delete()
+            csv?.close()
+            render?.scratch?.delete()
             baseImg?.recycle()
         }
         // Per-field looping GIFs for single-setting backups only. Sweeps are
         // parameter combinations, not a time series — no animations folder.
         ensureActive()
-        val animations =
-            if (canReport && !record.isSweep) {
-                stageAnimations(context, record, sessionDir, processedDir)
-            } else {
-                0
-            }
+        val animations = if (canReport && !record.isSweep) {
+            stageAnimations(context, record, sessionDir, staging.processedDir)
+        } else {
+            0
+        }
         if (writeReports) {
             Timber.i(
                 "Staged %d frame reports, %d processed images, %d animations",
-                reports,
-                processed,
+                pass.reports,
+                pass.processed,
                 animations,
             )
         }
-        BundleCounts(reports, processed)
+        BundleCounts(pass.reports, pass.processed)
     }
 
     /**
-     * Builds the five per-field animation GIFs into `processed/animations/` via the
-     * headless [SummaryAnimation]. One failed field is logged and skipped rather
-     * than aborting the whole backup. Returns the number of GIFs written.
+     * Frame [frameIndex]'s report inputs: [ReportSource.forRecord], so the PDF
+     * prints the names, settings and engine stats the on-device report prints
+     * (not the bundle's folder names), and marks the MAX only.
      */
-    private suspend fun stageAnimations(
-        context: Context,
+    internal fun reportParams(
         record: SessionRecord,
-        sessionDir: File,
-        processedDir: File,
-    ): Int {
-        val batchFiles = record.defNames.indices
-            .map { i -> SessionPaths.frameDat(sessionDir, i) }
-            .filter { it.exists() }
-        if (batchFiles.isEmpty()) return 0
+        frameIndex: Int,
+        data: FloatArray,
+        baseImg: Bitmap,
+        coverImg: Bitmap,
+    ): ReportBuilder.ReportBuildParams = ReportSource.forRecord(record).forFrame(frameIndex, data, baseImg, coverImg)
 
-        val animation = SummaryAnimation(
-            SummaryAnimation.Spec(
-                batchFiles = batchFiles,
-                imgW = record.imgW,
-                imgH = record.imgH,
-                stepAt = { i -> record.sweepSteps.getOrElse(i) { record.step } },
-                outputDir = File(processedDir, "animations").apply { mkdirs() },
-                backgroundColor = ContextCompat.getColor(context, R.color.viewer_canvas),
-                fitBounds = HeatmapFit.resolve(
-                    record.imgW,
-                    record.imgH,
-                    record.roiX,
-                    record.roiY,
-                    record.roiW,
-                    record.roiH,
-                ),
-            ),
-        )
-        val rangesFile = File(sessionDir, FieldRangesStore.FILE_NAME)
-        val ranges = SummaryAnimation.globalRanges(batchFiles, rangesFile)
-        var gifs = 0
-        for ((label, dataIndex) in SummaryAnimation.FIELDS) {
-            currentCoroutineContext().ensureActive() // one GIF per check, like the frame loop
-            val bounds = ranges[dataIndex] ?: continue
-            try {
-                if (animation.build(dataIndex, label, bounds) != null) gifs++
-            } catch (e: CancellationException) {
-                throw e
-            } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
-                Timber.w(e, "Skipping %s animation for %s in backup", label, record.id)
-            }
-        }
-        return gifs
-    }
-
-    /** Per-session state shared by every frame's report render. */
-    private class RenderContext(
-        val record: SessionRecord,
-        /** Reference image, already scaled to engine dimensions. NOT owned by renderFrame. */
-        val baseImg: Bitmap,
-        /** Scratch PDF file, reused per frame. */
-        val scratch: File,
-        val resources: android.content.res.Resources,
+    private fun csvMetadata(record: SessionRecord) = AnalysisCsvWriter.Metadata(
+        referenceName = record.refName,
+        strainMethod = record.strainMethod.ifBlank { ReportSource.DEFAULT_STRAIN_METHOD },
+        imgW = record.imgW,
+        imgH = record.imgH,
+        roiX = record.roiX,
+        roiY = record.roiY,
+        roiW = record.roiW,
+        roiH = record.roiH,
     )
 
     /**
-     * Build one frame's report: writes the classic single-frame PDF to
-     * [RenderContext.scratch] and hands the freshly baked per-field heatmaps to
-     * [onFieldHeatmaps] before they are recycled. The reference bitmap comes
-     * pre-scaled from the context and is shared across frames — never recycled
-     * here.
+     * The reference is the SAME image in every frame's report — decode and
+     * scale it once for the whole session, not once per frame. Falls back to a
+     * deformed frame if the reference won't decode. Capped to
+     * [VisualizationEngine.REPORT_MAX_EDGE]: the report only ever downscales it
+     * (to 600 px), so a full-res resident base is pure memory pressure.
      */
-    @Suppress("LongParameterList") // per-frame render inputs plus the heatmap callback
-    private suspend fun renderFrame(
-        ctx: RenderContext,
-        data: FloatArray,
-        defFile: File,
-        frameName: String,
-        frameIndex: Int,
-        onFieldHeatmaps: (List<FieldResult>) -> Unit,
-    ): Boolean = withContext(Dispatchers.Default) {
-        val record = ctx.record
-
-        // The deformed original is only the cover image (downscaled to 600 px in
-        // the report); decode + scale it capped, and fall back to the reference
-        // rather than losing the whole report over it.
-        val (coverW, coverH) =
+    private fun scaledBaseImage(record: SessionRecord, refFile: File, rawDeformedDir: File): Bitmap? {
+        val (baseW, baseH) =
             VisualizationEngine.cappedDims(record.imgW, record.imgH, VisualizationEngine.REPORT_MAX_EDGE)
-        val originalDefImg = BitmapDecode.decodeFileForView(
-            defFile.absolutePath,
-            coverW,
-            coverH,
-            VisualizationEngine.REPORT_MAX_EDGE,
-            rawWidth = record.imgW,
-            rawHeight = record.imgH,
-        )
-        val defImg = if (originalDefImg != null) {
-            originalDefImg.scale(coverW, coverH)
-        } else {
-            ctx.baseImg
+        val original = decodeBaseImage(refFile, rawDeformedDir, record.defNames.firstOrNull(), record.imgW, record.imgH)
+        if (original == null) {
+            // Size only: the path holds the user's file name, and ERROR reaches Crashlytics.
+            Timber.e("No decodable base image (reference %d B) — skipping reports", refFile.length())
+            return null
         }
-
-        val frameSubset = record.sweepSubsets.getOrElse(frameIndex) { record.subset }
-        val frameStep = record.sweepSteps.getOrElse(frameIndex) { record.step }
-        val frameWindow = record.sweepStrainWindows.getOrElse(frameIndex) { record.strainWindow }
-        val reportData = ReportBuilder.buildReport(
-            ReportBuilder.ReportBuildParams(
-                data = data,
-                baseImg = ctx.baseImg,
-                defImgForCover = defImg,
-                imgW = record.imgW,
-                imgH = record.imgH,
-                step = frameStep,
-                sessionId = record.id,
-                specimenName = ReportImageNames.specimen(record.refName),
-                analysisDate = ReportBuilder.currentAnalysisDate(),
-                subsetSize = frameSubset,
-                strainWindow = frameWindow,
-                strainMethod = record.strainMethod.ifBlank { "VSG" },
-                roiData = RoiData(record.roiX, record.roiY, record.roiW, record.roiH),
-                engineStats = reportEngineStats(record.engineStats),
-                // The names the on-device report prints (ViewerReportFactory),
-                // not the bundle's folder names.
-                referenceImageName = ReportImageNames.reference(record.refName),
-                deformedImageName = ReportImageNames.deformed(record.frameNames, frameIndex),
-                drawMinMarker = false,
-            ),
-        )
-
-        var ok = true
-        try {
-            ctx.scratch.outputStream().use { stream ->
-                PdfReportGenerator.generate(reportData, stream, ctx.resources).collect { progress ->
-                    if (progress is PdfReportGenerator.Progress.Error) {
-                        Timber.e(progress.ex, "PDF generation failed for %s", frameName)
-                        ok = false
-                    }
-                }
-            }
-            onFieldHeatmaps(reportData.fieldResults)
-        } finally {
-            reportData.fieldResults.forEach { it.bakedHeatmap.recycle() }
-            reportData.znssdHeatmap.recycle()
-            if (defImg !== ctx.baseImg && defImg !== originalDefImg) defImg.recycle()
-            if (originalDefImg !== null && originalDefImg !== defImg) originalDefImg.recycle()
-        }
-        ok
-    }
-
-    /**
-     * [stats] as the report reads them. Every slot the run stored is kept — the
-     * engine writes [EngineStats.SLOT_COUNT], and cutting that to the 16 core
-     * slots printed "Unknown" for mesh seeding and 0 ms for simplex / ICGN in
-     * every cloud PDF. Never padded past what was stored: a legacy 16-slot
-     * record read as 17 would claim mesh quality 0 ("Fallback") instead of
-     * unknown. Shorter (or empty) records are padded to the core slots, as before.
-     */
-    internal fun reportEngineStats(stats: List<Float>): EngineStats {
-        val size = stats.size.coerceIn(EngineStats.CORE_SLOT_COUNT, EngineStats.SLOT_COUNT)
-        return EngineStats.fromArray(FloatArray(size) { stats.getOrElse(it) { 0f } })
+        val scaled = original.scale(baseW, baseH)
+        if (scaled !== original) original.recycle()
+        return scaled
     }
 
     /**
@@ -415,6 +198,201 @@ object SessionUploadBundler {
                 rawWidth = imgW,
                 rawHeight = imgH,
             )
+        }
+    }
+
+    /**
+     * Builds the five per-field animation GIFs into `processed/animations/` via the
+     * headless [SummaryAnimation]. One failed field is logged and skipped rather
+     * than aborting the whole backup. Returns the number of GIFs written.
+     */
+    private suspend fun stageAnimations(
+        context: Context,
+        record: SessionRecord,
+        sessionDir: File,
+        processedDir: File,
+    ): Int {
+        val batchFiles = record.defNames.indices
+            .map { i -> SessionPaths.frameDat(sessionDir, i) }
+            .filter { it.exists() }
+        if (batchFiles.isEmpty()) return 0
+
+        val animation = SummaryAnimation(
+            SummaryAnimation.Spec(
+                batchFiles = batchFiles,
+                imgW = record.imgW,
+                imgH = record.imgH,
+                stepAt = { i -> record.paramsAt(i).step },
+                outputDir = File(processedDir, StagingLayout.ANIMATIONS_SUBDIR).apply { mkdirs() },
+                backgroundColor = ContextCompat.getColor(context, R.color.viewer_canvas),
+                fitBounds = HeatmapFit.resolve(
+                    record.imgW,
+                    record.imgH,
+                    record.roiX,
+                    record.roiY,
+                    record.roiW,
+                    record.roiH,
+                ),
+            ),
+        )
+        val ranges = SummaryAnimation.globalRanges(batchFiles, SessionLayout(sessionDir).fieldRanges)
+        var gifs = 0
+        for ((label, dataIndex) in SummaryAnimation.FIELDS) {
+            currentCoroutineContext().ensureActive() // one GIF per check, like the frame loop
+            val bounds = ranges[dataIndex] ?: continue
+            try {
+                if (animation.build(dataIndex, label, bounds) != null) gifs++
+            } catch (e: CancellationException) {
+                throw e
+            } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+                Timber.w(e, "Skipping %s animation for %s in backup", label, record.id)
+            }
+        }
+        return gifs
+    }
+
+    /**
+     * One frame at a time: its CSV rows from the decoded `.dat`, then (when
+     * [render] is set) its report and heatmaps. Counts what it wrote.
+     */
+    private class FramePass(
+        private val record: SessionRecord,
+        private val sessionDir: File,
+        private val rawDeformedDir: File,
+        private val staging: StagingLayout,
+        private val render: RenderContext?,
+        private val csv: AnalysisCsvWriter.Appender?,
+    ) {
+        var reports = 0
+            private set
+        var processed = 0
+            private set
+
+        /** A sweep repeats its one image in every row. */
+        private val sweepImage = record.defNames.firstOrNull().orEmpty()
+
+        /** Stage frame [index]: nothing without a decodable `.dat`, the CSV rows only without a renderer. */
+        suspend fun stageFrame(index: Int, defName: String) {
+            val data = SessionPaths.frameDat(sessionDir, index)
+                .takeIf { it.exists() }
+                ?.let { DicResult.decodeDatFile(it) }
+                ?: return
+            appendCsv(index, data)
+            if (render == null) return
+            val frameName = frameFolderName(index)
+            if (stageReport(render, index, defName, frameName, data)) {
+                reports++
+            } else {
+                Timber.w("Report generation failed for %s", frameName)
+            }
+        }
+
+        private fun appendCsv(index: Int, data: FloatArray) {
+            val params = record.paramsAt(index)
+            val frame = AnalysisCsvWriter.Frame(
+                image = if (record.isSweep) sweepImage else record.defNames.getOrElse(index) { "Frame_${index + 1}" },
+                subset = params.subset,
+                step = params.step,
+                strainWindow = params.strainWindow,
+                data = { data },
+            )
+            csv?.appendFieldStats(frame, data)
+            csv?.append(frame)
+        }
+
+        /** The frame's folder and PDF name: a sweep's label with path separators made safe, else `Frame_N`. */
+        private fun frameFolderName(index: Int): String = if (record.isSweep) {
+            record.sweepLabels.getOrElse(index) { "Combination_${index + 1}" }
+                .replace('/', '-').replace('\\', '-')
+        } else {
+            "Frame_${index + 1}"
+        }
+
+        /**
+         * Render the frame's PDF into the scratch file and its heatmaps into
+         * `processed/<frame>/` — one subfolder per frame, so its five field maps
+         * stay together — then copy the PDF to `reports/`. False when the PDF
+         * failed or came out empty.
+         */
+        private suspend fun stageReport(
+            render: RenderContext,
+            index: Int,
+            defName: String,
+            frameName: String,
+            data: FloatArray,
+        ): Boolean {
+            val frameDir = File(staging.processedDir, frameName)
+            frameDir.mkdirs()
+            val ok = render.frame(data, File(rawDeformedDir, defName), frameName, index) { fields ->
+                fields.forEach { field ->
+                    File(frameDir, "${field.fieldKey}.png").outputStream().buffered().use { out ->
+                        field.bakedHeatmap.compress(Bitmap.CompressFormat.PNG, ImageEncode.PNG_QUALITY_MAX, out)
+                    }
+                    processed++
+                }
+            }
+            if (!ok || render.scratch.length() == 0L) return false
+            render.scratch.copyTo(File(staging.reportsDir, "Master_Report_$frameName.pdf"), overwrite = true)
+            return true
+        }
+    }
+
+    /** Per-session state shared by every frame's report render. */
+    private class RenderContext(
+        val record: SessionRecord,
+        /** Reference image, already scaled to engine dimensions. NOT owned by [frame]. */
+        val baseImg: Bitmap,
+        /** Scratch PDF file, reused per frame. */
+        val scratch: File,
+        val resources: Resources,
+    ) {
+        /**
+         * Build one frame's report: writes the classic single-frame PDF to
+         * [scratch] and hands the freshly baked per-field heatmaps to
+         * [onFieldHeatmaps] before they are recycled. The reference bitmap is
+         * shared across frames — never recycled here.
+         */
+        suspend fun frame(
+            data: FloatArray,
+            defFile: File,
+            frameName: String,
+            frameIndex: Int,
+            onFieldHeatmaps: (List<FieldResult>) -> Unit,
+        ): Boolean = withContext(Dispatchers.Default) {
+            // The deformed original is only the cover image (downscaled to 600 px in
+            // the report); decode + scale it capped, and fall back to the reference
+            // rather than losing the whole report over it.
+            val (coverW, coverH) =
+                VisualizationEngine.cappedDims(record.imgW, record.imgH, VisualizationEngine.REPORT_MAX_EDGE)
+            val originalDefImg = BitmapDecode.decodeFileForView(
+                defFile.absolutePath,
+                coverW,
+                coverH,
+                VisualizationEngine.REPORT_MAX_EDGE,
+                rawWidth = record.imgW,
+                rawHeight = record.imgH,
+            )
+            val defImg = originalDefImg?.scale(coverW, coverH) ?: baseImg
+            val reportData = ReportBuilder.buildReport(reportParams(record, frameIndex, data, baseImg, defImg))
+
+            var ok = true
+            try {
+                scratch.outputStream().use { stream ->
+                    PdfReportGenerator.generate(reportData, stream, resources).collect { progress ->
+                        if (progress is PdfReportGenerator.Progress.Error) {
+                            Timber.e(progress.ex, "PDF generation failed for %s", frameName)
+                            ok = false
+                        }
+                    }
+                }
+                onFieldHeatmaps(reportData.fieldResults)
+            } finally {
+                reportData.fieldResults.forEach { it.bakedHeatmap.recycle() }
+                reportData.znssdHeatmap.recycle()
+                if (defImg !== baseImg && defImg !== originalDefImg) defImg.recycle()
+                if (originalDefImg !== null && originalDefImg !== defImg) originalDefImg.recycle()
+            }
+            ok
         }
     }
 }

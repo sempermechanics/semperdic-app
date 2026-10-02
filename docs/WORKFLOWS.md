@@ -509,7 +509,7 @@ Details and failure triage: [ops/CI.md](ops/CI.md).
 | A wrong number in the viewer or ⓘ sheet | The extras it was opened with: `AnalysisNavHelper.openResults` (fresh run) or `ui/home/SessionOpenHelper.intentFor` (reopen) → read in `ResultViewerActivity` / `ViewerSettingsSheet` / `ViewerReportFactory`. **Check which of the two packed it** — see E2.1 |
 | A wrong number in an export | `report/ReportBuilder` (fusion), `report/AnalysisCsvWriter`, `report/VisualizationEngine`; the source of truth is `DicResult.decodeDatFile` over `frame_%04d.dat` |
 | "Analysis failed" wording | `ui/analysis/run/EngineFailure` (code → string) + `AnalysisRunCodes`; the code itself comes from the engine or `ConvergenceGate` |
-| A backup that failed | Home badge dialog text = `DicKeys.UPLOAD_FAIL_REASON` from `DicUploadWorker.failure` → `UploadWorkOutcomes` for the decision. `adb logcat -s Semper` shows `Upload RETRY`/reject lines in release too |
+| A backup that failed | Home badge dialog text = `DicKeys.UPLOAD_FAIL_REASON` from `UploadRun.failure` → `UploadWorkOutcomes` for the decision. `adb logcat -s Semper` shows `Upload RETRY`/reject lines in release too |
 | A restore that failed | `DicRestoreWorker.KEY_ERROR` (the `ApiException` message) → `CloudRestore` → `RestoreDownloadOutcomes` for retry vs terminal |
 | Any cloud 4xx/5xx | The reason carries `(ref: <id>)` — that is the backend's `X-Request-Id`. Search the Cloud Run log for `requestId="<id>"` to get the exact access line (`opClass`, `routeTemplate`, `errorCode`, latency) |
 | A cloud call that is rejected consistently | `backend/app/errors.py` names the `detail` code; the client's branch is in `data/net/ApiErrors.kt` + `IndicApi.failSigned` |

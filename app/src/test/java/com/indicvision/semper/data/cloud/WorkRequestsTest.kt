@@ -167,9 +167,6 @@ class WorkRequestsTest {
         )
         SessionDeletes.enqueue(context, items)
 
-        assertEquals(SessionDeletes.TAG, WorkTags.DELETE)
-        assertEquals(SessionDeletes.UNIQUE_WORK, WorkTags.DELETE_NAME)
-        assertEquals(SessionDeletes.rowTag("L1"), WorkTags.deleteRowTag("L1"))
         assertSameRequest(
             WorkTags.DELETE_NAME,
             oneTimeWork<BackupDeleteWorker>(
@@ -204,6 +201,59 @@ class WorkRequestsTest {
         )
     }
 
+    /**
+     * The stored names, tags, policies and timings, spelled out: WorkManager
+     * keeps them in its database, so they must read the same after the
+     * builders move onto the helpers.
+     */
+    @Test
+    fun `the queued requests carry the names, tags and timings already on phones`() {
+        AppRemoteConfig.apply(context, AppConfigDto(maxSessions = 25))
+        CloudSync.enqueueUpload(context, "L1")
+        SessionMetadataSync.enqueue(context, "L1")
+        SessionDeletes.enqueue(context, listOf(SessionDeletes.Item("L1", "C1", SessionDeletes.Mode.EVERYWHERE)))
+
+        val upload = storedSpec(queued("upload-L1"))
+        assertEquals(setOf("upload", DicUploadWorker::class.java.name), queued("upload-L1").tags)
+        assertEquals(DicUploadWorker::class.java.name, upload.workerClassName)
+        assertEquals("L1", upload.input.getString(DicKeys.SESSION_LOCAL_ID))
+        assertEquals(NetworkType.CONNECTED, upload.constraints.requiredNetworkType)
+        assertEquals(30_000L, upload.backoffDelayDuration)
+        assertEquals(androidx.work.BackoffPolicy.EXPONENTIAL, upload.backoffPolicy)
+        assertEquals(true, upload.expedited)
+        assertEquals(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST, upload.outOfQuotaPolicy)
+
+        val metadata = storedSpec(queued("metadata-L1"))
+        assertEquals(setOf("metadata", SessionMetadataWorker::class.java.name), queued("metadata-L1").tags)
+        assertEquals("L1", metadata.input.getString(DicKeys.SESSION_LOCAL_ID))
+        assertEquals(30_000L, metadata.backoffDelayDuration)
+        assertEquals(false, metadata.expedited)
+
+        val delete = storedSpec(queued("session-delete"))
+        assertEquals(
+            setOf("delete", "delete-row:L1", BackupDeleteWorker::class.java.name),
+            queued("session-delete").tags,
+        )
+        assertEquals(5_000L, delete.initialDelay)
+        assertEquals(30_000L, delete.backoffDelayDuration)
+        assertEquals(NetworkType.CONNECTED, delete.constraints.requiredNetworkType)
+    }
+
+    @Test
+    fun `KEEP leaves a queued upload and metadata send alone`() {
+        AppRemoteConfig.apply(context, AppConfigDto(maxSessions = 25))
+        CloudSync.enqueueUpload(context, "L1")
+        SessionMetadataSync.enqueue(context, "L1")
+        val upload = queued("upload-L1").id
+        val metadata = queued("metadata-L1").id
+
+        CloudSync.enqueueUpload(context, "L1")
+        SessionMetadataSync.enqueue(context, "L1")
+
+        assertEquals(upload, queued("upload-L1").id)
+        assertEquals(metadata, queued("metadata-L1").id)
+    }
+
     @Test
     fun `enqueueUnique with KEEP keeps the first request, as every transfer builder does`() {
         val first = oneTimeWork<SessionMetadataWorker>(tags = listOf(WorkTags.METADATA))
@@ -219,7 +269,6 @@ class WorkRequestsTest {
     fun `the licence refresh keeps its tag and unique name`() {
         LicenseConfigWorker.enqueue(context)
 
-        assertEquals(LicenseConfigWorker.UNIQUE_NAME, WorkTags.LICENSE_CONFIG_NAME)
         assertTrue(WorkTags.LICENSE_CONFIG in queued(WorkTags.LICENSE_CONFIG_NAME).tags)
     }
 

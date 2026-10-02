@@ -550,7 +550,7 @@ sessions/{sessionId}
                                   at create, not what is stored)
   metrics: { pointsConverged, avgIterations, executionTimeMs, frameCount,
              isSweep, sweepSkipped }  // small scalars, from the device
-                                  (`DicUploadWorker.createSession`)
+                                  (`UploadSessionPlanner.createSession`)
   createdAt, updatedAt, completedAt
 
 files/{fileId}                    (fileId = deterministic sid_role_name)

@@ -1,6 +1,7 @@
 package com.indicvision.semper.data.cloud
 
 import android.app.Application
+import androidx.core.graphics.createBitmap
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.data.LogCapture
 import com.indicvision.semper.data.session.SessionPaths
@@ -149,6 +150,13 @@ class SessionUploadBundlerTest {
         }
     }
 
+    /** The engine stats a bundled report of a record holding [stored] prints. */
+    private fun bundledStats(stored: List<Float>): EngineStats {
+        val bitmap = createBitmap(1, 1)
+        val record = sessionRecord(defNames = listOf("a.png")).copy(engineStats = stored)
+        return SessionUploadBundler.reportParams(record, 0, FloatArray(0), bitmap, bitmap).engineStats
+    }
+
     @Test
     fun `the report keeps every engine stats slot the run stored`() {
         val stored = MutableList(EngineStats.SLOT_COUNT) { 1f }.apply {
@@ -156,7 +164,7 @@ class SessionUploadBundlerTest {
             this[EngineStats.SLOT_SIMPLEX_MS] = 12.5f
             this[EngineStats.SLOT_ICGN_MS] = 40f
         }
-        val stats = SessionUploadBundler.reportEngineStats(stored)
+        val stats = bundledStats(stored)
         assertEquals(2, stats.meshSeedingQuality)
         assertEquals(12.5f, stats.simplexMs)
         assertEquals(40f, stats.icgnMs)
@@ -166,15 +174,15 @@ class SessionUploadBundlerTest {
     fun `legacy engine stats keep reading as they did`() {
         // 16 core slots: mesh seeding was never recorded, so it stays unknown
         // rather than reading a padded 0 as "Fallback".
-        val core = SessionUploadBundler.reportEngineStats(List(EngineStats.CORE_SLOT_COUNT) { 3f })
+        val core = bundledStats(List(EngineStats.CORE_SLOT_COUNT) { 3f })
         assertEquals(EngineStats.MESH_SEEDING_UNKNOWN, core.meshSeedingQuality)
         assertEquals(3, core.totalPointsAttempted)
         // 17 slots: mesh seeding present, simplex / ICGN times absent.
-        val withMesh = SessionUploadBundler.reportEngineStats(List(EngineStats.CORE_SLOT_COUNT) { 3f } + 1f)
+        val withMesh = bundledStats(List(EngineStats.CORE_SLOT_COUNT) { 3f } + 1f)
         assertEquals(1, withMesh.meshSeedingQuality)
         assertEquals(0f, withMesh.icgnMs)
         // Nothing stored: zeros and an unknown mesh, as before.
-        val none = SessionUploadBundler.reportEngineStats(emptyList())
+        val none = bundledStats(emptyList())
         assertEquals(0, none.totalPointsAttempted)
         assertEquals(EngineStats.MESH_SEEDING_UNKNOWN, none.meshSeedingQuality)
     }

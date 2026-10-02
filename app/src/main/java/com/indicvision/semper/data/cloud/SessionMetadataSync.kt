@@ -2,26 +2,22 @@ package com.indicvision.semper.data.cloud
 
 import android.content.Context
 import androidx.annotation.WorkerThread
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
-import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.indicvision.semper.data.SessionMetadataWorker
 import com.indicvision.semper.data.net.ApiErrors
+import com.indicvision.semper.data.net.Authed
 import com.indicvision.semper.data.net.CloudApi
-import com.indicvision.semper.data.net.HttpStatus
+import com.indicvision.semper.data.net.HttpFailure
+import com.indicvision.semper.data.net.HttpFailure.Kind
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.TokenProvider
 import com.indicvision.semper.data.net.TokenSource
+import com.indicvision.semper.data.net.authed
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.navigation.DicKeys
 import timber.log.Timber
-import java.io.IOException
-import java.util.concurrent.TimeUnit
 
 /**
  * Re-sends a backed-up session's metadata.json after a change made here since
@@ -73,32 +69,59 @@ object SessionMetadataSync {
     }
 
     private suspend fun put(context: Context, record: SessionRecord, api: CloudApi, tokens: TokenSource): Outcome {
-        val token = tokens.usableIdToken() ?: return Outcome.RETRY
-        val json = SessionUploadMetadata.buildMetadataJson(record, context)
-        return try {
-            api.replaceSessionMetadata(token, record.cloudSessionId, json)
+        val sent = api.authed(tokens) { token ->
+            val json = SessionUploadMetadata.buildMetadataJson(record, context)
+            this.replaceSessionMetadata(token, record.cloudSessionId, json)
             // A change made while this was in flight is still to send.
-            if (SessionStore.clearMetadataStale(context, record.id, record)) Outcome.DONE else Outcome.RETRY
-        } catch (e: IndicApi.ApiException) {
-            refused(record.id, e)
-        } catch (e: IndicApi.DeviceConflictException) {
-            Timber.w(e, "Metadata for %s not sent: this phone is not the account's device", record.id)
-            Outcome.LATER
-        } catch (e: IOException) {
-            Timber.w(e, "Metadata for %s not sent; retrying", record.id)
-            Outcome.RETRY
+            SessionStore.clearMetadataStale(context, record.id, record)
+        }
+        return when (sent) {
+            is Authed.Ok -> if (sent.value) Outcome.DONE else Outcome.RETRY
+            Authed.NoToken -> Outcome.RETRY
+            // send() checked the backend first.
+            Authed.Disabled -> Outcome.LATER
+            is Authed.Failed -> afterFailure(record.id, sent.failure)
         }
     }
 
-    private fun refused(id: String, e: IndicApi.ApiException): Outcome = when {
+    /**
+     * The send's own rule for a failed PUT, kind by kind. Not
+     * [HttpFailure.isRetryable]: every I/O failure but a device conflict is
+     * retried, the device, approval, seat and Terms ones included, and a
+     * statused answer goes by [refused]. A failure that is not I/O at all is
+     * logged as an error and left for the next reconcile, not retried.
+     */
+    private fun afterFailure(id: String, failure: HttpFailure): Outcome = when (failure.kind) {
+        Kind.UNAUTHORIZED, Kind.FORBIDDEN, Kind.NOT_FOUND, Kind.CONFLICT,
+        Kind.RATE_LIMITED, Kind.SERVER, Kind.REJECTED,
+        -> refused(id, failure)
+        Kind.DEVICE_CONFLICT -> {
+            Timber.w(failure.cause, "Metadata for %s not sent: this phone is not the account's device", id)
+            Outcome.LATER
+        }
+        Kind.OFFLINE, Kind.DEVICE_NOT_ACTIVE, Kind.DEVICE_IN_USE,
+        Kind.NOT_APPROVED, Kind.NO_SEAT, Kind.TERMS_MISMATCH,
+        -> {
+            Timber.w(failure.cause, "Metadata for %s not sent; retrying", id)
+            Outcome.RETRY
+        }
+        Kind.UNEXPECTED -> {
+            Timber.e(failure.cause, "Metadata for %s not sent: unexpected failure; left for the next reconcile", id)
+            Outcome.LATER
+        }
+    }
+
+    /** A statused answer: 409 `session_not_complete` waits, 429 and 5xx retry, the rest is refused. */
+    private fun refused(id: String, failure: HttpFailure): Outcome = when {
         // The upload is still finishing on the backend.
-        e.code == HttpStatus.CONFLICT && ApiErrors.hasCode(e.body, ApiErrors.SESSION_NOT_COMPLETE) -> Outcome.WAIT
-        e.code == HttpStatus.TOO_MANY_REQUESTS || e.code >= HttpStatus.INTERNAL_ERROR -> Outcome.RETRY
+        failure.kind == Kind.CONFLICT && ApiErrors.hasCode(failure.body, ApiErrors.SESSION_NOT_COMPLETE) ->
+            Outcome.WAIT
+        failure.kind == Kind.RATE_LIMITED || failure.kind == Kind.SERVER -> Outcome.RETRY
         else -> {
             // 404: the cloud copy is gone (reconcile re-uploads it whole, with
             // the current metadata) or the backend predates the route. Anything
             // else is a refusal a retry would not change.
-            Timber.w(e, "Metadata for %s refused (HTTP %d); left for the next reconcile", id, e.code)
+            Timber.w(failure.cause, "Metadata for %s refused (HTTP %d); left for the next reconcile", id, failure.code)
             Outcome.LATER
         }
     }
@@ -109,16 +132,10 @@ object SessionMetadataSync {
      * change sends again ([SessionStore.clearMetadataStale]).
      */
     fun enqueue(context: Context, localSessionId: String) {
-        val work = OneTimeWorkRequestBuilder<SessionMetadataWorker>()
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_SECONDS, TimeUnit.SECONDS)
-            .setInputData(Data.Builder().putString(DicKeys.SESSION_LOCAL_ID, localSessionId).build())
-            .addTag(TAG)
-            .build()
-        WorkManager.getInstance(context.applicationContext)
-            .enqueueUniqueWork("$TAG-$localSessionId", ExistingWorkPolicy.KEEP, work)
+        val work = oneTimeWork<SessionMetadataWorker>(
+            tags = listOf(WorkTags.METADATA),
+            input = workDataOf(DicKeys.SESSION_LOCAL_ID to localSessionId),
+        )
+        enqueueUnique(context, WorkTags.metadataName(localSessionId), ExistingWorkPolicy.KEEP, work)
     }
-
-    private const val TAG = "metadata"
-    private const val BACKOFF_SECONDS = 30L
 }

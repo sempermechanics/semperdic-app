@@ -92,7 +92,7 @@ class SessionLayoutTest {
         s.dir.mkdirs()
         val names = listOf(StagingLayout.SESSION_ZIP, StagingLayout.EXTRAS_ZIP)
         for (name in names) {
-            // stageArchive's own names for a zip it rebuilds (DicUploadWorker.stageArchive).
+            // stageArchive's own names for a zip it rebuilds (UploadStaging.stageArchive).
             val byHand = setOf(File(s.dir, name), File(s.dir, "$name.sha256"), File(s.dir, "$name.tmp"))
             assertEquals(name, byHand, s.staleFiles(name).toSet())
             assertEquals(name, 3, s.staleFiles(name).size)

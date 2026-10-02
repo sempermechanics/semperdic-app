@@ -76,7 +76,7 @@ class UploadErrorsTest {
         val dir = temp.newFolder()
         assertEquals(1, UploadErrors.recordIntegrityRebuild(dir))
         assertEquals(2, UploadErrors.recordIntegrityRebuild(dir))
-        UploadErrors.clearIntegrityRebuilds(dir)
+        UploadErrors.clearRebuildCounts(dir)
         assertFalse(File(dir, UploadErrors.INTEGRITY_REBUILDS_MARKER).exists())
         assertEquals(1, UploadErrors.recordIntegrityRebuild(dir))
         // An unreadable count restarts rather than failing the upload.

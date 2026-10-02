@@ -3,8 +3,10 @@ package com.indicvision.semper.data.cloud
 import androidx.work.ListenableWorker.Result
 import com.indicvision.semper.data.DicUploadWorker
 import com.indicvision.semper.data.session.SessionPaths
+import com.indicvision.semper.data.session.StagingLayout
 import com.indicvision.semper.util.AtomicFiles
 import com.indicvision.semper.util.Digests
+import com.indicvision.semper.util.writeVia
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -44,9 +46,7 @@ internal object UploadWorkOutcomes {
     fun stageMetadataJson(metaFile: File, build: () -> String) {
         val usable = metaFile.isFile && runCatching { JSONObject(metaFile.readText()) }.isSuccess
         if (usable) return
-        val part = AtomicFiles.partOf(metaFile)
-        part.writeText(build())
-        AtomicFiles.promote(part, metaFile)
+        AtomicFiles.writeVia(metaFile) { it.writeText(build()) }
     }
 
     /** Backend session states. Provisioning happens off the request path, so a
@@ -57,7 +57,7 @@ internal object UploadWorkOutcomes {
 
     /**
      * Resume planner outcome when comparing pending uploads to local artifacts.
-     * Mirrors [DicUploadWorker.resumeSession] without the network call.
+     * Mirrors [com.indicvision.semper.data.UploadSessionPlanner]'s resume without the network call.
      *
      * [ResumeKind.WAIT] exists because the backend now opens Drive resumable
      * sessions in a Cloud Task rather than inside POST /v1/sessions: an empty
@@ -87,13 +87,13 @@ internal object UploadWorkOutcomes {
      * otherwise [stagingReusable] freezes an incomplete Session.zip forever.
      */
     fun bundleArtifactsReady(stagingDir: File): Boolean {
-        val csv = File(stagingDir, "analysis_data.csv")
+        val layout = StagingLayout(stagingDir)
+        val csv = layout.analysisCsv
         val csvOk = csv.isFile && csv.length() > 0L
-        val reports = File(stagingDir, "reports")
-        val hasPdf = reports.listFiles()?.any {
+        val hasPdf = layout.reportsDir.listFiles()?.any {
             it.isFile && it.name.endsWith(".pdf", ignoreCase = true)
         } == true
-        val processed = File(stagingDir, SessionPaths.PROCESSED_SUBDIR)
+        val processed = layout.processedDir
         val hasProcessed = processed.isDirectory &&
             processed.walkTopDown().any { it.isFile }
         return csvOk && hasPdf && hasProcessed
@@ -186,18 +186,16 @@ internal object UploadWorkOutcomes {
      * must not be treated as done.
      *
      * Also requires a **verified** Session.zip: matching `.sha256` sidecar and a
-     * readable central directory. A kill mid-[DicUploadWorker.buildSessionBundle]
+     * readable central directory. A kill mid-build ([com.indicvision.semper.data.UploadStaging])
      * leaves a truncated file that still starts with `PK` and has length > 0 —
      * hashing that truncate and uploading it produced Drive objects that restore
      * as `ZipException: invalid distance too far back` while size/sha256 "matched".
      */
     fun stagingReusable(stagingDir: File): Boolean {
-        val done = File(stagingDir, ".bundles_done")
-        val zip = File(stagingDir, "Session.zip")
-        val sidecar = File(stagingDir, "Session.zip.sha256")
-        return done.isFile &&
+        val layout = StagingLayout(stagingDir)
+        return layout.bundlesDone.isFile &&
             bundleArtifactsReady(stagingDir) &&
-            verifiedBundleSha256(zip, sidecar) != null
+            verifiedBundleSha256(layout.sessionZip, layout.sha256Sidecar(StagingLayout.SESSION_ZIP)) != null
     }
 
     /**

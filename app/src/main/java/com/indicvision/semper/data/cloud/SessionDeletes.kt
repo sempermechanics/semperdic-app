@@ -2,21 +2,18 @@ package com.indicvision.semper.data.cloud
 
 import android.content.Context
 import androidx.annotation.WorkerThread
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.indicvision.semper.data.BackupDeleteWorker
+import com.indicvision.semper.data.net.Authed
 import com.indicvision.semper.data.net.CloudApi
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.TokenProvider
 import com.indicvision.semper.data.net.TokenSource
+import com.indicvision.semper.data.net.authed
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SessionStore
-import com.indicvision.semper.util.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -24,7 +21,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import timber.log.Timber
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 /**
  * Every delete that touches the cloud goes through here: one queue, one
@@ -51,8 +47,8 @@ object SessionDeletes {
     /** What happened, so the screen can say it plainly and retry exactly what is left. */
     data class Report(val done: Int, val stillInCloud: List<Item>, val nothingSent: Boolean)
 
-    const val TAG = "delete"
-    const val UNIQUE_WORK = "session-delete"
+    const val TAG = WorkTags.DELETE
+    const val UNIQUE_WORK = WorkTags.DELETE_NAME
     const val KEY_ITEMS = "items"
     const val KEY_DONE = "done"
     const val KEY_TOTAL = "total"
@@ -65,19 +61,18 @@ object SessionDeletes {
     /** One erase token refills in 1 s on the session bucket, 5 s on the old shared one. */
     private const val RATE_LIMIT_WAIT_MS = 5_000L
     private const val RATE_LIMIT_TRIES = 6
-    private const val BACKOFF_SECONDS = 30L
-    private const val ROW_TAG_PREFIX = "delete-row:"
 
     /**
      * Tag carried by the work for each analysis it will remove from the phone
      * too, so a list can hide the row until the work ends. A cloud-only delete
      * keeps the row, so it has none.
      */
-    fun rowTag(localId: String) = ROW_TAG_PREFIX + localId
+    fun rowTag(localId: String) = WorkTags.deleteRowTag(localId)
 
     /** Local ids named by [rowTag] tags. */
     fun rowIdsIn(tags: Set<String>): Set<String> =
-        tags.filter { it.startsWith(ROW_TAG_PREFIX) }.map { it.removePrefix(ROW_TAG_PREFIX) }.toSet()
+        tags.filter { it.startsWith(WorkTags.DELETE_ROW_PREFIX) }
+            .mapTo(mutableSetOf()) { it.removePrefix(WorkTags.DELETE_ROW_PREFIX) }
 
     /** Rows a queued or running delete will remove: a list leaves them out meanwhile. */
     @WorkerThread
@@ -93,16 +88,12 @@ object SessionDeletes {
      * which [cancel] takes to call it off inside the undo window.
      */
     fun enqueue(context: Context, items: List<Item>): UUID {
-        val builder = OneTimeWorkRequestBuilder<BackupDeleteWorker>()
-            .setInitialDelay(UNDO_WINDOW_SECONDS, TimeUnit.SECONDS)
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_SECONDS, TimeUnit.SECONDS)
-            .setInputData(workDataOf(KEY_ITEMS to encode(items)))
-            .addTag(TAG)
-        items.filter { it.mode == Mode.EVERYWHERE }.forEach { builder.addTag(rowTag(it.localId)) }
-        val work = builder.build()
-        WorkManager.getInstance(context.applicationContext)
-            .enqueueUniqueWork(UNIQUE_WORK, ExistingWorkPolicy.APPEND_OR_REPLACE, work)
+        val work = oneTimeWork<BackupDeleteWorker>(
+            tags = listOf(TAG) + items.filter { it.mode == Mode.EVERYWHERE }.map { rowTag(it.localId) },
+            input = workDataOf(KEY_ITEMS to encode(items)),
+            initialDelaySeconds = UNDO_WINDOW_SECONDS,
+        )
+        enqueueUnique(context, UNIQUE_WORK, ExistingWorkPolicy.APPEND_OR_REPLACE, work)
         return work.id
     }
 
@@ -158,7 +149,7 @@ object SessionDeletes {
             }
             if (cloudId.isBlank()) {
                 // The batch lookup found no backup: nothing to erase, only the badge to correct.
-                CloudSync.forgetCloudCopy(appContext, item.localId)
+                CloudErase.forgetCloudCopy(appContext, item.localId)
                 CloudSync.EraseResult.ERASED_EVERYWHERE
             } else {
                 CloudSync.eraseCloudBackup(appContext, cloudId, item.localId, api, tokens)
@@ -181,19 +172,14 @@ object SessionDeletes {
         val unlinked = items.filter { it.cloudId.isBlank() }
             .mapNotNull { SessionStore.get(appContext, it.localId) }
             .filter { it.cloudSessionId.isBlank() && it.syncState != SessionRecord.SyncState.LOCAL_ONLY }
-        if (unlinked.isEmpty() || !api.enabled) return
-        val byLocalId = tokens.usableIdToken()
-            ?.let { token ->
-                suspendRunCatching { api.listSessions(token).sessions }
-                    .onFailure { Timber.w(it, "Could not list backups before a delete") }
-                    .getOrNull()
-            }
-            ?.associate { it.localSessionId to it.sessionId }
-            ?: return
+        if (unlinked.isEmpty()) return
+        val listed = api.authed(tokens) { token -> this.listSessions(token).sessions }
+        if (listed is Authed.Failed) Timber.w(listed.failure.cause, "Could not list backups before a delete")
+        val byLocalId = listed.getOrNull()?.associate { it.localSessionId to it.sessionId } ?: return
         for (record in unlinked) {
             val cloudId = byLocalId[record.id]
             if (cloudId.isNullOrBlank()) {
-                CloudSync.forgetCloudCopy(appContext, record.id)
+                CloudErase.forgetCloudCopy(appContext, record.id)
             } else {
                 SessionStore.setCloudSessionId(appContext, record.id, cloudId)
             }

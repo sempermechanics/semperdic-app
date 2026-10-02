@@ -3,6 +3,7 @@
 package com.indicvision.semper.data.net
 
 import android.content.Context
+import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.cloud.FakeCloudApi
 import com.indicvision.semper.cloud.FakeTokens
@@ -14,13 +15,12 @@ import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.fixtures.sessionRecord
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import timber.log.Timber
 import java.io.File
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -32,7 +32,9 @@ import java.net.SocketTimeoutException
  * it is not [HttpFailure.isRetryable]. Every [IOException] the send does not
  * name (the device, approval, seat and Terms failures among them) is RETRY,
  * a [DeviceConflictException] is LATER, and an [ApiException] goes by status,
- * with one 409 detail that waits.
+ * with one 409 detail that waits. A failure that is not I/O at all used to
+ * propagate and fail the worker; since the send moved onto `authed` it is
+ * logged as an error and left for the next reconcile (LATER).
  */
 @RunWith(RobolectricTestRunner::class)
 class MetadataSendFailureRuleTest {
@@ -109,13 +111,23 @@ class MetadataSendFailureRuleTest {
     }
 
     @Test
-    fun `a failure that is not an IOException propagates`() {
+    fun `a failure that is not an IOException is logged as an error and left for the next reconcile`() {
         val boom = IllegalStateException("Not signed in")
-        try {
-            sendFailing(boom)
-            fail("expected the failure to propagate")
-        } catch (e: IllegalStateException) {
-            assertSame(boom, e)
+        assertEquals(Kind.UNEXPECTED, HttpFailure.classify(boom).kind)
+
+        val errors = mutableListOf<String>()
+        val tree = object : Timber.Tree() {
+            override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+                if (priority == Log.ERROR) errors += message
+            }
         }
+        Timber.plant(tree)
+        try {
+            assertEquals(Outcome.LATER, sendFailing(boom))
+        } finally {
+            Timber.uproot(tree)
+        }
+        assertTrue(errors.toString(), errors.any { it.startsWith("Metadata for s1 not sent") })
+        assertTrue(SessionStore.get(context, "s1")!!.metadataStale)
     }
 }

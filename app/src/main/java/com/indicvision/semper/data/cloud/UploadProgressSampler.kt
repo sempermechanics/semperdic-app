@@ -30,6 +30,13 @@ internal class UploadProgressSampler(
     val done = AtomicLong(0)
     val total = AtomicLong(initialTotal)
 
+    /** Start [phase] over: nothing done yet, out of [total]. */
+    fun begin(phase: TransferPhase, total: Long) {
+        this.phase.set(phase.wire)
+        done.set(0)
+        this.total.set(total)
+    }
+
     /** Samples every [intervalMs] until the returned job is cancelled. */
     fun launchIn(
         scope: CoroutineScope,

@@ -3,6 +3,7 @@ package com.indicvision.semper.data.cloud
 import com.indicvision.semper.data.DicUploadWorker
 import com.indicvision.semper.data.net.ApiErrors
 import com.indicvision.semper.data.net.HttpStatus
+import com.indicvision.semper.data.session.SessionLayout
 import java.io.File
 
 /**
@@ -12,10 +13,6 @@ import java.io.File
  * without WorkManager.
  */
 internal object UploadErrors {
-
-    // Not in HttpStatus.
-    private const val HTTP_GONE = 410
-    private const val HTTP_UNPROCESSABLE = 422
 
     /** What an HTTP error that ended an upload run means for the backup. */
     enum class Kind {
@@ -61,7 +58,7 @@ internal object UploadErrors {
             // Only when OUR backend says so — a bare 404 is an unreachable route.
             code == HttpStatus.NOT_FOUND && detailIs(ApiErrors.FILE_NOT_FOUND, ApiErrors.SESSION_NOT_FOUND) ->
                 Kind.STALE_SESSION
-            code == HTTP_UNPROCESSABLE && detailIs(ApiErrors.CHECKSUM_MISMATCH, ApiErrors.SIZE_MISMATCH) ->
+            code == HttpStatus.UNPROCESSABLE && detailIs(ApiErrors.CHECKSUM_MISMATCH, ApiErrors.SIZE_MISMATCH) ->
                 Kind.INTEGRITY
             code == HttpStatus.CONFLICT -> Kind.REJECTED
             else -> Kind.TRANSIENT
@@ -75,7 +72,7 @@ internal object UploadErrors {
      * rebuilding on one deleted a half-uploaded backup during an outage.
      */
     fun isSessionGone(code: Int, body: String): Boolean =
-        code == HTTP_GONE ||
+        code == HttpStatus.GONE ||
             (code == HttpStatus.NOT_FOUND && ApiErrors.hasCode(body, ApiErrors.SESSION_NOT_FOUND))
 
     /**
@@ -93,21 +90,36 @@ internal object UploadErrors {
      * the last successful upload. In the session dir, not `upload_staging/`,
      * because a rebuild deletes the staging.
      */
-    const val INTEGRITY_REBUILDS_MARKER = "upload_integrity_rebuilds"
+    const val INTEGRITY_REBUILDS_MARKER = SessionLayout.INTEGRITY_REBUILDS_MARKER
 
     /** Integrity rebuilds allowed before the backup fails instead. */
     const val MAX_INTEGRITY_REBUILDS = 2
 
+    /**
+     * Session-dir file counting the sessions rebuilt because Drive no longer
+     * knew an upload link (`IndicApi.UploadLinkExpiredException`) since the last
+     * successful upload. Beside [INTEGRITY_REBUILDS_MARKER], for the same reason.
+     */
+    const val LINK_EXPIRED_REBUILDS_MARKER = "link_expired_rebuilds"
+
+    /** Link-expired rebuilds allowed before the backup fails instead. */
+    const val MAX_LINK_EXPIRED_REBUILDS = 3
+
     /** Count one more integrity rebuild for [sessionDir]; returns the new total. */
-    fun recordIntegrityRebuild(sessionDir: File): Int {
-        val marker = File(sessionDir, INTEGRITY_REBUILDS_MARKER)
+    fun recordIntegrityRebuild(sessionDir: File): Int = bump(SessionLayout(sessionDir).integrityRebuildsMarker)
+
+    /** Count one more link-expired rebuild for [sessionDir]; returns the new total. */
+    fun recordLinkExpiredRebuild(sessionDir: File): Int = bump(File(sessionDir, LINK_EXPIRED_REBUILDS_MARKER))
+
+    /** A finished upload, or a backup given up, starts both rebuild counts afresh. */
+    fun clearRebuildCounts(sessionDir: File) {
+        SessionLayout(sessionDir).integrityRebuildsMarker.delete()
+        File(sessionDir, LINK_EXPIRED_REBUILDS_MARKER).delete()
+    }
+
+    private fun bump(marker: File): Int {
         val count = (runCatching { marker.readText().trim().toInt() }.getOrNull() ?: 0) + 1
         runCatching { marker.writeText(count.toString()) }
         return count
-    }
-
-    /** A finished upload starts the integrity count afresh. */
-    fun clearIntegrityRebuilds(sessionDir: File) {
-        File(sessionDir, INTEGRITY_REBUILDS_MARKER).delete()
     }
 }

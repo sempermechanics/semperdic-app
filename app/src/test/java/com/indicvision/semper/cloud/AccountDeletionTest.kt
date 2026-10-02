@@ -1,6 +1,10 @@
 package com.indicvision.semper.cloud
 
+import com.indicvision.semper.data.cloud.CloudErase
 import com.indicvision.semper.data.cloud.CloudSync
+import com.indicvision.semper.data.net.Authed
+import com.indicvision.semper.data.net.HttpFailure
+import com.indicvision.semper.data.net.IndicApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -10,6 +14,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 /**
  * Account deletion is the one flow that destroys data it cannot get back, so
@@ -25,7 +30,7 @@ class AccountDeletionTest {
         cloudErased: Boolean,
         identityErased: Boolean,
     ): CloudSync.AccountDeletion = runBlocking {
-        CloudSync.deleteAccount(
+        CloudErase.deleteAccount(
             eraseCloud = {
                 steps.add("cloud")
                 cloudErased
@@ -90,7 +95,7 @@ class AccountDeletionTest {
             }
         }
         val job = launch(Dispatchers.Default) {
-            CloudSync.deleteAccount(
+            CloudErase.deleteAccount(
                 eraseCloud = {
                     synchronized(steps) { steps.add("cloud") }
                     pauseAt("cloud")
@@ -134,7 +139,7 @@ class AccountDeletionTest {
         // caller is active. After the erase that must read as "identity kept", not
         // abort the wipe and sign-out.
         val result = runBlocking {
-            CloudSync.deleteAccount(
+            CloudErase.deleteAccount(
                 eraseCloud = {
                     steps.add("cloud")
                     true
@@ -157,5 +162,59 @@ class AccountDeletionTest {
         // The server may already have erased the account when the screen goes.
         cancelledDuring("cloud")
         assertEquals(listOf("cloud", "identity", "local", "signOut"), steps)
+    }
+
+    // ── the cloud erase's own outcome ─────────────────────────────────────
+
+    private val api = FakeCloudApi()
+    private val tokens = FakeTokens()
+
+    private fun erase(): Authed<Unit> = runBlocking { CloudErase.eraseAccountInCloud(api, tokens) }
+
+    private fun failingWith(error: Throwable): Authed<Unit> {
+        api.onDeleteAccount = { throw error }
+        return erase()
+    }
+
+    private fun kindOf(outcome: Authed<Unit>): HttpFailure.Kind? = (outcome as? Authed.Failed)?.failure?.kind
+
+    @Test
+    fun `an erased account is gone`() = with(CloudErase) {
+        api.onDeleteAccount = { }
+        val outcome = erase()
+        assertEquals(Authed.Ok(Unit), outcome)
+        assertTrue(outcome.accountGone)
+    }
+
+    @Test
+    fun `no backend means nothing to erase, and nothing is asked`() = with(CloudErase) {
+        api.enabled = false
+        val outcome = erase()
+        assertEquals(Authed.Disabled, outcome)
+        assertTrue(outcome.accountGone)
+        assertEquals(0, tokens.asked)
+    }
+
+    @Test
+    fun `no token is told apart from a failed call`() = with(CloudErase) {
+        tokens.token = null
+        val outcome = erase()
+        assertEquals(Authed.NoToken, outcome)
+        assertFalse(outcome.accountGone)
+        assertTrue(api.calls.isEmpty())
+    }
+
+    @Test
+    fun `a refused token, a server error and no answer each keep their kind`() = with(CloudErase) {
+        val cases = listOf(
+            IndicApi.ApiException(401, "") to HttpFailure.Kind.UNAUTHORIZED,
+            IndicApi.ApiException(503, "") to HttpFailure.Kind.SERVER,
+            IOException("no route") to HttpFailure.Kind.OFFLINE,
+        )
+        for ((error, kind) in cases) {
+            val outcome = failingWith(error)
+            assertEquals(error.toString(), kind, kindOf(outcome))
+            assertFalse(outcome.accountGone)
+        }
     }
 }
