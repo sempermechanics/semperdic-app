@@ -17,7 +17,8 @@ package com.indicvision.semper.field
  * The named codes come from three places, pinned to them by test:
  * the engine's frozen return codes (`ENGINE_APP_CONTRACT.md` and
  * `full_field_path_c.cpp` for `-1`; `EngineFailure.ENGINE_ERROR_*`),
- * `AnalysisRunCodes`, and `VsgStudyRunner.ERROR_ENGINE_FAILED`.
+ * `AnalysisRunCodes`, and [SweepEngineFailed]'s `-97`, which the sweep runner
+ * once defined and no code path produces any more (pinned as a literal).
  *
  * As a stop code, 0 is [Finished]. `EngineFailure` reads an engine 0 as a
  * strain-window failure; that reading belongs to engine codes, not here.

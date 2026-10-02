@@ -14,8 +14,8 @@ fun Roi.toRect(): Rect = Rect(x, y, right, bottom)
 fun Roi.Companion.fromRect(rect: Rect): Roi = fromLtrb(rect.left, rect.top, rect.right, rect.bottom)
 
 /**
- * From the ROI editor's float selection in image pixels, rounded and clamped
- * exactly as `RoiDrawActivity.roiPixels` does: the left/top edges at 0, the
+ * From the ROI editor's float selection in image pixels, each edge rounded
+ * to the nearest pixel, then clamped: the left/top edges at 0, the
  * right/bottom edges at the image size. The result can be empty; the editor
  * rejects that itself.
  */

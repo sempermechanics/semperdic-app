@@ -1,6 +1,7 @@
 package com.indicvision.semper.ui.analysis.roi
 
 import android.graphics.RectF
+import com.indicvision.semper.ui.common.ViewportMath
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sign
@@ -117,14 +118,8 @@ internal class RoiViewport {
     }
 
     private fun clampCenter() {
-        centerX = clampAxis(centerX, viewWidth, fitWidth * zoom)
-        centerY = clampAxis(centerY, viewHeight, fitHeight * zoom)
-    }
-
-    private fun clampAxis(center: Float, view: Float, size: Float): Float {
-        if (size <= view || size <= 0f) return HALF
-        val half = view / 2f / size
-        return center.coerceIn(half, 1f - half)
+        centerX = ViewportMath.centerFraction(centerX, viewWidth, fitWidth * zoom)
+        centerY = ViewportMath.centerFraction(centerY, viewHeight, fitHeight * zoom)
     }
 
     companion object {

@@ -22,7 +22,7 @@ import org.robolectric.annotation.Config
  * readout the guide's conclusions are read from), and the data-space viewport
  * a pinch or pan leaves behind. Everything is read through [VsgPlotView.onScrub]
  * and [VsgPlotView.scrubToFraction], so no assertion depends on the gutter
- * widths in pixels. The gutter's own tests call [VsgPlotView.compactLeftPad]
+ * widths in pixels. The gutter's own tests call [VsgPlotAxes.compactLeftPad]
  * with a phone's font metrics, which Robolectric's text measuring does not have.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -341,22 +341,22 @@ class VsgPlotViewTest {
 
     @Test
     fun `a tick that rounds to zero never reads -0`() {
-        assertEquals("0.00", VsgPlotView.tickLabel(-0.001f))
-        assertEquals("0.00", VsgPlotView.tickLabel(-0f))
-        assertEquals("-0.26", VsgPlotView.tickLabel(-0.26f))
-        assertEquals("-1.8", VsgPlotView.tickLabel(-1.8f))
-        assertEquals("-150", VsgPlotView.tickLabel(-150f))
-        assertEquals("1962", VsgPlotView.tickLabel(1962f))
+        assertEquals("0.00", VsgPlotAxes.tickLabel(-0.001f))
+        assertEquals("0.00", VsgPlotAxes.tickLabel(-0f))
+        assertEquals("-0.26", VsgPlotAxes.tickLabel(-0.26f))
+        assertEquals("-1.8", VsgPlotAxes.tickLabel(-1.8f))
+        assertEquals("-150", VsgPlotAxes.tickLabel(-150f))
+        assertEquals("1962", VsgPlotAxes.tickLabel(1962f))
     }
 
     @Test
     fun `the scrub label sits clear of its line, flipping left near the edge`() {
         // Plot 100..900, label 200 wide, 10 clear of the dot.
-        assertEquals(410f, VsgPlotView.scrubLabelX(400f, 200f, 10f, 100f, 900f), EPS)
-        assertEquals(700f, VsgPlotView.scrubLabelX(690f, 200f, 10f, 100f, 900f), EPS) // just fits
-        assertEquals(640f, VsgPlotView.scrubLabelX(850f, 200f, 10f, 100f, 900f), EPS)
+        assertEquals(410f, VsgPlotAxes.scrubLabelX(400f, 200f, 10f, 100f, 900f), EPS)
+        assertEquals(700f, VsgPlotAxes.scrubLabelX(690f, 200f, 10f, 100f, 900f), EPS) // just fits
+        assertEquals(640f, VsgPlotAxes.scrubLabelX(850f, 200f, 10f, 100f, 900f), EPS)
         // Too wide for either side: held at the left edge.
-        assertEquals(100f, VsgPlotView.scrubLabelX(150f, 900f, 10f, 100f, 900f), EPS)
+        assertEquals(100f, VsgPlotAxes.scrubLabelX(150f, 900f, 10f, 100f, 900f), EPS)
     }
 
     /** Pixel 6 (2.625 dp/px): 11 sp monospace, whose glyphs advance 0.6 em. */
@@ -371,11 +371,11 @@ class VsgPlotViewTest {
         // concrete_00 on a Pixel 6 (2026-09-26): the fixed 34 dp gutter showed "1686" for 21686.
         // Fractional, as the padded data bounds are: the middle tick lands on 7855.3, not 7855.5.
         val (yMin, yMax) = -5975.4f to 21686f
-        val labels = (0..VsgPlotView.GRID_LINES).map { VsgPlotView.tickLabel(VsgPlotView.yTick(yMin, yMax, it)) }
+        val labels = (0..VsgPlotView.GRID_LINES).map { VsgPlotAxes.tickLabel(VsgPlotAxes.yTick(yMin, yMax, it)) }
         assertEquals(listOf("-5975", "940", "7855", "14771", "21686"), labels)
         assertTrue("the old fixed gutter clipped it", measureMono("21686") + gap > minPad)
 
-        val pad = VsgPlotView.compactLeftPad(yMin, yMax, minPad, gap, measureMono)
+        val pad = VsgPlotAxes.compactLeftPad(yMin, yMax, minPad, gap, measureMono)
 
         labels.forEach { label ->
             // drawGridTicks right-aligns each tick at left - gap, so its left edge is here.
@@ -387,7 +387,7 @@ class VsgPlotViewTest {
     @Test
     fun `ticks that fit keep the compact gutter's minimum`() {
         // "1.0" … "5.0": three characters, well inside 34 dp.
-        assertEquals(minPad, VsgPlotView.compactLeftPad(1f, 5f, minPad, gap, measureMono), EPS)
+        assertEquals(minPad, VsgPlotAxes.compactLeftPad(1f, 5f, minPad, gap, measureMono), EPS)
     }
 
     // ── Export and palette ───────────────────────────────────────────────────

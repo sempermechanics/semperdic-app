@@ -1,6 +1,7 @@
 package com.indicvision.semper.ui.analysis.sweep
 
 import com.indicvision.semper.field.DicResult
+import com.indicvision.semper.field.Roi
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -328,6 +329,9 @@ object VsgStudy {
             horizontal = horizontal,
             position = if (horizontal) roiY + roiH / 2f else roiX + roiW / 2f,
         )
+
+    /** The centre cut of [roi] along the given axis. */
+    fun centreLine(roi: Roi, horizontal: Boolean): StudyLine = centreLine(roi.x, roi.y, roi.w, roi.h, horizontal)
 
     private fun isAccepted(data: FloatArray, i: Int): Boolean =
         DicResult.isAcceptedPoint(data[i + DicResult.IDX_ZNSSD])

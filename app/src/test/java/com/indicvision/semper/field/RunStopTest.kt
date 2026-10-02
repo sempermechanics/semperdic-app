@@ -2,7 +2,6 @@ package com.indicvision.semper.field
 
 import com.indicvision.semper.ui.analysis.run.AnalysisRunCodes
 import com.indicvision.semper.ui.analysis.run.EngineFailure
-import com.indicvision.semper.ui.analysis.sweep.VsgStudyRunner
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -19,12 +18,12 @@ class RunStopTest {
         assertEquals(EngineFailure.ENGINE_ERROR_ROI, RunStop.InvalidRoi.wireCode)
         assertEquals(EngineFailure.ENGINE_ERROR_INIT, RunStop.InitFailed.wireCode)
         assertEquals(AnalysisRunCodes.ERROR_LOW_CONVERGENCE, RunStop.LowConvergence.wireCode)
-        assertEquals(VsgStudyRunner.ERROR_ENGINE_FAILED, RunStop.SweepEngineFailed.wireCode)
+        // No code path produces -97 any more; the value is pinned as it was stored.
+        assertEquals(-97, RunStop.SweepEngineFailed.wireCode)
         assertEquals(AnalysisRunCodes.ERROR_SESSION_LIMIT, RunStop.SessionLimit.wireCode)
         assertEquals(AnalysisViewModel.ERROR_SESSION_LIMIT, RunStop.SessionLimit.wireCode)
         assertEquals(AnalysisRunCodes.ERROR_CANCELLED, RunStop.Cancelled.wireCode)
         assertEquals(AnalysisViewModel.ERROR_CANCELLED, RunStop.Cancelled.wireCode)
-        assertEquals(VsgStudyRunner.ERROR_CANCELLED, RunStop.Cancelled.wireCode)
     }
 
     private val named = listOf(

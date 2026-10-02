@@ -7,15 +7,15 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Typeface
+import android.graphics.RectF
 import android.util.AttributeSet
-import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.withSave
 import com.indicvision.semper.R
+import com.indicvision.semper.ui.common.PlotStyle
 import com.indicvision.semper.ui.common.dp
 import kotlin.math.hypot
 
@@ -92,8 +92,6 @@ class VsgLatticeView @JvmOverloads constructor(
     private val placed = ArrayList<Placed>()
 
     private companion object {
-        const val AXIS_LABEL_SP = 11f
-
         /** Full gutters (wizard sweep preview): tick labels + a separate axis title. */
         const val PAD_LEFT_FULL_DP = 44f
         const val PAD_BOTTOM_FULL_DP = 44f
@@ -107,8 +105,7 @@ class VsgLatticeView @JvmOverloads constructor(
         const val NODE_RADIUS_DP = 5f
         const val NODE_STROKE_DP = 2f
         const val CONNECTOR_DP = 1.5f
-        const val GRID_DP = 1f
-        const val TICK_GAP_DP = 5f
+        const val TICK_GAP_DP = PlotStyle.LATTICE_TICK_GAP_DP
         const val Y_TICKS = 4
 
         /** Y-axis floor: VSG ticks / origin start at 1. */
@@ -118,7 +115,7 @@ class VsgLatticeView @JvmOverloads constructor(
         const val Y_MARGIN_FRACTION = 0.12f
 
         /** Baseline nudge that centres a tick label on its gridline. */
-        const val TICK_BASELINE = 0.34f
+        const val TICK_BASELINE = PlotStyle.LATTICE_TICK_BASELINE
 
         /** Half a column, so a column's nodes sit at its centre. */
         const val HALF_COLUMN = 0.5f
@@ -131,19 +128,11 @@ class VsgLatticeView @JvmOverloads constructor(
         const val SELECT_RING_DP = 3f
     }
 
-    /** Axis labels in px, scaled for the user's font-size setting. */
-    private val axisLabelPx =
-        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, AXIS_LABEL_SP, resources.displayMetrics)
-
     // Reused every draw — onDraw runs on each lattice interaction.
     private val columnX = HashMap<Int, Float>()
-    private val frame = Frame()
+    private val frame = RectF()
 
-    private val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = dp(GRID_DP)
-        color = ContextCompat.getColor(context, R.color.viewer_plot_grid)
-    }
+    private val gridPaint = PlotStyle.gridPaint(context)
     private val connectorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = dp(CONNECTOR_DP)
@@ -154,11 +143,7 @@ class VsgLatticeView @JvmOverloads constructor(
         style = Paint.Style.STROKE
         strokeWidth = dp(NODE_STROKE_DP)
     }
-    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = axisLabelPx
-        color = ContextCompat.getColor(context, R.color.viewer_plot_ink)
-        typeface = Typeface.MONOSPACE
-    }
+    private val textPaint = PlotStyle.axisTextPaint(context)
     private val path = Path()
 
     private var nodes: List<Node> = emptyList()
@@ -196,7 +181,7 @@ class VsgLatticeView @JvmOverloads constructor(
         columns.forEachIndexed { i, subset ->
             columnX[subset] = left + (i + HALF_COLUMN) / columns.size * (right - left)
         }
-        frame.set(left, right, top, bottom)
+        frame.set(left, top, right, bottom)
         fun yFor(win: Int) = bottom - (win - winMin).toFloat() / (winMax - winMin) * (bottom - top)
 
         drawGrid(canvas, columnX, frame)
@@ -275,25 +260,10 @@ class VsgLatticeView @JvmOverloads constructor(
         return if (hypot(hit.x - x, hit.y - y) <= dp(TOUCH_RADIUS_DP)) hit.node else null
     }
 
-    /** Mutable so one instance can serve every draw. */
-    private class Frame(
-        var left: Float = 0f,
-        var right: Float = 0f,
-        var top: Float = 0f,
-        var bottom: Float = 0f,
-    ) {
-        fun set(l: Float, r: Float, t: Float, b: Float) {
-            left = l
-            right = r
-            top = t
-            bottom = b
-        }
-    }
-
-    private fun drawGrid(canvas: Canvas, columnX: Map<Int, Float>, f: Frame) {
+    private fun drawGrid(canvas: Canvas, columnX: Map<Int, Float>, f: RectF) {
         columnX.values.forEach { x -> canvas.drawLine(x, f.top, x, f.bottom, gridPaint) }
         textPaint.textAlign = Paint.Align.RIGHT
-        textPaint.color = ContextCompat.getColor(context, R.color.viewer_plot_ink)
+        textPaint.color = PlotStyle.ink(context)
         for (i in 0..Y_TICKS) {
             val y = f.bottom - (f.bottom - f.top) * i / Y_TICKS
             canvas.drawLine(f.left, y, f.right, y, gridPaint)
@@ -326,7 +296,7 @@ class VsgLatticeView @JvmOverloads constructor(
         // since only the FOCUSED curve is ever shown in colour there now).
         val solved = ContextCompat.getColor(context, R.color.viewer_plot_node_solved)
         val skipped = ContextCompat.getColor(context, R.color.viewer_plot_node_skipped)
-        val ring = ContextCompat.getColor(context, R.color.viewer_plot_ink_strong)
+        val ring = PlotStyle.inkStrong(context)
         nodes.forEach { node ->
             val x = columnX[node.subset] ?: return@forEach
             val y = yFor(node.vsg)
@@ -350,8 +320,8 @@ class VsgLatticeView @JvmOverloads constructor(
         }
     }
 
-    private fun drawLabels(canvas: Canvas, columnX: Map<Int, Float>, f: Frame) {
-        textPaint.color = ContextCompat.getColor(context, R.color.viewer_plot_ink)
+    private fun drawLabels(canvas: Canvas, columnX: Map<Int, Float>, f: RectF) {
+        textPaint.color = PlotStyle.ink(context)
         textPaint.textAlign = Paint.Align.CENTER
         val lastColumn = columns.lastOrNull()
         columns.forEach { subset ->
@@ -370,7 +340,7 @@ class VsgLatticeView @JvmOverloads constructor(
             return
         }
 
-        textPaint.color = ContextCompat.getColor(context, R.color.viewer_plot_ink_strong)
+        textPaint.color = PlotStyle.inkStrong(context)
         canvas.drawText(
             context.getString(R.string.vsg_lattice_axis_subset),
             (f.left + f.right) / 2f,

@@ -4,7 +4,6 @@ import android.app.Activity
 import android.app.Application
 import android.graphics.Matrix
 import android.view.ScaleGestureDetector
-import com.indicvision.semper.ui.analysis.roi.RoiViewport
 import com.indicvision.semper.ui.analysis.sweep.VsgPlotView
 import com.indicvision.semper.ui.viewer.inspect.TouchImageView
 import org.junit.Assert.assertEquals
@@ -20,7 +19,8 @@ import java.lang.reflect.Method
 
 /**
  * [ViewportMath] is a port, so each function is run beside the code it came
- * from — the views' own private clamps, reached by reflection — over a grid
+ * from — the views' own private clamps, reached by reflection, or for a view
+ * that has since adopted it, the values its original returned — over a grid
  * of inputs, and must give the same floats, bit for bit. A view that adopts
  * it then cannot move by even an ulp.
  */
@@ -180,24 +180,32 @@ class ViewportMathTest {
         assertEquals(ViewportMath.ScaleStep(6f, 1.5f), ViewportMath.clampScale(4f, 1.5f, 1f, 10f))
     }
 
-    // ── RoiViewport: centre-fraction clamp ──
+    // ── RoiViewport and VsgPlotView: captured from the originals ──
+    //
+    // Both views now call ViewportMath themselves, so their own clamps are gone.
+    // Each case below is the value the original returned for it, captured
+    // before the move (test resources beside this class).
+
+    /** The rows of the oracle file [name], each split into floats; `#` lines are comments. */
+    private fun oracle(name: String): List<List<Float>> =
+        requireNotNull(javaClass.getResourceAsStream(name)) { "missing oracle $name" }
+            .bufferedReader()
+            .useLines { lines ->
+                lines.filter { it.isNotBlank() && !it.startsWith("#") }
+                    .map { line -> line.trim().split(' ').map(String::toFloat) }
+                    .toList()
+            }
 
     @Test
-    fun `centerFraction matches RoiViewport's clampAxis`() {
-        val viewport = RoiViewport()
-        val clampAxis = RoiViewport::class.java.getDeclaredMethod(
-            "clampAxis",
-            Float::class.javaPrimitiveType,
-            Float::class.javaPrimitiveType,
-            Float::class.javaPrimitiveType,
-        ).apply { isAccessible = true }
+    fun `centerFraction matches RoiViewport's original clampAxis`() {
+        val rows = oracle("roi_viewport_clamp_axis.txt").iterator()
         var cases = 0
         for (center in floatArrayOf(-0.4f, 0f, 0.1f, 0.33f, 0.5f, 0.71f, 0.999f, 1f, 1.8f)) {
             for (view in floatArrayOf(0f, 1f, 360f, 1079.5f)) {
+                val legacy = rows.next().iterator()
                 for (size in floatArrayOf(-5f, 0f, 1f, 359f, 360f, 361f, 2000f, 12345.6f)) {
-                    val legacy = clampAxis.invoke(viewport, center, view, size) as Float
                     val ported = ViewportMath.centerFraction(center, view, size)
-                    assertEquals("c=$center v=$view s=$size", legacy, ported, 0f)
+                    assertEquals("c=$center v=$view s=$size", legacy.next(), ported, 0f)
                     cases++
                 }
             }
@@ -205,26 +213,9 @@ class ViewportMathTest {
         assertEquals(288, cases)
     }
 
-    // ── VsgPlotView: data-window clamp ──
-
     @Test
-    fun `clampWindow matches VsgPlotView's clampViewport on both axes`() {
-        val plot = VsgPlotView(activity)
-        val boundsClass = Class.forName(VsgPlotView::class.java.name + "\$Bounds")
-        val newBounds = boundsClass.getDeclaredConstructor(
-            Float::class.javaPrimitiveType,
-            Float::class.javaPrimitiveType,
-            Float::class.javaPrimitiveType,
-            Float::class.javaPrimitiveType,
-        ).apply { isAccessible = true }
-        val clampViewport = VsgPlotView::class.java.getDeclaredMethod("clampViewport", boundsClass)
-            .apply { isAccessible = true }
-        fun field(name: String) = VsgPlotView::class.java.getDeclaredField(name).apply { isAccessible = true }
-        val xMin = field("viewXMin")
-        val xMax = field("viewXMax")
-        val yMin = field("viewYMin")
-        val yMax = field("viewYMax")
-
+    fun `clampWindow matches VsgPlotView's original clampViewport on both axes`() {
+        val rows = oracle("vsg_plot_clamp_viewport.txt").iterator()
         val fulls = listOf(0f to 10f, -5f to 3.3f, 1f to 1.0001f, -0.002f to 0.0035f)
         val fraction = VsgPlotView.MIN_SPAN_FRACTION
         var cases = 0
@@ -237,18 +228,13 @@ class ViewportMathTest {
                     // y gets a different window over the same extent, so both axes are exercised.
                     val yLo = fullMin + (1f - startFrac) * extent
                     val yHi = yLo + spanFrac * extent * 0.5f
-                    xMin.set(plot, lo)
-                    xMax.set(plot, hi)
-                    yMin.set(plot, yLo)
-                    yMax.set(plot, yHi)
-
-                    clampViewport.invoke(plot, newBounds.newInstance(fullMin, fullMax, fullMin, fullMax))
+                    val row = rows.next()
 
                     val label = "full=$fullMin..$fullMax start=$startFrac span=$spanFrac"
                     val x = ViewportMath.clampWindow(lo, hi, fullMin, fullMax, fraction)
                     val y = ViewportMath.clampWindow(yLo, yHi, fullMin, fullMax, fraction)
-                    assertEquals(label, x, ViewportMath.Window(xMin.get(plot) as Float, xMax.get(plot) as Float))
-                    assertEquals(label, y, ViewportMath.Window(yMin.get(plot) as Float, yMax.get(plot) as Float))
+                    assertEquals(label, ViewportMath.Window(row[0], row[1]), x)
+                    assertEquals(label, ViewportMath.Window(row[2], row[3]), y)
                     cases++
                 }
             }

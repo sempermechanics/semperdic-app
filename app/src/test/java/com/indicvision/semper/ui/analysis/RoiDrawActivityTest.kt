@@ -3,7 +3,6 @@ package com.indicvision.semper.ui.analysis
 import android.app.Activity
 import android.app.Application
 import android.content.Intent
-import android.graphics.Rect
 import android.graphics.RectF
 import android.view.View
 import android.widget.TextView
@@ -12,6 +11,9 @@ import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.textfield.TextInputEditText
 import com.indicvision.semper.R
 import com.indicvision.semper.data.session.CacheJanitor
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.field.Roi
+import com.indicvision.semper.field.fromImageRect
 import com.indicvision.semper.fixtures.idleUntil
 import com.indicvision.semper.navigation.DicKeys
 import com.indicvision.semper.ui.analysis.roi.StudioOverlayView
@@ -177,12 +179,15 @@ class RoiDrawActivityTest {
         // The overlay holds the ROI in view pixels; on a 4032-wide photo a typed
         // (1000, 750, 300, 200) returns from that round trip as n − ε.
         val back = RectF(999.9997f, 749.99994f, 1299.9998f, 949.9999f)
-        assertEquals(Rect(1000, 750, 1300, 950), roiPixels(back, 4032, 3024))
+        assertEquals(Roi.fromLtrb(1000, 750, 1300, 950), Roi.fromImageRect(back, ImageSize(4032, 3024)))
     }
 
     @Test
     fun `saved ROI pixels are clipped to the image`() {
-        assertEquals(Rect(0, 0, 640, 400), roiPixels(RectF(-0.4f, -3f, 700.2f, 400.4f), 640, 400))
+        assertEquals(
+            Roi(0, 0, 640, 400),
+            Roi.fromImageRect(RectF(-0.4f, -3f, 700.2f, 400.4f), ImageSize(640, 400)),
+        )
     }
 
     @Test

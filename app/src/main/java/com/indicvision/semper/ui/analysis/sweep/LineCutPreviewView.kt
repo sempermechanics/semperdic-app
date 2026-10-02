@@ -1,7 +1,7 @@
 // Custom preview view: literal geometry, stroke widths and the dense mask/line
 // rendering logic are clearest inline, so the structural and magic-number rules
 // are suppressed for this whole file.
-@file:Suppress("MagicNumber", "CyclomaticComplexMethod", "LongParameterList", "ReturnCount")
+@file:Suppress("MagicNumber", "CyclomaticComplexMethod", "ReturnCount")
 
 package com.indicvision.semper.ui.analysis.sweep
 
@@ -17,6 +17,8 @@ import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import com.indicvision.semper.R
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.field.Roi
 import com.indicvision.semper.ui.common.dp
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -80,36 +82,26 @@ class LineCutPreviewView @JvmOverloads constructor(
     private var holeOverlay: Bitmap? = null
     private var imageW = 0
     private var imageH = 0
-    private var roiX = 0
-    private var roiY = 0
-    private var roiW = 0
-    private var roiH = 0
+    private var roi = Roi(0, 0, 0, 0)
     private var horizontal = true
 
     /**
      * @param bitmap preview of the reference image (may be scaled down)
-     * @param imageW full reference width in engine pixels
-     * @param imageH full reference height in engine pixels
+     * @param image full reference size in engine pixels; each side at least 1
+     * @param roi the region in engine pixels; width and height at least 1
      * @param maskBytes ALPHA_8 mask (`255` = include, `0` = exclude/hole), or null
      */
     fun setPreview(
         bitmap: Bitmap?,
-        imageW: Int,
-        imageH: Int,
-        roiX: Int,
-        roiY: Int,
-        roiW: Int,
-        roiH: Int,
+        image: ImageSize,
+        roi: Roi,
         horizontal: Boolean,
         maskBytes: ByteArray? = null,
     ) {
         this.bitmap = bitmap
-        this.imageW = imageW.coerceAtLeast(1)
-        this.imageH = imageH.coerceAtLeast(1)
-        this.roiX = roiX
-        this.roiY = roiY
-        this.roiW = roiW.coerceAtLeast(1)
-        this.roiH = roiH.coerceAtLeast(1)
+        this.imageW = image.width.coerceAtLeast(1)
+        this.imageH = image.height.coerceAtLeast(1)
+        this.roi = roi.copy(w = roi.w.coerceAtLeast(1), h = roi.h.coerceAtLeast(1))
         this.horizontal = horizontal
         this.maskBytes = maskBytes
         rebuildHoleOverlay()
@@ -156,14 +148,14 @@ class LineCutPreviewView @JvmOverloads constructor(
             Color.green(red),
             Color.blue(red),
         )
-        val roiRight = roiX + roiW
-        val roiBottom = roiY + roiH
 
+        val roiRight = roi.right
+        val roiBottom = roi.bottom
         for (oy in 0 until oh) {
             val iy = ((oy + 0.5f) / oh * imageH).toInt().coerceIn(0, imageH - 1)
             for (ox in 0 until ow) {
                 val ix = ((ox + 0.5f) / ow * imageW).toInt().coerceIn(0, imageW - 1)
-                val insideRoi = ix >= roiX && ix < roiRight && iy >= roiY && iy < roiBottom
+                val insideRoi = ix >= roi.x && ix < roiRight && iy >= roi.y && iy < roiBottom
                 if (!insideRoi) {
                     pixels[oy * ow + ox] = Color.TRANSPARENT
                     continue
@@ -205,10 +197,10 @@ class LineCutPreviewView @JvmOverloads constructor(
         fun mapY(y: Float) = top + y / imageH * drawnH
 
         roiRect.set(
-            mapX(roiX.toFloat()),
-            mapY(roiY.toFloat()),
-            mapX((roiX + roiW).toFloat()),
-            mapY((roiY + roiH).toFloat()),
+            mapX(roi.x.toFloat()),
+            mapY(roi.y.toFloat()),
+            mapX(roi.right.toFloat()),
+            mapY(roi.bottom.toFloat()),
         )
 
         val overlay = holeOverlay
@@ -220,7 +212,7 @@ class LineCutPreviewView @JvmOverloads constructor(
         }
         canvas.drawRect(roiRect, roiStrokePaint)
 
-        val line = VsgStudy.centreLine(roiX, roiY, roiW, roiH, horizontal)
+        val line = VsgStudy.centreLine(roi, horizontal)
         if (line.horizontal) {
             val y = mapY(line.position)
             canvas.drawLine(roiRect.left, y, roiRect.right, y, cutPaint)

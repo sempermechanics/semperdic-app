@@ -97,15 +97,34 @@ class WizardValueTypesTest {
         override fun confirmOpenFaq(url: String) = Unit
     }
 
+    /**
+     * `SweepSetupHelper.currentPlan` as it was before it called [SweepRanges.plan]:
+     * the body verbatim, its ceiling passed in rather than read from the callbacks.
+     */
+    private fun legacyCurrentPlan(viewModel: AnalysisViewModel, ceiling: Int): List<VsgStudy.Point> {
+        if (viewModel.subsetMin > ceiling) return emptyList()
+        return VsgStudy.plan(
+            subsetMin = viewModel.subsetMin,
+            subsetMax = viewModel.subsetMax.coerceAtMost(ceiling),
+            subsetSamples = viewModel.subsetSamples,
+            strainWinMin = viewModel.strainWinMin,
+            strainWinMax = viewModel.strainWinMax,
+            strainWinSamples = viewModel.strainWinSamples,
+            stepDenominator = viewModel.stepDenominator,
+        )
+    }
+
     @Test
-    fun `plan matches SweepSetupHelper currentPlan for ceilings below, inside and above the range`() {
+    fun `currentPlan and plan match the old inline plan for ceilings below, inside and above the range`() {
         val vm = wizard()
         val ceiling = Ceiling(0)
         // currentPlan never touches the views, so the helper is never set up.
         val helper = SweepSetupHelper(AppCompatActivity(), vm, ceiling)
         for (max in listOf(1, 20, 21, 22, 41, 60, 61, 62, 101, 301)) {
             ceiling.max = max
-            assertEquals("ceiling $max", helper.currentPlan(), vm.sweepRanges().plan(subsetCeiling = max))
+            val expected = legacyCurrentPlan(vm, max)
+            assertEquals("currentPlan, ceiling $max", expected, helper.currentPlan())
+            assertEquals("plan, ceiling $max", expected, vm.sweepRanges().plan(subsetCeiling = max))
         }
         assertEquals(emptyList<VsgStudy.Point>(), vm.sweepRanges().plan(subsetCeiling = 20))
         assertEquals(41, vm.sweepRanges().plan(subsetCeiling = 41).maxOf { it.subset })

@@ -28,13 +28,13 @@ data class Roi(val x: Int, val y: Int, val w: Int, val h: Int) {
     /** Exclusive bottom edge, `y + h`. */
     val bottom: Int get() = y + h
 
-    /** True when the ROI holds at least one [subset]-sized window; `RoiResolveHelper.resolve`'s final check. */
+    /** True when the ROI holds at least one [subset]-sized window; [forSolve]'s final check. */
     fun fits(subset: Int): Boolean = w >= subset && h >= subset
 
     /**
      * The part of this ROI inside an image of [size], or null when none of it
-     * is or the size is unknown. Same arithmetic as
-     * `RoiResolveHelper.clipToImage`, including its overflow-safe `Long` edges.
+     * is or the size is unknown. The far edges are worked out in `Long`, so a
+     * huge width or height cannot overflow.
      */
     fun clampTo(size: ImageSize): Roi? {
         if (size.width <= 0 || size.height <= 0) return null
@@ -107,7 +107,7 @@ data class Roi(val x: Int, val y: Int, val w: Int, val h: Int) {
         /**
          * The rectangle the engine solves over, or null when it cannot hold one
          * subset: [drawn] clamped to the image when [hasCustomRoi], else
-         * [insetFullFrame]. Equivalent to `RoiResolveHelper.resolve`.
+         * [insetFullFrame]. `RoiResolveHelper.resolve` returns this as `[x, y, w, h]`.
          */
         fun forSolve(subset: Int, hasCustomRoi: Boolean, drawn: Roi, size: ImageSize): Roi? {
             val roi = if (hasCustomRoi) drawn.clampTo(size) else insetFullFrame(size, subset)

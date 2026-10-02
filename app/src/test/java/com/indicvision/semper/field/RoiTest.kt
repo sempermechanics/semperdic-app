@@ -3,7 +3,6 @@ package com.indicvision.semper.field
 import android.graphics.Rect
 import android.graphics.RectF
 import com.indicvision.semper.ui.analysis.roi.RoiResolveHelper
-import com.indicvision.semper.ui.analysis.roiPixels
 import com.indicvision.semper.ui.viewer.HeatmapFit
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -13,11 +12,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import kotlin.math.roundToInt
 
 /**
  * [Roi] is a view over the ROI the code already passes around. Each helper is
- * pinned to the function it will replace, over a grid of inside, edge, off-image,
- * negative and empty inputs, so adopting it cannot change a result.
+ * pinned to the function it replaced, over a grid of inside, edge, off-image,
+ * negative and empty inputs, so adopting it cannot change a result. Where the
+ * original is gone, a verbatim copy of it below stands in as the oracle.
  */
 @RunWith(RobolectricTestRunner::class) // Rect / RectF are stubs on the plain JVM
 class RoiTest {
@@ -38,7 +39,7 @@ class RoiTest {
     fun `clampTo matches RoiResolveHelper clipToImage everywhere on the grid`() {
         for (size in sizes) {
             for (roi in rois()) {
-                val expected = RoiResolveHelper.clipToImage(roi.x, roi.y, roi.w, roi.h, size.width, size.height)
+                val expected = legacyClipToImage(roi, size)
                 assertEquals("$roi on $size", expected?.toList(), roi.clampTo(size)?.toXywh()?.toList())
             }
         }
@@ -57,16 +58,7 @@ class RoiTest {
         for ((subsetAndCustom, size) in cases) {
             val (subset, custom) = subsetAndCustom
             for (roi in rois().filterIndexed { i, _ -> i % 3 == 0 }) {
-                val expected = RoiResolveHelper.resolve(
-                    subset,
-                    custom,
-                    roi.x,
-                    roi.y,
-                    roi.w,
-                    roi.h,
-                    size.width,
-                    size.height,
-                )
+                val expected = legacyResolve(subset, custom, roi, size)
                 val actual = Roi.forSolve(subset, custom, roi, size)
                 val label = "$roi s=$subset custom=$custom on $size"
                 assertEquals(label, expected?.toList(), actual?.toXywh()?.toList())
@@ -75,8 +67,9 @@ class RoiTest {
     }
 
     @Test
-    fun `the full-frame slack is RoiResolveHelper's`() {
-        assertEquals(RoiResolveHelper.ROI_MARGIN_SLACK_PX, Roi.FULL_FRAME_SLACK_PX)
+    fun `the full-frame slack is 10 px, as RoiResolveHelper's always was`() {
+        assertEquals(10, Roi.FULL_FRAME_SLACK_PX)
+        assertEquals(10, RoiResolveHelper.ROI_MARGIN_SLACK_PX)
     }
 
     @Test
@@ -131,7 +124,7 @@ class RoiTest {
         for ((ltr, b) in edges * edges * edges * edges) {
             val (lt, r) = ltr
             val rect = RectF(lt.first, lt.second, r, b)
-            val expected = roiPixels(rect, size.width, size.height)
+            val expected = legacyRoiPixels(rect, size.width, size.height)
             assertEquals("$rect", Roi.fromRect(expected), Roi.fromImageRect(rect, size))
         }
     }
@@ -170,5 +163,46 @@ class RoiTest {
         assertTrue(Roi(0, 0, 21, 21).fits(21))
         assertFalse(Roi(0, 0, 20, 21).fits(21))
         assertFalse(Roi(0, 0, 21, 20).fits(21))
+    }
+
+    // ── The originals the helpers replaced, copied verbatim as oracles ──
+
+    /**
+     * `RoiResolveHelper.clipToImage`, as it was before it delegated to [Roi.clampTo]:
+     * the body verbatim, its six Int parameters read off [roi] and [size].
+     */
+    private fun legacyClipToImage(roi: Roi, size: ImageSize): IntArray? {
+        val x = roi.x
+        val y = roi.y
+        val w = roi.w
+        val h = roi.h
+        val width = size.width
+        val height = size.height
+        if (width <= 0 || height <= 0) return null
+        val left = x.coerceIn(0, width)
+        val top = y.coerceIn(0, height)
+        val right = (x.toLong() + w).coerceIn(left.toLong(), width.toLong()).toInt()
+        val bottom = (y.toLong() + h).coerceIn(top.toLong(), height.toLong()).toInt()
+        return if (right > left && bottom > top) intArrayOf(left, top, right - left, bottom - top) else null
+    }
+
+    /** `RoiResolveHelper.resolve`, as it was before it delegated to [Roi.forSolve]. */
+    private fun legacyResolve(subset: Int, hasCustomRoi: Boolean, drawn: Roi, size: ImageSize): IntArray? {
+        val roi = if (hasCustomRoi) {
+            legacyClipToImage(drawn, size)
+        } else {
+            val margin = (subset / 2) + 10
+            intArrayOf(margin, margin, size.width - (2 * margin), size.height - (2 * margin))
+        }
+        return roi?.takeIf { it[2] >= subset && it[3] >= subset }
+    }
+
+    /** `RoiDrawActivity.roiPixels`, as it was before the editor used [Roi.fromImageRect]. */
+    private fun legacyRoiPixels(roi: RectF, imageWidth: Int, imageHeight: Int): Rect {
+        val x = roi.left.roundToInt().coerceAtLeast(0)
+        val y = roi.top.roundToInt().coerceAtLeast(0)
+        val right = roi.right.roundToInt().coerceAtMost(imageWidth)
+        val bottom = roi.bottom.roundToInt().coerceAtMost(imageHeight)
+        return Rect(x, y, right, bottom)
     }
 }

@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.BitmapRegionDecoder
 import android.graphics.Rect
 import android.os.Build
+import com.indicvision.semper.field.ImageSize
 import timber.log.Timber
 import kotlin.math.max
 
@@ -154,10 +155,10 @@ internal object NoiseFloorPixels {
     }.onFailure { Timber.d(it, "noise probe: region decode unavailable") }.getOrNull()
 
     /** Decoded dimensions of an encoded frame, without decoding the pixels. */
-    fun boundsOf(bytes: ByteArray): Pair<Int, Int>? {
+    fun boundsOf(bytes: ByteArray): ImageSize? {
         val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
-        return if (opts.outWidth > 0 && opts.outHeight > 0) opts.outWidth to opts.outHeight else null
+        return ImageSize(opts.outWidth, opts.outHeight).takeIf { it.isKnown }
     }
 
     /** Below this a window has too few pixels for a variance worth having. */

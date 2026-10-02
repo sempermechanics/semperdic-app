@@ -1,18 +1,3 @@
-// Custom ROI overlay view: coordinate mapping, gesture/hit-testing and mask
-// serialization. Complexity is inherent; suppress rather than baseline so new
-// findings elsewhere still fail CI.
-
-@file:Suppress(
-    "TooManyFunctions",
-    "ComplexCondition",
-    "CyclomaticComplexMethod",
-    "LongMethod",
-    "MagicNumber",
-    "NestedBlockDepth",
-    "ReturnCount",
-)
-@file:SuppressLint("ClickableViewAccessibility")
-
 package com.indicvision.semper.ui.analysis.roi
 
 import android.annotation.SuppressLint
@@ -25,16 +10,20 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.util.AttributeSet
-import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
 import androidx.core.graphics.toColorInt
-import kotlin.math.abs
-import kotlin.math.hypot
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.field.Roi
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * The ROI editor's canvas overlay: the crop and erase rects over the reference,
+ * edited with one finger, zoomed and panned with two (see [StudioOverlayViewport]).
+ */
+@Suppress("TooManyFunctions") // the overlay's public API for RoiDrawActivity plus its touch and draw steps
 class StudioOverlayView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -74,16 +63,21 @@ class StudioOverlayView @JvmOverloads constructor(
 
     fun updateImageBounds() {
         val iv = imageView ?: return
-        val drawable = iv.drawable ?: return
-        val imageWidth = drawable.intrinsicWidth.toFloat()
-        val imageHeight = drawable.intrinsicHeight.toFloat()
-        val viewWidth = iv.width.toFloat()
-        val viewHeight = iv.height.toFloat()
+        val drawable = iv.drawable
+        val imageWidth = drawable?.intrinsicWidth?.toFloat() ?: 0f
+        val imageHeight = drawable?.intrinsicHeight?.toFloat() ?: 0f
         // A canvas squeezed to nothing (keyboard + dock taller than the screen)
         // keeps the last bounds, so the ROI still maps back when it regrows.
-        if (imageWidth == 0f || imageHeight == 0f || viewWidth <= 0f || viewHeight <= 0f) return
+        if (imageWidth == 0f || imageHeight == 0f || min(iv.width, iv.height) <= 0) return
+        fitImage(iv, imageWidth, imageHeight)
+    }
 
-        viewport.layout(imageWidth, imageHeight, viewWidth, viewHeight)
+    /**
+     * Lays the [imageWidth] x [imageHeight] drawable out in [iv] through the
+     * viewport, and carries the crop and holes over to the new bounds.
+     */
+    private fun fitImage(iv: ImageView, imageWidth: Float, imageHeight: Float) {
+        viewport.layout(imageWidth, imageHeight, iv.width.toFloat(), iv.height.toFloat())
         viewport.bounds(nextBounds)
 
         // Remap live geometry when letterboxing changes (toolbar/IME resize) or
@@ -168,54 +162,27 @@ class StudioOverlayView @JvmOverloads constructor(
     }
 
     private fun mapImageRectToView(x: Int, y: Int, width: Int, height: Int): RectF? {
-        if (realImageWidth <= 0 || realImageHeight <= 0 || imageBounds.isEmpty) return null
-        if (width <= 0 || height <= 0) return null
+        if (imageBounds.isEmpty) return null
+        return imageRectInView(Roi(x, y, width, height), ImageSize(realImageWidth, realImageHeight), imageBounds)
+    }
 
-        val leftPx = x.coerceIn(0, realImageWidth - 1)
-        val topPx = y.coerceIn(0, realImageHeight - 1)
-        val rightPx = (leftPx + width).coerceAtMost(realImageWidth)
-        val bottomPx = (topPx + height).coerceAtMost(realImageHeight)
-        if (rightPx <= leftPx || bottomPx <= topPx) return null
-
-        val scaleX = imageBounds.width() / realImageWidth.toFloat()
-        val scaleY = imageBounds.height() / realImageHeight.toFloat()
-        return RectF(
-            imageBounds.left + leftPx * scaleX,
-            imageBounds.top + topPx * scaleY,
-            imageBounds.left + rightPx * scaleX,
-            imageBounds.top + bottomPx * scaleY,
-        )
+    /** Image px per view px: of the photo when its size is known, else of the preview drawable. */
+    private fun imageScale(): Float {
+        val imageWidth = if (realImageWidth > 0) {
+            realImageWidth.toFloat()
+        } else {
+            imageView?.drawable?.intrinsicWidth?.toFloat() ?: 1f
+        }
+        return imageWidth / imageBounds.width()
     }
 
     private fun viewRectToImage(viewRect: RectF): RectF {
         if (imageBounds.isEmpty || imageBounds.width() == 0f) return RectF()
-        val scale = if (realImageWidth > 0) {
-            realImageWidth.toFloat() / imageBounds.width()
-        } else {
-            (imageView?.drawable?.intrinsicWidth?.toFloat() ?: 1f) / imageBounds.width()
-        }
-        return RectF(
-            (viewRect.left - imageBounds.left) * scale,
-            (viewRect.top - imageBounds.top) * scale,
-            (viewRect.right - imageBounds.left) * scale,
-            (viewRect.bottom - imageBounds.top) * scale,
-        )
+        return viewToImage(viewRect, imageBounds, imageScale())
     }
 
     /** Inverse of [viewRectToImage]: image pixels (fractional) to view coordinates. */
-    private fun imageRectToView(img: RectF): RectF {
-        val scale = if (realImageWidth > 0) {
-            realImageWidth.toFloat() / imageBounds.width()
-        } else {
-            (imageView?.drawable?.intrinsicWidth?.toFloat() ?: 1f) / imageBounds.width()
-        }
-        return RectF(
-            imageBounds.left + img.left / scale,
-            imageBounds.top + img.top / scale,
-            imageBounds.left + img.right / scale,
-            imageBounds.top + img.bottom / scale,
-        )
-    }
+    private fun imageRectToView(img: RectF): RectF = imageToView(img, imageBounds, imageScale())
 
     private fun applyPendingRestore() {
         pendingRestoreRoi?.let { saved ->
@@ -230,7 +197,6 @@ class StudioOverlayView @JvmOverloads constructor(
     // --- 3. RESET ---
     fun reset() {
         hasValidRoi = false
-        isDrawing = false
         roiRect.setEmpty()
         holes.clear()
         touchState = TouchState.NONE
@@ -255,30 +221,40 @@ class StudioOverlayView @JvmOverloads constructor(
     private val holeBorderPaint = Paint().apply {
         color = Color.RED
         style = Paint.Style.STROKE
-        strokeWidth = 5f
+        strokeWidth = STROKE_WIDTH
     }
     var hasValidRoi = false
         private set
 
     private var roiRect = RectF()
-    private val minSize = 50f
 
-    // Drawing variables
+    // The rect being drawn runs from (startX, startY) to (endX, endY); a grab
+    // moves by the finger's travel since (lastX, lastY).
     private var startX = 0f
     private var startY = 0f
     private var endX = 0f
     private var endY = 0f
     private var lastX = 0f
     private var lastY = 0f
-    private var isDrawing = false
 
-    private enum class TouchState { NONE, CENTER, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }
+    /** What the one editing finger is doing: drawing a new rect, or which part of one it holds. */
+    internal enum class TouchState { NONE, DRAWING, CENTER, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }
     private var touchState = TouchState.NONE
+
+    private val isDrawing: Boolean get() = touchState == TouchState.DRAWING
+
+    /** True while a finger holds a rect: its body or one of its corners. */
+    private val isGrabbing: Boolean get() = touchState != TouchState.NONE && !isDrawing
+
+    private var activeHoleIndex = -1 // Tracks which hole you grabbed
+
+    /** The rect the grab moves: the grabbed hole, or the main ROI. */
+    private val grabTarget: RectF get() = if (activeHoleIndex >= 0) holes[activeHoleIndex].rect else roiRect
 
     private val borderPaint = Paint().apply {
         color = Color.GREEN
         style = Paint.Style.STROKE
-        strokeWidth = 5f
+        strokeWidth = STROKE_WIDTH
     }
     private val handlePaint = Paint().apply {
         color = Color.WHITE
@@ -292,39 +268,21 @@ class StudioOverlayView @JvmOverloads constructor(
         xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
         style = Paint.Style.FILL
     }
-    private fun safeCoerce(value: Float, min: Float, max: Float): Float {
-        val actualMax = if (max < min) min else max
-        return value.coerceIn(min, actualMax)
-    }
 
     // --- 4. ZOOM AND PAN ---
     // Two fingers pinch and pan; double-tap toggles 2x and fit. One finger
     // always edits, so drawing never fights the zoom. Handles and the minimum
     // size stay in view px: zoomed in, they are finer in image px.
 
-    /** True from a second finger (or a double-tap) until every finger lifts. */
-    private var viewportGesture = false
-    private var pinchFocusX = 0f
-    private var pinchFocusY = 0f
-    private var pinchSpan = 0f
-
     /** The grabbed rect as it was at ACTION_DOWN, put back if the touch turns into a pinch. */
     private val editStart = RectF()
 
-    private val doubleTapDetector = GestureDetector(
-        context,
-        object : GestureDetector.SimpleOnGestureListener() {
-            override fun onDoubleTap(e: MotionEvent): Boolean {
-                cancelEdit()
-                viewport.beginPan()
-                viewport.toggle(e.x, e.y)
-                applyViewport()
-                viewportGesture = true
-                trackPinch(e)
-                return true
-            }
-        },
-    ).apply { setIsLongpressEnabled(false) }
+    private val viewportGestures = StudioOverlayViewport(
+        context = context,
+        viewport = viewport,
+        cancelEdit = ::cancelEdit,
+        onMoved = ::applyViewport,
+    )
 
     /** Back to fit (zoom 1). */
     fun resetZoom() {
@@ -338,372 +296,174 @@ class StudioOverlayView @JvmOverloads constructor(
         onZoomChangedListener?.invoke(viewport.zoom)
     }
 
-    /** Returns true when [event] belongs to a zoom/pan gesture, not to editing. */
-    private fun handleViewportGesture(event: MotionEvent): Boolean {
-        if (event.actionMasked == MotionEvent.ACTION_DOWN) viewportGesture = false
-        doubleTapDetector.onTouchEvent(event)
-        when (event.actionMasked) {
-            MotionEvent.ACTION_POINTER_DOWN -> {
-                if (!viewportGesture) {
-                    cancelEdit()
-                    viewport.beginPan()
-                    viewportGesture = true
-                }
-                trackPinch(event)
-            }
-            MotionEvent.ACTION_POINTER_UP -> if (viewportGesture) settleThenTrack(event)
-            MotionEvent.ACTION_MOVE -> if (viewportGesture) pinchMove(event)
-            MotionEvent.ACTION_UP -> if (viewportGesture) {
-                pinchMove(event, lifting = NO_POINTER, settle = true)
-                viewportGesture = false
-                return true
-            }
-            MotionEvent.ACTION_CANCEL -> if (viewportGesture) {
-                viewportGesture = false
-                return true
-            }
-        }
-        return viewportGesture
-    }
-
-    /**
-     * A finger lifting: first follow every finger to where it really is, then
-     * re-anchor on the ones still down. The last MOVE can be resampled a few px
-     * past the fingers (Choreographer input resampling, worst on a slow
-     * device); the lift carries the true positions, so the photo stops where
-     * the fingers left it.
-     */
-    private fun settleThenTrack(event: MotionEvent) {
-        pinchMove(event, lifting = NO_POINTER, settle = true)
-        trackPinch(event)
-    }
-
-    private fun pinchMove(event: MotionEvent, lifting: Int = liftingIndex(event), settle: Boolean = false) {
-        val prevX = pinchFocusX
-        val prevY = pinchFocusY
-        val prevSpan = pinchSpan
-        trackPinch(event, lifting)
-        if (settle) {
-            viewport.settleBy(pinchFocusX - prevX, pinchFocusY - prevY)
-        } else {
-            viewport.panBy(pinchFocusX - prevX, pinchFocusY - prevY)
-        }
-        if (prevSpan > MIN_PINCH_SPAN && pinchSpan > MIN_PINCH_SPAN) {
-            viewport.zoomBy(pinchSpan / prevSpan, pinchFocusX, pinchFocusY)
-        }
-        applyViewport()
-    }
-
-    private fun liftingIndex(event: MotionEvent): Int =
-        if (event.actionMasked == MotionEvent.ACTION_POINTER_UP) event.actionIndex else NO_POINTER
-
-    /** Focus and mean spread of the fingers still down (a lifting one is left out). */
-    private fun trackPinch(event: MotionEvent, lifting: Int = liftingIndex(event)) {
-        var sumX = 0f
-        var sumY = 0f
-        var count = 0
-        for (i in 0 until event.pointerCount) {
-            if (i == lifting) continue
-            sumX += event.getX(i)
-            sumY += event.getY(i)
-            count++
-        }
-        if (count == 0) return
-        pinchFocusX = sumX / count
-        pinchFocusY = sumY / count
-        var spread = 0f
-        for (i in 0 until event.pointerCount) {
-            if (i == lifting) continue
-            spread += hypot(event.getX(i) - pinchFocusX, event.getY(i) - pinchFocusY)
-        }
-        pinchSpan = spread / count
-    }
-
     /** Drops a one-finger edit in progress: a drag being drawn, or a grab put back where it started. */
     private fun cancelEdit() {
-        if (touchState != TouchState.NONE) {
-            val target = if (activeHoleIndex >= 0) holes[activeHoleIndex].rect else roiRect
-            target.set(editStart)
-        }
+        if (isGrabbing) grabTarget.set(editStart)
         touchState = TouchState.NONE
         activeHoleIndex = -1
-        isDrawing = false
         invalidate()
         onRoiChangedListener?.invoke(getRelativeRoi())
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (handleViewportGesture(event)) return true
+    override fun onTouchEvent(event: MotionEvent): Boolean = viewportGestures.onTouchEvent(event) || onEditTouch(event)
 
+    /** One-finger editing: draw a new rect, or move or resize the one grabbed. */
+    private fun onEditTouch(event: MotionEvent): Boolean {
         val bounds = if (imageBounds.isEmpty) RectF(0f, 0f, width.toFloat(), height.toFloat()) else imageBounds
         val x = event.x.coerceIn(bounds.left, bounds.right)
         val y = event.y.coerceIn(bounds.top, bounds.bottom)
 
         when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                touchState = getTouchState(x, y)
-                if (touchState != TouchState.NONE) {
-                    editStart.set(if (activeHoleIndex >= 0) holes[activeHoleIndex].rect else roiRect)
-                    lastX = x
-                    lastY = y
-                    return true
-                }
+            MotionEvent.ACTION_DOWN -> onDown(x, y)
+            MotionEvent.ACTION_MOVE -> onMove(x, y, bounds)
+            MotionEvent.ACTION_UP -> onUp()
+            MotionEvent.ACTION_CANCEL -> cancelEdit()
+            else -> return super.onTouchEvent(event)
+        }
+        return true
+    }
 
-                // A new crop replaces the old one and its holes only once the
-                // drag is kept (ACTION_UP): the first finger of a pinch, or a
-                // stray tap, must not wipe the selection.
-                isDrawing = true
-                startX = x
-                startY = y
+    private fun onDown(x: Float, y: Float) {
+        touchState = grabAt(x, y)
+        if (isGrabbing) {
+            editStart.set(grabTarget)
+            lastX = x
+            lastY = y
+            return
+        }
+
+        // A new crop replaces the old one and its holes only once the
+        // drag is kept (ACTION_UP): the first finger of a pinch, or a
+        // stray tap, must not wipe the selection.
+        touchState = TouchState.DRAWING
+        startX = x
+        startY = y
+        endX = x
+        endY = y
+        invalidate()
+    }
+
+    private fun onMove(x: Float, y: Float, bounds: RectF) {
+        when (touchState) {
+            TouchState.NONE -> Unit
+            TouchState.DRAWING -> {
                 endX = x
                 endY = y
-                invalidate()
-                return true
             }
-            MotionEvent.ACTION_MOVE -> {
-                if (touchState != TouchState.NONE) {
-                    val dx = x - lastX
-                    val dy = y - lastY
-                    // DYNAMIC TARGET: Modifies either the grabbed hole OR the main ROI
-                    val target = if (activeHoleIndex >= 0) holes[activeHoleIndex].rect else roiRect
-
-                    when (touchState) {
-                        TouchState.CENTER -> {
-                            val newLeft = safeCoerce(target.left + dx, bounds.left, bounds.right - target.width())
-                            val newTop = safeCoerce(target.top + dy, bounds.top, bounds.bottom - target.height())
-                            target.offsetTo(newLeft, newTop)
-                        }
-                        TouchState.TOP_LEFT -> {
-                            target.left = safeCoerce(target.left + dx, bounds.left, target.right - minSize)
-                            target.top = safeCoerce(target.top + dy, bounds.top, target.bottom - minSize)
-                            if (isSquareMode()) makeSquare(target.right, target.bottom, bounds, target)
-                        }
-                        TouchState.TOP_RIGHT -> {
-                            target.right = safeCoerce(target.right + dx, target.left + minSize, bounds.right)
-                            target.top = safeCoerce(target.top + dy, bounds.top, target.bottom - minSize)
-                            if (isSquareMode()) makeSquare(target.left, target.bottom, bounds, target)
-                        }
-                        TouchState.BOTTOM_LEFT -> {
-                            target.left = safeCoerce(target.left + dx, bounds.left, target.right - minSize)
-                            target.bottom = safeCoerce(target.bottom + dy, target.top + minSize, bounds.bottom)
-                            if (isSquareMode()) makeSquare(target.right, target.top, bounds, target)
-                        }
-                        TouchState.BOTTOM_RIGHT -> {
-                            target.right = safeCoerce(target.right + dx, target.left + minSize, bounds.right)
-                            target.bottom = safeCoerce(target.bottom + dy, target.top + minSize, bounds.bottom)
-                            if (isSquareMode()) makeSquare(target.left, target.top, bounds, target)
-                        }
-                        else -> {}
-                    }
-                    lastX = x
-                    lastY = y
-                } else if (isDrawing) {
-                    endX = x
-                    endY = y
-                }
-                invalidate()
-                // A crop being drawn reports itself; the kept ROI is still the old one.
-                val live = if (isDrawing && !isSubtractMode) {
-                    viewRectToImage(RectF(min(startX, endX), min(startY, endY), max(startX, endX), max(startY, endY)))
-                } else {
-                    getRelativeRoi()
-                }
-                onRoiChangedListener?.invoke(live)
-                return true
-            }
-            MotionEvent.ACTION_UP -> {
-                if (isDrawing) {
-                    val rect = RectF(min(startX, endX), min(startY, endY), max(startX, endX), max(startY, endY))
-
-                    if (isSubtractMode) {
-                        // ARCHITECTURE FIX: Removed 'hasValidRoi' so you can punch holes in the Full Image
-                        if (rect.width() > 50f || rect.height() > 50f) {
-                            holes.add(Hole(currentMode, rect))
-                        }
-                    } else {
-                        if (rect.width() > 50f || rect.height() > 50f) {
-                            holes.clear()
-                            roiRect.set(rect)
-                            hasValidRoi = true
-                        }
-                    }
-                    isDrawing = false
-                }
-                touchState = TouchState.NONE
-                activeHoleIndex = -1
-                invalidate()
-                onRoiChangedListener?.invoke(getRelativeRoi())
-                return true
-            }
-            MotionEvent.ACTION_CANCEL -> {
-                cancelEdit()
-                return true
+            else -> {
+                // The grab moves whichever it holds: a hole, or the main ROI.
+                dragRect(grabTarget, touchState, x - lastX, y - lastY, bounds, MIN_SIZE, isSquareMode())
+                lastX = x
+                lastY = y
             }
         }
-        return super.onTouchEvent(event)
+        invalidate()
+        // A crop being drawn reports itself; the kept ROI is still the old one.
+        val live = if (isDrawing && !isSubtractMode) viewRectToImage(drawnRect(RectF())) else getRelativeRoi()
+        onRoiChangedListener?.invoke(live)
     }
+
+    private fun onUp() {
+        if (isDrawing) keepDrawnRect(drawnRect(RectF()))
+        touchState = TouchState.NONE
+        activeHoleIndex = -1
+        invalidate()
+        onRoiChangedListener?.invoke(getRelativeRoi())
+    }
+
+    /** Keeps a drawn [rect] longer than [MIN_KEPT] either way: a new hole, or a new crop that drops the holes. */
+    private fun keepDrawnRect(rect: RectF) {
+        if (rect.width() <= MIN_KEPT && rect.height() <= MIN_KEPT) return
+        if (isSubtractMode) {
+            // No crop needed: a hole can be punched in the full image.
+            holes.add(Hole(currentMode, rect))
+        } else {
+            holes.clear()
+            roiRect.set(rect)
+            hasValidRoi = true
+        }
+    }
+
+    /** The rect being drawn, normalised so left ≤ right and top ≤ bottom, into [out]. */
+    private fun drawnRect(out: RectF): RectF =
+        out.apply { set(min(startX, endX), min(startY, endY), max(startX, endX), max(startY, endY)) }
 
     private fun isSquareMode() = currentMode == RoiMode.SQUARE
 
-    private var activeHoleIndex = -1 // Tracks which hole you grabbed
-
-    private fun makeSquare(pivotX: Float, pivotY: Float, bounds: RectF, targetRect: RectF) {
-        val currentW = abs(targetRect.right - targetRect.left)
-        val currentH = abs(targetRect.bottom - targetRect.top)
-        val desiredSide = max(currentW, currentH)
-
-        val growLeft = targetRect.left != pivotX && targetRect.left < pivotX
-        val growRight = targetRect.right != pivotX && targetRect.right > pivotX
-        val growTop = targetRect.top != pivotY && targetRect.top < pivotY
-        val growBottom = targetRect.bottom != pivotY && targetRect.bottom > pivotY
-
-        var maxSide = desiredSide
-        if (growLeft) maxSide = min(maxSide, pivotX - bounds.left)
-        if (growRight) maxSide = min(maxSide, bounds.right - pivotX)
-        if (growTop) maxSide = min(maxSide, pivotY - bounds.top)
-        if (growBottom) maxSide = min(maxSide, bounds.bottom - pivotY)
-
-        val finalSide = max(maxSide, minSize)
-        val newLeft = if (growLeft) pivotX - finalSide else pivotX
-        val newRight = if (growRight) pivotX + finalSide else pivotX
-        val newTop = if (growTop) pivotY - finalSide else pivotY
-        val newBottom = if (growBottom) pivotY + finalSide else pivotY
-
-        targetRect.set(
-            newLeft.coerceIn(bounds.left, bounds.right),
-            newTop.coerceIn(bounds.top, bounds.bottom),
-            newRight.coerceIn(bounds.left, bounds.right),
-            newBottom.coerceIn(bounds.top, bounds.bottom),
-        )
-    }
-
-    private fun getTouchState(x: Float, y: Float): TouchState {
-        val slop = 45f // Massive hitboxes for precision resizing
+    /**
+     * What a finger landing at ([x], [y]) takes hold of, noting a grabbed hole
+     * in [activeHoleIndex]. Erase mode grabs holes, topmost first, so a hole
+     * drawn over the crop stays editable; crop mode grabs the crop.
+     */
+    private fun grabAt(x: Float, y: Float): TouchState {
         activeHoleIndex = -1
-
-        // 1. Check Holes First (allows resizing holes drawn over the main ROI)
-        if (isSubtractMode) {
-            for (i in holes.indices.reversed()) {
-                val hr = holes[i].rect
-                if (abs(x - hr.left) < slop && abs(y - hr.top) < slop) {
-                    activeHoleIndex = i
-                    return TouchState.TOP_LEFT
-                }
-                if (abs(x - hr.right) < slop && abs(y - hr.top) < slop) {
-                    activeHoleIndex = i
-                    return TouchState.TOP_RIGHT
-                }
-                if (abs(x - hr.left) < slop && abs(y - hr.bottom) < slop) {
-                    activeHoleIndex = i
-                    return TouchState.BOTTOM_LEFT
-                }
-                if (abs(x - hr.right) < slop && abs(y - hr.bottom) < slop) {
-                    activeHoleIndex = i
-                    return TouchState.BOTTOM_RIGHT
-                }
-                if (hr.contains(x, y)) {
-                    activeHoleIndex = i
-                    return TouchState.CENTER
-                }
-            }
+        if (!isSubtractMode) {
+            return roiRect.takeIf { hasValidRoi }?.let { hitState(it, x, y, HANDLE_SLOP) } ?: TouchState.NONE
         }
-
-        // 2. Check Main ROI Second
-        if (hasValidRoi && !isSubtractMode) {
-            if (abs(x - roiRect.left) < slop && abs(y - roiRect.top) < slop) return TouchState.TOP_LEFT
-            if (abs(x - roiRect.right) < slop && abs(y - roiRect.top) < slop) return TouchState.TOP_RIGHT
-            if (abs(x - roiRect.left) < slop && abs(y - roiRect.bottom) < slop) return TouchState.BOTTOM_LEFT
-            if (abs(x - roiRect.right) < slop && abs(y - roiRect.bottom) < slop) return TouchState.BOTTOM_RIGHT
-            if (roiRect.contains(x, y)) return TouchState.CENTER
-        }
-
-        return TouchState.NONE
+        val grabbed = holes.indices.reversed().asSequence()
+            .mapNotNull { i -> hitState(holes[i].rect, x, y, HANDLE_SLOP)?.let { hit -> i to hit } }
+            .firstOrNull()
+        activeHoleIndex = grabbed?.first ?: -1
+        return grabbed?.second ?: TouchState.NONE
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        // BUG FIX: Don't return early if we have holes but no main ROI!
+        // Holes with no crop still draw: they cut into the full image.
         if (!isDrawing && !hasValidRoi && holes.isEmpty()) return
 
         val layerId = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), dimPaint)
+        drawMainRect(canvas)
+        drawHoles(canvas)
+        canvas.restoreToCount(layerId)
+    }
 
-        // --- 1. DRAW THE MAIN ROI ---
-        // Holes with no explicit crop still mean "full image minus holes". Clear
-        // imageBounds so the specimen stays visible instead of staying fully dimmed.
-        val implicitFullImage = !hasValidRoi && (holes.isNotEmpty() || (isDrawing && isSubtractMode))
-        if (hasValidRoi || (!isSubtractMode && isDrawing) || implicitFullImage) {
-            val drawMainRect = when {
-                !isSubtractMode && isDrawing -> mainRectScratch.apply {
-                    set(min(startX, endX), min(startY, endY), max(startX, endX), max(startY, endY))
-                }
-                hasValidRoi -> roiRect
-                else -> mainRectScratch.apply { set(imageBounds) }
-            }
+    /**
+     * The crop: cleared out of the dim, outlined, and with handles in crop mode.
+     * Holes with no explicit crop still mean "full image minus holes", so the
+     * whole image is cleared then, instead of staying fully dimmed.
+     */
+    private fun drawMainRect(canvas: Canvas) {
+        val rect = shownMainRect() ?: return
+        canvas.drawRect(rect, clearPaint)
+        val outlined = hasValidRoi || (isDrawing && !isSubtractMode)
+        if (outlined) canvas.drawRect(rect, borderPaint)
+        // Main ROI handles show only in crop mode.
+        if (outlined && !isSubtractMode) drawHandles(canvas, rect, CROP_HANDLE_RADIUS, handlePaint)
+    }
 
-            canvas.drawRect(drawMainRect, clearPaint)
-            if (hasValidRoi || (!isSubtractMode && isDrawing)) {
-                canvas.drawRect(drawMainRect, borderPaint)
-            }
-
-            // Draw Main ROI Handles (Only in Add Mode)
-            if (!isSubtractMode && (hasValidRoi || isDrawing)) {
-                val r = 20f
-                canvas.drawCircle(drawMainRect.left, drawMainRect.top, r, handlePaint)
-                canvas.drawCircle(drawMainRect.right, drawMainRect.top, r, handlePaint)
-                canvas.drawCircle(drawMainRect.left, drawMainRect.bottom, r, handlePaint)
-                canvas.drawCircle(drawMainRect.right, drawMainRect.bottom, r, handlePaint)
-            }
+    /** The crop to clear: the one being drawn, the kept one, or the whole image under holes alone; else null. */
+    private fun shownMainRect(): RectF? {
+        val drawingHole = isDrawing && isSubtractMode
+        return when {
+            isDrawing && !isSubtractMode -> drawnRect(mainRectScratch)
+            hasValidRoi -> roiRect
+            holes.isNotEmpty() || drawingHole -> mainRectScratch.apply { set(imageBounds) }
+            else -> null
         }
+    }
 
-        // --- 2. DRAW SAVED HOLES ---
-        // A new crop being drawn drops them when it is kept, so hide them meanwhile.
+    /** The kept holes (hidden while a new crop is drawn, which drops them), then the hole being drawn. */
+    private fun drawHoles(canvas: Canvas) {
         val shownHoles = if (isDrawing && !isSubtractMode) emptyList() else holes
         for (hole in shownHoles) {
             canvas.drawRect(hole.rect, holeFillPaint)
             canvas.drawRect(hole.rect, holeBorderPaint)
-            // Draw handles for holes if we are in Erase mode to show they are editable
-            if (isSubtractMode && !isDrawing) {
-                val r = 15f
-                canvas.drawCircle(hole.rect.left, hole.rect.top, r, handlePaint)
-                canvas.drawCircle(hole.rect.right, hole.rect.top, r, handlePaint)
-                canvas.drawCircle(hole.rect.left, hole.rect.bottom, r, handlePaint)
-                canvas.drawCircle(hole.rect.right, hole.rect.bottom, r, handlePaint)
-            }
+            // In erase mode the handles show that the holes are editable.
+            if (isSubtractMode && !isDrawing) drawHandles(canvas, hole.rect, HOLE_HANDLE_RADIUS, handlePaint)
         }
-
-        // --- 3. DRAW ACTIVE HOLE BEING DRAGGED ---
         if (isDrawing && isSubtractMode) {
-            val activeHoleRect = activeHoleScratch.apply {
-                set(min(startX, endX), min(startY, endY), max(startX, endX), max(startY, endY))
-            }
+            val activeHoleRect = drawnRect(activeHoleScratch)
             canvas.drawRect(activeHoleRect, holeFillPaint)
             canvas.drawRect(activeHoleRect, holeBorderPaint)
         }
-
-        canvas.restoreToCount(layerId)
     }
 
-    fun getRelativeRoi(): RectF {
-        if (imageBounds.isEmpty || imageBounds.width() == 0f) return RectF()
+    fun getRelativeRoi(): RectF = viewRectToImage(roiRect)
 
-        // Use the physical image scale if available, otherwise use preview scale
-        val scale = if (realImageWidth > 0) {
-            realImageWidth.toFloat() / imageBounds.width()
-        } else {
-            (imageView?.drawable?.intrinsicWidth?.toFloat() ?: 1f) / imageBounds.width()
-        }
-
-        return RectF(
-            (roiRect.left - imageBounds.left) * scale,
-            (roiRect.top - imageBounds.top) * scale,
-            (roiRect.right - imageBounds.left) * scale,
-            (roiRect.bottom - imageBounds.top) * scale,
-        )
-    }
-
-    // OOM FIX: Generate Raw ALPHA_8 bytes
+    /** The mask as raw ALPHA_8 bytes: one byte per reference pixel, a quarter of an ARGB mask's memory. */
     fun generateMaskBytes(): ByteArray = StudioOverlayMaskEncoder.encode(maskInput())
 
     /**
@@ -718,8 +478,18 @@ class StudioOverlayView @JvmOverloads constructor(
     )
 
     private companion object {
-        /** Below this finger spread (view px) a pinch only pans. */
-        const val MIN_PINCH_SPAN = 10f
-        const val NO_POINTER = -1
+        /** Smallest side a resize leaves a rect, view px. */
+        const val MIN_SIZE = 50f
+
+        /** A drawn rect is kept once it is longer than this either way, view px. */
+        const val MIN_KEPT = 50f
+
+        /** Massive hitboxes for precision resizing: a corner grabs within this, view px. */
+        const val HANDLE_SLOP = 45f
+        const val CROP_HANDLE_RADIUS = 20f
+        const val HOLE_HANDLE_RADIUS = 15f
+
+        /** Crop and hole outlines, view px. */
+        const val STROKE_WIDTH = 5f
     }
 }

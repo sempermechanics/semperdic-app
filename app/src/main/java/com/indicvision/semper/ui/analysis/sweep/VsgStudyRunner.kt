@@ -1,13 +1,14 @@
 package com.indicvision.semper.ui.analysis.sweep
 
-import com.indicvision.semper.ProgressCallback
 import com.indicvision.semper.SemperNativeLib
 import com.indicvision.semper.data.session.SessionPaths
 import com.indicvision.semper.diagnostics.EngineDebug
 import com.indicvision.semper.report.EngineStats
+import com.indicvision.semper.report.newMetrics
 import com.indicvision.semper.ui.analysis.run.AnalysisRunCodes
 import com.indicvision.semper.ui.analysis.run.DicFieldIo
 import com.indicvision.semper.ui.analysis.run.EngineFailure
+import com.indicvision.semper.ui.analysis.run.SemperEngine
 import com.indicvision.semper.ui.analysis.wizard.AnalysisCancelGate
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
 import timber.log.Timber
@@ -30,12 +31,6 @@ import java.nio.ByteBuffer
  * [SemperNativeLib.nativeDispatcher].
  */
 object VsgStudyRunner {
-
-    /** Outcome code for a user-cancelled sweep. */
-    const val ERROR_CANCELLED = AnalysisRunCodes.ERROR_CANCELLED
-
-    /** Engine returned no usable field for one of the sweep's combinations. */
-    const val ERROR_ENGINE_FAILED = -97
 
     private const val PERCENT = 100
 
@@ -79,7 +74,7 @@ object VsgStudyRunner {
      *   on past them, so this is empty on a clean run and non-empty on a
      *   partial one
      * @param engineErrorCode 0 when at least one combination solved,
-     *   [ERROR_CANCELLED] when the user stopped it, otherwise the engine's own
+     *   [AnalysisRunCodes.ERROR_CANCELLED] when the user stopped it, otherwise the engine's own
      *   negative code from the last attempt. Low convergence is not an error
      *   here — see [run].
      */
@@ -155,10 +150,10 @@ object VsgStudyRunner {
         // whole plan before cancelRequested can flip.
         for ((index, point) in params.plan.withIndex()) {
             if (cancelRequested) break
-            val metrics = newMetrics()
+            val metrics = EngineStats.newMetrics()
             onProgress(Progress(index, total, index * PERCENT / maxOf(1, total), point, 0, -1f))
 
-            val solved = solve(refBytes, defBytes, params, point, buffer, metrics)
+            val solved = SemperEngine.solve(refBytes, defBytes, params.engineParams(point), buffer, metrics)
             // One bad node says nothing about the rest — a small subset can fail
             // where a larger one solves, and the plan starts at the smallest — so
             // skip and keep sweeping rather than abort. skipCodeFor also rejects a
@@ -196,7 +191,7 @@ object VsgStudyRunner {
         // Some combinations failing is a partial success. Only a sweep that
         // produced nothing reports the engine's own code, which says why.
         if (cancelRequested) {
-            errorCode = ERROR_CANCELLED
+            errorCode = AnalysisRunCodes.ERROR_CANCELLED
         } else if (runs.isEmpty() && skipped.isNotEmpty()) {
             errorCode = lastEngineError
         }
@@ -223,10 +218,6 @@ object VsgStudyRunner {
         )
         skipped.add(point)
         skippedCodes.add(engineCode)
-    }
-
-    private fun newMetrics() = FloatArray(EngineStats.SLOT_COUNT).also {
-        it[EngineStats.SLOT_MESH_SEEDING] = EngineStats.MESH_SEEDING_UNKNOWN.toFloat()
     }
 
     /**
@@ -263,26 +254,19 @@ object VsgStudyRunner {
         }
     }
 
-    /** One full-field solve. Returns the engine's point count, negative on failure. */
-    @Suppress("LongParameterList") // mirrors the native signature
-    private fun solve(
-        refBytes: ByteArray,
-        defBytes: ByteArray,
-        params: Params,
-        point: VsgStudy.Point,
-        buffer: ByteBuffer,
-        metrics: FloatArray,
-    ): Int {
-        buffer.clear()
-        val silent = object : ProgressCallback {
-            override fun onProgressUpdate(percentage: Int) = Unit
-        }
-        return SemperNativeLib.computeFullFieldDirect(
-            refBytes, defBytes, params.maskData,
-            params.roiX, params.roiY, params.roiW, params.roiH,
-            point.step, point.subset, point.vsg,
-            params.use6x6,
-            buffer, silent, metrics,
-        )
-    }
+    /**
+     * The engine settings for one full-field solve of [point] over this sweep's
+     * ROI and mask: the point's step, subset and VSG (in px) as the strain window.
+     */
+    internal fun Params.engineParams(point: VsgStudy.Point) = SemperEngine.Params(
+        roiX = roiX,
+        roiY = roiY,
+        roiW = roiW,
+        roiH = roiH,
+        step = point.step,
+        subset = point.subset,
+        strainWindow = point.vsg,
+        maskData = maskData,
+        use6x6 = use6x6,
+    )
 }
