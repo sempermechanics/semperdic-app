@@ -39,7 +39,7 @@ data class ImageSize(val width: Int, val height: Int) {
         /** From a decoder's `width to height`. */
         fun of(pair: Pair<Int, Int>): ImageSize = ImageSize(pair.first, pair.second)
 
-        /** From a `metadata.json` engine object; a missing key reads 0, as `CloudRestore.recordFrom` does. */
+        /** From a `metadata.json` engine object; a missing key reads 0, as `SessionMetadataDoc.toRecord` does. */
         fun fromEngineJson(engine: JSONObject): ImageSize =
             ImageSize(engine.optInt(JSON_WIDTH, 0), engine.optInt(JSON_HEIGHT, 0))
 

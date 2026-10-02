@@ -177,6 +177,22 @@ class DatCodecCorruptInputTest {
         }
     }
 
+    @Test
+    fun `a hostile dat entry merged for Save to Files is a corrupt transfer too`() {
+        val zip = File(tmp.root, "Session.zip")
+        ZipOutputStream(zip.outputStream()).use { out ->
+            out.putNextEntry(ZipEntry("dat/frame_0001.dat"))
+            out.write(archive(pointCount = -1, mode = EXPLICIT) { payload(deflated(ByteArray(0))) })
+            out.closeEntry()
+        }
+
+        val thrown = assertThrows(CorruptTransferException::class.java) {
+            SessionZip.merge(listOf(zip), File(tmp.root, "merged.zip"))
+        }
+        assertTrue(thrown.message, thrown.message == "entry_datcodec_decode_failed")
+        assertTrue("no half-merged archive is left", !File(tmp.root, "merged.zip").exists())
+    }
+
     private companion object {
         const val DENSE = 0
         const val EXPLICIT = 1

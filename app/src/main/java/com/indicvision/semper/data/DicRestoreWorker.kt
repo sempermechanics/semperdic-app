@@ -9,10 +9,9 @@ import com.indicvision.semper.R
 import com.indicvision.semper.data.account.LicenseErrors
 import com.indicvision.semper.data.cloud.TransferNotifications
 import com.indicvision.semper.data.cloud.restore.CloudRestore
+import com.indicvision.semper.data.cloud.restore.DownloadFailure
 import com.indicvision.semper.data.cloud.restore.DownloadProgress
 import com.indicvision.semper.data.cloud.restore.RestoreDownloadOutcomes
-import com.indicvision.semper.data.net.HttpStatus
-import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.diagnostics.SemperAnalytics
 import com.indicvision.semper.navigation.DicKeys
 import kotlinx.coroutines.CancellationException
@@ -79,48 +78,43 @@ class DicRestoreWorker internal constructor(
         } catch (e: CancellationException) {
             clearPartialArtifacts(targetLocalId)
             throw e
-        } catch (e: IndicApi.ApiException) {
-            // 404 = the backup is gone; 403 = not ours. Retrying can't fix either.
-            if (e.code == HttpStatus.NOT_FOUND || e.code == HttpStatus.FORBIDDEN) {
-                clearPartialArtifacts(targetLocalId)
-                Timber.e(e, "Restore of %s rejected — giving up", cloudSessionId)
-                SemperAnalytics.event(
-                    applicationContext,
-                    SemperAnalytics.CLOUD_RESTORE_FAILED,
-                    mapOf("reason" to "rejected"),
-                )
-                failWith(LicenseErrors.restoreMessage(applicationContext, e.body))
-            } else {
-                // Any other status (a 5xx the download's own in-call Range-resume
-                // could not ride out, a 429, …). The next attempt starts the files
-                // over: CloudRestore deletes its cache temps and their *.part
-                // sidecars on the way out, and the session dir is cleared at the top
-                // of doWork. Only after process death (no way out) does the next
-                // attempt resume the bundle from its leftover .part — see
-                // RestoreDownloadOutcomes; the bundle's sha256 catches a bad resume.
-                Timber.w(e, "Restore of %s failed; will retry", cloudSessionId)
-                Result.retry()
-            }
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            if (RestoreDownloadOutcomes.isTerminalFailure(e)) {
+            onFailure(DownloadFailure.of(e), cloudSessionId, targetLocalId)
+        }
+    }
+
+    /**
+     * Give up on a backup no retry can fix, clearing what this attempt wrote, or
+     * retry from scratch. A retry starts the files over: CloudRestore deletes its
+     * cache temps and their `*.part` sidecars on the way out, and the session dir
+     * is cleared at the top of [doWork]. Only after process death (no way out)
+     * does the next attempt resume the bundle from its leftover `.part` — see
+     * [RestoreDownloadOutcomes]; the bundle's sha256 catches a bad resume.
+     */
+    private fun onFailure(failure: DownloadFailure, cloudSessionId: String, targetLocalId: String): Result =
+        when (failure) {
+            is DownloadFailure.Rejected -> {
                 clearPartialArtifacts(targetLocalId)
-                val corrupt = RestoreDownloadOutcomes.isTerminalCorruptFailure(e)
-                Timber.e(e, "Restore of %s cannot succeed — giving up (re-upload needed)", cloudSessionId)
-                SemperAnalytics.event(
-                    applicationContext,
-                    SemperAnalytics.CLOUD_RESTORE_FAILED,
-                    mapOf("reason" to if (corrupt) "corrupt" else "unusable"),
-                )
-                // e.message is a reason code (e.g. session_zip_sha256_mismatch):
+                Timber.e(failure.cause, "Restore of %s rejected — giving up", cloudSessionId)
+                restoreFailed("rejected")
+                failWith(LicenseErrors.restoreMessage(applicationContext, failure.cause.body))
+            }
+            is DownloadFailure.Unusable -> {
+                clearPartialArtifacts(targetLocalId)
+                Timber.e(failure.cause, "Restore of %s cannot succeed — giving up (re-upload needed)", cloudSessionId)
+                restoreFailed(if (failure.corrupt) "corrupt" else "unusable")
+                // The cause's message is a reason code (e.g. session_zip_sha256_mismatch):
                 // logged above, never shown.
                 failWith(applicationContext.getString(R.string.restore_failed_generic))
-            } else {
-                // Transient (network, sign-in, storage). Retried from scratch, as above
-                // (a process death mid-download being the one resume case).
-                Timber.w(e, "Restore of %s failed; will retry", cloudSessionId)
+            }
+            is DownloadFailure.Transient -> {
+                Timber.w(failure.cause, "Restore of %s failed; will retry", cloudSessionId)
                 Result.retry()
             }
         }
+
+    private fun restoreFailed(reason: String) {
+        SemperAnalytics.event(applicationContext, SemperAnalytics.CLOUD_RESTORE_FAILED, mapOf("reason" to reason))
     }
 
     /**

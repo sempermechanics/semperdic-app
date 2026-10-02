@@ -3,6 +3,7 @@ package com.indicvision.semper.cloud
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.data.session.SessionEverythingExporter
+import com.indicvision.semper.data.session.SessionNaming
 import com.indicvision.semper.data.session.SessionPaths
 import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.field.DicResult
@@ -74,14 +75,14 @@ class SessionEverythingExporterTest {
 
     @Test
     fun `entry names keep readable characters and carry an id suffix`() {
-        val name = SessionEverythingExporter.sanitizeZipName("Steel plate A-1_test.v2", "abcdef123456")
+        val name = SessionNaming.exportEntryName("Steel plate A-1_test.v2", "abcdef123456")
 
         assertEquals("Steel_plate_A-1_test.v2_abcdef12", name)
     }
 
     @Test
     fun `path separators and spaces cannot escape the entry name`() {
-        val name = SessionEverythingExporter.sanitizeZipName("../../etc/passwd", "id123456")
+        val name = SessionNaming.exportEntryName("../../etc/passwd", "id123456")
 
         assertTrue("unexpected separators in '$name'", !name.contains('/') && !name.contains('\\'))
         assertEquals(".._.._etc_passwd_id123456", name)
@@ -89,12 +90,12 @@ class SessionEverythingExporterTest {
 
     @Test
     fun `a blank name still produces a usable entry`() {
-        assertEquals("session_id123456", SessionEverythingExporter.sanitizeZipName("   ", "id123456"))
+        assertEquals("session_id123456", SessionNaming.exportEntryName("   ", "id123456"))
     }
 
     @Test
     fun `long names are truncated, keeping the archive entry bounded`() {
-        val name = SessionEverythingExporter.sanitizeZipName("x".repeat(200), "abcdefghij")
+        val name = SessionNaming.exportEntryName("x".repeat(200), "abcdefghij")
 
         // 40 name chars + '_' + 8 id chars.
         assertEquals(49, name.length)

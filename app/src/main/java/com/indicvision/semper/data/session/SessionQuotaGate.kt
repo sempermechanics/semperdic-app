@@ -26,17 +26,15 @@ object SessionQuotaGate {
      * @param existingCount current index size (used as a floor on "used").
      * @return false if the insert must be refused.
      */
-    @Suppress("ReturnCount") // early-outs for disabled / unlimited / full / allow
     fun allowNewSession(context: Context, existingCount: Int): Boolean {
-        if (!IndicApi.get(context).enabled) return true
-        if (LicenseEntitlements.unlimitedAnalysis(context)) return true
+        if (!IndicApi.get(context).enabled || LicenseEntitlements.unlimitedAnalysis(context)) return true
         val max = LicenseEntitlements.analysisCap(context)
         val used = maxOf(TokenStore.quotaUsed(context), existingCount)
-        if (used >= max) {
+        val full = used >= max
+        if (full) {
             TokenStore.refreshSessionLimit(context, existingCount)
             Timber.w("Hard stop: refusing new session (at %d/%d)", used, max)
-            return false
         }
-        return true
+        return !full
     }
 }

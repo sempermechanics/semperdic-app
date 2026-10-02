@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import com.indicvision.semper.SemperNativeLib
 import com.indicvision.semper.data.cloud.CloudSync
+import com.indicvision.semper.field.ImageSize
 import com.indicvision.semper.imaging.BitmapDecode
 import com.indicvision.semper.imaging.ImageEncode
 import com.indicvision.semper.imaging.RawRgba
@@ -14,9 +15,6 @@ import com.indicvision.semper.report.VisualizationEngine
 import com.indicvision.semper.util.AtomicFiles
 import timber.log.Timber
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * Session on-disk persistence helpers extracted from [com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel].
@@ -31,7 +29,7 @@ class SessionRepository {
         width: Int = 0,
         height: Int = 0,
     ): String {
-        val refPngFile = File(sessionDir, "reference.png")
+        val refPngFile = SessionLayout(sessionDir).referencePng
         var refBmp: Bitmap? = null
         try {
             // DNG/RAW imports are stored as headerless RGBA. OpenCV and
@@ -107,12 +105,70 @@ class SessionRepository {
         }.onFailure { Timber.w(it, "Could not persist the sweep's deformed frame") }.getOrDefault("")
     }
 
-    fun defaultSessionName(refFileName: String, now: Long): String {
-        val base = refFileName.substringBeforeLast('.').ifBlank { "Analysis" }
-        val stamp = SimpleDateFormat("MMM d, HH:mm:ss", Locale.US).format(Date(now))
-        return "$base · $stamp"
+    /**
+     * The index row for a run saved into [input]'s session: [outcome]'s frames
+     * and metrics under [input]'s settings, PENDING upload when [cloudEnabled].
+     * A re-run keeps the row's creation time, and the user's name if they gave
+     * one; otherwise the auto-name is regenerated for this run.
+     */
+    fun buildSessionRecord(
+        appContext: Context,
+        input: RunInput,
+        outcome: RunOutcome,
+        cloudEnabled: Boolean,
+    ): SessionRecord {
+        val now = System.currentTimeMillis()
+        val existing = SessionStore.get(appContext, input.localSessionId)
+        val createdAt = existing?.createdAt ?: now
+        val settings = input.settings
+        val metrics = outcome.metrics
+        val convergence = metrics.engineStats.getOrNull(EngineStats.SLOT_CONVERGENCE) ?: 0f
+        // Regenerate the auto-name for THIS run's kind (single here), keyed to the
+        // original createdAt so re-runs don't churn the timestamp — but never
+        // override a name the user set themselves.
+        val autoName = if (existing?.renamedByUser == true) {
+            existing.name
+        } else {
+            SessionNaming.defaultSessionName(input.reference.name, createdAt)
+        }
+        return SessionRecord(
+            id = input.localSessionId,
+            name = autoName,
+            createdAt = createdAt,
+            renamedByUser = existing?.renamedByUser ?: false,
+            updatedAt = now,
+            frameCount = outcome.frameCount,
+            subset = settings.subset,
+            step = settings.step,
+            strainWindow = settings.strainWin,
+            use6x6 = settings.use6x6,
+            imgW = input.reference.size.width,
+            imgH = input.reference.size.height,
+            roiX = settings.roiX,
+            roiY = settings.roiY,
+            roiW = settings.roiW,
+            roiH = settings.roiH,
+            refPath = input.reference.pngPath,
+            refName = input.reference.name,
+            sessionDir = input.dir.absolutePath,
+            defNames = outcome.defNames,
+            headline = SessionHeadline.firstFrameConvergence(convergence, outcome.defNames.size),
+            engineStats = metrics.engineStats,
+            stopCode = outcome.stopCode,
+            plannedFrameCount = outcome.plannedFrameCount,
+            strainMethod = "VSG",
+            pointsConverged = metrics.pointsConverged,
+            avgIterations = metrics.avgIterations,
+            executionTimeMs = metrics.executionTimeMs,
+            syncState = if (cloudEnabled) SessionRecord.SyncState.PENDING else SessionRecord.SyncState.LOCAL_ONLY,
+        )
     }
 
+    /**
+     * [buildSessionRecord] from the run's values one by one, as the batch and
+     * sweep runners call it today. Delete once they build [RunInput] and
+     * [RunOutcome] themselves.
+     */
     @Suppress("LongParameterList")
     fun buildSessionRecord(
         appContext: Context,
@@ -132,51 +188,23 @@ class SessionRepository {
         engineStatsArray: FloatArray?,
         stopCode: Int = 0,
         plannedFrameCount: Int = 0,
-    ): SessionRecord {
-        val now = System.currentTimeMillis()
-        val existing = SessionStore.get(appContext, localSessionId)
-        val createdAt = existing?.createdAt ?: now
-        val convergence = engineStatsArray?.getOrNull(EngineStats.SLOT_CONVERGENCE) ?: 0f
-        // Regenerate the auto-name for THIS run's kind (single here), keyed to the
-        // original createdAt so re-runs don't churn the timestamp — but never
-        // override a name the user set themselves.
-        val autoName = if (existing?.renamedByUser == true) {
-            existing.name
-        } else {
-            defaultSessionName(refName, createdAt)
-        }
-        return SessionRecord(
-            id = localSessionId,
-            name = autoName,
-            createdAt = createdAt,
-            renamedByUser = existing?.renamedByUser ?: false,
-            updatedAt = now,
+    ): SessionRecord = buildSessionRecord(
+        appContext,
+        RunInput(
+            localSessionId = localSessionId,
+            dir = batchDir,
+            reference = RunReference(refPngPath, refName, ImageSize(realRefWidth, realRefHeight)),
+            settings = settings,
+        ),
+        RunOutcome(
             frameCount = frameCount,
-            subset = settings.subset,
-            step = settings.step,
-            strainWindow = settings.strainWin,
-            use6x6 = settings.use6x6,
-            imgW = realRefWidth,
-            imgH = realRefHeight,
-            roiX = settings.roiX,
-            roiY = settings.roiY,
-            roiW = settings.roiW,
-            roiH = settings.roiH,
-            refPath = refPngPath,
-            refName = refName,
-            sessionDir = batchDir.absolutePath,
             defNames = defNames,
-            headline = SessionHeadline.firstFrameConvergence(convergence, defNames.size),
-            engineStats = engineStatsArray?.toList() ?: emptyList(),
+            metrics = RunMetrics(pointsConverged, avgIterations, executionTimeMs, engineStatsArray?.toList().orEmpty()),
             stopCode = stopCode,
             plannedFrameCount = plannedFrameCount,
-            strainMethod = "VSG",
-            pointsConverged = pointsConverged,
-            avgIterations = avgIterations,
-            executionTimeMs = executionTimeMs,
-            syncState = if (cloudEnabled) SessionRecord.SyncState.PENDING else SessionRecord.SyncState.LOCAL_ONLY,
-        )
-    }
+        ),
+        cloudEnabled,
+    )
 
     /**
      * Persist [record] via [SessionStore.upsert] and optionally enqueue a cloud
@@ -205,4 +233,34 @@ data class SessionRecordSettings(
     val roiW: Int,
     val roiH: Int,
     val use6x6: Boolean,
+)
+
+/** The reference a run is saved with: its display copy, its original file name and its real size. */
+data class RunReference(val pngPath: String, val name: String, val size: ImageSize)
+
+/** Where a run is saved and what it ran on: the session's id and directory, its reference, its settings. */
+data class RunInput(
+    val localSessionId: String,
+    val dir: File,
+    val reference: RunReference,
+    val settings: SessionRecordSettings,
+)
+
+/** The first frame's engine metrics and the run's time, as the session row keeps them. */
+data class RunMetrics(
+    val pointsConverged: Int,
+    val avgIterations: Float,
+    val executionTimeMs: Int,
+    /** The first frame's telemetry slots ([EngineStats]). */
+    val engineStats: List<Float>,
+)
+
+/** What a run produced: how many frames it solved, of which deformed images, and why it stopped. */
+data class RunOutcome(
+    val frameCount: Int,
+    val defNames: List<String>,
+    val metrics: RunMetrics,
+    /** The run's stop code; 0 when it ran to completion. */
+    val stopCode: Int = 0,
+    val plannedFrameCount: Int = 0,
 )

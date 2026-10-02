@@ -10,6 +10,12 @@ import java.util.Locale
  * upload ([DicUploadWorker]), and restore ([CloudRestore]).
  */
 object SessionPaths {
+    /** `filesDir` subfolder holding every session directory and the index. */
+    const val SESSIONS_ROOT = "sessions"
+
+    /** The session index behind the Home list, in [SESSIONS_ROOT] (`SessionStore`). */
+    const val INDEX_JSON = "index.json"
+
     /** Session-dir subfolder holding the persisted raw deformed originals. */
     const val RAW_DEFORMED_SUBDIR = "raw_deformed"
 

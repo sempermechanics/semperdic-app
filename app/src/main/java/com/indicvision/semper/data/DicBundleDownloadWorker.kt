@@ -1,13 +1,7 @@
-// Bundle download worker: doWork is one linear fetch-and-write flow with an early
-// exit or throw per failure mode; its length and branching are inherent.
-@file:Suppress("LongMethod", "ReturnCount", "ThrowsCount", "CyclomaticComplexMethod")
-
 package com.indicvision.semper.data
 
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import android.provider.DocumentsContract
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
@@ -15,14 +9,16 @@ import androidx.work.workDataOf
 import com.indicvision.semper.data.cloud.TransferLog
 import com.indicvision.semper.data.cloud.TransferNotifications
 import com.indicvision.semper.data.cloud.restore.CloudRestore
+import com.indicvision.semper.data.cloud.restore.DownloadFailure
 import com.indicvision.semper.data.cloud.restore.DownloadProgress
 import com.indicvision.semper.data.cloud.restore.RestoreDownloadOutcomes
-import com.indicvision.semper.data.net.HttpStatus
-import com.indicvision.semper.data.net.IndicApi
+import com.indicvision.semper.data.cloud.restore.SafDestination
+import com.indicvision.semper.data.net.ApiException
 import com.indicvision.semper.data.session.SessionEverythingExporter
 import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.diagnostics.SemperAnalytics
 import com.indicvision.semper.navigation.DicKeys
+import com.indicvision.semper.util.suspendRunCatching
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -71,105 +67,88 @@ class DicBundleDownloadWorker internal constructor(
             ?: return@withContext Result.failure()
         val displayName = inputData.getString(KEY_DISPLAY_NAME).orEmpty()
         val localSessionId = inputData.getString(KEY_LOCAL_SESSION_ID).orEmpty()
-        val destUri = inputData.getString(KEY_DEST_URI)?.let(Uri::parse)
+        val dest = inputData.getString(KEY_DEST_URI)?.let { SafDestination(applicationContext, Uri.parse(it)) }
             ?: return@withContext fail("no_dest")
 
         var staged: File? = null
+        // A retry writes to the same document, so it keeps the grant.
         var releaseGrant = true
         try {
             publishProgress(done = 0L, total = 0L)
-            SemperAnalytics.event(
-                applicationContext,
-                SemperAnalytics.EXPORT_STARTED,
-                mapOf("kind" to "bundle_download"),
-            )
-            TransferLog.phase(TransferLog.PhaseFields("bundle_download", "start"))
+            SemperAnalytics.event(applicationContext, SemperAnalytics.EXPORT_STARTED, mapOf("kind" to KIND))
+            TransferLog.phase(TransferLog.PhaseFields(PHASE, "start"))
             staged = downloadOrPack(cloudSessionId, displayName, localSessionId)
-            if (!staged.exists() || staged.length() <= 0L) {
-                SemperAnalytics.event(
-                    applicationContext,
-                    SemperAnalytics.EXPORT_FAILED,
-                    mapOf("kind" to "bundle_download", "reason" to "empty"),
-                )
-                deleteDestDocument(destUri)
-                return@withContext fail("empty")
-            }
-            if (!copyToDest(staged, destUri)) {
-                SemperAnalytics.event(
-                    applicationContext,
-                    SemperAnalytics.EXPORT_FAILED,
-                    mapOf("kind" to "bundle_download", "reason" to "write"),
-                )
-                deleteDestDocument(destUri)
-                return@withContext fail("write")
-            }
-            SemperAnalytics.event(
-                applicationContext,
-                SemperAnalytics.EXPORT_COMPLETED,
-                mapOf("kind" to "bundle_download"),
-            )
-            TransferLog.phase(TransferLog.PhaseFields("bundle_download", "complete"))
-            Result.success(workDataOf(CloudRestore.KEY_CLOUD_SESSION_ID to cloudSessionId))
+            deliver(staged, dest, cloudSessionId)
         } catch (e: CancellationException) {
-            deleteDestDocument(destUri)
+            dest.delete()
             throw e
-        } catch (e: IndicApi.ApiException) {
-            if (e.code == HttpStatus.NOT_FOUND || e.code == HttpStatus.FORBIDDEN) {
-                Timber.e(e, "Bundle download rejected — giving up")
-                TransferLog.phase(
-                    TransferLog.PhaseFields(
-                        phase = "bundle_download",
-                        outcome = "rejected",
-                        httpStatus = e.code,
-                        requestId = e.requestId,
-                    ),
-                )
-                SemperAnalytics.event(
-                    applicationContext,
-                    SemperAnalytics.EXPORT_FAILED,
-                    mapOf("kind" to "bundle_download", "reason" to "rejected"),
-                )
-                deleteDestDocument(destUri)
-                // The body, not the message: LicenseErrors parses the `detail` code
-                // out of it to say *why* (demo mode) instead of "check your connection".
-                fail(e.body)
-            } else {
-                Timber.w(e, "Bundle download failed; will retry")
-                TransferLog.phase(
-                    TransferLog.PhaseFields(
-                        phase = "bundle_download",
-                        outcome = "retry",
-                        httpStatus = e.code,
-                        requestId = e.requestId,
-                    ),
-                )
-                releaseGrant = false
-                Result.retry()
-            }
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            if (RestoreDownloadOutcomes.isTerminalFailure(e)) {
-                // Corrupt bytes, or a backup with nothing to download and no copy on
-                // this phone to pack instead (see downloadOrPack): no retry can help.
-                val reason = if (RestoreDownloadOutcomes.isTerminalCorruptFailure(e)) "corrupt" else "unusable"
-                Timber.e(e, "Bundle download cannot succeed (%s) — giving up", reason)
-                TransferLog.phase(TransferLog.PhaseFields("bundle_download", reason))
-                SemperAnalytics.event(
-                    applicationContext,
-                    SemperAnalytics.EXPORT_FAILED,
-                    mapOf("kind" to "bundle_download", "reason" to reason),
-                )
-                deleteDestDocument(destUri)
-                fail(e.message ?: e.javaClass.simpleName)
-            } else {
-                Timber.w(e, "Bundle download failed; will retry")
-                TransferLog.phase(TransferLog.PhaseFields("bundle_download", "retry"))
-                releaseGrant = false
-                Result.retry()
-            }
+            val failure = DownloadFailure.of(e)
+            releaseGrant = failure !is DownloadFailure.Transient
+            onFailure(failure, dest)
         } finally {
             staged?.delete()
-            if (releaseGrant) releaseDestGrant(destUri)
+            if (releaseGrant) dest.releaseGrant()
         }
+    }
+
+    /** Copies [staged] into [dest]; an empty archive or a failed write removes the document instead. */
+    private fun deliver(staged: File, dest: SafDestination, cloudSessionId: String): Result {
+        val problem = when {
+            !staged.exists() || staged.length() <= 0L -> "empty"
+            !dest.write(staged) -> "write"
+            else -> null
+        }
+        if (problem != null) {
+            exportFailed(problem)
+            dest.delete()
+            return fail(problem)
+        }
+        SemperAnalytics.event(applicationContext, SemperAnalytics.EXPORT_COMPLETED, mapOf("kind" to KIND))
+        TransferLog.phase(TransferLog.PhaseFields(PHASE, "complete"))
+        return Result.success(workDataOf(CloudRestore.KEY_CLOUD_SESSION_ID to cloudSessionId))
+    }
+
+    /** Give up, removing the empty document, or retry into the same document. */
+    private fun onFailure(failure: DownloadFailure, dest: SafDestination): Result = when (failure) {
+        is DownloadFailure.Rejected -> {
+            val e = failure.cause
+            Timber.e(e, "Bundle download rejected — giving up")
+            TransferLog.phase(
+                TransferLog.PhaseFields(PHASE, "rejected", httpStatus = e.code, requestId = e.requestId),
+            )
+            exportFailed("rejected")
+            dest.delete()
+            // The body, not the message: LicenseErrors parses the `detail` code
+            // out of it to say *why* (demo mode) instead of "check your connection".
+            fail(e.body)
+        }
+        is DownloadFailure.Unusable -> {
+            // Corrupt bytes, or a backup with nothing to download and no copy on
+            // this phone to pack instead (see downloadOrPack): no retry can help.
+            val reason = if (failure.corrupt) "corrupt" else "unusable"
+            Timber.e(failure.cause, "Bundle download cannot succeed (%s) — giving up", reason)
+            TransferLog.phase(TransferLog.PhaseFields(PHASE, reason))
+            exportFailed(reason)
+            dest.delete()
+            fail(failure.cause.message ?: failure.cause.javaClass.simpleName)
+        }
+        is DownloadFailure.Transient -> {
+            Timber.w(failure.cause, "Bundle download failed; will retry")
+            val api = failure.api
+            TransferLog.phase(
+                TransferLog.PhaseFields(PHASE, "retry", httpStatus = api?.code, requestId = api?.requestId),
+            )
+            Result.retry()
+        }
+    }
+
+    private fun exportFailed(reason: String) {
+        SemperAnalytics.event(
+            applicationContext,
+            SemperAnalytics.EXPORT_FAILED,
+            mapOf("kind" to KIND, "reason" to reason),
+        )
     }
 
     /**
@@ -195,58 +174,27 @@ class DicBundleDownloadWorker internal constructor(
         cloudSessionId: String,
         displayName: String,
         localSessionId: String,
-    ): File {
-        try {
-            return source.download(
-                applicationContext,
-                cloudSessionId,
-                displayName,
-            ) { done, total -> publishProgress(done, total) }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: IndicApi.ApiException) {
-            throw e
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            if (RestoreDownloadOutcomes.isTerminalCorruptFailure(e)) throw e
-            val packed = packLocalFallback(localSessionId)
-            if (packed != null) {
-                Timber.i(e, "Cloud zip unavailable; packed local session fallback")
-                return packed
-            }
-            throw e
-        }
+    ): File = suspendRunCatching {
+        source.download(applicationContext, cloudSessionId, displayName) { done, total -> publishProgress(done, total) }
+    }.getOrElse { e ->
+        val packed = if (mayPackInstead(e)) packLocalFallback(localSessionId) else null
+        packed?.also { Timber.i(e, "Cloud zip unavailable; packed local session fallback") } ?: throw e
     }
 
+    /**
+     * Whether the phone's copy may stand in for the cloud zip after [e]: not
+     * for a backend answer (it says why) nor corrupt bytes (they are reported,
+     * not hidden).
+     */
+    private fun mayPackInstead(e: Throwable): Boolean =
+        e is Exception && e !is ApiException && !RestoreDownloadOutcomes.isTerminalCorruptFailure(e)
+
     private suspend fun packLocalFallback(localSessionId: String): File? {
-        if (localSessionId.isBlank()) return null
-        val record = SessionStore.get(applicationContext, localSessionId)
+        val record = localSessionId.takeIf { it.isNotBlank() }
+            ?.let { SessionStore.get(applicationContext, it) }
             ?.takeIf { it.hasLocalData() }
             ?: return null
         return SessionEverythingExporter.exportSessionZip(applicationContext, record)
-    }
-
-    private fun copyToDest(file: File, destUri: Uri): Boolean =
-        runCatching {
-            val copied = applicationContext.contentResolver.openOutputStream(destUri)?.use { out ->
-                file.inputStream().use { it.copyTo(out) }
-            } ?: 0L
-            copied > 0L
-        }.onFailure { Timber.e(it, "Write Session.zip to destination failed") }
-            .getOrDefault(false)
-
-    private fun deleteDestDocument(destUri: Uri) {
-        runCatching {
-            DocumentsContract.deleteDocument(applicationContext.contentResolver, destUri)
-        }.onFailure { Timber.w(it, "Could not delete empty destination document") }
-    }
-
-    private fun releaseDestGrant(destUri: Uri) {
-        runCatching {
-            applicationContext.contentResolver.releasePersistableUriPermission(
-                destUri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-            )
-        }.onFailure { Timber.w(it, "Could not release destination URI grant") }
     }
 
     private suspend fun publishProgress(done: Long, total: Long) {
@@ -254,6 +202,12 @@ class DicBundleDownloadWorker internal constructor(
     }
 
     companion object {
+        /** The `kind` this worker's analytics events carry. */
+        private const val KIND = "bundle_download"
+
+        /** The `TransferLog` phase this worker logs under. */
+        private const val PHASE = "bundle_download"
+
         const val KEY_DISPLAY_NAME = "DISPLAY_NAME"
         const val KEY_LOCAL_SESSION_ID = "LOCAL_SESSION_ID"
         const val KEY_DEST_URI = "DEST_URI"

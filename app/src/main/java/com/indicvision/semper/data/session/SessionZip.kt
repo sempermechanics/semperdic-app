@@ -1,11 +1,12 @@
-@file:Suppress("TooManyFunctions")
-
 package com.indicvision.semper.data.session
 
 import com.indicvision.semper.data.cloud.CorruptTransferException
 import com.indicvision.semper.data.net.ArtifactRoles
 import com.indicvision.semper.util.AtomicFiles
 import com.indicvision.semper.util.Digests
+import com.indicvision.semper.util.Zips
+import com.indicvision.semper.util.crc32
+import com.indicvision.semper.util.writeVia
 import timber.log.Timber
 import java.io.BufferedOutputStream
 import java.io.File
@@ -13,7 +14,6 @@ import java.io.IOException
 import java.io.InputStream
 import java.security.DigestOutputStream
 import java.util.Locale
-import java.util.zip.CRC32
 import java.util.zip.Deflater
 import java.util.zip.ZipEntry
 import java.util.zip.ZipException
@@ -116,21 +116,13 @@ internal object SessionZip {
         encodeDatEntries: Boolean = false,
     ): String {
         require(members.isNotEmpty()) { "Session.zip payload is empty" }
-        val tmp = File(out.parentFile, "${out.name}.tmp")
-        tmp.delete()
         val digest = Digests.sha256()
-        var promoted = false
-        try {
+        AtomicFiles.writeVia(out, tmp = File(out.parentFile, "${out.name}.tmp"), clearDest = true) { tmp ->
             val storedCrcs = writeArchive(tmp, members, digest, onBytes, encodeDatEntries)
             verifyRoundTrip(tmp, members, encodeDatEntries, storedCrcs)
-            val hex = Digests.toHex(digest.digest())
-            promote(tmp, out)
-            promoted = true
-            Timber.i("Bundled %d artifacts into %s (%d bytes)", members.size, out.name, out.length())
-            return hex
-        } finally {
-            if (!promoted) tmp.delete()
         }
+        Timber.i("Bundled %d artifacts into %s (%d bytes)", members.size, out.name, out.length())
+        return Digests.toHex(digest.digest())
     }
 
     /**
@@ -177,20 +169,13 @@ internal object SessionZip {
      */
     fun merge(sources: List<File>, out: File) {
         require(sources.isNotEmpty()) { "merge needs at least one source" }
-        val tmp = File(out.parentFile, "${out.name}.merge")
-        tmp.delete()
-        var promoted = false
-        try {
+        AtomicFiles.writeVia(out, tmp = File(out.parentFile, "${out.name}.merge"), clearDest = true) { tmp ->
             ZipOutputStream(BufferedOutputStream(tmp.outputStream())).use { zos ->
                 val seen = HashSet<String>()
                 for (source in sources) {
                     copyEntriesInto(source, zos, seen)
                 }
             }
-            promote(tmp, out)
-            promoted = true
-        } finally {
-            if (!promoted) tmp.delete()
         }
     }
 
@@ -211,8 +196,8 @@ internal object SessionZip {
             // Save to Files hands the user a real, directly-usable session archive —
             // a DatCodec-encoded .dat inside it would not be a valid .dat to anything
             // outside this app, so decode it back to the real layout on the way out.
-            val decoded = DatCodec.decodeIfEncoded(from.getInputStream(entry).use { it.readBytes() })
-            putStoredBytes(zos, entry.name, decoded) {}
+            // A payload that will not decode is a corrupt transfer, as on restore.
+            Zips.putStoredBytes(zos, entry.name, decodeDatEntryOrThrow(from, entry))
             return
         }
         val copy = ZipEntry(entry.name).apply {
@@ -227,11 +212,6 @@ internal object SessionZip {
         zos.putNextEntry(copy)
         from.getInputStream(entry).use { it.copyTo(zos) }
         zos.closeEntry()
-    }
-
-    private fun promote(tmp: File, out: File) {
-        out.delete()
-        AtomicFiles.promote(tmp, out)
     }
 
     private fun readEntry(
@@ -297,92 +277,13 @@ internal object SessionZip {
     ) {
         val entryName = entryName(member.role, member.name)
         if (encodeDatEntries && isDatEntry(member.name)) {
-            storedCrcs[entryName] = putStoredBytes(zip, entryName, DatCodec.encode(member.file.readBytes()), onBytes)
+            storedCrcs[entryName] =
+                Zips.putStoredBytes(zip, entryName, DatCodec.encode(member.file.readBytes()), onBytes)
         } else if (shouldStore(member.name)) {
-            storedCrcs[entryName] = putStored(zip, entryName, member.file, onBytes)
+            storedCrcs[entryName] = Zips.putStored(zip, entryName, member.file, onBytes)
         } else {
-            putDeflated(zip, entryName, member.file, onBytes)
-        }
-    }
-
-    /**
-     * Store already-in-memory bytes (a [DatCodec]-encoded `.dat`, or a decoded one on
-     * the [merge] path) as a `STORED` entry. Does not itself compress — the bytes are
-     * whatever the caller already produced.
-     */
-    private fun putStoredBytes(
-        zip: ZipOutputStream,
-        entryName: String,
-        bytes: ByteArray,
-        onBytes: (Long) -> Unit,
-    ): Long {
-        val crc = CRC32().apply { update(bytes) }
-        val entry = ZipEntry(entryName).apply {
-            method = ZipEntry.STORED
-            size = bytes.size.toLong()
-            compressedSize = bytes.size.toLong()
-            this.crc = crc.value
-        }
-        zip.putNextEntry(entry)
-        zip.write(bytes)
-        zip.closeEntry()
-        onBytes(bytes.size.toLong())
-        return crc.value
-    }
-
-    private fun putStored(
-        zip: ZipOutputStream,
-        entryName: String,
-        file: File,
-        onBytes: (Long) -> Unit,
-    ): Long {
-        val crc = CRC32()
-        val buf = ByteArray(COPY_BUFFER)
-        file.inputStream().use { input ->
-            while (true) {
-                val n = input.read(buf)
-                if (n < 0) break
-                crc.update(buf, 0, n)
-            }
-        }
-        val entry = ZipEntry(entryName).apply {
-            method = ZipEntry.STORED
-            size = file.length()
-            compressedSize = file.length()
-            this.crc = crc.value
-        }
-        zip.putNextEntry(entry)
-        copyReporting(file, zip, buf, onBytes)
-        zip.closeEntry()
-        return crc.value
-    }
-
-    private fun putDeflated(
-        zip: ZipOutputStream,
-        entryName: String,
-        file: File,
-        onBytes: (Long) -> Unit,
-    ) {
-        zip.setLevel(Deflater.DEFAULT_COMPRESSION)
-        val entry = ZipEntry(entryName).apply { method = ZipEntry.DEFLATED }
-        zip.putNextEntry(entry)
-        copyReporting(file, zip, ByteArray(COPY_BUFFER), onBytes)
-        zip.closeEntry()
-    }
-
-    private fun copyReporting(
-        file: File,
-        zip: ZipOutputStream,
-        buf: ByteArray,
-        onBytes: (Long) -> Unit,
-    ) {
-        file.inputStream().use { input ->
-            while (true) {
-                val n = input.read(buf)
-                if (n < 0) break
-                zip.write(buf, 0, n)
-                onBytes(n.toLong())
-            }
+            zip.setLevel(Deflater.DEFAULT_COMPRESSION)
+            Zips.putFile(zip, entryName, member.file, onBytes)
         }
     }
 
@@ -436,7 +337,7 @@ internal object SessionZip {
             // algorithm the zip format itself uses to catch accidental byte
             // corruption, which is the only threat model here (this promotes a
             // local file we just wrote, not data received from an untrusted party).
-            val expectCrc = storedCrcs[name] ?: crc32(member.file)
+            val expectCrc = storedCrcs[name] ?: member.file.crc32()
             check(entry.crc == expectCrc) {
                 "Session.zip entry $name round-trip CRC mismatch after bundling " +
                     "(archive=${entry.crc}, source=$expectCrc)"
@@ -449,19 +350,4 @@ internal object SessionZip {
             "Session.zip entry $name round-trip hash mismatch after bundling"
         }
     }
-
-    private fun crc32(file: File): Long {
-        val crc = CRC32()
-        val buf = ByteArray(COPY_BUFFER)
-        file.inputStream().use { input ->
-            while (true) {
-                val n = input.read(buf)
-                if (n < 0) break
-                crc.update(buf, 0, n)
-            }
-        }
-        return crc.value
-    }
-
-    private const val COPY_BUFFER = 1 shl 16
 }

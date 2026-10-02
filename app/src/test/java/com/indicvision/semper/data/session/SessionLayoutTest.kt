@@ -2,7 +2,7 @@ package com.indicvision.semper.data.session
 
 import com.indicvision.semper.data.cloud.UploadErrors
 import com.indicvision.semper.data.cloud.UploadWorkOutcomes
-import com.indicvision.semper.data.cloud.restore.CloudRestore
+import com.indicvision.semper.data.cloud.restore.RestoreUnpacker
 import com.indicvision.semper.report.FieldRangesStore
 import com.indicvision.semper.util.Digests
 import org.junit.Assert.assertEquals
@@ -44,14 +44,14 @@ class SessionLayoutTest {
 
     @Test
     fun `restore lands each role where the layout says`() {
-        val restore = CloudRestore.Layout(sessionDir, layout.rawDeformedDir.apply { mkdirs() })
+        val restore = layout.apply { rawDeformedDir.mkdirs() }
 
-        assertEquals(layout.referencePng, CloudRestore.destFor("raw", SessionZip.REFERENCE_NAME, restore))
-        assertEquals(layout.rawDeformed("def_1.png"), CloudRestore.destFor("raw", "def_1.png", restore))
-        assertEquals(File(layout.reportsDir, "r.pdf"), CloudRestore.destFor("reports", "r.pdf", restore))
-        val heatmap = CloudRestore.destFor("processed", "Frame_1/u.png", restore)
+        assertEquals(layout.referencePng, RestoreUnpacker.destFor("raw", SessionZip.REFERENCE_NAME, restore))
+        assertEquals(layout.rawDeformed("def_1.png"), RestoreUnpacker.destFor("raw", "def_1.png", restore))
+        assertEquals(File(layout.reportsDir, "r.pdf"), RestoreUnpacker.destFor("reports", "r.pdf", restore))
+        val heatmap = RestoreUnpacker.destFor("processed", "Frame_1/u.png", restore)
         assertEquals(File(layout.processedDir, "Frame_1/u.png"), heatmap)
-        assertEquals(layout.frameDat(0), CloudRestore.destFor("dat", "frame_0000.dat", restore))
+        assertEquals(layout.frameDat(0), RestoreUnpacker.destFor("dat", "frame_0000.dat", restore))
     }
 
     @Test

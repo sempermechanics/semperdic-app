@@ -5,6 +5,10 @@ import androidx.annotation.WorkerThread
 import androidx.core.content.edit
 import androidx.work.WorkManager
 import com.indicvision.semper.data.DicRestoreWorker
+import com.indicvision.semper.data.prefs.PrefFiles
+import com.indicvision.semper.data.prefs.get
+import com.indicvision.semper.data.prefs.privatePrefs
+import com.indicvision.semper.data.prefs.put
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SessionStore
 import timber.log.Timber
@@ -45,13 +49,23 @@ object RestoreStart {
      * the link behind. Writes the index, so call it off the main thread.
      */
     @WorkerThread
-    @Suppress("ReturnCount")
-    fun start(context: Context, cloudSessionId: String, targetLocalId: String, name: String): Result {
-        if (cloudSessionId.isBlank()) return Result.FAILED
-        if (isRunning(context, cloudSessionId)) return Result.ALREADY_RUNNING
-        val existing = SessionStore.get(context, targetLocalId)
-        // Restore is only offered when the phone has no frames for this row.
-        if (existing?.hasLocalData() == true) return Result.FAILED
+    fun start(context: Context, cloudSessionId: String, targetLocalId: String, name: String): Result = when {
+        cloudSessionId.isBlank() -> Result.FAILED
+        isRunning(context, cloudSessionId) -> Result.ALREADY_RUNNING
+        else -> {
+            val existing = SessionStore.get(context, targetLocalId)
+            // Restore is only offered when the phone has no frames for this row.
+            if (existing?.hasLocalData() == true) {
+                Result.FAILED
+            } else {
+                writeRowAndEnqueue(context, Target(cloudSessionId, targetLocalId, name), existing)
+            }
+        }
+    }
+
+    /** [start]'s row write and queueing; the row is put back as it was if the queueing fails. */
+    private fun writeRowAndEnqueue(context: Context, target: Target, existing: SessionRecord?): Result {
+        val (cloudSessionId, targetLocalId, name) = target
         val now = System.currentTimeMillis()
         val row = existing?.let { restoredRow(it, cloudSessionId, name, now) }
             ?: newRow(context, cloudSessionId, targetLocalId, name, now)
@@ -131,21 +145,19 @@ object RestoreStart {
  */
 object RestoreFailureLedger {
 
-    private const val PREFS = "indic_restore_outcomes"
-    private const val KEY = "announced"
-
     /** Well past the number of restore jobs WorkManager can still be holding. */
     private const val MAX_REMEMBERED = 64
 
     /** True the first time [workId] is claimed, on any screen; false after that. */
     @Synchronized
     fun claim(context: Context, workId: UUID): Boolean {
-        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val seen = prefs.getString(KEY, "").orEmpty().split(',').filter { it.isNotBlank() }
+        val prefs = privatePrefs(context, PrefFiles.RestoreOutcomes.NAME)
+        val announced = PrefFiles.RestoreOutcomes.ANNOUNCED
+        val seen = prefs[announced].split(',').filter { it.isNotBlank() }
         val id = workId.toString()
         if (id in seen) return false
         val next = (seen + id).takeLast(MAX_REMEMBERED)
-        prefs.edit { putString(KEY, next.joinToString(",")) }
+        prefs.edit { put(announced, next.joinToString(",")) }
         return true
     }
 }

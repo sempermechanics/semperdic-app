@@ -7,6 +7,7 @@ package com.indicvision.semper.data.session
 import android.content.Context
 import com.indicvision.semper.data.cloud.SessionUploadBundler
 import com.indicvision.semper.util.AtomicFiles
+import com.indicvision.semper.util.Zips
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -16,7 +17,6 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 /**
@@ -60,10 +60,8 @@ object SessionEverythingExporter {
                     // banner's Cancel) is only seen here, between sessions.
                     ensureActive()
                     buildSessionEverythingZip(app, record, stagingRoot, index, ts)?.let { sessionZip ->
-                        val entryName = sanitizeZipName(record.name, record.id) + ".zip"
-                        masterZip.putNextEntry(ZipEntry(entryName))
-                        sessionZip.inputStream().use { it.copyTo(masterZip) }
-                        masterZip.closeEntry()
+                        val entryName = SessionNaming.exportEntryName(record.name, record.id) + ".zip"
+                        Zips.putFile(masterZip, entryName, sessionZip)
                         sessionZip.delete()
                     }
                     onProgress(index + 1, sessions.size)
@@ -100,13 +98,11 @@ object SessionEverythingExporter {
         val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         val stagingRoot = File(outDir, "export_one_$ts").apply { mkdirs() }
         try {
-            buildSessionEverythingZip(app, record, stagingRoot, 0, ts)?.also { built ->
-                val named = File(outDir, sanitizeZipName(record.name, record.id) + ".zip")
-                named.delete()
-                AtomicFiles.promote(built, named)
-                return@withContext named.takeIf { it.exists() && it.length() > 0L }
-            }
-            null
+            val built = buildSessionEverythingZip(app, record, stagingRoot, 0, ts) ?: return@withContext null
+            val named = File(outDir, SessionNaming.exportEntryName(record.name, record.id) + ".zip")
+            named.delete()
+            AtomicFiles.promote(built, named)
+            named.takeIf { it.exists() && it.length() > 0L }
         } finally {
             stagingRoot.deleteRecursively()
         }
@@ -129,16 +125,15 @@ object SessionEverythingExporter {
             deleteRecursively()
             mkdirs()
         }
-        val refFile = File(record.refPath).takeIf { it.exists() }
-            ?: File(sessionDir, "reference.png")
-        val rawDeformedDir = SessionStore.rawDeformedDir(sessionDir)
-        val csvFile = File(work, "analysis_data.csv")
-        stageReports(context, record, refFile, work, csvFile)
+        val session = SessionLayout(sessionDir)
+        val staging = StagingLayout(work)
+        val refFile = File(record.refPath).takeIf { it.exists() } ?: session.referencePng
+        stageReports(context, record, refFile, staging)
 
         val zip = File(stagingRoot, "${SESSION_PREFIX}${record.id}.zip")
         return try {
             ZipOutputStream(zip.outputStream().buffered()).use { zipOut ->
-                writeSessionEntries(zipOut, sessionDir, work, refFile, rawDeformedDir, csvFile, ts)
+                writeSessionEntries(zipOut, session, staging, refFile, ts)
             }
             zip.takeIf { it.length() > 0L }
         } catch (e: CancellationException) {
@@ -162,19 +157,18 @@ object SessionEverythingExporter {
         context: Context,
         record: SessionRecord,
         refFile: File,
-        work: File,
-        csvFile: File,
+        staging: StagingLayout,
     ) {
-        val sessionDir = File(record.sessionDir)
+        val session = SessionLayout(File(record.sessionDir))
         try {
             SessionUploadBundler.stageCsvAndBundles(
                 context = context,
                 record = record,
-                sessionDir = sessionDir,
+                sessionDir = session.dir,
                 refFile = refFile,
-                rawDeformedDir = SessionStore.rawDeformedDir(sessionDir),
-                stagingDir = work,
-                csvFile = csvFile,
+                rawDeformedDir = session.rawDeformedDir,
+                stagingDir = staging.dir,
+                csvFile = staging.analysisCsv,
                 writeReports = true,
             )
         } catch (e: CancellationException) {
@@ -184,49 +178,31 @@ object SessionEverythingExporter {
         }
     }
 
-    @Suppress("LongParameterList") // one archive layout, described by its pieces
     private fun writeSessionEntries(
         zipOut: ZipOutputStream,
-        sessionDir: File,
-        work: File,
+        session: SessionLayout,
+        staging: StagingLayout,
         refFile: File,
-        rawDeformedDir: File,
-        csvFile: File,
         ts: String,
     ) {
-        putFile(zipOut, "metadata.json", File(sessionDir, "metadata.json"))
+        Zips.putFileIfPresent(zipOut, SessionLayout.METADATA_JSON, session.metadataJson)
         val rawPrefix = "photos_$ts/raw photos"
-        putFile(zipOut, "$rawPrefix/reference_${refFile.name}", refFile)
-        rawDeformedDir.listFiles()?.forEach { f -> putFile(zipOut, "$rawPrefix/${f.name}", f) }
-        putFile(zipOut, "analysis_data.csv", csvFile)
-        File(work, "reports").listFiles()?.forEach { f -> putFile(zipOut, "reports/${f.name}", f) }
-        val processed = File(work, SessionPaths.PROCESSED_SUBDIR)
+        Zips.putFileIfPresent(zipOut, "$rawPrefix/reference_${refFile.name}", refFile)
+        session.rawDeformedDir.listFiles()?.forEach { f -> Zips.putFileIfPresent(zipOut, "$rawPrefix/${f.name}", f) }
+        Zips.putFileIfPresent(zipOut, StagingLayout.ANALYSIS_CSV, staging.analysisCsv)
+        staging.reportsDir.listFiles()?.forEach { f ->
+            Zips.putFileIfPresent(zipOut, "${SessionLayout.REPORTS_SUBDIR}/${f.name}", f)
+        }
+        val processed = staging.processedDir
         processed.walkTopDown().filter { it.isFile }.forEach { f ->
-            putFile(zipOut, "photos_$ts/results/${f.relativeTo(processed).invariantSeparatorsPath}", f)
+            Zips.putFileIfPresent(zipOut, "photos_$ts/results/${f.relativeTo(processed).invariantSeparatorsPath}", f)
         }
         // Include .dat frames so the export is self-contained for re-analysis tooling.
-        sessionDir.listFiles { f -> f.extension == "dat" }?.forEach { f ->
-            putFile(zipOut, "dat/${f.name}", f)
+        session.dir.listFiles { f -> f.extension == "dat" }?.forEach { f ->
+            Zips.putFileIfPresent(zipOut, "dat/${f.name}", f)
         }
-    }
-
-    private fun putFile(zip: ZipOutputStream, entryName: String, file: File) {
-        if (!file.exists() || !file.isFile) return
-        zip.putNextEntry(ZipEntry(entryName))
-        file.inputStream().use { it.copyTo(zip) }
-        zip.closeEntry()
-    }
-
-    /** Internal for test: entry names must stay filesystem- and archive-safe. */
-    internal fun sanitizeZipName(name: String, id: String): String {
-        val cleaned = name.replace(Regex("[^A-Za-z0-9._-]+"), "_").trim('_')
-        return cleaned.ifBlank { "session" }.take(MAX_NAME_CHARS) + "_" + id.take(ID_CHARS)
     }
 
     private const val MASTER_PREFIX = "Semper_sessions_export_"
     private const val SESSION_PREFIX = "Semper_session_"
-
-    /** Entry names stay readable and well clear of any archive path limit. */
-    private const val MAX_NAME_CHARS = 40
-    private const val ID_CHARS = 8
 }

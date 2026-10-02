@@ -1,5 +1,6 @@
 package com.indicvision.semper.data.session
 
+import com.indicvision.semper.fixtures.sessionRecord
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -39,6 +40,43 @@ class SkippedNodeTest {
                 codes = listOf(12),
             )
         }
+    }
+
+    @Test
+    fun `legacy arrays saved before codes were kept read each node as the unrecorded code`() {
+        val nodes = SkippedNode.fromLegacyArrays(
+            subsets = listOf(41, 33),
+            steps = listOf(5, 3),
+            strainWindows = listOf(15, 11),
+            codes = emptyList(),
+        )
+        assertEquals(
+            listOf(SkippedNode(41, 5, 15, 0), SkippedNode(33, 3, 11, 0)),
+            nodes,
+        )
+    }
+
+    @Test
+    fun `a codes list shorter than the combinations is padded with the unrecorded code`() {
+        val nodes = SkippedNode.fromLegacyArrays(listOf(41, 33), listOf(5, 3), listOf(15, 11), listOf(-12))
+        assertEquals(listOf(-12, SkippedNode.UNRECORDED_CODE), nodes.map { it.code })
+    }
+
+    @Test
+    fun `more codes than combinations still fail loudly`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            SkippedNode.fromLegacyArrays(listOf(41), listOf(5), listOf(15), listOf(-12, -3))
+        }
+    }
+
+    @Test
+    fun `a local sweep row saved before codes were kept still opens`() {
+        val row = sessionRecord(id = "old-sweep").copy(
+            sweepSkipSubsets = listOf(41),
+            sweepSkipSteps = listOf(9),
+            sweepSkipStrainWindows = listOf(121),
+        )
+        assertEquals(listOf(SkippedNode(41, 9, 121, SkippedNode.UNRECORDED_CODE)), row.resolvedSkipNodes())
     }
 
     @Test

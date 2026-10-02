@@ -1,6 +1,7 @@
 package com.indicvision.semper.data.cloud.restore
 
 import android.app.Application
+import com.indicvision.semper.data.cloud.SessionMetadataDoc
 import com.indicvision.semper.data.session.SkippedNode
 import org.json.JSONArray
 import org.json.JSONObject
@@ -9,6 +10,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.File
 
 /**
  * A restored sweep's Home headline counts what was skipped. Backups write the
@@ -30,8 +32,13 @@ class RestoredSweepHeadlineTest {
 
     private val meta = JSONObject().put("frameCount", 3)
 
-    private fun headline(skipped: JSONObject) =
-        CloudRestore.restoredHeadline(meta, engine(skipped), listOf("def.png"), emptyList())
+    private fun headline(skipped: JSONObject): String {
+        val text = JSONObject(meta.toString())
+            .put("frames", JSONArray().put(JSONObject().put("image", "def.png")))
+            .put("engine", engine(skipped))
+            .toString()
+        return SessionMetadataDoc.decode(text).toRecord("s", "c", File("r"), "", null).headline
+    }
 
     @Test
     fun `skips written as nodes are counted`() {

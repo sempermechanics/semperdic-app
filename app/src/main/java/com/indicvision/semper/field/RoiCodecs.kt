@@ -66,7 +66,7 @@ const val ROI_JSON_KEY = "roi"
 /** `{"x":…, "y":…, "w":…, "h":…}`, in that key order, as `SessionUploadMetadata.engineJson` writes it. */
 fun Roi.toJson(): JSONObject = JSONObject().put("x", x).put("y", y).put("w", w).put("h", h)
 
-/** Reads [Roi.toJson]'s form; a missing object or key reads 0, as `CloudRestore.recordFrom` does. */
+/** Reads [Roi.toJson]'s form; a missing object or key reads 0, as `SessionMetadataDoc.toRecord` does. */
 fun roiFromJson(json: JSONObject?): Roi {
     val o = json ?: JSONObject()
     return Roi(o.optInt("x", 0), o.optInt("y", 0), o.optInt("w", 0), o.optInt("h", 0))

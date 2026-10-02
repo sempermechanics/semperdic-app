@@ -5,8 +5,8 @@ import android.content.Intent
 import android.graphics.RectF
 import android.os.Bundle
 import androidx.test.core.app.ApplicationProvider
+import com.indicvision.semper.data.cloud.SessionMetadataDoc
 import com.indicvision.semper.data.cloud.SessionUploadMetadata
-import com.indicvision.semper.data.cloud.restore.CloudRestore
 import com.indicvision.semper.fixtures.sessionRecord
 import com.indicvision.semper.navigation.DicKeys
 import com.indicvision.semper.report.RoiData
@@ -98,11 +98,9 @@ class RoiCodecsTest {
         assertEquals(Roi(5, 0, 0, 9), roiFromJson(JSONObject().put("x", 5).put("h", 9)))
 
         val record = sessionRecord(imgW = 640, imgH = 480, roiX = 12, roiY = 34, roiW = 560, roiH = 400)
-        val meta = JSONObject(SessionUploadMetadata.buildMetadataJson(record, context))
-        val restored = CloudRestore.recordFrom(
-            meta,
-            CloudRestore.RestoreRecordTarget("s_r", "c1", File("r"), "", null),
-        )
+        val text = SessionUploadMetadata.buildMetadataJson(record, context)
+        val meta = JSONObject(text)
+        val restored = SessionMetadataDoc.decode(text).toRecord("s_r", "c1", File("r"), "", null)
         val engine = meta.getJSONObject("engine")
         val read = roiFromJson(engine.optJSONObject("roi"))
         assertEquals(Roi(restored.roiX, restored.roiY, restored.roiW, restored.roiH), read)

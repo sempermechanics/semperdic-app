@@ -13,6 +13,8 @@ import com.indicvision.semper.data.DicBundleDownloadWorker
 import com.indicvision.semper.data.DicRestoreWorker
 import com.indicvision.semper.data.cloud.CorruptTransferException
 import com.indicvision.semper.data.cloud.restore.CloudRestore
+import com.indicvision.semper.data.net.ApiErrors
+import com.indicvision.semper.data.net.ApiException
 import com.indicvision.semper.data.session.SessionPaths
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SessionStore
@@ -28,6 +30,8 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
 import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
@@ -122,6 +126,20 @@ class RestoreWorkersTest {
     }
 
     @Test
+    fun `metadata whose skip lists disagree fails instead of downloading the bundle again`() {
+        val meta = """
+            {"schema":"indic.session.metadata/3","frames":[{"image":"def.png"}],
+             "engine":{"sweep":{"subsets":[21],"skipped":{"subsets":[41,51],"steps":[9],"strainWindows":[121]}}}}
+        """.trimIndent().toByteArray()
+        val bundle = RestoreFakeApi.zipOf(listOf("dat/frame_0001.dat" to RestoreFakeApi.onePointDat()))
+        api.files = listOf(api.file("meta-1", "metadata", meta), api.file("bundle-1", "bundle", bundle))
+
+        val result = runRestore(cloudRestorer)
+
+        assertEquals(context.getString(R.string.restore_failed_generic), failureReason(result))
+    }
+
+    @Test
     fun `a dropped connection is retried`() {
         val result = runRestore { _, _, _, _ -> throw IOException("connection reset") }
 
@@ -133,6 +151,20 @@ class RestoreWorkersTest {
         tokens.token = null
 
         assertEquals(ListenableWorker.Result.retry(), runRestore(cloudRestorer))
+    }
+
+    @Test
+    fun `a backup the backend says is gone fails with its explanation`() {
+        val gone = ApiException(404, """{"detail":"${ApiErrors.DRIVE_FILE_GONE}"}""")
+
+        val result = runRestore { _, _, _, _ -> throw gone }
+
+        assertEquals(context.getString(R.string.restore_backup_gone), failureReason(result))
+    }
+
+    @Test
+    fun `a server error during a restore is retried`() {
+        assertEquals(ListenableWorker.Result.retry(), runRestore { _, _, _, _ -> throw ApiException(503, "") })
     }
 
     // ------------------------------------------------------ bundle download
@@ -192,6 +224,46 @@ class RestoreWorkersTest {
         )
 
         assertEquals("session_zip_sha256_mismatch", failureReason(result))
+    }
+
+    @Test
+    fun `an undecodable dat in the merged archive fails as corrupt, not with the phone's copy`() {
+        seedLocalSession("local-1")
+        // A DatCodec header with a negative point count: the decode refuses it.
+        val hostileDat = ByteArrayOutputStream().also { out ->
+            DataOutputStream(out).use { d ->
+                d.write("SDC1".toByteArray())
+                d.writeShort(1)
+                d.writeInt(-1)
+                d.writeByte(1)
+            }
+        }.toByteArray()
+        val extras = RestoreFakeApi.zipOf(listOf("csv/analysis_data.csv" to "a,b".toByteArray()))
+        api.files = listOf(
+            api.file("bundle-1", "bundle", RestoreFakeApi.zipOf(listOf("dat/frame_0000.dat" to hostileDat))),
+            api.file("extras-1", "extras", extras),
+        )
+
+        val result = runDownload(cloudSource, localSessionId = "local-1")
+
+        assertEquals("entry_datcodec_decode_failed", failureReason(result))
+    }
+
+    @Test
+    fun `a bundle download the backend refuses fails with its body, not the phone's copy`() {
+        seedLocalSession("local-1")
+        val body = """{"detail":"${ApiErrors.FEATURE_NOT_LICENSED}"}"""
+
+        val result = runDownload({ _, _, _, _ -> throw ApiException(403, body) }, localSessionId = "local-1")
+
+        assertEquals(body, failureReason(result))
+    }
+
+    @Test
+    fun `a server error during a bundle download is retried`() {
+        val result = runDownload({ _, _, _, _ -> throw ApiException(502, "") })
+
+        assertEquals(ListenableWorker.Result.retry(), result)
     }
 
     @Test

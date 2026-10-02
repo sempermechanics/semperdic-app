@@ -58,10 +58,11 @@ class ZipDirectoryTest {
         val zip = buildZip(names)
         val (tail, start) = tailOf(zip)
 
-        val entries = ZipDirectory.parse(tail, start, zip.length())
+        val directory = ZipDirectory.parse(tail, start, zip.length())
 
-        assertNotNull(entries)
-        assertEquals(names, entries!!.map { it.name })
+        assertNotNull(directory)
+        val entries = directory!!.entries
+        assertEquals(names, entries.map { it.name })
         val ascending = entries.map { it.localHeaderOffset }.zipWithNext().all { it.first < it.second }
         assertTrue("offsets must be ascending", ascending)
     }
@@ -70,12 +71,11 @@ class ZipDirectoryTest {
     fun `cut lands exactly on the first skipped entry`() {
         val zip = buildZip(listOf("raw/Reference.png", "dat/frame_0000.dat", "reports/r.pdf", "processed/a.png"))
         val (tail, start) = tailOf(zip)
-        val entries = requireNotNull(ZipDirectory.parse(tail, start, zip.length()))
-        val cdOffset = requireNotNull(ZipDirectory.centralDirectoryOffset(tail))
+        val directory = requireNotNull(ZipDirectory.parse(tail, start, zip.length()))
 
-        val cut = ZipDirectory.prefixCut(entries, keep, cdOffset)
+        val cut = directory.prefixCut(keep)
 
-        val firstSkipped = entries.first { it.name.startsWith("reports/") }.localHeaderOffset
+        val firstSkipped = directory.entries.first { it.name.startsWith("reports/") }.localHeaderOffset
         assertEquals(firstSkipped, cut)
         // And the cut genuinely saves bytes.
         assertTrue("cut $cut should be well below ${zip.length()}", cut!! < zip.length())
@@ -85,10 +85,9 @@ class ZipDirectoryTest {
     fun `an archive that is entirely restore payload cuts at the central directory`() {
         val zip = buildZip(listOf("raw/Reference.png", "dat/frame_0000.dat"))
         val (tail, start) = tailOf(zip)
-        val entries = requireNotNull(ZipDirectory.parse(tail, start, zip.length()))
-        val cdOffset = requireNotNull(ZipDirectory.centralDirectoryOffset(tail))
+        val directory = requireNotNull(ZipDirectory.parse(tail, start, zip.length()))
 
-        assertEquals(cdOffset, ZipDirectory.prefixCut(entries, keep, cdOffset))
+        assertEquals(directory.offset, directory.prefixCut(keep))
     }
 
     @Test
@@ -96,20 +95,18 @@ class ZipDirectoryTest {
         // A wanted entry after a skipped one: a prefix fetch would miss it.
         val zip = buildZip(listOf("raw/Reference.png", "reports/r.pdf", "dat/frame_0000.dat"))
         val (tail, start) = tailOf(zip)
-        val entries = requireNotNull(ZipDirectory.parse(tail, start, zip.length()))
-        val cdOffset = requireNotNull(ZipDirectory.centralDirectoryOffset(tail))
+        val directory = requireNotNull(ZipDirectory.parse(tail, start, zip.length()))
 
-        assertNull(ZipDirectory.prefixCut(entries, keep, cdOffset))
+        assertNull(directory.prefixCut(keep))
     }
 
     @Test
     fun `no restore payload at all refuses to cut`() {
         val zip = buildZip(listOf("reports/r.pdf", "processed/a.png"))
         val (tail, start) = tailOf(zip)
-        val entries = requireNotNull(ZipDirectory.parse(tail, start, zip.length()))
-        val cdOffset = requireNotNull(ZipDirectory.centralDirectoryOffset(tail))
+        val directory = requireNotNull(ZipDirectory.parse(tail, start, zip.length()))
 
-        assertNull(ZipDirectory.prefixCut(entries, keep, cdOffset))
+        assertNull(directory.prefixCut(keep))
     }
 
     @Test
@@ -139,6 +136,6 @@ class ZipDirectoryTest {
         val entries = ZipDirectory.parse(bytes, 0L, out.length())
 
         assertNotNull("should find the true EOCD, not the payload decoy", entries)
-        assertEquals(listOf("raw/decoy.bin"), entries!!.map { it.name })
+        assertEquals(listOf("raw/decoy.bin"), entries!!.entries.map { it.name })
     }
 }

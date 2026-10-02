@@ -66,7 +66,7 @@ data class DicParams(val subset: Int, val step: Int, val strainWindow: Int) {
 
         /**
          * From a `metadata.json` `engine` object; an absent key reads [default]'s
-         * value, as `CloudRestore.recordFrom` does with 41 / 5 / 15.
+         * value, as `SessionMetadataDoc.toRecord` does with 41 / 5 / 15.
          */
         fun fromJson(json: JSONObject, default: DicParams = DEFAULT): DicParams = DicParams(
             json.optInt(JSON_SUBSET, default.subset),

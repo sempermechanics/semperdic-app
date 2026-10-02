@@ -3,8 +3,8 @@ package com.indicvision.semper.field
 import android.app.Application
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
+import com.indicvision.semper.data.cloud.SessionMetadataDoc
 import com.indicvision.semper.data.cloud.SessionUploadMetadata
-import com.indicvision.semper.data.cloud.restore.CloudRestore
 import com.indicvision.semper.fixtures.sessionRecord
 import com.indicvision.semper.navigation.DicKeys
 import com.indicvision.semper.ui.viewer.ViewerArgs
@@ -31,10 +31,7 @@ class DicParamsTest {
         assertEquals(ViewerArgs.DEFAULT_SUBSET, DicParams.DEFAULT.subset)
         assertEquals(ViewerArgs.DEFAULT_STEP, DicParams.DEFAULT.step)
         assertEquals(ViewerArgs.DEFAULT_STRAIN_WINDOW, DicParams.DEFAULT.strainWindow)
-        val restored = CloudRestore.recordFrom(
-            JSONObject(),
-            CloudRestore.RestoreRecordTarget("s", "c", File("r"), "", null),
-        )
+        val restored = SessionMetadataDoc.decode("{}").toRecord("s", "c", File("r"), "", null)
         assertEquals(DicParams(restored.subset, restored.step, restored.strainWindow), DicParams.DEFAULT)
         assertEquals(DicParams.DEFAULT, DicParams.fromJson(JSONObject()))
     }
@@ -52,8 +49,9 @@ class DicParamsTest {
     @Test
     fun `JSON read matches the restore of an uploaded record`() {
         val record = sessionRecord(subset = 31, step = 7, strainWindow = 29)
-        val meta = JSONObject(SessionUploadMetadata.buildMetadataJson(record, context))
-        val restored = CloudRestore.recordFrom(meta, CloudRestore.RestoreRecordTarget("s", "c", File("r"), "", null))
+        val text = SessionUploadMetadata.buildMetadataJson(record, context)
+        val meta = JSONObject(text)
+        val restored = SessionMetadataDoc.decode(text).toRecord("s", "c", File("r"), "", null)
         val read = DicParams.fromJson(meta.getJSONObject("engine"))
         assertEquals(DicParams(restored.subset, restored.step, restored.strainWindow), read)
     }

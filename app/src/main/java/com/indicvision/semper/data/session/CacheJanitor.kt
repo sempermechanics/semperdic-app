@@ -102,40 +102,33 @@ object CacheJanitor {
      * rather than the raw cache size so Clear never looks like a no-op while a
      * large number is still on screen (protected import / mid-write scratch).
      */
-    fun clearableUserBytes(context: Context): Long = measure(context.cacheDir, SweepMode.USER)
+    fun clearableUserBytes(context: Context): Long =
+        visit(context.cacheDir, SweepMode.USER, keepImport = false, action = ::sizeOf)
 
     private fun sweep(cacheDir: File, mode: SweepMode, keepImport: Boolean = false): Long {
-        if (!cacheDir.isDirectory) return 0L
-        val now = System.currentTimeMillis()
-        var freed = 0L
-
-        cacheDir.listFiles()?.forEach { entry ->
-            if (entry.name == SHARE_SUBDIR) {
-                freed += visitShareDir(entry, now, mode, delete = true)
-                return@forEach
-            }
-            if (isReclaimable(entry, now, mode, keepImport)) freed += deleteTree(entry)
-        }
-
+        val freed = visit(cacheDir, mode, keepImport, ::deleteTree)
         if (freed > 0) Timber.d("CacheJanitor reclaimed %d bytes (%s)", freed, mode)
         return freed
     }
 
-    private fun measure(cacheDir: File, mode: SweepMode): Long {
+    /**
+     * Applies [action] to every reclaimable entry of [cacheDir] (and of its
+     * share directory) and sums what it returns: the bytes freed by a delete,
+     * or the bytes a delete would free.
+     */
+    private fun visit(cacheDir: File, mode: SweepMode, keepImport: Boolean, action: (File) -> Long): Long {
         if (!cacheDir.isDirectory) return 0L
         val now = System.currentTimeMillis()
-        var total = 0L
-        cacheDir.listFiles()?.forEach { entry ->
-            if (entry.name == SHARE_SUBDIR) {
-                total += visitShareDir(entry, now, mode, delete = false)
-                return@forEach
+        return cacheDir.listFiles().orEmpty().sumOf { entry ->
+            when {
+                entry.name == SHARE_SUBDIR -> visitShareDir(entry, now, mode, action)
+                isReclaimable(entry, now, mode, keepImport) -> action(entry)
+                else -> 0L
             }
-            if (isReclaimable(entry, now, mode)) total += sizeOf(entry)
         }
-        return total
     }
 
-    private fun isReclaimable(entry: File, now: Long, mode: SweepMode, keepImport: Boolean = false): Boolean {
+    private fun isReclaimable(entry: File, now: Long, mode: SweepMode, keepImport: Boolean): Boolean {
         val age = now - entry.lastModified()
         val scratchGrace = if (mode == SweepMode.USER) USER_ACTIVE_GRACE_MS else SCRATCH_MAX_AGE_MS
         return when {
@@ -153,19 +146,13 @@ object CacheJanitor {
         }
     }
 
-    /**
-     * @param delete when true, remove matching entries and return freed bytes;
-     * when false, only sum their sizes (for the Settings meter).
-     */
-    private fun visitShareDir(shareDir: File, now: Long, mode: SweepMode, delete: Boolean): Long {
+    /** [action] on each share bundle old enough to reclaim. */
+    private fun visitShareDir(shareDir: File, now: Long, mode: SweepMode, action: (File) -> Long): Long {
         if (!shareDir.isDirectory) return 0L
         val maxAge = if (mode == SweepMode.USER) USER_ACTIVE_GRACE_MS else SHARE_MAX_AGE_MS
-        var total = 0L
-        shareDir.listFiles()?.forEach { entry ->
-            if (now - entry.lastModified() <= maxAge) return@forEach
-            total += if (delete) deleteTree(entry) else sizeOf(entry)
-        }
-        return total
+        return shareDir.listFiles().orEmpty()
+            .filter { now - it.lastModified() > maxAge }
+            .sumOf(action)
     }
 
     /** Size of [file] (recursively), or 0 if it could not be removed. */

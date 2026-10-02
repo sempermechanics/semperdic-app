@@ -37,8 +37,8 @@ import java.util.TimeZone
  * A backup's `metadata.json`, as a model.
  *
  * Two hands wrote this file's shape: [SessionUploadMetadata] builds it with
- * `JSONObject.put`, and `CloudRestore.recordFrom` reads it back with `opt…`
- * getters. This holds both halves: [fromRecord] / [forUpload] + [encode]
+ * `JSONObject.put`, and the restore's org.json reader (removed in wave 4) read
+ * it back with `opt…` getters. This holds both halves: [fromRecord] / [forUpload] + [encode]
  * write what the uploader writes, and [decode] + [toRecord] read what the
  * restore reads, defaults and leniency included (every field goes through
  * the [com.indicvision.semper.util.OrgJson] rules, so an old file, or one
@@ -163,7 +163,7 @@ data class SessionMetadataDoc(
     /**
      * The combinations that solved nothing: a `nodes` array since FI-3, four
      * parallel lists before it. Non-object `nodes` entries are kept as null so
-     * an array of only those still counts as present ([SkippedNode.fromMetadata]).
+     * an array of only those still counts as present ([toSkippedNodes]).
      */
     @Serializable
     data class Skipped(
@@ -174,8 +174,9 @@ data class SessionMetadataDoc(
         @Serializable(with = OptIntListSerializer::class) val codes: List<Int>? = null,
     ) {
         /**
-         * As [SkippedNode.fromMetadata]: nodes when there are any, else the
-         * legacy lists (which must agree in length).
+         * Nodes when there are any, else the legacy lists through
+         * [SkippedNode.fromLegacyArrays]: their combinations must agree in
+         * length, and a missing `codes` list reads as [SkippedNode.UNRECORDED_CODE].
          */
         fun toSkippedNodes(): List<SkippedNode> =
             nodes?.takeIf { it.isNotEmpty() }?.filterNotNull()?.map { it.toSkippedNode() }
@@ -220,8 +221,8 @@ data class SessionMetadataDoc(
     fun isSplitLayout(): Boolean = CloudRestore.isSplitLayout(schema ?: "")
 
     /**
-     * The index row a restore writes for this file, as `CloudRestore.recordFrom`
-     * builds it: [existing] keeps its name, creation time and rename flag;
+     * The index row a restore writes for this file, as the removed org.json
+     * reader built it: [existing] keeps its name, creation time and rename flag;
      * everything else comes from the file, under the reader's defaults.
      * Throws, as the reader does, when legacy skip lists disagree in length.
      */
@@ -298,7 +299,7 @@ data class SessionMetadataDoc(
         )
     }
 
-    /** `CloudRestore.restoredHeadline`: a sweep's span and solved count, else first-frame convergence. */
+    /** The restored row's headline: a sweep's span and solved count, else first-frame convergence. */
     private fun headline(engine: Engine, defNames: List<String>, stats: List<Float>): String {
         val sweep = engine.sweep
             ?: return SessionHeadline.firstFrameConvergence(

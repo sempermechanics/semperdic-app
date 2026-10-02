@@ -2,6 +2,7 @@ package com.indicvision.semper.data.cloud.restore
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
+import com.indicvision.semper.data.cloud.SessionMetadataDoc
 import com.indicvision.semper.data.cloud.SessionUploadMetadata
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.fixtures.sessionRecord
@@ -36,17 +37,17 @@ class RestoredStopReasonTest {
         defNames = listOf("a.png", "b.png"),
     ).copy(stopCode = stopCode, plannedFrameCount = planned)
 
-    private fun roundTrip(record: SessionRecord): SessionRecord {
-        val meta = JSONObject(SessionUploadMetadata.buildMetadataJson(record, context))
-        val target = CloudRestore.RestoreRecordTarget(
+    private fun roundTrip(record: SessionRecord): SessionRecord =
+        restore(SessionUploadMetadata.buildMetadataJson(record, context))
+
+    private fun restore(metadataJson: String): SessionRecord =
+        SessionMetadataDoc.decode(metadataJson).toRecord(
             localId = "s_restored",
             cloudSessionId = "c1",
             sessionDir = File("restored"),
             refPath = "",
             existing = null,
         )
-        return CloudRestore.recordFrom(meta, target)
-    }
 
     @Test
     fun `a run that stopped early comes back stopped early`() {
@@ -63,8 +64,7 @@ class RestoredStopReasonTest {
             remove("stopCode")
             remove("plannedFrameCount")
         }
-        val target = CloudRestore.RestoreRecordTarget("s_r", "c1", File("r"), "", null)
-        val restored = CloudRestore.recordFrom(meta, target)
+        val restored = restore(meta.toString())
         assertFalse(restored.stoppedEarly)
         assertEquals(0, restored.plannedFrameCount)
     }
