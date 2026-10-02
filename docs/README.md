@@ -32,6 +32,7 @@ build it. This page routes you to the rest.
 | See what changed and when (history moved out of CONTEXT.md) | [ops/CHANGELOG.md](ops/CHANGELOG.md) |
 | Pick up a proposed improvement | [ops/FUTURE_IMPROVEMENTS.md](ops/FUTURE_IMPROVEMENTS.md) |
 | Compare code-quality metrics with the 2026-10 baseline | [ops/QUALITY_BASELINE_2026-10-01.md](ops/QUALITY_BASELINE_2026-10-01.md) |
+| What the 2026-10 quality program fixed, split and deferred | [ops/QUALITY_PROGRAM_RESULTS.md](ops/QUALITY_PROGRAM_RESULTS.md) |
 | Work on the cloud backend | [backend/CLOUD_ARCHITECTURE_GCP.md](backend/CLOUD_ARCHITECTURE_GCP.md) |
 | Deploy the backend myself | [backend/BACKEND_SETUP_GCP.md](backend/BACKEND_SETUP_GCP.md) (CLI) or [BACKEND_SETUP_CONSOLE.md](backend/BACKEND_SETUP_CONSOLE.md) (browser) |
 | Fix sign-in / set up auth | [backend/AUTH_SETUP.md](backend/AUTH_SETUP.md) |
@@ -112,6 +113,6 @@ in the project README — it is maintained in one place so the two cannot drift.
   legitimately moves results, say so explicitly and update the contract on both
   sides.
 - Lint and detekt baselines are empty — new findings fail CI. Size and
-  complexity findings are silenced per file with `@file:Suppress` (81 files as
-  of 2026-09-23); prefer extracts over widening those lists.
+  complexity findings are silenced per file with `@file:Suppress` (58 files as
+  of 2026-10-03); prefer extracts over widening those lists.
 - Run `./gradlew spotlessApply` before pushing.

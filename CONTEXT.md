@@ -59,8 +59,12 @@ Session dirs: `SessionStore` + `SessionPaths` (`raw_deformed/`, `frame_%04d.dat`
 Backend: `backend/app/main.py` (app, middleware, lifespan), `routers/` (`/v1/*` by
 prefix), `session_provision.py` (`provision_session` / `purge_session`).
 
-Kotlin helpers are plain `object` / small classes; no Hilt/Dagger. Keep `lifecycleScope`
-and Activity Result launchers on the Activity. Cloud logic under test takes a defaulted
+Kotlin helpers are plain `object` / small classes; no Hilt/Dagger. Activity Result
+launchers are registered before the Activity starts: as a property, or by a part built
+there (`WizardMediaPickers`, `RoiStudioLauncher`, `ViewerShareController`). Work that must
+outlive the screen follows [ADR-016](docs/adr/ADR-016-work-that-outlives-the-activity.md);
+views go through ViewBinding and the `ui/common` kit ([ADR-017](docs/adr/ADR-017-viewbinding-and-ui-kit.md));
+failures are typed outcomes ([ADR-018](docs/adr/ADR-018-error-convention.md)). Cloud logic under test takes a defaulted
 `api: CloudApi` / `tokens: TokenSource`; tests pass `FakeCloudApi` ([ADR-002](docs/adr/ADR-002-cloudapi-seam.md)).
 The wizard (`StaticAnalysisActivity`, ViewStub steps) has full `configChanges`: rotation
 does not recreate it, process death does (see Traps). Home **+** opens `MediaPickerSheet` (shared with the wizard dropzones). Uploads,
@@ -73,9 +77,14 @@ non-modal `TransferBannerController` strip.
   oracles unless the engine contract major-bumps. GIF bytes are pinned 0-delta.
 - **JNI buffer is bounded.** Allocate to the ROI grid; a point count over capacity
   is an engine failure, never a read past the buffer.
-- **Do not split** VisualizationEngine loops, GifEncoder LZW, ReportBuilder fusion,
-  `DicResult.decodeDatFile`, `DicUploadWorker.doWork`, `prefetchAround` /
-  `ScrubFrameCache`, `PointSpatialIndex.build`.
+- **Hot loops stay fused.** VisualizationEngine pixel loops, GifEncoder LZW, the
+  ReportBuilder fusion pass, `DicResult.decodeDatFile`, `prefetchAround` and
+  `PointSpatialIndex.build` each keep their loop body whole in one function. The
+  files around them may be split; a split proves itself with the `.dat` / GIF
+  oracles and no regression in `HotPathMicroBenchmark` / `ViewerScrubBenchmark`.
+- **Upload staging is repeatable.** `DicUploadWorker.doWork` may be broken into
+  named steps, but the staged bytes must be identical across attempts: Drive's
+  resumable URI and the reconcile check the declared size and sha256.
 - **Scrub cache** is byte-bounded and filled by **one** serialized worker.
 - **Whole-batch** summary / spatial index start on demand, never on viewer open.
 - **Batch progress** is a buffered `SharedFlow` (`DROP_OLDEST`), not a `StateFlow`.
@@ -101,42 +110,40 @@ no thresholds ([TESTING.md](docs/app/TESTING.md)); the phone-run gates (`benchma
 [PERF_BASELINE_bd44af0.md](docs/engine/PERF_BASELINE_bd44af0.md)) is a manual reference.
 Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 
-## Current state (2026-10-01)
+## Current state (2026-10-03)
 
+- **Quality program (open PRs, not yet on `main`).** Bug fixes, the package layout
+  ([ADR-015](docs/adr/ADR-015-package-layout.md)), ViewBinding and the `ui/common` kit
+  ([ADR-017](docs/adr/ADR-017-viewbinding-and-ui-kit.md)), typed outcomes
+  ([ADR-018](docs/adr/ADR-018-error-convention.md)) and no main file over 500 lines;
+  #310 and #315 are merged. Merge order: #311 → #312, #316 → #313 → #314 → #317 →
+  #318–#321 → #322 → #323–#326 → #327–#330 → #331 → the docs PR. Moves-plus-fixes PRs
+  merge with a merge commit (ADR-015). Owed before release: the emulator passes in
+  each PR's test plan, the Pixel 6 benchmark runs, and ADR-015's queued-work upgrade
+  check. Results: [QUALITY_PROGRAM_RESULTS.md](docs/ops/QUALITY_PROGRAM_RESULTS.md).
 - **Deployed.** Cloud Run `semper-api` (image `semper-api-36844645753-1` from `9230f444`,
-  2026-10-01; scales to zero) behind API Gateway
-  `semper-gw` (config `v202610010948-83`, deployed by CI, ADR-006);
-  staging `semper-api-staging` behind `semper-gw-staging` (CI since #258); project IDs keep `indic-*` ([ENVIRONMENTS.md](docs/ops/ENVIRONMENTS.md)).
-  Licensing is live, consoles on `app.sempermechanics.com` ([§20](docs/backend/CLOUD_ARCHITECTURE_GCP.md));
-  #240 (cost), the licence desk (backend and console), the device-change fixes (#248, #249,
-  #255, #261, #264), pinned serving/rollback images (#263), the staff phone release for
-  Demo accounts (#266), compat shims 1–5 retired (#267, TD-45) and the account page's kept
-  load error (#271, TD-136) went out 2026-09-26 ([CHANGELOG](docs/ops/CHANGELOG.md)).
-- **Device binding per app** ([ADR-010](docs/adr/ADR-010-device-binding-per-app.md), #279,
-  #280, deployed 2026-09-28). Owed: Material Testing signed in beside a signed-in Semper
-  on one phone, and App Check for it.
+  2026-10-01; scales to zero) behind API Gateway `semper-gw` (config `v202610010948-83`,
+  deployed by CI, ADR-006); staging `semper-api-staging` behind `semper-gw-staging` (CI
+  since #258); project IDs keep `indic-*` ([ENVIRONMENTS.md](docs/ops/ENVIRONMENTS.md)).
+  Licensing, the licence desk ([ADR-007](docs/adr/ADR-007-licence-lifecycle.md)), device
+  binding per app ([ADR-010](docs/adr/ADR-010-device-binding-per-app.md)) and sessions
+  tagged by app ([ADR-014](docs/adr/ADR-014-session-app-tag.md)) are live; consoles on
+  `app.sempermechanics.com` ([§20](docs/backend/CLOUD_ARCHITECTURE_GCP.md)); what went out
+  when is in [CHANGELOG](docs/ops/CHANGELOG.md).
+- **Owed on the backend side.** Material Testing signed in beside a signed-in Semper on
+  one phone, and App Check for it; the Pixel 6 account demoted on 2026-09-26 (#264) still
+  needs one **New device** to get its licence back (not verified here).
 - **App release `v1.2-beta.3`** (beta, private GitHub Release, run 36239577288, from
-  `ae05bb87`, versionCode 35): everything the app merged since `v1.2-beta.2`, including
-  the wrong-information audit's app half, one delete queue (#227), Restore (#234), the Home
-  backups card (#235), "Upload pending" (#254), request-volume passes 1–2 and TD-82's
-  "1 / 1" fix ([CHANGELOG](docs/ops/CHANGELOG.md)). Pixel 6 smoke on 2026-09-26, on the
-  account #264 demoted (runs as Demo): clean install, sign-in, a two-frame run, frame names, an attested upload (three
-  `complete` calls, 200), Home "9 / 25" after a refresh, no crashes.
-- **Lock taken by a refused phone (#264, deployed):** the Pixel 6 account demoted on
-  2026-09-26 still needs one **New device** to get its licence back (not verified here).
-- **Licence desk:** #236 (fast list, one-row refresh), #237 (one licence per person), #238
-  (edit/upgrade/convert) and #239 (delete with a 30-day restore): backend, gateway, indexes,
-  TTLs and console deployed 2026-09-26 ([ADR-007](docs/adr/ADR-007-licence-lifecycle.md)),
-  with #251's step-up and #257's edit fixes. Production has no duplicate holders (checked 2026-09-26).
-- **Sessions tagged by app** ([ADR-014](docs/adr/ADR-014-session-app-tag.md), #303):
-  backfill, console and backend deployed 2026-10-01; each app lists only its own backups.
-- **Ported from material_testing, for the next app release:** #298 (first-run dialogs,
-  plot gutter, video fallback), #299 (keyboard insets), #301 (ROI zoom/pan), #300 (a
-  rename re-sends the backup's metadata), #302 (each frame on its own photo, ADR-011).
-  Owed: manual emulator checks of the keyboard, ROI dock and viewer (each PR's test plan).
+  `ae05bb87`, versionCode 35). Pixel 6 smoke on 2026-09-26, on the account #264 demoted
+  (runs as Demo): clean install, sign-in, a two-frame run, an attested upload, Home
+  "9 / 25" after a refresh, no crashes.
+- **Ported from material_testing, for the next app release:** #298–#302 (first-run
+  dialogs, keyboard insets, ROI zoom/pan, rename re-sends metadata, each frame on its own
+  photo, ADR-011). Owed: manual emulator checks of the keyboard, ROI dock and viewer.
 - **material_testing shares this history** and merges this `main` (last at `a735582`,
-  material_testing#115); it has its own app id since material_testing#82 (TD-133). Shared
-  code and backend changes land here first: [FORK_SYNC.md](docs/ops/FORK_SYNC.md).
+  material_testing#115), with its own app id (TD-133). Shared code and backend changes land
+  here first; after the quality program it replays two package mappings
+  ([FORK_SYNC.md](docs/ops/FORK_SYNC.md)).
 - **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke
   of the paths a Demo account cannot reach (share and PDF, Delete everywhere, Restore, the
   backups card); AVI import has run only on emulators ([WORKFLOWS.md](docs/app/WORKFLOWS.md) §5.1a);

@@ -46,9 +46,11 @@ invariant list, and none of them are drive-by changes.
 - The JNI output buffer is sized to the ROI grid and the engine's returned point
   count is checked against that capacity *before* read-back.
   `computeFullFieldDirect` stays inside the one batch loop.
-- Do not split `VisualizationEngine` loops, `GifEncoder` LZW, `ReportBuilder`
-  fusion, `DicResult.decodeDatFile`, `DicUploadWorker.doWork`,
-  `prefetchAround` / `ScrubFrameCache`, or `PointSpatialIndex.build`.
+- Fused hot loops (`VisualizationEngine` pixel loops, `GifEncoder` LZW, the
+  `ReportBuilder` fusion pass, `DicResult.decodeDatFile`, `prefetchAround`,
+  `PointSpatialIndex.build`) keep their body whole in one function; their files
+  may be split. `DicUploadWorker.doWork` may become named steps as long as the
+  staged bytes stay identical across attempts.
 - A failure reason must be the *real* reason: never widen a specific engine code
   into a generic message, and never report an unknown code as a known cause.
 
@@ -76,6 +78,12 @@ invariant list, and none of them are drive-by changes.
 
 - Lint and detekt baselines are **empty**. Extract or `@file:Suppress` a specific
   finding; do not stuff a baseline. Detekt's line limit is 120 chars.
+- New Kotlin code follows four decisions: where a file goes and how big it gets
+  ([ADR-015](docs/adr/ADR-015-package-layout.md)), where work that must outlive a
+  screen runs ([ADR-016](docs/adr/ADR-016-work-that-outlives-the-activity.md)),
+  ViewBinding and the `ui/common` kit ([ADR-017](docs/adr/ADR-017-viewbinding-and-ui-kit.md)),
+  and typed failure outcomes that never swallow cancellation
+  ([ADR-018](docs/adr/ADR-018-error-convention.md)).
 - Gate before pushing: `./gradlew ciReleaseGate` (spotless, detekt, lintDebug,
   unit tests, R8, assembleRelease). Backend:
   `cd backend && python -m pytest tests/ -q --cov=app --cov-fail-under=75`.

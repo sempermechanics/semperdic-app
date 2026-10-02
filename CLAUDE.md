@@ -11,7 +11,7 @@ Windows: `gradlew.bat`. Quote `-Pandroid.testInstrumentationRunnerArguments…` 
 |---------|------|
 | `./gradlew ciReleaseGate` | Spotless, detekt, lintDebug, unit tests, R8, assembleRelease |
 | `./gradlew :app:testDebugUnitTest spotlessCheck :app:detekt :app:lintDebug` | Tier 1 without R8 |
-| `./gradlew :app:koverLog :app:koverVerify` | Coverage log + floor (49; measured 51.7 % on 2026-09-24; enforced in CI tier 1 and `ciReleaseGate`) |
+| `./gradlew :app:koverLog :app:koverVerify` | Coverage log + floor (49; measured 75.1 % on 2026-10-03; enforced in CI tier 1 and `ciReleaseGate`) |
 | `./gradlew :app:connectedDebugAndroidTest -PabiFilters=x86_64 "-Pandroid.testInstrumentationRunnerArguments.notPackage=com.indicvision.semper.benchmark"` | Emulator instrumented; exclude benchmark package on debug |
 | `cd backend && python -m pytest tests/ -q --cov=app --cov-fail-under=75` | Backend (install lock + `requirements-test.txt`) |
 | `python scripts/render_legal_pages.py --check` | Hosted legal pages match `docs/legal/` |
@@ -27,12 +27,16 @@ Engine tests are **not** this CI. From the submodule: see [docs/engine/TESTING.m
 
 | Change | Start |
 |--------|-------|
-| Wizard chrome / steps | `StaticAnalysisActivity.goToStep`; slots/coach if present |
-| Full-field batch / `.dat` write | `DicBatchRunner.kt` (`AnalysisViewModel.runBatchAnalysisBody`) + `DicFieldIo`, else `AnalysisViewModel` |
+| Wizard chrome / steps | `StaticAnalysisActivity` + `ui/analysis/wizard/*`; pages are `WizardStep`, shown by `goToStep(WizardStep)` → `AnalysisWizardChrome.applyStep`; its parts sit in `ui/analysis/frames`, `run`, `roi`, `recommend`, `sweep` |
+| Full-field batch / `.dat` write | `DicBatchRunner.runBatchAnalysisBody` (the one JNI loop) + `DicFieldIo`; the save → stop mapping is `afterSave`, next to it. Launched by `RunChannels.launchBatchAnalysis` |
 | A structural change | Check [docs/adr/](docs/adr/README.md) for a decision first |
-| A new Kotlin file / package split | Feature subpackage per [ADR-015](docs/adr/ADR-015-package-layout.md); never move Workers, `SemperNativeLib`, Activities |
-| Viewer / exports | `ResultViewerActivity`, `ShareCenter` |
-| Settings sections | `Settings*Section`; restore/delete stay on `SettingsActivity` |
+| A new Kotlin file / package split | Feature subpackage per [ADR-015](docs/adr/ADR-015-package-layout.md) (~15 files, ~500 lines a file; a split stays in its package); never move Workers, `SemperNativeLib`, Activities |
+| Viewer / exports | `ResultViewerActivity` + its controllers (`ViewerFrameLoader`, `ViewerScaleController`, `ViewerImageLoader`, `FrameJumpController`, `ViewerShareController`, `ViewerChromeController`, `ViewerCaptions`); exports `ShareCenter` → `ShareExportJobs` (held by `ResultViewerViewModel`) → `ShareExportBuilder` |
+| Settings sections | `Settings*Section` (account, cloud, analyses, storage, preferences, your data, help, footer); restore / download / delete stay on `SettingsActivity` |
+| Cloud backup (upload) | `DicUploadWorker.backUp`: `UploadStaging` → `UploadSessionPlanner.ensureSession` → `uploadFiles` → `complete`; every failure goes through `UploadFailures` |
+| Work that must outlive a screen | [ADR-016](docs/adr/ADR-016-work-that-outlives-the-activity.md): ViewModel, an app-lifetime run, or WorkManager |
+| A toast, dialog, sheet, thumbnail or latest-wins job | The `ui/common` kit ([ADR-017](docs/adr/ADR-017-viewbinding-and-ui-kit.md)); views through ViewBinding |
+| A failure result or a catch | [ADR-018](docs/adr/ADR-018-error-convention.md): `Authed` / `HttpFailure`, `RunStop`, `DownloadFailure`, `UploadFailures`, `UpsertResult`; rethrow cancellation |
 | Session paths | `SessionPaths` only |
 | Backend routes | `backend/app/routers/`; app/middleware in `main.py` |
 | Firestore access | `backend/app/repo/<aggregate>.py`; routers call it through `firestore_repo` ([ADR-001](docs/adr/ADR-001-firestore-repo-package.md)) |
@@ -42,7 +46,10 @@ Engine tests are **not** this CI. From the submodule: see [docs/engine/TESTING.m
 
 - Empty lint/detekt baselines. Extract or `@file:Suppress`; do not stuff findings.
 - Bit-exact `.dat` / GIF oracles. JNI `computeFullFieldDirect` stays in the one batch loop.
-- Do not split VisualizationEngine, GifEncoder LZW, ReportBuilder, upload `doWork`, scrub cache, `PointSpatialIndex.build`.
+- Fused hot loops keep their body whole in one function (VisualizationEngine pixel loops, GifEncoder LZW,
+  ReportBuilder fusion pass, `decodeDatFile`, `prefetchAround`, `PointSpatialIndex.build`); the files around
+  them may be split. Prove a split with the oracles and `HotPathMicroBenchmark` / `ViewerScrubBenchmark`.
+- Upload `doWork` may become named steps, but staged bytes stay identical across attempts.
 - Do not bump `targetSdk` 36→37 or enable `warningsAsErrors` without an explicit decision.
 - Never bump `backend/requirements.txt` without `pip-compile --generate-hashes` on Python **3.12**.
 - Never commit `local.properties` (API URL) or keystores.

@@ -11,7 +11,7 @@ chunk own?" here.
 | Chunk | User journey | JVM tests (`app/src/test`) | Instrumented (`androidTest`) |
 |-------|--------------|---------------------------|------------------------------|
 | **auth** | Splash → Auth / Pending / Home, re-auth, password rules | `auth/AccessRouterTest`, `ReauthFlowTest`, `PasswordPolicyTest` | `auth/FirebaseAuthIntegrationTest` |
-| **analysis** | Import → ROI → batch / parameter sweep; speckle and noise-floor suitability; the wizard across a process death | `analysis/AnalysisViewModelTest`, `WizardStateTest`, `VsgStudyTest`, `SubsetRecommenderTest`, `ConvergenceGateTest`, `DicGoodPracticeTest`, `SpeckleScaleTest`, `NoiseFloorProbeTest`, `NoiseFloorStatsTest`, `NoiseCorrelationTest`, `FrameOrderHelperTest`, `BitmapDecodeTest`, `ExifOrientedSizeTest`, `LossyFormatCheckTest`, `RawRgbaTest`, `SweepSetupHelperTest`, `DicBatchRunnerLimitTest`, `ui/common/MediaPickerSheetTest`, `ui/analysis/roi/StudioOverlayViewTest`, `RoiDrawActivityTest`, `VsgLatticeViewTest`, `RoiViewportTest`, `VsgPlotViewTest` | `ui/analysis/wizard/WizardDraftRestoreTest`; `e2e/RoiEditorGestureTest` (ROI editor under real touches: pinch keeps the ROI's pixels, two-finger pan stops at the edge, double-tap 2× / fit, a stray tap keeps the ROI, a zoomed draw saves the pixels under the finger) |
+| **analysis** | Import → ROI → batch / parameter sweep; speckle and noise-floor suitability; the wizard across a process death | `analysis/AnalysisViewModelTest`, `WizardStateTest`, `VsgStudyTest`, `SubsetRecommenderTest`, `ConvergenceGateTest`, `DicGoodPracticeTest`, `SpeckleScaleTest`, `NoiseFloorProbeTest`, `NoiseFloorStatsTest`, `NoiseCorrelationTest`, `FrameOrderHelperTest`, `BitmapDecodeTest`, `ExifOrientedSizeTest`, `LossyFormatCheckTest`, `RawRgbaTest`, `SweepSetupHelperTest`, `DicBatchRunnerLimitTest`, `ui/common/media/MediaPickerSheetTest`, `ui/analysis/roi/StudioOverlayViewTest`, `RoiDrawActivityTest`, `VsgLatticeViewTest`, `RoiViewportTest`, `VsgPlotViewTest` | `ui/analysis/wizard/WizardDraftRestoreTest`; `e2e/RoiEditorGestureTest` (ROI editor under real touches: pinch keeps the ROI's pixels, two-finger pan stops at the edge, double-tap 2× / fit, a stray tap keeps the ROI, a zoomed draw saves the pixels under the finger) |
 | **session** | Session store durability, disk footprint, failure provenance; the Home list and its multi-select | `session/SessionStoreAtomicTest`, `LocalStorageFootprintTest`, `FailureProvenanceTest`, `ui/home/SessionListAdapterTest`, `SessionSelectionControllerTest`, `CloudBackupsCardTest` | — |
 | **results** | `.dat` decode, CSV, heatmap, PDF, GIF | `results/DicResultCsvTest`, `AnalysisCsvSectionsTest`, `DicResultDecodeTest`, `VisualizationEngineTest`, `ReportBuilderTest`, `ReportBuilderMeanStdParityTest`, `GifEncoderTest`, `SummaryAnimationTest`, `PdfReportGeneratorTest` | `report/PdfReportDeviceTest` |
 | **viewer** | Result viewer controls, frame cache bounds, the Intent contract both entry points write and all four readers parse | `viewer/FrameNumberEntryTest`, `ScrubFrameCacheTest`, `ViewerFieldPillsTest`, `ShareCenterTest`, `ui/viewer/ViewerArgsTest`, `TouchImageViewTest`, `ViewerSettingsSheetTest`, `analysis/RunSpecTest` | `ui/viewer/ViewerEntryParityDeviceTest` |
@@ -30,6 +30,21 @@ chunk own?" here.
   `System.loadLibrary`, OpenMP threading, JNI marshalling.
 - **JVM tests** own Kotlin orchestration and data contracts. Do not add JVM
   tests that re-assert displacement accuracy.
+
+## Shared fixtures
+
+Reach for these before writing a local helper; each replaced several
+hand-rolled copies (#315, #330).
+
+| Fixture | File (under `app/src/test/java/com/indicvision/semper/`) | Use it for |
+|---|---|---|
+| `sessionRecord(...)` | `fixtures/SessionRecords.kt` | A `SessionRecord` with every required field defaulted (one frame, 100 × 100 px, subset 41, step 5, the whole image as ROI). Name only the fields the test cares about |
+| `packDat`, `gridFrame`, `writeGridBatch` | `fixtures/DatFixtures.kt` | `.dat` bytes in the engine's layout, a synthetic grid frame, or a whole batch of them in a folder |
+| `viewerArgs`, `viewerController`, `launchViewer` | `fixtures/ViewerFixture.kt` | A `ResultViewerActivity` under Robolectric on a `writeGridBatch` batch; keep the controller to recreate the viewer |
+| `idleUntil(what, timeoutMs) { done }` | `fixtures/Robo.kt` | Waiting for work that runs on a background dispatcher and posts back to main: idles the main looper until `done` holds, and names `what` when it times out. Use it instead of `Thread.sleep` or a bare `idle()` |
+| `CleanAppState` | `fixtures/CleanAppState.kt` | A JUnit rule: signed out, no saved sessions, before and after each test (token store, remote config, session index and folders) |
+| `MockWebServerRule` | OkHttp's `mockwebserver3.junit4` | Starting and closing a `MockWebServer` per test; do not start one by hand |
+| `WizardTestBed`, `FakeWizardHost` | `ui/analysis/WizardTestBed.kt` | The wizard's parts one at a time: its views in a plain themed Activity, a fresh `AnalysisViewModel`, and a host that counts what each part asks of it. Pass `resumed = false` for a part that registers a result launcher |
 
 ## Running by chunk
 

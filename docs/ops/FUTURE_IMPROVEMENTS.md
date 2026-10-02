@@ -160,7 +160,7 @@ twice.
   `HttpStatus.NOT_FOUND` / `FORBIDDEN`.
 - `SettingsYourDataSection.runExport(kind, produce)` runs both exports; the dead
   `CancellationException` catch is gone.
-- `ui/common/SupportMail` builds the intent, the fallback toast and the
+- `ui/common/auth/SupportMail` builds the intent, the fallback toast and the
   diagnostics lines for all four screens.
 - `util/AtomicFiles` owns `PART_SUFFIX` / `FULL_SUFFIX`, `deleteSidecars` and
   `promote(tmp, dest)`, used at every site above except `DicBatchRunner`, which
