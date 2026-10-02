@@ -51,13 +51,15 @@ class VideoFrameExtractorCancelTest {
 
     private suspend fun extract(onProgress: (Int, String) -> Unit) = VideoFrameExtractor.extract(
         context = context,
-        uri = uri,
-        fpsExtract = 2.0,
-        startMs = 0,
-        endMs = 1000,
-        maxFrames = 10,
+        request = ExtractionRequest(
+            uri = uri,
+            fpsExtract = 2.0,
+            startMs = 0,
+            endMs = 1000,
+            maxFrames = 10,
+            rotationDegrees = 0,
+        ),
         cacheDir = temp.newFolder(),
-        rotationDegrees = 0,
         onProgress = onProgress,
     )
 

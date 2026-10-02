@@ -1,7 +1,11 @@
 package com.indicvision.semper.analysis
 
 import android.os.Looper
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.field.RunStop
+import com.indicvision.semper.ui.analysis.frames.DeformedFrame
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
+import com.indicvision.semper.ui.analysis.wizard.repointDeformedPathsOnMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -28,6 +32,8 @@ class AnalysisViewModelTest {
 
     private lateinit var vm: AnalysisViewModel
 
+    private fun frames(vararg paths: String) = paths.map { DeformedFrame(it, it.substringAfterLast('/')) }
+
     @Before
     fun setUp() {
         vm = AnalysisViewModel()
@@ -48,21 +54,21 @@ class AnalysisViewModelTest {
 
     @Test
     fun `not ready to compute with deformed frames but no reference`() {
-        vm.defFilePaths = listOf("/tmp/def0.png")
+        vm.deformedFrames = frames("/tmp/def0.png")
         assertFalse(vm.isReadyToCompute())
     }
 
     @Test
     fun `ready to compute once a reference and at least one deformed frame exist`() {
         vm.refBytes = ByteArray(8)
-        vm.defFilePaths = listOf("/tmp/def0.png")
+        vm.deformedFrames = frames("/tmp/def0.png")
         assertTrue(vm.isReadyToCompute())
     }
 
     @Test
     fun `defCount tracks the deformed frame list`() {
         assertEquals(0, vm.defCount)
-        vm.defFilePaths = listOf("/tmp/a.png", "/tmp/b.png", "/tmp/c.png")
+        vm.deformedFrames = frames("/tmp/a.png", "/tmp/b.png", "/tmp/c.png")
         assertEquals(3, vm.defCount)
     }
 
@@ -116,14 +122,14 @@ class AnalysisViewModelTest {
         vm.lastBatchDirPath = "/tmp/batch"
         vm.lastRefPath = "/tmp/ref.png"
         vm.lastDefPath = "/tmp/def.png"
-        vm.lastStopCode = 7
+        vm.lastStop = RunStop.Other(7)
         vm.lastPlannedFrames = 12
 
         val snapshot = vm.runResult.value
         assertEquals("/tmp/batch", snapshot.batchDirPath)
         assertEquals("/tmp/ref.png", snapshot.refPath)
         assertEquals("/tmp/def.png", snapshot.defPath)
-        assertEquals(7, snapshot.stopCode)
+        assertEquals(RunStop.Other(7), snapshot.stop)
         assertEquals(12, snapshot.plannedFrames)
     }
 
@@ -133,18 +139,18 @@ class AnalysisViewModelTest {
         vm.lastRefPath = "/tmp/ref.png"
 
         // A later, unrelated write must not clobber the earlier ones.
-        vm.lastStopCode = 3
+        vm.lastStop = RunStop.InitFailed
 
         assertEquals(12, vm.lastPlannedFrames)
         assertEquals("/tmp/ref.png", vm.lastRefPath)
-        assertEquals(3, vm.lastStopCode)
+        assertEquals(RunStop.InitFailed, vm.lastStop)
     }
 
     // ------------------------------------------------------------ new reference
 
     /** A wizard that has run once on a 640 x 480 reference with a drawn ROI and mask. */
     private fun ranWithCustomRoi() = vm.apply {
-        applyNewReference(ByteArray(8), "first.png", 640, 480)
+        applyNewReference(ByteArray(8), "first.png", ImageSize(640, 480))
         hasCustomRoi = true
         roiX = 400
         roiY = 300
@@ -159,7 +165,7 @@ class AnalysisViewModelTest {
     fun `a new reference of another size drops the drawn ROI and mask`() {
         ranWithCustomRoi()
 
-        vm.applyNewReference(ByteArray(8), "second.png", 320, 240)
+        vm.applyNewReference(ByteArray(8), "second.png", ImageSize(320, 240))
 
         assertFalse(vm.hasCustomRoi)
         assertEquals(listOf(0, 0, 320, 240), listOf(vm.roiX, vm.roiY, vm.roiW, vm.roiH))
@@ -173,7 +179,7 @@ class AnalysisViewModelTest {
         ranWithCustomRoi()
         val mask = vm.roiMaskBytes
 
-        vm.applyNewReference(ByteArray(8), "second.png", 640, 480)
+        vm.applyNewReference(ByteArray(8), "second.png", ImageSize(640, 480))
 
         assertTrue(vm.hasCustomRoi)
         assertEquals(listOf(400, 300, 200, 150), listOf(vm.roiX, vm.roiY, vm.roiW, vm.roiH))
@@ -185,7 +191,7 @@ class AnalysisViewModelTest {
         ranWithCustomRoi()
         assertFalse(vm.wouldCreateNewSession())
 
-        vm.applyNewReference(ByteArray(8), "second.png", 640, 480)
+        vm.applyNewReference(ByteArray(8), "second.png", ImageSize(640, 480))
 
         assertTrue("a new reference overwrote the previous one's session", vm.wouldCreateNewSession())
         assertNull(vm.lastBatchDirPath)
@@ -195,8 +201,7 @@ class AnalysisViewModelTest {
 
     @Test
     fun `a run moving the frames repoints them on the main thread, not its own`() {
-        vm.defFilePaths = listOf("/cache/0000_a.png", "/cache/0001_b.png")
-        vm.defFrameSizes = mapOf("/cache/0000_a.png" to (4 to 3), "/cache/0001_b.png" to (4 to 3))
+        vm.deformedFrames = frames("/cache/0000_a.png", "/cache/0001_b.png").map { it.copy(size = ImageSize(4, 3)) }
 
         thread { vm.repointDeformedPathsOnMain(listOf("/session/a.png", "/session/b.png")) }.join()
         assertEquals(
@@ -216,7 +221,7 @@ class AnalysisViewModelTest {
         assertNull(snapshot.batchDirPath)
         assertNull(snapshot.spec)
         assertNull(snapshot.settings)
-        assertEquals(0, snapshot.stopCode)
+        assertEquals(RunStop.Finished, snapshot.stop)
         assertEquals(0, snapshot.plannedFrames)
     }
 }

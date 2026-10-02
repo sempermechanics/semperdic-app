@@ -1,6 +1,3 @@
-// Menu branch table is clearer as one when than split helpers.
-@file:Suppress("CyclomaticComplexMethod")
-
 package com.indicvision.semper.ui.analysis.frames
 
 import android.view.View
@@ -14,6 +11,14 @@ import com.indicvision.semper.ui.analysis.StaticAnalysisActivity
  */
 object AnalysisFrameOrderMenuHelper {
 
+    /** The menu's sorted orders, by item. */
+    private val SORTS = mapOf(
+        R.id.menu_frame_order_name_asc to (FrameOrderMode.NAME to FrameOrderDirection.ASCENDING),
+        R.id.menu_frame_order_name_desc to (FrameOrderMode.NAME to FrameOrderDirection.DESCENDING),
+        R.id.menu_frame_order_date_asc to (FrameOrderMode.DATE to FrameOrderDirection.ASCENDING),
+        R.id.menu_frame_order_date_desc to (FrameOrderMode.DATE to FrameOrderDirection.DESCENDING),
+    )
+
     fun show(
         activity: AppCompatActivity,
         anchor: View,
@@ -23,38 +28,24 @@ object AnalysisFrameOrderMenuHelper {
     ) {
         val popup = PopupMenu(activity, anchor)
         popup.menuInflater.inflate(R.menu.menu_frame_order, popup.menu)
-        val checkedId = when {
-            mode == FrameOrderMode.NAME && direction == FrameOrderDirection.ASCENDING ->
-                R.id.menu_frame_order_name_asc
-            mode == FrameOrderMode.NAME && direction == FrameOrderDirection.DESCENDING ->
-                R.id.menu_frame_order_name_desc
-            mode == FrameOrderMode.DATE && direction == FrameOrderDirection.ASCENDING ->
-                R.id.menu_frame_order_date_asc
-            mode == FrameOrderMode.DATE && direction == FrameOrderDirection.DESCENDING ->
-                R.id.menu_frame_order_date_desc
-            mode == FrameOrderMode.MANUAL ->
-                R.id.menu_frame_order_manual
-            else -> 0
-        }
-        if (checkedId != 0) {
-            popup.menu.findItem(checkedId)?.isChecked = true
-        }
+        checkedItem(mode, direction)?.let { popup.menu.findItem(it)?.isChecked = true }
         popup.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.menu_frame_order_name_asc ->
-                    onSelect(FrameOrderMode.NAME, FrameOrderDirection.ASCENDING)
-                R.id.menu_frame_order_name_desc ->
-                    onSelect(FrameOrderMode.NAME, FrameOrderDirection.DESCENDING)
-                R.id.menu_frame_order_date_asc ->
-                    onSelect(FrameOrderMode.DATE, FrameOrderDirection.ASCENDING)
-                R.id.menu_frame_order_date_desc ->
-                    onSelect(FrameOrderMode.DATE, FrameOrderDirection.DESCENDING)
-                R.id.menu_frame_order_manual ->
-                    onSelect(FrameOrderMode.MANUAL, direction)
-                else -> return@setOnMenuItemClickListener false
-            }
+            val order = orderFor(item.itemId, direction) ?: return@setOnMenuItemClickListener false
+            onSelect(order.first, order.second)
             true
         }
         popup.show()
     }
+
+    /** The item that shows [mode] and [direction] as chosen; none for the picker's own order. */
+    internal fun checkedItem(mode: FrameOrderMode, direction: FrameOrderDirection): Int? =
+        if (mode == FrameOrderMode.MANUAL) {
+            R.id.menu_frame_order_manual
+        } else {
+            SORTS.entries.firstOrNull { it.value == (mode to direction) }?.key
+        }
+
+    /** The order item [itemId] picks; manual keeps [direction]. Null for an item that is no order. */
+    internal fun orderFor(itemId: Int, direction: FrameOrderDirection): Pair<FrameOrderMode, FrameOrderDirection>? =
+        SORTS[itemId] ?: (FrameOrderMode.MANUAL to direction).takeIf { itemId == R.id.menu_frame_order_manual }
 }

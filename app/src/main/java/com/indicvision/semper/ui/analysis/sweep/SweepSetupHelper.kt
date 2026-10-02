@@ -14,7 +14,6 @@ import com.indicvision.semper.R
 import com.indicvision.semper.field.ImageSize
 import com.indicvision.semper.field.Roi
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
-import com.indicvision.semper.ui.common.Dialogs
 import com.indicvision.semper.ui.common.WarnChip
 import com.indicvision.semper.ui.common.bindInfo
 import com.indicvision.semper.ui.common.onButtonChecked
@@ -36,13 +35,6 @@ class SweepSetupHelper(
         fun goToStep(step: Int, animate: Boolean)
         fun updateWizardChrome()
         fun checkReady()
-
-        /**
-         * No longer called: the sweep's "i" buttons open [Dialogs.info]
-         * themselves ([bindInfo]). Kept so the wizard's implementation still
-         * compiles; it goes when the wizard drops it.
-         */
-        fun showInfo(titleRes: Int, bodyRes: Int)
         fun commitParamFields()
         fun startVsgSweep()
         fun currentSubsetSize(): Int

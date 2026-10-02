@@ -3,9 +3,9 @@ package com.indicvision.semper.ui.analysis.sweep
 import com.indicvision.semper.SemperNativeLib
 import com.indicvision.semper.data.session.SessionPaths
 import com.indicvision.semper.diagnostics.EngineDebug
+import com.indicvision.semper.field.RunStop
 import com.indicvision.semper.report.EngineStats
 import com.indicvision.semper.report.newMetrics
-import com.indicvision.semper.ui.analysis.run.AnalysisRunCodes
 import com.indicvision.semper.ui.analysis.run.DicFieldIo
 import com.indicvision.semper.ui.analysis.run.EngineFailure
 import com.indicvision.semper.ui.analysis.run.SemperEngine
@@ -74,7 +74,7 @@ object VsgStudyRunner {
      *   on past them, so this is empty on a clean run and non-empty on a
      *   partial one
      * @param engineErrorCode 0 when at least one combination solved,
-     *   [AnalysisRunCodes.ERROR_CANCELLED] when the user stopped it, otherwise the engine's own
+     *   [RunStop.Cancelled]'s code when the user stopped it, otherwise the engine's own
      *   negative code from the last attempt. Low convergence is not an error
      *   here — see [run].
      */
@@ -191,7 +191,7 @@ object VsgStudyRunner {
         // Some combinations failing is a partial success. Only a sweep that
         // produced nothing reports the engine's own code, which says why.
         if (cancelRequested) {
-            errorCode = AnalysisRunCodes.ERROR_CANCELLED
+            errorCode = RunStop.Cancelled.wireCode
         } else if (runs.isEmpty() && skipped.isNotEmpty()) {
             errorCode = lastEngineError
         }

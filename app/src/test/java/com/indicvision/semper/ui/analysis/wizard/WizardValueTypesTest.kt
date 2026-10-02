@@ -35,10 +35,11 @@ class WizardValueTypesTest {
         roiY = 20
         roiW = 300
         roiH = 200
-        defFilePaths = listOf("/c/f1.png", "/c/f2.png", "/c/f3.png")
-        defOriginalNames = listOf("IMG_1.png", "IMG_2.png", "IMG_3.png")
-        defFrameDates = listOf(100L, Long.MAX_VALUE, 50L)
-        defFrameSizes = mapOf("/c/f1.png" to (400 to 300), "/c/f3.png" to (400 to 300))
+        deformedFrames = listOf(
+            DeformedFrame("/c/f1.png", "IMG_1.png", 100L, ImageSize(400, 300)),
+            DeformedFrame("/c/f2.png", "IMG_2.png", Long.MAX_VALUE),
+            DeformedFrame("/c/f3.png", "IMG_3.png", 50L, ImageSize(400, 300)),
+        )
         subsetMin = 21
         subsetMax = 61
         strainWinMin = 9
@@ -48,8 +49,17 @@ class WizardValueTypesTest {
         stepDenominator = 4
     }
 
-    private fun AnalysisViewModel.sweepRanges() =
+    private fun AnalysisViewModel.sweepFields() =
         SweepRanges(subsetMin, subsetMax, strainWinMin, strainWinMax, subsetSamples, strainWinSamples, stepDenominator)
+
+    @Test
+    fun `the seven sweep fields read and write the view model's sweep ranges`() {
+        val vm = wizard()
+        assertEquals(vm.sweepFields(), vm.sweepRanges)
+        vm.strainWinSamples = 7
+        assertEquals(7, vm.sweepRanges.strainWinSamples)
+        assertEquals(vm.sweepFields(), vm.sweepRanges)
+    }
 
     @Test
     fun `the saved roi array reads back as the view model's ROI`() {
@@ -62,12 +72,12 @@ class WizardValueTypesTest {
     fun `sweep ranges pack exactly as the saved state does and restore the same fields`() {
         val vm = wizard()
         val saved = WizardState.save(vm, "")
-        assertEquals(saved.getIntArray("sweepRanges")!!.toList(), vm.sweepRanges().toIntArray().toList())
+        assertEquals(saved.getIntArray("sweepRanges")!!.toList(), vm.sweepRanges.toIntArray().toList())
 
         val restored = AnalysisViewModel()
         WizardState.restoreScalars(restored, saved)
-        assertEquals(vm.sweepRanges(), restored.sweepRanges())
-        assertEquals(vm.sweepRanges(), SweepRanges.fromIntArray(saved.getIntArray("sweepRanges")))
+        assertEquals(vm.sweepRanges, restored.sweepRanges)
+        assertEquals(vm.sweepRanges, SweepRanges.fromIntArray(saved.getIntArray("sweepRanges")))
     }
 
     @Test
@@ -79,7 +89,8 @@ class WizardValueTypesTest {
 
     @Test
     fun `unseeded ranges are the view model's defaults`() {
-        assertEquals(SweepRanges.UNSEEDED, AnalysisViewModel().sweepRanges())
+        assertEquals(SweepRanges.UNSEEDED, AnalysisViewModel().sweepRanges)
+        assertEquals(SweepRanges.UNSEEDED, AnalysisViewModel().sweepFields())
     }
 
     /** Only [SweepSetupHelper.Callbacks.maxSubsetForRoi] matters to `currentPlan`. */
@@ -87,7 +98,6 @@ class WizardValueTypesTest {
         override fun goToStep(step: Int, animate: Boolean) = Unit
         override fun updateWizardChrome() = Unit
         override fun checkReady() = Unit
-        override fun showInfo(titleRes: Int, bodyRes: Int) = Unit
         override fun commitParamFields() = Unit
         override fun startVsgSweep() = Unit
         override fun currentSubsetSize(): Int = 21
@@ -124,48 +134,44 @@ class WizardValueTypesTest {
             ceiling.max = max
             val expected = legacyCurrentPlan(vm, max)
             assertEquals("currentPlan, ceiling $max", expected, helper.currentPlan())
-            assertEquals("plan, ceiling $max", expected, vm.sweepRanges().plan(subsetCeiling = max))
+            assertEquals("plan, ceiling $max", expected, vm.sweepRanges.plan(subsetCeiling = max))
         }
-        assertEquals(emptyList<VsgStudy.Point>(), vm.sweepRanges().plan(subsetCeiling = 20))
-        assertEquals(41, vm.sweepRanges().plan(subsetCeiling = 41).maxOf { it.subset })
+        assertEquals(emptyList<VsgStudy.Point>(), vm.sweepRanges.plan(subsetCeiling = 20))
+        assertEquals(41, vm.sweepRanges.plan(subsetCeiling = 41).maxOf { it.subset })
     }
 
     @Test
-    fun `deformed frames zip and unzip index-aligned lists back to the same lists`() {
+    fun `the view model's frame lists are its deformed frames, index-aligned`() {
         val vm = wizard()
-        val frames = DeformedFrame.zip(vm.defFilePaths, vm.defOriginalNames, vm.defFrameDates, vm.defFrameSizes)
-        assertEquals(
-            DeformedFrame("/c/f2.png", "IMG_2.png", DeformedFrame.UNKNOWN_DATE, null),
-            frames[1],
-        )
-        assertEquals(ImageSize(400, 300), frames[0].size)
-        val lists = DeformedFrame.unzip(frames)
-        assertEquals(vm.defFilePaths, lists.paths)
-        assertEquals(vm.defOriginalNames, lists.names)
-        assertEquals(vm.defFrameDates, lists.dates)
-        assertEquals(vm.defFrameSizes, lists.sizes)
+        assertEquals(listOf("/c/f1.png", "/c/f2.png", "/c/f3.png"), vm.defFilePaths)
+        assertEquals(listOf("IMG_1.png", "IMG_2.png", "IMG_3.png"), vm.defOriginalNames)
+        assertEquals(listOf(100L, Long.MAX_VALUE, 50L), vm.defFrameDates)
+        // A frame with no measured size has no entry.
+        assertEquals(mapOf("/c/f1.png" to (400 to 300), "/c/f3.png" to (400 to 300)), vm.defFrameSizes)
+        assertEquals(3, vm.defCount)
     }
 
     @Test
-    fun `short name and date lists pad rather than drop frames`() {
-        val frames = DeformedFrame.zip(listOf("a", "b"), listOf("A"), emptyList(), emptyMap())
-        assertEquals(listOf("A", ""), frames.map { it.name })
-        assertEquals(listOf(DeformedFrame.UNKNOWN_DATE, DeformedFrame.UNKNOWN_DATE), frames.map { it.date })
-    }
-
-    @Test
-    fun `draft frame list converts both ways exactly as WizardState writes and applies it`() {
+    fun `draft frame list converts both ways exactly as WizardState writes and restores it`() {
         val vm = wizard()
         val draftFrames = WizardState.frames(vm)
+        assertEquals(listOf(400, -1, 400), draftFrames.widths)
         val asFrames = draftFrames.toDeformedFrames()
-        assertEquals(
-            DeformedFrame.zip(vm.defFilePaths, vm.defOriginalNames, vm.defFrameDates, vm.defFrameSizes),
-            asFrames,
-        )
+        assertEquals(vm.deformedFrames, asFrames)
         assertEquals(draftFrames, wizardFramesOf(asFrames))
+    }
 
-        val applied = AnalysisViewModel()
-        WizardState.applyFrames(applied, draftFrames)
-        assertEquals(applied.defFrameSizes, DeformedFrame.unzip(asFrames).sizes)
+    @Test
+    fun `a draft frame list with short or unmeasured entries pads rather than drops frames`() {
+        val draft = WizardState.Frames(
+            paths = listOf("a", "b"),
+            names = listOf("A"),
+            widths = listOf(0, 5),
+            heights = listOf(3, 5),
+        )
+        val frames = draft.toDeformedFrames()
+        assertEquals(listOf("A", ""), frames.map { it.name })
+        assertEquals(listOf(DeformedFrame.UNKNOWN_DATE, DeformedFrame.UNKNOWN_DATE), frames.map { it.date })
+        assertEquals(listOf(null, ImageSize(5, 5)), frames.map { it.size })
     }
 }

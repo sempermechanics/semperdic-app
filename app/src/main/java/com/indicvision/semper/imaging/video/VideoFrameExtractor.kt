@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber", "LongParameterList", "NestedBlockDepth", "TooGenericExceptionCaught", "ReturnCount")
+@file:Suppress("NestedBlockDepth", "TooGenericExceptionCaught", "ReturnCount")
 
 @file:SuppressLint("InlinedApi")
 
@@ -10,7 +10,7 @@ import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.core.graphics.scale
-import com.indicvision.semper.R
+import com.indicvision.semper.field.ImageSize
 import com.indicvision.semper.imaging.BitmapDecode
 import com.indicvision.semper.imaging.ImageEncode
 import com.indicvision.semper.ui.analysis.frames.FrameImportHelper
@@ -22,8 +22,32 @@ import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Locale
 import kotlin.math.max
+
+/**
+ * What to extract from [uri]: the segment [startMs] to [endMs], sampled at
+ * [fpsExtract] (or on keyframes, when [preferKeyframes] and the clip has
+ * them), at most [maxFrames] frames.
+ *
+ * @param rotationDegrees the clip's rotation from [VideoFrameExtractor.readMeta],
+ *   when the caller already has it; null reads the metadata again.
+ */
+data class ExtractionRequest(
+    val uri: Uri,
+    val fpsExtract: Double,
+    val startMs: Long,
+    val endMs: Long,
+    val maxFrames: Int,
+    val preferKeyframes: Boolean = true,
+    val rotationDegrees: Int? = null,
+)
+
+/** A video's first sampled frame as the reference: lossless [png] bytes, its pixel [size] and a [preview]. */
+class ReferenceFrame(
+    val png: ByteArray,
+    val size: ImageSize,
+    val preview: Bitmap?,
+)
 
 data class VideoMeta(
     val durationMs: Long,
@@ -48,6 +72,15 @@ object VideoFrameExtractor {
 
     private val PREVIEW_MAX_EDGE = BitmapDecode.PREVIEW_MAX_EDGE
 
+    /** The frame rate assumed when the clip does not report its frame count. */
+    private const val ASSUMED_FPS = 30.0
+    private const val MS_PER_SECOND = 1000.0
+    private const val US_PER_MS = 1000L
+
+    /** Rotations that swap the clip's width and height. */
+    private const val QUARTER_TURN = 90
+    private const val THREE_QUARTER_TURN = 270
+
     fun formatClock(ms: Long): String = VideoKeyframeHelper.formatClock(ms)
 
     fun readMeta(context: Context, uri: Uri): VideoMeta {
@@ -56,7 +89,7 @@ object VideoFrameExtractor {
         AviVideoDecoder.create(context, uri)?.use { avi ->
             return if (avi.canDecode) avi.meta else avi.meta.copy(unsupportedCodec = avi.fourcc)
         }
-        var meta = VideoMeta(0L, 30.0, false, 0, 0, 0)
+        var meta = VideoMeta(0L, ASSUMED_FPS, false, 0, 0, 0)
         val retriever = MediaMetadataRetriever()
         try {
             retriever.setDataSource(context, uri)
@@ -65,16 +98,16 @@ object VideoFrameExtractor {
             var w = m(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
             var h = m(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
             val rot = m(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
-            if (rot == 90 || rot == 270) {
+            if (rot == QUARTER_TURN || rot == THREE_QUARTER_TURN) {
                 val t = w
                 w = h
                 h = t
             }
             val frameCountMeta = m(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT)?.toIntOrNull()
-            var fps = 30.0
+            var fps = ASSUMED_FPS
             var fpsKnown = false
             if (frameCountMeta != null && frameCountMeta > 0 && durationMs > 0) {
-                fps = frameCountMeta / (durationMs / 1000.0)
+                fps = frameCountMeta / (durationMs / MS_PER_SECOND)
                 fpsKnown = true
             }
             meta = VideoMeta(durationMs, fps, fpsKnown, w, h, rot)
@@ -87,12 +120,10 @@ object VideoFrameExtractor {
         return meta
     }
 
+    /** Frame 0 of the segment as the reference, and the rest as the committed deformed [batch]. */
     data class ExtractionResult(
-        val refPng: ByteArray,
-        val refWidth: Int,
-        val refHeight: Int,
+        val reference: ReferenceFrame,
         val refName: String,
-        val refPreview: Bitmap?,
         val batch: ImportedBatch,
     )
 
@@ -103,64 +134,32 @@ object VideoFrameExtractor {
      * Cancelling the caller's job cancels the extraction: it throws
      * [CancellationException] rather than falling through to the next rung,
      * whose null would read as "not enough frames".
-     *
-     * @param rotationDegrees the clip's rotation from [readMeta], when the
-     *   caller already has it; null reads the metadata again
      */
     suspend fun extract(
         context: Context,
-        uri: Uri,
-        fpsExtract: Double,
-        startMs: Long,
-        endMs: Long,
-        maxFrames: Int,
+        request: ExtractionRequest,
         cacheDir: File,
-        preferKeyframes: Boolean = true,
-        rotationDegrees: Int? = null,
         onProgress: (percent: Int, status: String) -> Unit,
     ): ExtractionResult? {
         val stagingDir = FrameImportHelper.createStagingDir(cacheDir)
+        val sink = FrameSink(context, cacheDir, stagingDir, request.startMs, onProgress)
         var completed = false
         var refPreview: Bitmap? = null
         try {
             // Three rungs, tried in order: the AVI demuxer, which is the only
             // thing that can open that container; the hardware decoder; and the
             // retriever, which crashes on nothing.
-            val result = extractWithAvi(
-                context = context,
-                uri = uri,
-                fpsExtract = fpsExtract,
-                startMs = startMs,
-                endMs = endMs,
-                maxFrames = maxFrames,
-                cacheDir = cacheDir,
-                stagingDir = stagingDir,
-                onProgress = onProgress,
-            ) ?: extractWithHardwareDecoder(
-                context = context,
-                uri = uri,
-                rotationDegrees = rotationDegrees ?: readMeta(context, uri).rotationDegrees,
-                fpsExtract = fpsExtract,
-                startMs = startMs,
-                endMs = endMs,
-                maxFrames = maxFrames,
-                cacheDir = cacheDir,
-                stagingDir = stagingDir,
-                preferKeyframes = preferKeyframes,
-                onProgress = onProgress,
-            ) ?: extractWithRetriever(
-                context = context,
-                uri = uri,
-                fpsExtract = fpsExtract,
-                startMs = startMs,
-                endMs = endMs,
-                maxFrames = maxFrames,
-                cacheDir = cacheDir,
-                stagingDir = stagingDir,
-                onProgress = onProgress,
-            ) ?: return null
+            val result = extractWithAvi(context, request, sink)
+                ?: extractWithHardwareDecoder(
+                    context,
+                    request,
+                    rotationDegrees = request.rotationDegrees ?: readMeta(context, request.uri).rotationDegrees,
+                    sink,
+                )
+                ?: extractWithRetriever(context, request, sink)
+                ?: return null
 
-            refPreview = result.refPreview
+            refPreview = result.reference.preview
             completed = true
             return result
         } finally {
@@ -171,47 +170,30 @@ object VideoFrameExtractor {
 
     private suspend fun extractWithHardwareDecoder(
         context: Context,
-        uri: Uri,
+        request: ExtractionRequest,
         rotationDegrees: Int,
-        fpsExtract: Double,
-        startMs: Long,
-        endMs: Long,
-        maxFrames: Int,
-        cacheDir: File,
-        stagingDir: File,
-        preferKeyframes: Boolean,
-        onProgress: (percent: Int, status: String) -> Unit,
+        sink: FrameSink,
     ): ExtractionResult? {
-        val decoder = HardwareVideoDecoder.create(context, uri, rotationDegrees) ?: return null
+        val decoder = HardwareVideoDecoder.create(context, request.uri, rotationDegrees) ?: return null
         return decoder.use { dec ->
             try {
-                val startUs = startMs * 1000L
-                val endUs = endMs * 1000L
                 val keyframesUs = VideoKeyframeHelper.findKeyframeTimestampsUs(
                     extractor = dec.extractor,
                     trackIndex = dec.trackIndex,
-                    startUs = startUs,
-                    endUs = endUs,
+                    startUs = request.startMs * US_PER_MS,
+                    endUs = request.endMs * US_PER_MS,
                 )
                 val plan = VideoKeyframeHelper.resolveExtractionPlan(
                     keyframeTimestampsUs = keyframesUs,
-                    startMs = startMs,
-                    endMs = endMs,
-                    fpsExtract = fpsExtract,
-                    maxFrames = maxFrames,
-                    forceUniform = !preferKeyframes,
+                    startMs = request.startMs,
+                    endMs = request.endMs,
+                    fpsExtract = request.fpsExtract,
+                    maxFrames = request.maxFrames,
+                    forceUniform = !request.preferKeyframes,
                 )
-                if (plan.timestampsUs.size < 2) return null
-
-                VideoFrameBatchWriter.write(
-                    context = context,
-                    count = plan.timestampsUs.size,
-                    lumaAt = { i -> dec.decodeFrameAt(plan.timestampsUs[i]) },
-                    startMs = startMs,
-                    cacheDir = cacheDir,
-                    stagingDir = stagingDir,
-                    onProgress = onProgress,
-                )
+                plan.timestampsUs.takeIf { it.size >= 2 }?.let { times ->
+                    sink.write(count = times.size) { i -> dec.decodeFrameAt(times[i]) }
+                }
             } catch (e: CancellationException) {
                 // The user's Cancel: not a decoder failure for the next rung to retry.
                 throw e
@@ -225,67 +207,43 @@ object VideoFrameExtractor {
     /**
      * Frames of an AVI. `MediaExtractor` cannot open the container at all, so
      * [AviVideoDecoder] demuxes it and decodes each frame by its FourCC.
-     * Null when [uri] is not an AVI, or holds a codec this device cannot decode.
+     * Null when the request's clip is not an AVI, or holds a codec this device cannot decode.
      */
     private suspend fun extractWithAvi(
         context: Context,
-        uri: Uri,
-        fpsExtract: Double,
-        startMs: Long,
-        endMs: Long,
-        maxFrames: Int,
-        cacheDir: File,
-        stagingDir: File,
-        onProgress: (percent: Int, status: String) -> Unit,
+        request: ExtractionRequest,
+        sink: FrameSink,
     ): ExtractionResult? {
-        val decoder = AviVideoDecoder.create(context, uri) ?: return null
+        val decoder = AviVideoDecoder.create(context, request.uri) ?: return null
         return decoder.use { avi ->
             // An AVI has no seekable timeline of its own: sampling times map
             // onto frame indices, and repeats collapse so a rate above the
             // stream's own cannot ask for the same frame twice.
-            val indices = VideoKeyframeHelper
-                .uniformTimestampsUs(startMs, endMs, fpsExtract, maxFrames)
+            val indices = request.uniformTimestampsUs()
                 .map { avi.video.frameIndexAt(it) }
                 .distinct()
             if (!avi.canDecode || indices.size < 2) {
                 null
             } else {
-                VideoFrameBatchWriter.write(
-                    context = context,
-                    count = indices.size,
-                    lumaAt = { i -> avi.decodeFrame(indices[i]) },
-                    startMs = startMs,
-                    cacheDir = cacheDir,
-                    stagingDir = stagingDir,
-                    onProgress = onProgress,
-                )
+                sink.write(count = indices.size) { i -> avi.decodeFrame(indices[i]) }
             }
         }
     }
 
     private suspend fun extractWithRetriever(
         context: Context,
-        uri: Uri,
-        fpsExtract: Double,
-        startMs: Long,
-        endMs: Long,
-        maxFrames: Int,
-        cacheDir: File,
-        stagingDir: File,
-        onProgress: (percent: Int, status: String) -> Unit,
+        request: ExtractionRequest,
+        sink: FrameSink,
     ): ExtractionResult? {
         Timber.i("Falling back to MediaMetadataRetriever for video frame extraction")
         val retriever = MediaMetadataRetriever()
         try {
-            retriever.setDataSource(context, uri)
-            val timesUs = VideoKeyframeHelper.uniformTimestampsUs(startMs, endMs, fpsExtract, maxFrames)
+            retriever.setDataSource(context, request.uri)
+            val timesUs = request.uniformTimestampsUs()
             val count = timesUs.size
 
             val defPaths = mutableListOf<String>()
-            var refPng: ByteArray? = null
-            var refWidth = 0
-            var refHeight = 0
-            var refPreview: Bitmap? = null
+            var reference: ReferenceFrame? = null
 
             for ((i, timeUs) in timesUs.withIndex()) {
                 currentCoroutineContext().ensureActive()
@@ -293,12 +251,13 @@ object VideoFrameExtractor {
                 try {
                     currentCoroutineContext().ensureActive()
                     if (i == 0) {
-                        refWidth = frame.width
-                        refHeight = frame.height
-                        refPng = compressPngToBytes(frame)
-                        refPreview = scaledPreview(frame)
+                        reference = ReferenceFrame(
+                            png = compressPngToBytes(frame),
+                            size = ImageSize(frame.width, frame.height),
+                            preview = scaledPreview(frame),
+                        )
                     } else {
-                        val f = File(stagingDir, String.format(Locale.US, "%04d_frame.png", i))
+                        val f = sink.deformedFile(i)
                         FileOutputStream(f).use { out ->
                             frame.compress(Bitmap.CompressFormat.PNG, ImageEncode.PNG_QUALITY_MAX, out)
                         }
@@ -307,24 +266,9 @@ object VideoFrameExtractor {
                 } finally {
                     frame.recycle()
                 }
-
-                val status = context.getString(R.string.video_extracting_progress_fmt, i + 1, count)
-                onProgress((i + 1) * 100 / count, status)
+                sink.progress(i, count)
             }
-
-            val pngBytes = refPng ?: return null
-            if (defPaths.isEmpty()) return null
-
-            return VideoFrameBatchWriter.assemble(
-                cacheDir = cacheDir,
-                stagingDir = stagingDir,
-                refPng = pngBytes,
-                refWidth = refWidth,
-                refHeight = refHeight,
-                refPreview = refPreview,
-                startMs = startMs,
-                defPaths = defPaths,
-            )
+            return sink.finish(reference, defPaths)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -335,6 +279,10 @@ object VideoFrameExtractor {
                 .onFailure { Timber.w(it, "MediaMetadataRetriever.release failed") }
         }
     }
+
+    /** The request's sampling times, evenly spaced at its rate over its segment. */
+    private fun ExtractionRequest.uniformTimestampsUs(): List<Long> =
+        VideoKeyframeHelper.uniformTimestampsUs(startMs, endMs, fpsExtract, maxFrames)
 
     /**
      * The frame at [timeUs], decoding forward from the sync frame before it;

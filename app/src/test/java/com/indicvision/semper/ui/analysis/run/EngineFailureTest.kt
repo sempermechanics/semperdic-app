@@ -1,6 +1,7 @@
 package com.indicvision.semper.ui.analysis.run
 
 import com.indicvision.semper.R
+import com.indicvision.semper.field.RunStop
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -46,12 +47,18 @@ class EngineFailureTest {
         )
         assertEquals(
             R.string.error_low_convergence,
-            EngineFailure.reasonRes(AnalysisRunCodes.ERROR_LOW_CONVERGENCE),
+            EngineFailure.reasonRes(RunStop.LowConvergence.wireCode),
         )
         assertEquals(
             R.string.sweep_reason_low_convergence,
-            EngineFailure.shortReasonRes(AnalysisRunCodes.ERROR_LOW_CONVERGENCE),
+            EngineFailure.shortReasonRes(RunStop.LowConvergence.wireCode),
         )
+    }
+
+    @Test
+    fun `a saved cancelled run reads as cancelled, not as a strain-window failure`() {
+        assertEquals(R.string.run_reason_cancelled, EngineFailure.shortReasonRes(RunStop.Cancelled.wireCode))
+        assertEquals(R.string.run_fail_cancelled, EngineFailure.reasonRes(RunStop.Cancelled.wireCode))
     }
 
     @Test
@@ -70,7 +77,7 @@ class EngineFailureTest {
         )
         assertEquals(
             R.string.url_faq_engine_convergence,
-            EngineFailure.faqUrlRes(AnalysisRunCodes.ERROR_LOW_CONVERGENCE),
+            EngineFailure.faqUrlRes(RunStop.LowConvergence.wireCode),
         )
         assertEquals(R.string.url_faq_engine_vsg, EngineFailure.faqUrlRes(0))
         assertEquals(R.string.url_faq_engine_vsg, EngineFailure.faqUrlRes(42))

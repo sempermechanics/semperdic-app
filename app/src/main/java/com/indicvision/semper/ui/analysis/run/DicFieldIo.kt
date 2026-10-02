@@ -7,8 +7,9 @@ import java.nio.ByteOrder
 
 /**
  * Direct-buffer allocate, overrun guard, and `.dat` write shared by the batch
- * run loop and the VSG sweep. JNI `computeFullFieldDirect` stays at each
- * call site — this is only the buffer around it.
+ * run loop and the VSG sweep. This is only the buffer around the solve: the
+ * batch keeps its JNI `computeFullFieldDirect` call inline in its one loop
+ * (`DicBatchRunner`), and the sweep solves through [SemperEngine.solve].
  */
 internal object DicFieldIo {
 
@@ -34,3 +35,11 @@ internal object DicFieldIo {
 
 /** Filename without any directory prefix, handling both '/' and '\' separators. */
 internal fun String.baseName(): String = substringAfterLast('/').substringAfterLast('\\')
+
+/**
+ * The name frame [index] was picked as, or [fallback] when none is known. A
+ * restored draft pads a frame with no recorded name with "", so a blank name
+ * counts as none.
+ */
+internal fun List<String>.originalNameOr(index: Int, fallback: String): String =
+    getOrNull(index)?.takeIf { it.isNotBlank() } ?: fallback

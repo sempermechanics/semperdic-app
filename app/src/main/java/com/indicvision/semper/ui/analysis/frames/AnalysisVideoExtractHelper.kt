@@ -1,71 +1,64 @@
-@file:Suppress("TooGenericExceptionCaught", "LongMethod", "LongParameterList")
-
 package com.indicvision.semper.ui.analysis.frames
 
 import android.graphics.Bitmap
-import android.net.Uri
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.indicvision.semper.R
-import com.indicvision.semper.data.net.AppRemoteConfig
-import com.indicvision.semper.data.prefs.DicSettings
+import com.indicvision.semper.imaging.video.ExtractionRequest
 import com.indicvision.semper.imaging.video.VideoFrameExtractor
 import com.indicvision.semper.ui.analysis.StaticAnalysisActivity
 import com.indicvision.semper.ui.analysis.run.ComputeOverlayHelper
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
 import com.indicvision.semper.ui.common.FaqRedirect
+import com.indicvision.semper.ui.common.Feedback
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.io.File
 
 /**
  * Video frame extraction orchestration extracted from [StaticAnalysisActivity].
  * Frame 0 of the segment becomes the reference; the rest feed defFilePaths.
+ * The extraction runs on [io].
  */
-object AnalysisVideoExtractHelper {
+class AnalysisVideoExtractHelper(
+    private val activity: AppCompatActivity,
+    private val viewModel: AnalysisViewModel,
+    private val overlayHelper: ComputeOverlayHelper,
+    private val tvResult: TextView,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
+) {
 
     data class AppliedResult(
         val refPreview: Bitmap?,
         val frameCount: Int,
     )
 
+    /**
+     * Extracts [request] into the import cache. [onApplied] runs once the view
+     * model holds the new reference and frames; [onFinished] runs however the
+     * extraction ends.
+     */
+    @Suppress("TooGenericExceptionCaught") // any failure becomes the import's snackbar
     fun extract(
-        activity: AppCompatActivity,
-        viewModel: AnalysisViewModel,
-        uri: Uri,
-        fpsExtract: Double,
-        startMs: Long,
-        endMs: Long,
-        cacheDir: File,
-        tvResult: TextView,
-        overlayHelper: ComputeOverlayHelper,
-        preferKeyframes: Boolean = true,
-        rotationDegrees: Int? = null,
+        request: ExtractionRequest,
         onApplied: (AppliedResult) -> Unit,
         onFinished: () -> Unit,
     ): Job {
         overlayHelper.processingStartTime = System.currentTimeMillis()
         overlayHelper.show(title = "Extracting Frames", status = "Reading video…", showRunTiles = false)
 
-        return activity.lifecycleScope.launch(Dispatchers.IO) {
+        return activity.lifecycleScope.launch(io) {
             try {
                 val result = VideoFrameExtractor.extract(
                     context = activity,
-                    uri = uri,
-                    fpsExtract = fpsExtract,
-                    startMs = startMs,
-                    endMs = endMs,
-                    maxFrames = DicSettings.maxFrames(activity, AppRemoteConfig.maxFrames(activity)),
-                    cacheDir = cacheDir,
-                    preferKeyframes = preferKeyframes,
-                    rotationDegrees = rotationDegrees,
+                    request = request,
+                    cacheDir = activity.cacheDir,
                     onProgress = { percent, status ->
                         overlayHelper.update(percent = percent.toFloat(), status = status)
                     },
@@ -80,33 +73,16 @@ object AnalysisVideoExtractHelper {
                             R.string.video_extract_insufficient,
                             R.string.url_faq_video_extract,
                         )
-                        return@withContext
+                    } else {
+                        apply(result)
+                        onApplied(AppliedResult(result.reference.preview, result.batch.frames.size))
+                        val count = result.batch.frames.size
+                        Feedback.toast(
+                            activity,
+                            activity.resources.getQuantityString(R.plurals.video_loaded_frames, count, count),
+                            long = true,
+                        )
                     }
-
-                    viewModel.applyNewReference(result.refPng, result.refName, result.refWidth, result.refHeight)
-                    viewModel.defFilePaths = result.batch.filePaths
-                    viewModel.defOriginalNames = result.batch.originalNames
-                    viewModel.defFrameSizes = result.batch.frameSizes
-                    viewModel.defFrameDates = emptyList()
-                    viewModel.defOrderMode = FrameOrderMode.PICKER
-                    viewModel.defOrderDirection = FrameOrderDirection.ASCENDING
-                    viewModel.defFromVideo = result.batch.fromVideo
-
-                    onApplied(
-                        AppliedResult(
-                            refPreview = result.refPreview,
-                            frameCount = result.batch.filePaths.size,
-                        ),
-                    )
-                    Toast.makeText(
-                        activity,
-                        activity.resources.getQuantityString(
-                            R.plurals.video_loaded_frames,
-                            result.batch.filePaths.size,
-                            result.batch.filePaths.size,
-                        ),
-                        Toast.LENGTH_LONG,
-                    ).show()
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -127,5 +103,13 @@ object AnalysisVideoExtractHelper {
                 }
             }
         }
+    }
+
+    private fun apply(result: VideoFrameExtractor.ExtractionResult) {
+        viewModel.applyNewReference(result.reference.png, result.refName, result.reference.size)
+        viewModel.deformedFrames = result.batch.frames
+        viewModel.defOrderMode = FrameOrderMode.PICKER
+        viewModel.defOrderDirection = FrameOrderDirection.ASCENDING
+        viewModel.defFromVideo = result.batch.fromVideo
     }
 }

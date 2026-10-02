@@ -6,6 +6,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.indicvision.semper.data.prefs.WizardDraft
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.ui.analysis.frames.DeformedFrame
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
@@ -77,10 +79,7 @@ class WizardDraftRestoreTest {
             roiY = 16
             roiW = 600
             roiH = 440
-            defFilePaths = paths
-            defOriginalNames = paths.map { File(it).name }
-            defFrameDates = paths.map { Long.MAX_VALUE }
-            defFrameSizes = paths.associateWith { 640 to 480 }
+            deformedFrames = paths.map { DeformedFrame(it, File(it).name, size = ImageSize(640, 480)) }
             wizardStep = 2
             workingLocalId = "draft_device"
         }
@@ -91,7 +90,7 @@ class WizardDraftRestoreTest {
         val after = AnalysisViewModel(SavedStateHandle(mapOf(WizardState.KEY to saved)))
         after.attachDraft(WizardDraft(context))
 
-        assertEquals(AnalysisViewModel.DraftRestore.RESTORED, runBlocking { after.restoreDraft() })
+        assertEquals(DraftRestore.RESTORED, runBlocking { after.restoreDraft() })
         assertArrayEquals(REF, after.refBytes)
         assertArrayEquals(MASK, after.roiMaskBytes)
         assertEquals(paths, after.defFilePaths)

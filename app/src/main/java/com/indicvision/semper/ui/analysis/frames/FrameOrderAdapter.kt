@@ -7,18 +7,26 @@ import android.graphics.BitmapFactory
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.indicvision.semper.R
+import com.indicvision.semper.databinding.ItemFrameOrderBinding
+import com.indicvision.semper.ui.common.ThumbnailLoader
 import com.indicvision.semper.ui.common.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
 import java.io.File
 import java.util.Locale
 
-/** Horizontal strip of deformed-frame thumbs with 1…N order badges. */
+/**
+ * Horizontal strip of deformed-frame thumbs with 1…N order badges.
+ *
+ * Thumbnails decode off the main thread through [thumbnails]; the host calls
+ * [release] from `onDestroy`.
+ */
 class FrameOrderAdapter(
+    private val thumbnails: ThumbnailLoader<FrameThumb> = frameThumbnails(),
     private val onOrderChanged: (List<String>) -> Unit,
 ) : RecyclerView.Adapter<FrameOrderAdapter.Holder>() {
 
@@ -35,9 +43,12 @@ class FrameOrderAdapter(
 
     override fun getItemCount(): Int = paths.size
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
-        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_frame_order, parent, false)
-        return Holder(v)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder =
+        Holder(ItemFrameOrderBinding.inflate(LayoutInflater.from(parent.context), parent, false), thumbnails)
+
+    /** Recycles the decoded thumbnails; only once no tile can draw them again. */
+    fun release() {
+        thumbnails.clear()
     }
 
     override fun onBindViewHolder(holder: Holder, position: Int) {
@@ -69,39 +80,30 @@ class FrameOrderAdapter(
         notifyItemRangeChanged(0, paths.size, PAYLOAD_BADGE)
     }
 
-    class Holder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val thumb: ImageView = itemView.findViewById(R.id.ivFrameThumb)
-        private val badge: TextView = itemView.findViewById(R.id.tvFrameBadge)
+    class Holder(
+        private val binding: ItemFrameOrderBinding,
+        private val thumbnails: ThumbnailLoader<FrameThumb>,
+    ) : RecyclerView.ViewHolder(binding.root) {
 
         fun setBadge(order: Int) {
-            badge.text = String.format(Locale.US, "%d", order)
+            binding.tvFrameBadge.text = String.format(Locale.US, "%d", order)
         }
 
         fun bind(path: String, order: Int) {
             setBadge(order)
             applyDragging(itemView, false, animate = false)
-            if (!File(path).exists()) {
-                thumb.setImageResource(R.drawable.ic_photos_share)
-                return
-            }
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(path, bounds)
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-                thumb.setImageResource(R.drawable.ic_photos_share)
-                return
-            }
-            var sample = 1
-            val longEdge = maxOf(bounds.outWidth, bounds.outHeight)
-            while (longEdge / sample > THUMB_MAX_EDGE_PX) sample *= 2
-            val bmp = BitmapFactory.decodeFile(
-                path,
-                BitmapFactory.Options().apply { inSampleSize = sample },
-            )
-            if (bmp != null) {
-                thumb.setImageBitmap(bmp)
-            } else {
-                thumb.setImageResource(R.drawable.ic_photos_share)
-            }
+            thumbnails.bind(binding.ivFrameThumb, FrameThumb.of(path))
+        }
+    }
+
+    /**
+     * A tile's cache key. Reordering renames the staged files, so a path can
+     * come back holding another frame (two picks with the same name); the
+     * file's length and time tell them apart.
+     */
+    data class FrameThumb(val path: String, val length: Long, val modifiedMs: Long) {
+        companion object {
+            fun of(path: String): FrameThumb = File(path).let { FrameThumb(path, it.length(), it.lastModified()) }
         }
     }
 
@@ -110,6 +112,33 @@ class FrameOrderAdapter(
 
         /** Thumbnails are a strip of small tiles; decode no larger than they draw. */
         private const val THUMB_MAX_EDGE_PX = 160
+
+        /** Tiles kept decoded; an evicted one is dropped, not recycled (it may still show). */
+        private const val THUMBS_CACHED = 48
+
+        /** The strip's loader: frames decode on the IO pool, and a missing or unreadable one shows the photos icon. */
+        fun frameThumbnails(): ThumbnailLoader<FrameThumb> = ThumbnailLoader(
+            maxCached = THUMBS_CACHED,
+            executor = Dispatchers.IO.asExecutor(),
+            decode = { decodeThumb(it.path) },
+            placeholder = { it.setImageResource(R.drawable.ic_photos_share) },
+        )
+
+        /** The frame at [path], subsampled to the tile's size. */
+        private fun decodeThumb(path: String): ThumbnailLoader.Decoded {
+            if (!File(path).exists()) return ThumbnailLoader.Decoded.Missing
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(path, bounds)
+            val longEdge = maxOf(bounds.outWidth, bounds.outHeight)
+            var sample = 1
+            while (longEdge / sample > THUMB_MAX_EDGE_PX) sample *= 2
+            val bmp = if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+            } else {
+                null
+            }
+            return bmp?.let { ThumbnailLoader.Decoded.Loaded(it) } ?: ThumbnailLoader.Decoded.Undecodable
+        }
         private const val DRAG_SCALE = 1.06f
         private const val DRAG_ELEVATION_DP = 8f
         private const val DRAG_ANIM_MS = 120L

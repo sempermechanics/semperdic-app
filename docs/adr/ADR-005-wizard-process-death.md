@@ -123,11 +123,16 @@ the import, which on a 150-frame batch is minutes.
   before the write lands reports **LOST**, even when the previous list holds
   as many frames. A Bundle without the key (saved by an older app) is
   checked on the frame count alone.
-- **Ordering across wizards** is only as good as the queueing. A finishing
-  wizard queues its delete from `onDestroy`, which can land after a new
-  wizard's first writes and remove them. A kill after that restores as
-  **LOST** (the Bundle names parts that are gone), not as wrong inputs.
-  Tagging the draft with a per-wizard generation would close it; not done.
+- **Ordering across wizards** is closed by a generation tag
+  (`WizardDraftBinding`). A finishing wizard queues its delete from
+  `onDestroy`, which can land after a new wizard's first writes. So each
+  fresh wizard takes the next value of a process-wide counter when it
+  attaches the draft, and every write or delete a wizard queues runs only
+  while the counter still holds that wizard's value: a stale delete finds a
+  newer owner and does nothing. A wizard restored from a Bundle takes the
+  counter's current value instead of the next one, so the writes its
+  predecessor queued before the process died or the Activity was recreated
+  still land for it.
 - **When the draft goes.** It is deleted when the wizard finishes
   (`onDestroy` with `isFinishing`), not when a run commits: the user
   re-runs from the same wizard, and a kill after a run must still restore.

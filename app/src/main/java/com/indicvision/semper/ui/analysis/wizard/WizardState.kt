@@ -3,8 +3,12 @@ package com.indicvision.semper.ui.analysis.wizard
 import android.os.Bundle
 import androidx.annotation.WorkerThread
 import com.indicvision.semper.data.prefs.WizardDraft
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.field.getRoi
+import com.indicvision.semper.field.putRoi
 import com.indicvision.semper.ui.analysis.frames.FrameOrderDirection
 import com.indicvision.semper.ui.analysis.frames.FrameOrderMode
+import com.indicvision.semper.ui.analysis.sweep.SweepRanges
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import timber.log.Timber
@@ -77,31 +81,20 @@ internal object WizardState {
         putInt(STEP, vm.wizardStep)
         putBoolean(SETTINGS_REVIEWED, vm.settingsReviewed)
         putBoolean(SUBSET_USER_MODIFIED, vm.subsetUserModified)
-        putInt(REF_W, vm.realRefWidth)
-        putInt(REF_H, vm.realRefHeight)
+        putInt(REF_W, vm.refSize.width)
+        putInt(REF_H, vm.refSize.height)
         putString(REF_NAME, vm.refName)
         putBoolean(HAS_REFERENCE, vm.refBytes != null)
         putBoolean(HAS_MASK, vm.roiMaskBytes != null)
         putBoolean(HAS_CUSTOM_ROI, vm.hasCustomRoi)
-        putIntArray(ROI, intArrayOf(vm.roiX, vm.roiY, vm.roiW, vm.roiH))
-        putInt(FRAME_COUNT, vm.defFilePaths.size)
+        putRoi(ROI, vm.roi)
+        putInt(FRAME_COUNT, vm.deformedFrames.size)
         putString(ORDER_MODE, vm.defOrderMode.name)
         putString(ORDER_DIRECTION, vm.defOrderDirection.name)
         putString(FRAME_SIZE_ERROR, vm.frameSizeError)
         putBoolean(FROM_VIDEO, vm.defFromVideo)
         putBoolean(SWEEP_MODE, vm.sweepMode)
-        putIntArray(
-            SWEEP_RANGES,
-            intArrayOf(
-                vm.subsetMin,
-                vm.subsetMax,
-                vm.strainWinMin,
-                vm.strainWinMax,
-                vm.subsetSamples,
-                vm.strainWinSamples,
-                vm.stepDenominator,
-            ),
-        )
+        putIntArray(SWEEP_RANGES, vm.sweepRanges.toIntArray())
         putDouble(SUBSET_OVERLAP, vm.subsetOverlap)
         putBoolean(LINE_CUT_HORIZONTAL, vm.lineCutHorizontal)
         putInt(VSG_FRAME_INDEX, vm.vsgFrameIndex)
@@ -110,21 +103,14 @@ internal object WizardState {
     }
 
     /** The scalars of a [save]d Bundle; the draft's parts follow through [readInputs]. */
-    @Suppress("MagicNumber") // positions in the two packed arrays, in [save]'s order
     fun restoreScalars(vm: AnalysisViewModel, b: Bundle) {
         vm.wizardStep = b.getInt(STEP, 1)
         vm.settingsReviewed = b.getBoolean(SETTINGS_REVIEWED)
         vm.subsetUserModified = b.getBoolean(SUBSET_USER_MODIFIED)
-        vm.realRefWidth = b.getInt(REF_W)
-        vm.realRefHeight = b.getInt(REF_H)
+        vm.refSize = ImageSize(b.getInt(REF_W), b.getInt(REF_H))
         b.getString(REF_NAME)?.let { vm.refName = it }
         vm.hasCustomRoi = b.getBoolean(HAS_CUSTOM_ROI)
-        b.getIntArray(ROI)?.takeIf { it.size == 4 }?.let {
-            vm.roiX = it[0]
-            vm.roiY = it[1]
-            vm.roiW = it[2]
-            vm.roiH = it[3]
-        }
+        b.getRoi(ROI)?.let { vm.roi = it }
         b.getString(ORDER_MODE)?.let { name -> FrameOrderMode.entries.find { it.name == name } }
             ?.let { vm.defOrderMode = it }
         b.getString(ORDER_DIRECTION)?.let { name -> FrameOrderDirection.entries.find { it.name == name } }
@@ -132,39 +118,16 @@ internal object WizardState {
         vm.frameSizeError = b.getString(FRAME_SIZE_ERROR)
         vm.defFromVideo = b.getBoolean(FROM_VIDEO)
         vm.sweepMode = b.getBoolean(SWEEP_MODE)
-        b.getIntArray(SWEEP_RANGES)?.takeIf { it.size == 7 }?.let {
-            vm.subsetMin = it[0]
-            vm.subsetMax = it[1]
-            vm.strainWinMin = it[2]
-            vm.strainWinMax = it[3]
-            vm.subsetSamples = it[4]
-            vm.strainWinSamples = it[5]
-            vm.stepDenominator = it[6]
-        }
+        SweepRanges.fromIntArray(b.getIntArray(SWEEP_RANGES))?.let { vm.sweepRanges = it }
         vm.subsetOverlap = b.getDouble(SUBSET_OVERLAP, vm.subsetOverlap)
         vm.lineCutHorizontal = b.getBoolean(LINE_CUT_HORIZONTAL, true)
         vm.vsgFrameIndex = b.getInt(VSG_FRAME_INDEX, -1)
         vm.workingLocalId = b.getString(WORKING_LOCAL_ID)
     }
 
-    fun frames(vm: AnalysisViewModel): Frames = Frames(
-        paths = vm.defFilePaths,
-        names = vm.defOriginalNames,
-        dates = vm.defFrameDates,
-        widths = vm.defFilePaths.map { vm.defFrameSizes[it]?.first ?: -1 },
-        heights = vm.defFilePaths.map { vm.defFrameSizes[it]?.second ?: -1 },
-    )
+    fun frames(vm: AnalysisViewModel): Frames = wizardFramesOf(vm.deformedFrames)
 
     fun encodeFrames(frames: Frames): String = json.encodeToString(Frames.serializer(), frames)
-
-    fun applyFrames(vm: AnalysisViewModel, frames: Frames) {
-        vm.defFilePaths = frames.paths
-        vm.defOriginalNames = frames.names
-        vm.defFrameDates = frames.dates
-        vm.defFrameSizes = frames.paths.indices
-            .filter { frames.widths.getOrElse(it) { -1 } > 0 && frames.heights.getOrElse(it) { -1 } > 0 }
-            .associate { frames.paths[it] to (frames.widths[it] to frames.heights[it]) }
-    }
 
     /**
      * The draft parts [b] says the wizard held, or null when any is missing:

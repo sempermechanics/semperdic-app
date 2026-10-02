@@ -95,7 +95,7 @@ object AnalysisNavHelper {
 
     /**
      * The viewer arguments for the run that just finished (TD-61). Settings and
-     * ROI come from the run itself ([AnalysisViewModel.RunResult]): the ones the
+     * ROI come from the run itself ([RunResult]): the ones the
      * saved session recorded, so opening from here and reopening from Home show
      * the same values. The session id is the local one Home opens with.
      */
@@ -111,7 +111,7 @@ object AnalysisNavHelper {
             refPath = run.refPath ?: "",
             batchDirPath = run.batchDirPath,
             frameNames = frameNames,
-            stopCode = run.stopCode,
+            stopCode = run.stop.wireCode,
             plannedFrames = run.plannedFrames,
             sessionId = viewModel.workingLocalId,
             sessionLocalId = viewModel.workingLocalId,

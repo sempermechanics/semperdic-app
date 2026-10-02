@@ -180,7 +180,7 @@ stays on the Activity.
 | A5.2 | Confirm settings | same | `AnalysisSettingsSheetHelper`, `SubsetRecommender` (SSSIG seed), `data/prefs/ParamClipboard` (Paste params), ROI card → A6, `AnalysisReadyGate` |
 | A5.3 | Sweep summary `[sweep]` | same | `SweepSetupHelper` + `VsgStudy` (plan) + `LineCutPreviewView` |
 | A5.4 | Running | `BatchRunController` + `ComputeOverlayHelper` | `AnalysisViewModel.launchBatchAnalysis` → `runBatchAnalysis` → `DicBatchRunner` → `DicFieldIo` → JNI `SemperNativeLib.computeFullFieldDirect`; sweeps go `runVsgSweep` → `VsgStudyRunner` |
-| A5.5 | Terminal states | `EngineFailure` + `ui/common/FaqRedirect` | `AnalysisRunCodes`, `ConvergenceGate`, `AnalysisCancelGate` |
+| A5.5 | Terminal states | `EngineFailure` + `ui/common/FaqRedirect` | `field/RunStop`, `ConvergenceGate`, `AnalysisCancelGate` |
 
 | Field | Value |
 |---|---|
@@ -508,7 +508,7 @@ Details and failure triage: [ops/CI.md](ops/CI.md).
 | An error with a **Why?** action | `ui/common/FaqRedirect` and [app/FAQ_LINKS.md](app/FAQ_LINKS.md) — the FAQ url resource names the case |
 | A wrong number in the viewer or ⓘ sheet | The extras it was opened with: `AnalysisNavHelper.openResults` (fresh run) or `ui/home/SessionOpenHelper.intentFor` (reopen) → read in `ResultViewerActivity` / `ViewerSettingsSheet` / `ViewerReportFactory`. **Check which of the two packed it** — see E2.1 |
 | A wrong number in an export | `report/ReportBuilder` (fusion), `report/AnalysisCsvWriter`, `report/VisualizationEngine`; the source of truth is `DicResult.decodeDatFile` over `frame_%04d.dat` |
-| "Analysis failed" wording | `ui/analysis/run/EngineFailure` (code → string) + `AnalysisRunCodes`; the code itself comes from the engine or `ConvergenceGate` |
+| "Analysis failed" wording | `ui/analysis/run/EngineFailure` (code → string) + `field/RunStop` (the stop codes); the code itself comes from the engine or `ConvergenceGate` |
 | A backup that failed | Home badge dialog text = `DicKeys.UPLOAD_FAIL_REASON` from `DicUploadWorker.failure` → `UploadWorkOutcomes` for the decision. `adb logcat -s Semper` shows `Upload RETRY`/reject lines in release too |
 | A restore that failed | `DicRestoreWorker.KEY_ERROR` (the `ApiException` message) → `CloudRestore` → `RestoreDownloadOutcomes` for retry vs terminal |
 | Any cloud 4xx/5xx | The reason carries `(ref: <id>)` — that is the backend's `X-Request-Id`. Search the Cloud Run log for `requestId="<id>"` to get the exact access line (`opClass`, `routeTemplate`, `errorCode`, latency) |

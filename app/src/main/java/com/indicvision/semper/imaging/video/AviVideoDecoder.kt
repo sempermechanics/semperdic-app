@@ -1,11 +1,12 @@
 // The ARGB shifts and masks below are the pixel format itself.
-@file:Suppress("TooGenericExceptionCaught", "ReturnCount", "MagicNumber")
+@file:Suppress("TooGenericExceptionCaught", "ReturnCount")
 
 package com.indicvision.semper.imaging.video
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import com.indicvision.semper.imaging.AviLuma
@@ -156,10 +157,7 @@ internal class AviVideoDecoder private constructor(
         val out = ByteArray(width * height)
         for (i in pixels.indices) {
             val pixel = pixels[i]
-            val r = (pixel shr 16) and 0xFF
-            val g = (pixel shr 8) and 0xFF
-            val b = pixel and 0xFF
-            out[i] = AviLuma.luminance(r, g, b).toByte()
+            out[i] = AviLuma.luminance(Color.red(pixel), Color.green(pixel), Color.blue(pixel)).toByte()
         }
         return GrayPngEncoder.Luma(out, width, height, width, 1)
     }

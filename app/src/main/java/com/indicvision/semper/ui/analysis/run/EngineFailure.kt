@@ -3,18 +3,19 @@ package com.indicvision.semper.ui.analysis.run
 import android.content.Context
 import androidx.annotation.StringRes
 import com.indicvision.semper.R
-import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
+import com.indicvision.semper.field.RunStop
+import com.indicvision.semper.ui.analysis.wizard.BatchAnalysisOutcome
 
 /** Maps engine error codes to the same user-facing strings on every screen. */
 object EngineFailure {
 
-    /** AKAZE could not match the pair. */
+    /** AKAZE could not match the pair; [RunStop.FeaturesUnmatched] as a stop code. */
     const val ENGINE_ERROR_FEATURES = -1
 
-    /** The ROI held no valid points. */
+    /** The ROI held no valid points; [RunStop.InvalidRoi] as a stop code. */
     const val ENGINE_ERROR_ROI = -2
 
-    /** An image failed to decode, or the engine could not start. */
+    /** An image failed to decode, or the engine could not start; [RunStop.InitFailed] as a stop code. */
     const val ENGINE_ERROR_INIT = -3
 
     private enum class Cause {
@@ -22,6 +23,7 @@ object EngineFailure {
         ROI,
         INIT,
         CONVERGENCE,
+        CANCELLED,
         VSG,
         UNKNOWN,
     }
@@ -30,7 +32,10 @@ object EngineFailure {
         ENGINE_ERROR_FEATURES -> Cause.FEATURES
         ENGINE_ERROR_ROI -> Cause.ROI
         ENGINE_ERROR_INIT -> Cause.INIT
-        AnalysisRunCodes.ERROR_LOW_CONVERGENCE -> Cause.CONVERGENCE
+        RunStop.LowConvergence.wireCode -> Cause.CONVERGENCE
+        // A cancelled re-run is saved with this stop code, so Home and the
+        // viewer read it back here; it is no strain-window failure.
+        RunStop.Cancelled.wireCode -> Cause.CANCELLED
         0 -> Cause.VSG
         in 1..Int.MAX_VALUE -> Cause.UNKNOWN
         else -> Cause.VSG
@@ -43,6 +48,7 @@ object EngineFailure {
         Cause.ROI -> R.string.sweep_fail_roi
         Cause.INIT -> R.string.sweep_fail_init
         Cause.CONVERGENCE -> R.string.error_low_convergence
+        Cause.CANCELLED -> R.string.run_fail_cancelled
         Cause.UNKNOWN -> R.string.sweep_fail_unknown
         Cause.VSG -> R.string.sweep_reason_vsg
     }
@@ -54,6 +60,7 @@ object EngineFailure {
         Cause.ROI -> R.string.sweep_reason_subset_too_big
         Cause.INIT -> R.string.sweep_reason_decode
         Cause.CONVERGENCE -> R.string.sweep_reason_low_convergence
+        Cause.CANCELLED -> R.string.run_reason_cancelled
         Cause.UNKNOWN -> R.string.sweep_reason_unknown
         Cause.VSG -> R.string.sweep_reason_vsg
     }
@@ -62,7 +69,7 @@ object EngineFailure {
      * Why a single run's first frame kept no points (engine code 0). Code 0
      * alone reads as a strain-window failure, but it is also what a frame
      * where nothing correlated returns; the points ICGN accepted there
-     * ([AnalysisViewModel.BatchAnalysisOutcome.firstFrameCorrelatedPoints])
+     * ([BatchAnalysisOutcome.firstFrameCorrelatedPoints])
      * tell the two apart.
      */
     enum class ZeroPoints {
@@ -93,8 +100,8 @@ object EngineFailure {
                     R.plurals.run_fail_strain_window_fmt,
                     correlatedPoints,
                     correlatedPoints,
-                    spec.strainWindow,
-                    spec.step,
+                    spec.params.strainWindow,
+                    spec.params.step,
                 )
             } else {
                 context.getString(reasonRes(0), 0)
@@ -116,7 +123,7 @@ object EngineFailure {
         Cause.ROI -> R.string.url_faq_engine_roi
         Cause.INIT -> R.string.url_faq_engine_init
         Cause.CONVERGENCE -> R.string.url_faq_engine_convergence
-        Cause.UNKNOWN -> R.string.url_faq_engine_vsg
-        Cause.VSG -> R.string.url_faq_engine_vsg
+        // No FAQ covers a cancel, and no screen links one for it.
+        Cause.CANCELLED, Cause.UNKNOWN, Cause.VSG -> R.string.url_faq_engine_vsg
     }
 }

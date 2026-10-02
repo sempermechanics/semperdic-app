@@ -11,7 +11,7 @@ import org.json.JSONObject
  *
  * The same three ints travel today as `subset/step/strainWindow` (`RunSpec`,
  * `SessionRecord`, `SkippedNode`, CSV frames), `subset/step/strainWin`
- * (`SessionRecordSettings`, `BatchAnalysisParams`, the JNI call),
+ * (`SessionRecordSettings`, the JNI call),
  * `subsetSize/step/strainWindow` (`ViewerArgs`, `ReportBuildParams`),
  * `subset/step/vsg` (`VsgStudy.Point`, `ParamClipboard`, lattice nodes), the
  * `SUBSET_SIZE` / `STEP` / `STRAIN_WINDOW` extras and the `engine` object of

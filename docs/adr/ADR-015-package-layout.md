@@ -51,10 +51,10 @@ pinned name where it is.
 | `data/account/` | `AuthRepository`, `AccessStatus`, `DevAuth`, `DeviceEnv`, `DeviceKeyManager`, `LicenseEntitlements`, `LicenseErrors`, `SeatLease`, `SeatHeartbeat`, `LegalTerms`, `TotpMfa` |
 | `data/prefs/` | `DicSettings`, `CoachPrefs`, `ParamClipboard`, `WizardDraft` |
 | `data/net/` | Unchanged |
-| `imaging/video/` | `VideoFrameExtractor`, `VideoFrameBatchWriter`, `VideoKeyframeHelper`, `HardwareVideoDecoder`, `AviCodecDecoder`, `AviVideoDecoder`, `ImageLuma` (all previously in `ui/analysis/`) |
+| `imaging/video/` | `VideoFrameExtractor`, `FrameSink` (was `VideoFrameBatchWriter`), `VideoKeyframeHelper`, `HardwareVideoDecoder`, `AviCodecDecoder`, `AviVideoDecoder`, `ImageLuma` (all previously in `ui/analysis/`) |
 | `ui/analysis/` | The three Activities only (pinned): `StaticAnalysisActivity`, `RoiDrawActivity`, `VsgLatticeActivity` |
 | `ui/analysis/wizard/` | `AnalysisViewModel`, `WizardState`, `AnalysisWizardChrome`, `AnalysisWizardCoach`, `AnalysisWizardSlots`, `AnalysisNavHelper`, `AnalysisReadyGate`, `AnalysisCancelGate`, `AnalysisSettingsSheetHelper`, `WizardStepSettingsContentView`, `ReferencePreviewLoader`, `LossyFormatCheck` |
-| `ui/analysis/run/` | `DicBatchRunner`, `DicFieldIo`, `BatchRunController`, `ComputeOverlayHelper`, `ConvergenceGate`, `EngineFailure`, `AnalysisRunCodes`, `RunSpec`, `RunSummaryText` |
+| `ui/analysis/run/` | `DicBatchRunner`, `DicFieldIo`, `BatchRunController`, `ComputeOverlayHelper`, `ConvergenceGate`, `EngineFailure`, `RunSpec`, `RunSummaryText` (`AnalysisRunCodes` was deleted; stop codes are `field/RunStop`) |
 | `ui/analysis/frames/` | `FrameImportHelper`, `FrameOrderAdapter`, `FrameOrderHelper`, `AnalysisFrameOrderMenuHelper`, `AnalysisDeformedBatchHelper`, `AnalysisVideoExtractHelper` |
 | `ui/analysis/roi/` | `StudioOverlayView`, `StudioOverlayMaskEncoder`, `RoiViewport`, `RoiResolveHelper` |
 | `ui/analysis/recommend/` | `SubsetRecommender`, `SpeckleScale`, `DicGoodPractice`, `StrainWindowText`, `NoiseFloorPixels`, `NoiseFloorProbe`, `NoiseFloorStats`, `ExifPatchMap` |

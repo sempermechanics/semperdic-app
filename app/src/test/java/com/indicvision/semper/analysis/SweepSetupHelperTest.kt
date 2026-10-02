@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.Bitmap
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
+import com.indicvision.semper.ui.analysis.frames.DeformedFrame
 import com.indicvision.semper.ui.analysis.sweep.SweepSetupHelper
 import com.indicvision.semper.ui.analysis.sweep.VsgStudy
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
@@ -28,7 +29,6 @@ class SweepSetupHelperTest {
         override fun goToStep(step: Int, animate: Boolean) = Unit
         override fun updateWizardChrome() = Unit
         override fun checkReady() = Unit
-        override fun showInfo(titleRes: Int, bodyRes: Int) = Unit
         override fun commitParamFields() = Unit
         override fun startVsgSweep() = Unit
         override fun currentSubsetSize(): Int = 21
@@ -45,7 +45,7 @@ class SweepSetupHelperTest {
     private val helper = SweepSetupHelper(AppCompatActivity(), vm, callbacks)
 
     private fun frames(n: Int) {
-        vm.defFilePaths = (1..n).map { "/frames/f$it.png" }
+        vm.deformedFrames = (1..n).map { DeformedFrame("/frames/f$it.png", "") }
     }
 
     @Test

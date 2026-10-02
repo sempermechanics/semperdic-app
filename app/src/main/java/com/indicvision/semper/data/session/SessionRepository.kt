@@ -165,48 +165,6 @@ class SessionRepository {
     }
 
     /**
-     * [buildSessionRecord] from the run's values one by one, as the batch and
-     * sweep runners call it today. Delete once they build [RunInput] and
-     * [RunOutcome] themselves.
-     */
-    @Suppress("LongParameterList")
-    fun buildSessionRecord(
-        appContext: Context,
-        localSessionId: String,
-        batchDir: File,
-        refPngPath: String,
-        refName: String,
-        realRefWidth: Int,
-        realRefHeight: Int,
-        settings: SessionRecordSettings,
-        cloudEnabled: Boolean,
-        pointsConverged: Int,
-        avgIterations: Float,
-        executionTimeMs: Int,
-        frameCount: Int,
-        defNames: List<String>,
-        engineStatsArray: FloatArray?,
-        stopCode: Int = 0,
-        plannedFrameCount: Int = 0,
-    ): SessionRecord = buildSessionRecord(
-        appContext,
-        RunInput(
-            localSessionId = localSessionId,
-            dir = batchDir,
-            reference = RunReference(refPngPath, refName, ImageSize(realRefWidth, realRefHeight)),
-            settings = settings,
-        ),
-        RunOutcome(
-            frameCount = frameCount,
-            defNames = defNames,
-            metrics = RunMetrics(pointsConverged, avgIterations, executionTimeMs, engineStatsArray?.toList().orEmpty()),
-            stopCode = stopCode,
-            plannedFrameCount = plannedFrameCount,
-        ),
-        cloudEnabled,
-    )
-
-    /**
      * Persist [record] via [SessionStore.upsert] and optionally enqueue a cloud
      * upload. Returns the upsert result (false = quota refuse / corrupt index).
      */

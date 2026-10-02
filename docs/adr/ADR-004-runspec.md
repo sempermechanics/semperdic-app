@@ -129,8 +129,9 @@ derived field for field; the proof is mechanical (identical `.dat` hashes).
   to the spec for a sweep that solved nothing. The viewer therefore shows
   exactly what Home will show.
 - **`SweepRequest` is gone.** The sweep body reads the spec directly.
-  `BatchAnalysisParams` stays, because the batch loop reads it;
-  `RunSpec.batchParams` builds it.
+  `BatchAnalysisParams` stayed at first, because the batch loop read it;
+  it has since been deleted, and the loop reads the spec's `DicParams` and
+  `Roi` directly.
 - **`SESSION_ID` is the local id.** The `Pending_Cloud_Sync_…` placeholder was
   only ever passed to the viewer, never stored, so the PDF's Session ID line
   now matches a reopened session.

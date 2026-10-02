@@ -29,103 +29,65 @@ enum class FrameOrderDirection {
 
 /**
  * Best-effort creation times for imported frame files, and reordering of the
- * parallel frame lists for the analysis wizard.
+ * deformed frames for the analysis wizard.
  */
 object FrameOrderHelper {
 
-    data class OrderedBatch(
-        val paths: List<String>,
-        val names: List<String>,
-        val dates: List<Long>,
-        val sizes: Map<String, Pair<Int, Int>>,
-    )
-
     /**
-     * Reorder parallel lists by [mode]. For MANUAL, [manualOrder] is the desired
-     * permutation of indices into the current lists; ignored otherwise.
-     * [direction] applies to NAME and DATE only.
+     * [frames] in [mode]'s order. For MANUAL, [manualOrder] is the desired
+     * permutation of indices into [frames], used only when it is as long;
+     * otherwise the order stays. [direction] applies to NAME and DATE only.
      */
-    @Suppress("LongParameterList") // the parallel frame lists plus the order they are put in
     fun reorder(
-        paths: List<String>,
-        names: List<String>,
-        dates: List<Long>,
-        sizes: Map<String, Pair<Int, Int>>,
+        frames: List<DeformedFrame>,
         mode: FrameOrderMode,
         direction: FrameOrderDirection = FrameOrderDirection.ASCENDING,
         manualOrder: List<Int>? = null,
-    ): OrderedBatch {
-        val n = paths.size
-        if (n == 0) {
-            return OrderedBatch(emptyList(), emptyList(), emptyList(), emptyMap())
+    ): List<DeformedFrame> {
+        val byName = compareBy<DeformedFrame> { it.name.lowercase(Locale.US) }
+        // Stable sorts: frames that compare equal keep their current order.
+        return when (mode) {
+            FrameOrderMode.PICKER -> frames
+            FrameOrderMode.MANUAL -> manualOrder?.takeIf { it.size == frames.size }?.map { frames[it] } ?: frames
+            FrameOrderMode.NAME -> frames.sortedWith(byName).facing(direction)
+            FrameOrderMode.DATE ->
+                frames.sortedWith(compareBy<DeformedFrame> { it.date }.then(byName)).facing(direction)
         }
-        val ascending = direction == FrameOrderDirection.ASCENDING
-        val indices = when (mode) {
-            FrameOrderMode.PICKER -> paths.indices.toList()
-            FrameOrderMode.NAME -> {
-                val sorted = names.indices.sortedWith(
-                    compareBy<Int> { names[it].lowercase(Locale.US) }.thenBy { it },
-                )
-                if (ascending) sorted else sorted.asReversed()
-            }
-            FrameOrderMode.DATE -> {
-                val d = if (dates.size == n) dates else List(n) { Long.MAX_VALUE }
-                val sorted = names.indices.sortedWith(
-                    compareBy<Int> { d[it] }.thenBy { names[it].lowercase(Locale.US) },
-                )
-                if (ascending) sorted else sorted.asReversed()
-            }
-            FrameOrderMode.MANUAL -> {
-                manualOrder?.takeIf { it.size == n } ?: paths.indices.toList()
-            }
-        }
-        val newPaths = indices.map { paths[it] }
-        return OrderedBatch(
-            paths = newPaths,
-            names = indices.map { names.getOrElse(it) { paths[it].substringAfterLast('/') } },
-            dates = indices.map { dates.getOrElse(it) { Long.MAX_VALUE } },
-            sizes = sizes.filterKeys { it in newPaths.toSet() },
-        )
     }
 
+    private fun <T> List<T>.facing(direction: FrameOrderDirection): List<T> =
+        if (direction == FrameOrderDirection.ASCENDING) this else asReversed()
+
     /**
-     * Rename temp files to `%04d_…` matching [paths] order so lexicographic
-     * path sort matches analysis order. Returns updated paths (and remapped sizes).
+     * Renames each frame's temp file to `%04d_…` in [frames]' order, so a
+     * lexicographic path sort matches the analysis order. Returns the frames
+     * at their new paths; names, dates and sizes stay with them.
      */
-    @Suppress("ReturnCount") // two nothing-to-do exits before the rename pass
-    fun reprefixTempFiles(
-        paths: List<String>,
-        names: List<String>,
-        sizes: Map<String, Pair<Int, Int>>,
-    ): Pair<List<String>, Map<String, Pair<Int, Int>>> {
-        if (paths.isEmpty()) return emptyList<String>() to emptyMap()
-        val parent = File(paths.first()).parentFile ?: return paths to sizes
-        val staging = paths.mapIndexed { index, oldPath ->
-            val old = File(oldPath)
-            val base = names.getOrElse(index) { old.name }
+    fun reprefixTempFiles(frames: List<DeformedFrame>): List<DeformedFrame> {
+        val parent = frames.firstOrNull()?.let { File(it.path).parentFile } ?: return frames
+        // Through a "_ord_" name first, so no rename lands on a file that a
+        // later frame has yet to move out of the way.
+        val staged = frames.mapIndexed { index, frame ->
+            val old = File(frame.path)
+            val base = frame.name.ifEmpty { old.name }
                 .replace(Regex("^\\d{4}_"), "")
                 .replace(Regex("[^a-zA-Z0-9.-]"), "_")
-            val staged = File(parent, String.format(Locale.US, "_ord_%04d_%s", index, base))
-            if (old.absolutePath != staged.absolutePath) {
-                if (staged.exists()) staged.delete()
-                old.renameTo(staged)
-            }
-            staged
+            moveTo(old, File(parent, String.format(Locale.US, "_ord_%04d_%s", index, base)))
         }
-        val newPaths = mutableListOf<String>()
-        val newSizes = mutableMapOf<String, Pair<Int, Int>>()
-        staging.forEachIndexed { index, staged ->
-            val base = staged.name.removePrefix(String.format(Locale.US, "_ord_%04d_", index))
-            val final = File(parent, String.format(Locale.US, "%04d_%s", index, base))
-            if (staged.absolutePath != final.absolutePath) {
-                if (final.exists()) final.delete()
-                staged.renameTo(final)
-            }
-            newPaths.add(final.absolutePath)
-            sizes[paths[index]]?.let { newSizes[final.absolutePath] = it }
-                ?: sizes[staged.absolutePath]?.let { newSizes[final.absolutePath] = it }
+        return staged.mapIndexed { index, file ->
+            val base = file.name.removePrefix(String.format(Locale.US, "_ord_%04d_", index))
+            val final = moveTo(file, File(parent, String.format(Locale.US, "%04d_%s", index, base)))
+            frames[index].copy(path = final.absolutePath)
         }
-        return newPaths to newSizes
+    }
+
+    /** Renames [from] to [to], replacing a file already there. Returns [to], renamed or not. */
+    private fun moveTo(from: File, to: File): File {
+        if (from.absolutePath != to.absolutePath) {
+            if (to.exists()) to.delete()
+            from.renameTo(to)
+        }
+        return to
     }
 
     /**
@@ -143,5 +105,5 @@ object FrameOrderHelper {
         fmt.parse(raw)?.time
     }.getOrNull()?.takeIf { it > 0L }
         ?: file.lastModified().takeIf { it > 0L }
-        ?: Long.MAX_VALUE
+        ?: DeformedFrame.UNKNOWN_DATE
 }

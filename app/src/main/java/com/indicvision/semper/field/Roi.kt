@@ -6,7 +6,7 @@ package com.indicvision.semper.field
  *
  * The same four ints travel today as `roiX..roiH` (wizard view model,
  * `RunSpec`, `SessionRecord`, `SessionRecordSettings`, `ViewerArgs`, the
- * viewer), `finalRectX..finalRectH` (`BatchAnalysisParams`), an `[x, y, w, h]`
+ * viewer), an `[x, y, w, h]`
  * `IntArray` (`RoiResolveHelper`, `RunSpec.of`, the wizard's saved state), an
  * `android.graphics.Rect`, an `[l, t, r, b]` `FloatArray` (`HeatmapFit`),
  * `RoiData` (reports), the `ROI_X..ROI_H` extras and the `engine.roi` object of

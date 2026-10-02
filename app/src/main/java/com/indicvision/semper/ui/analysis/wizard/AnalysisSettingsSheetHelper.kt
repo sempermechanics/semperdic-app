@@ -1,92 +1,100 @@
 package com.indicvision.semper.ui.analysis.wizard
 
+import android.app.Activity
 import android.view.View
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
-import android.widget.EditText
-import android.widget.TextView
-import com.google.android.material.slider.Slider
 import com.indicvision.semper.R
 import com.indicvision.semper.data.prefs.ParamClipboard
+import com.indicvision.semper.databinding.WizardStepSettingsContentBinding
 import com.indicvision.semper.ui.analysis.recommend.StrainWindowText
 import com.indicvision.semper.ui.analysis.sweep.VsgStudy
+import com.indicvision.semper.ui.common.bindInfo
+import com.indicvision.semper.ui.common.commitOnDone
+import com.indicvision.semper.ui.common.showUnlessEditing
 import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
  * Wires the analysis settings sheet listeners (param fields, info buttons,
- * slider label sync). Reset / paste / recommendation logic stays in the Activity
- * so it can touch ViewModel + sweep state without putting disk or network on Main.
+ * slider label sync). Reset / paste / recommendation logic stays with the
+ * [Listener], which can touch ViewModel + sweep state.
  */
-@Suppress("LongParameterList", "MagicNumber") // sheet owns a fixed set of named views + callbacks
 class AnalysisSettingsSheetHelper(
-    private val root: View,
-    private val subset: Slider,
-    private val step: Slider,
-    private val overlap: Slider,
-    private val strain: Slider,
-    private val subsetValue: EditText,
-    private val stepValue: EditText,
-    private val overlapValue: EditText,
-    private val strainValue: EditText,
-    /** The VSG in px the window in points gives at the current step. */
-    private val strainVsg: TextView,
-    private val renderParamField: (EditText, Int) -> Unit,
-    private val bindParamField: (EditText, Slider, (() -> Unit)?) -> Unit,
-    private val showInfo: (titleRes: Int, bodyRes: Int) -> Unit,
-    private val onSubsetUserModified: () -> Unit,
-    private val onSubsetRecommendationRefresh: () -> Unit,
-    private val onAdvancedReset: () -> Unit,
-    private val onPasteParams: () -> Unit,
-    private val onParamsChanged: () -> Unit = {},
+    private val activity: Activity,
+    private val settings: WizardStepSettingsContentBinding,
+    private val listener: Listener,
 ) {
+    /** What the sheet's controls ask of the wizard. */
+    interface Listener {
+        /** The user set a subset size of their own. */
+        fun onSubsetUserModified()
+
+        /** The subset moved under the user's hand: the sweep's suggestions follow it. */
+        fun onSweepInputsChanged()
+
+        /** The advanced card's Reset. */
+        fun onReset()
+
+        /** The advanced card's Paste. */
+        fun onPaste()
+
+        /** Any parameter changed. */
+        fun onParamsChanged()
+    }
+
+    private val subset = settings.etSubsetSize
+    private val step = settings.etStepSize
+    private val overlap = settings.etOverlap
+    private val strain = settings.etStrainWindow
+    private val subsetValue = settings.tvSubsetValue
+    private val stepValue = settings.tvStepValue
+    private val overlapValue = settings.tvOverlapValue
+    private val strainValue = settings.tvStrainValue
+
+    /** The VSG in px the window in points gives at the current step. */
+    private val strainVsg = settings.tvStrainVsg
+
     /** True while code is writing the overlap/step pair, not the user. */
     private var bindingOverlap = false
 
     fun bind() {
         val updateLabels = {
-            renderParamField(subsetValue, subset.value.toInt())
-            renderParamField(stepValue, step.value.toInt())
-            renderParamField(strainValue, strain.value.toInt())
+            subsetValue.showUnlessEditing(subset.value.toInt().toString())
+            stepValue.showUnlessEditing(step.value.toInt().toString())
+            strainValue.showUnlessEditing(strain.value.toInt().toString())
             strainVsg.text = StrainWindowText.vsgAt(strainVsg.context, strain.value.toInt(), step.value.toInt())
         }
         applyStepRangeForSubset()
         syncOverlapFromStep()
         updateLabels()
 
-        bindParamField(subsetValue, subset) {
-            onSubsetUserModified()
-            onParamsChanged()
+        subsetValue.bindToSlider(subset) {
+            listener.onSubsetUserModified()
+            listener.onParamsChanged()
         }
-        bindParamField(stepValue, step) { onParamsChanged() }
-        bindParamField(strainValue, strain) { onParamsChanged() }
+        stepValue.bindToSlider(step) { listener.onParamsChanged() }
+        strainValue.bindToSlider(strain) { listener.onParamsChanged() }
         bindOverlapField()
 
-        root.findViewById<View>(R.id.btnAdvancedReset).setOnClickListener { onAdvancedReset() }
-        val pasteChip = root.findViewById<View>(R.id.btnPasteParams)
-        pasteChip.setOnClickListener { onPasteParams() }
+        settings.btnAdvancedReset.setOnClickListener { listener.onReset() }
+        settings.btnPasteParams.setOnClickListener { listener.onPaste() }
         refreshPasteVisibility()
-        root.findViewById<View>(R.id.btnSubsetInfo)
-            .setOnClickListener { showInfo(R.string.subset_size, R.string.info_subset) }
-        root.findViewById<View>(R.id.btnStepInfo)
-            .setOnClickListener { showInfo(R.string.step_size_density, R.string.info_step) }
-        root.findViewById<View>(R.id.btnOverlapInfo)
-            .setOnClickListener { showInfo(R.string.subset_overlap, R.string.info_subset_overlap) }
-        root.findViewById<View>(R.id.btnStrainInfo)
-            .setOnClickListener { showInfo(R.string.strain_window, R.string.info_strain_window) }
+        settings.btnSubsetInfo.bindInfo(activity, R.string.subset_size, R.string.info_subset)
+        settings.btnStepInfo.bindInfo(activity, R.string.step_size_density, R.string.info_step)
+        settings.btnOverlapInfo.bindInfo(activity, R.string.subset_overlap, R.string.info_subset_overlap)
+        settings.btnStrainInfo.bindInfo(activity, R.string.strain_window, R.string.info_strain_window)
 
         subset.addOnChangeListener { _, _, fromUser ->
             if (!bindingOverlap) applyStepRangeForSubset()
             if (fromUser) {
-                onSubsetUserModified()
-                onSubsetRecommendationRefresh()
-                onParamsChanged()
+                listener.onSubsetUserModified()
+                listener.onSweepInputsChanged()
+                listener.onParamsChanged()
             }
             if (!bindingOverlap) syncOverlapFromStep()
             updateLabels()
         }
         step.addOnChangeListener { _, _, fromUser ->
-            if (fromUser) onParamsChanged()
+            if (fromUser) listener.onParamsChanged()
             if (!bindingOverlap) syncOverlapFromStep()
             updateLabels()
         }
@@ -94,12 +102,12 @@ class AnalysisSettingsSheetHelper(
             if (bindingOverlap) return@addOnChangeListener
             if (fromUser) {
                 applyOverlapToStep(overlapFromSlider(value))
-                onParamsChanged()
+                listener.onParamsChanged()
             }
             renderOverlapField()
         }
         strain.addOnChangeListener { _, _, fromUser ->
-            if (fromUser) onParamsChanged()
+            if (fromUser) listener.onParamsChanged()
             updateLabels()
         }
     }
@@ -108,15 +116,14 @@ class AnalysisSettingsSheetHelper(
     fun syncFromStep() {
         applyStepRangeForSubset()
         syncOverlapFromStep()
-        renderParamField(stepValue, step.value.toInt())
+        stepValue.showUnlessEditing(step.value.toInt().toString())
         strainVsg.text = StrainWindowText.vsgAt(strainVsg.context, strain.value.toInt(), step.value.toInt())
     }
 
     /** Show Paste only when the sweep clipboard has values. */
     fun refreshPasteVisibility() {
-        val pasteChip = root.findViewById<View>(R.id.btnPasteParams)
-        pasteChip.visibility =
-            if (ParamClipboard.peek(root.context) != null) View.VISIBLE else View.GONE
+        settings.btnPasteParams.visibility =
+            if (ParamClipboard.peek(activity) != null) View.VISIBLE else View.GONE
     }
 
     private fun applyStepRangeForSubset() {
@@ -142,7 +149,7 @@ class AnalysisSettingsSheetHelper(
             VsgStudy.overlapFor(subset.value.toInt(), step.value.toInt()),
         )
         renderOverlapField()
-        renderParamField(stepValue, step.value.toInt())
+        stepValue.showUnlessEditing(step.value.toInt().toString())
         bindingOverlap = false
     }
 
@@ -151,38 +158,29 @@ class AnalysisSettingsSheetHelper(
             val typed = overlapValue.text.toString().trim().replace(',', '.').toDoubleOrNull()
             val value = typed ?: overlap.value.toDouble()
             applyOverlapToStep(value)
-            onParamsChanged()
+            listener.onParamsChanged()
         }
-        overlapValue.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                commit()
-                overlapValue.clearFocus()
-                overlapValue.context.getSystemService(InputMethodManager::class.java)
-                    ?.hideSoftInputFromWindow(overlapValue.windowToken, 0)
-                true
-            } else {
-                false
-            }
-        }
+        overlapValue.commitOnDone(onDone = commit)
         overlapValue.setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) commit() }
     }
 
     private fun renderOverlapField() {
-        if (!overlapValue.hasFocus()) {
-            overlapValue.setText(
-                String.format(Locale.US, "%.2f", overlapFromSlider(overlap.value)),
-            )
-        }
+        overlapValue.showUnlessEditing(String.format(Locale.US, "%.2f", overlapFromSlider(overlap.value)))
     }
 
+    /** The overlap slider counts hundredths. */
     private fun overlapSliderValue(raw: Double): Float {
-        val hundredths = (VsgStudy.clampOverlap(raw) * 100.0).roundToInt()
+        val hundredths = (VsgStudy.clampOverlap(raw) * HUNDREDTHS).roundToInt()
         return hundredths.coerceIn(
-            (VsgStudy.MIN_OVERLAP * 100).toInt(),
-            (VsgStudy.MAX_OVERLAP * 100).toInt(),
+            (VsgStudy.MIN_OVERLAP * HUNDREDTHS).toInt(),
+            (VsgStudy.MAX_OVERLAP * HUNDREDTHS).toInt(),
         ).toFloat()
     }
 
     private fun overlapFromSlider(sliderValue: Float): Double =
-        VsgStudy.clampOverlap(sliderValue.toDouble() / 100.0)
+        VsgStudy.clampOverlap(sliderValue.toDouble() / HUNDREDTHS)
+
+    private companion object {
+        const val HUNDREDTHS = 100.0
+    }
 }

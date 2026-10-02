@@ -13,8 +13,8 @@ import org.robolectric.RobolectricTestRunner
 import java.io.File
 
 /**
- * [SessionRepository.buildSessionRecord]: each run value lands in its row field,
- * through the grouped inputs and through the one-value-per-parameter form.
+ * [SessionRepository.buildSessionRecord]: the grouped inputs land in the row's
+ * fields.
  */
 @RunWith(RobolectricTestRunner::class)
 class SessionRecordBuildTest {
@@ -88,37 +88,18 @@ class SessionRecordBuildTest {
     }
 
     @Test
-    fun `the one-value-per-parameter form fills the same fields`() {
-        val record = repository.buildSessionRecord(
-            appContext = context,
-            localSessionId = "s1",
-            batchDir = File("sessions/s1"),
-            refPngPath = "/ref.png",
-            refName = "plate.tif",
-            realRefWidth = 4000,
-            realRefHeight = 3000,
-            settings = settings,
-            cloudEnabled = false,
-            pointsConverged = 1180,
-            avgIterations = 2.3f,
-            executionTimeMs = 812,
-            frameCount = 2,
-            defNames = listOf("a.tif", "b.tif", "c.tif"),
-            engineStatsArray = stats.toFloatArray(),
-            stopCode = -3,
-            plannedFrameCount = 3,
+    fun `a run without engine stats saves none`() {
+        val bare = RunOutcome(
+            frameCount = 1,
+            defNames = listOf("a.tif"),
+            metrics = RunMetrics(
+                pointsConverged = 0,
+                avgIterations = 0f,
+                executionTimeMs = 0,
+                engineStats = emptyList(),
+            ),
         )
-
-        assertEquals(expectedRow(record, SessionRecord.SyncState.LOCAL_ONLY), record)
-    }
-
-    @Test
-    fun `the flat form without engine stats saves none`() {
-        val record = repository.buildSessionRecord(
-            context, "s1", File("sessions/s1"), "/ref.png", "plate.tif", 4000, 3000, settings,
-            cloudEnabled = false, pointsConverged = 0, avgIterations = 0f, executionTimeMs = 0,
-            frameCount = 1, defNames = listOf("a.tif"), engineStatsArray = null,
-        )
+        val record = repository.buildSessionRecord(context, input, bare, cloudEnabled = false)
 
         assertEquals(emptyList<Float>(), record.engineStats)
         assertEquals(listOf(0, 0), listOf(record.stopCode, record.plannedFrameCount))

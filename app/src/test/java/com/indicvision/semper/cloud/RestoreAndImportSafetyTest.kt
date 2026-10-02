@@ -2,6 +2,8 @@ package com.indicvision.semper.cloud
 
 import com.indicvision.semper.data.cloud.restore.CloudRestore
 import com.indicvision.semper.data.net.CloudSessionDto
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.ui.analysis.frames.DeformedFrame
 import com.indicvision.semper.ui.analysis.frames.FrameImportHelper
 import com.indicvision.semper.ui.analysis.frames.ImportedBatch
 import org.junit.Assert.assertEquals
@@ -57,9 +59,7 @@ class RestoreAndImportSafetyTest {
             cache,
             staging,
             ImportedBatch(
-                filePaths = listOf(stagedFrame.absolutePath),
-                originalNames = listOf("new.png"),
-                frameSizes = mapOf(stagedFrame.absolutePath to (10 to 20)),
+                frames = listOf(DeformedFrame(stagedFrame.absolutePath, "new.png", size = ImageSize(10, 20))),
             ),
         )
 
@@ -67,7 +67,10 @@ class RestoreAndImportSafetyTest {
         val committedFrame = File(committed, "0000_new.png")
         assertTrue(committedFrame.exists())
         assertEquals(listOf(committedFrame.absolutePath), result?.filePaths)
-        assertEquals(10 to 20, result?.frameSizes?.get(committedFrame.absolutePath))
+        assertEquals(
+            DeformedFrame(committedFrame.absolutePath, "new.png", size = ImageSize(10, 20)),
+            result?.frames?.single(),
+        )
     }
 
     @Test

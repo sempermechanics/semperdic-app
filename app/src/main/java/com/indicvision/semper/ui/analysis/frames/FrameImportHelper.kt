@@ -1,13 +1,13 @@
-// Frame import: literal buffer/quality constants read clearest inline.
-
 package com.indicvision.semper.ui.analysis.frames
 
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import com.indicvision.semper.SemperNativeLib
+import com.indicvision.semper.field.ImageSize
 import com.indicvision.semper.imaging.BitmapDecode
 import com.indicvision.semper.imaging.ExifOrientedSize
+import com.indicvision.semper.util.forEachChunk
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -15,13 +15,18 @@ import java.io.File
 import java.io.InputStream
 import java.util.Locale
 
-/** Result of importing a deformed-frame batch into cacheDir/temp_deformed. */
+/**
+ * Result of importing a deformed-frame batch into cacheDir/temp_deformed:
+ * the frames in path order, each with the name the user picked it as and its
+ * measured size. Their dates are unknown until a sort by date asks.
+ */
 data class ImportedBatch(
-    val filePaths: List<String>,
-    val originalNames: List<String>,
-    val frameSizes: Map<String, Pair<Int, Int>>,
+    val frames: List<DeformedFrame>,
     val fromVideo: Boolean = false,
-)
+) {
+    /** The staged path of each of [frames]. */
+    val filePaths: List<String> get() = frames.map { it.path }
+}
 
 /**
  * URI → temp-file import for deformed frames. Call [importDeformedUris] off the
@@ -43,12 +48,10 @@ object FrameImportHelper {
     ): ImportedBatch? {
         val stagingDir = createStagingDir(cacheDir)
 
-        val filePaths = mutableListOf<String>()
-        // Temp path → original picked filename, kept so exports can use the
-        // user's real (default) names instead of the sanitized temp names.
-        val originalByPath = mutableMapOf<String, String>()
-        // Temp path → pixel size, so the reference-match check is free later.
-        val sizeByPath = mutableMapOf<String, Pair<Int, Int>>()
+        // Each keeps the original picked filename, so exports can use the
+        // user's real (default) names instead of the sanitized temp names,
+        // and the pixel size, so the reference-match check is free later.
+        val staged = mutableListOf<DeformedFrame>()
 
         try {
             onProgress(0, uris.size)
@@ -61,7 +64,7 @@ object FrameImportHelper {
                 val filename = String.format(Locale.US, "%04d_%s", index, sanitizedName)
                 val file = File(stagingDir, filename)
 
-                val frameSize: Pair<Int, Int>? = if (isRaw) {
+                val frameSize: ImageSize? = if (isRaw) {
                     val size = importRawUri(context, uri, file)
                     currentCoroutineContext().ensureActive()
                     size
@@ -74,21 +77,11 @@ object FrameImportHelper {
 
                 if (!file.exists() || file.length() == 0L) continue
 
-                filePaths.add(file.absolutePath)
-                originalByPath[file.absolutePath] = originalName
-                frameSize?.let { sizeByPath[file.absolutePath] = it }
+                staged.add(DeformedFrame(path = file.absolutePath, name = originalName, size = frameSize))
             }
 
-            val stagedPaths = filePaths.sorted()
-            val stagedBatch = if (stagedPaths.isEmpty()) {
-                null
-            } else {
-                ImportedBatch(
-                    filePaths = stagedPaths,
-                    originalNames = stagedPaths.map { originalByPath[it] ?: File(it).name },
-                    frameSizes = sizeByPath,
-                    fromVideo = false,
-                )
+            val stagedBatch = staged.takeIf { it.isNotEmpty() }?.let { frames ->
+                ImportedBatch(frames = frames.sortedBy { it.path }, fromVideo = false)
             }
             currentCoroutineContext().ensureActive()
             return commitStagedBatch(cacheDir, stagingDir, stagedBatch)
@@ -101,30 +94,27 @@ object FrameImportHelper {
      * RAW/DNG must become RGBA bytes for the engine — still buffered, but
      * without the unused first-frame preview decode.
      */
-    private fun importRawUri(context: Context, uri: Uri, dest: File): Pair<Int, Int>? {
-        var frameSize: Pair<Int, Int>? = null
+    private fun importRawUri(context: Context, uri: Uri, dest: File): ImageSize? =
         context.contentResolver.openInputStream(uri)?.use { stream ->
-            frameSize = BitmapDecode.writeRgbaFromStream(stream, dest)
+            BitmapDecode.writeRgbaFromStream(stream, dest)?.let(ImageSize::of)
         }
-        return frameSize
-    }
 
     /** Stream URI → file without holding a full ByteArray; probe dims afterwards. */
-    private suspend fun importStreamedUri(context: Context, uri: Uri, dest: File): Pair<Int, Int>? {
+    private suspend fun importStreamedUri(context: Context, uri: Uri, dest: File): ImageSize? {
         val input = context.contentResolver.openInputStream(uri) ?: return null
         input.use { copyCancellable(it, dest) }
         currentCoroutineContext().ensureActive()
         return probeImageSize(dest)
     }
 
+    /** Copies [input] to [dest], checking for a cancel before every read. */
     private suspend fun copyCancellable(input: InputStream, dest: File) {
+        val job = currentCoroutineContext()
         dest.outputStream().buffered().use { output ->
-            val buffer = ByteArray(COPY_BUFFER_SIZE)
-            while (true) {
-                currentCoroutineContext().ensureActive()
-                val read = input.read(buffer)
-                if (read < 0) break
-                output.write(buffer, 0, read)
+            job.ensureActive()
+            input.forEachChunk { buffer, count ->
+                output.write(buffer, 0, count)
+                job.ensureActive()
             }
         }
     }
@@ -141,18 +131,18 @@ object FrameImportHelper {
      * portrait phone photo picked as both reference and deformed frame report
      * a size mismatch against itself. See [ExifOrientedSize].
      */
-    private suspend fun probeImageSize(file: File): Pair<Int, Int>? {
+    private suspend fun probeImageSize(file: File): ImageSize? {
         currentCoroutineContext().ensureActive()
         val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.absolutePath, opts)
         if (opts.outWidth > 0 && opts.outHeight > 0) {
-            return ExifOrientedSize.applyTo(file, opts.outWidth, opts.outHeight)
+            return ImageSize.of(ExifOrientedSize.applyTo(file, opts.outWidth, opts.outHeight))
         }
         return withContext(SemperNativeLib.nativeDispatcher) {
             currentCoroutineContext().ensureActive()
             runCatching {
                 val dims = SemperNativeLib.getImageDimensions(file.readBytes())
-                if (dims.size >= 2 && dims[0] > 0 && dims[1] > 0) dims[0] to dims[1] else null
+                if (dims.size >= 2 && dims[0] > 0 && dims[1] > 0) ImageSize(dims[0], dims[1]) else null
             }.getOrNull()
         }
     }
@@ -193,13 +183,8 @@ object FrameImportHelper {
         }
         previousDir.deleteRecursively()
 
-        if (batch == null) return null
-        fun committed(path: String): String = File(committedDir, File(path).name).absolutePath
-        return batch.copy(
-            filePaths = batch.filePaths.map(::committed),
-            frameSizes = batch.frameSizes.mapKeys { (path, _) -> committed(path) },
+        return batch?.copy(
+            frames = batch.frames.map { it.copy(path = File(committedDir, File(it.path).name).absolutePath) },
         )
     }
-
-    private const val COPY_BUFFER_SIZE = 64 * 1024
 }

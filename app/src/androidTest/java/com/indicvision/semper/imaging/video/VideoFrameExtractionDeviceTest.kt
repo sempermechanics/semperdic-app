@@ -190,19 +190,21 @@ class VideoFrameExtractionDeviceTest {
         val result = runBlocking(Dispatchers.IO) {
             VideoFrameExtractor.extract(
                 context = context,
-                uri = Uri.fromFile(file),
-                fpsExtract = fps,
-                startMs = 0,
-                endMs = endMs,
-                maxFrames = 100,
+                request = ExtractionRequest(
+                    uri = Uri.fromFile(file),
+                    fpsExtract = fps,
+                    startMs = 0,
+                    endMs = endMs,
+                    maxFrames = 100,
+                    preferKeyframes = preferKeyframes,
+                ),
                 cacheDir = out,
-                preferKeyframes = preferKeyframes,
                 onProgress = { _, _ -> },
             )
         }
         assertNotNull("extraction returned nothing for ${file.name}", result)
         result!!
-        return listOf(Frame(result.refPng)) + result.batch.filePaths.map { Frame(File(it).readBytes()) }
+        return listOf(Frame(result.reference.png)) + result.batch.filePaths.map { Frame(File(it).readBytes()) }
     }
 
     // ---- source frames -------------------------------------------------------

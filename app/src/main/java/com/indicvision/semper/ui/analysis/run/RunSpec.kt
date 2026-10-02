@@ -1,9 +1,10 @@
 package com.indicvision.semper.ui.analysis.run
 
 import com.indicvision.semper.data.session.SessionRecordSettings
-import com.indicvision.semper.ui.analysis.roi.RoiResolveHelper
+import com.indicvision.semper.field.DicParams
+import com.indicvision.semper.field.Roi
 import com.indicvision.semper.ui.analysis.sweep.VsgStudy
-import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
+import com.indicvision.semper.ui.analysis.sweep.toDicParams
 import java.io.File
 
 /**
@@ -16,21 +17,16 @@ import java.io.File
  * cannot disagree. They used to: the viewer got the ROI the user drew while
  * the engine solved, and the session saved, the inset one.
  *
- * @property roiX the ROI the engine solves, after [RoiResolveHelper]'s inset;
- *   the same for [roiY], [roiW] and [roiH]
+ * @property params the solver's subset, step and VSG (px); for a parameter
+ *   sweep, its first combination
+ * @property roi the ROI the engine solves, after [Roi.forSolve]'s inset
  * @property mask the ROI mask, empty when there is none
- * @property sweep set for a parameter sweep; [subset], [step] and
- *   [strainWindow] are then its first combination
+ * @property sweep set for a parameter sweep
  */
 @Suppress("ArrayInDataClass") // mask compared by identity; never a map key
 data class RunSpec(
-    val subset: Int,
-    val step: Int,
-    val strainWindow: Int,
-    val roiX: Int,
-    val roiY: Int,
-    val roiW: Int,
-    val roiH: Int,
+    val params: DicParams,
+    val roi: Roi,
     val mask: ByteArray,
     val use6x6: Boolean,
     /** Engine debug-export target; null in release, where the export is off. */
@@ -52,35 +48,29 @@ data class RunSpec(
 
     /** The settings a session saved from this run records. */
     fun recordSettings() = SessionRecordSettings(
-        subset = subset,
-        step = step,
-        strainWin = strainWindow,
-        roiX = roiX,
-        roiY = roiY,
-        roiW = roiW,
-        roiH = roiH,
+        subset = params.subset,
+        step = params.step,
+        strainWin = params.strainWindow,
+        roiX = roi.x,
+        roiY = roi.y,
+        roiW = roi.w,
+        roiH = roi.h,
         use6x6 = use6x6,
-    )
-
-    fun batchParams(cacheDir: File, processingStartTime: Long) = AnalysisViewModel.BatchAnalysisParams(
-        cacheDir = cacheDir,
-        subset = subset,
-        step = step,
-        strainWin = strainWindow,
-        finalRectX = roiX,
-        finalRectY = roiY,
-        finalRectW = roiW,
-        finalRectH = roiH,
-        use6x6 = use6x6,
-        maskData = mask,
-        debugDir = debugDir,
-        processingStartTime = processingStartTime,
     )
 
     companion object {
+        /** A single run's spec; a null [mask] is no mask. */
+        fun of(params: DicParams, roi: Roi, mask: ByteArray?, use6x6: Boolean, debugDir: File?) = RunSpec(
+            params = params,
+            roi = roi,
+            mask = mask ?: ByteArray(0),
+            use6x6 = use6x6,
+            debugDir = debugDir,
+        )
+
         /**
-         * @param roi the resolved ROI as `[x, y, w, h]`, from
-         *   `StaticAnalysisActivity.resolveRoi`
+         * [of] from loose values, with the ROI as `[x, y, w, h]`. Kept for the
+         * viewer's entry-parity device test, which builds its run this way.
          */
         @Suppress("LongParameterList") // one argument per wizard input
         fun of(
@@ -91,27 +81,10 @@ data class RunSpec(
             mask: ByteArray?,
             use6x6: Boolean,
             debugDir: File?,
-        ) = RunSpec(
-            subset = subset,
-            step = step,
-            strainWindow = strainWindow,
-            roiX = roi[0],
-            roiY = roi[1],
-            roiW = roi[2],
-            roiH = roi[ROI_H],
-            mask = mask ?: ByteArray(0),
-            use6x6 = use6x6,
-            debugDir = debugDir,
-        )
+        ) = of(DicParams(subset, step, strainWindow), checkNotNull(Roi.fromXywh(roi)), mask, use6x6, debugDir)
 
         /** A sweep's spec: the plan's first combination stands in for the scalar settings. */
-        fun sweep(sweep: Sweep, roi: IntArray, mask: ByteArray?, use6x6: Boolean, debugDir: File?): RunSpec {
-            val first = sweep.plan.first()
-            return of(first.subset, first.step, first.vsg, roi, mask, use6x6, debugDir)
-                .copy(sweep = sweep)
-        }
-
-        /** Index of the height in an `[x, y, w, h]` ROI array. */
-        private const val ROI_H = 3
+        fun sweep(sweep: Sweep, roi: Roi, mask: ByteArray?, use6x6: Boolean, debugDir: File?): RunSpec =
+            of(sweep.plan.first().toDicParams(), roi, mask, use6x6, debugDir).copy(sweep = sweep)
     }
 }

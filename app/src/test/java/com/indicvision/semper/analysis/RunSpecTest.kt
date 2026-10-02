@@ -1,6 +1,9 @@
 package com.indicvision.semper.analysis
 
 import com.indicvision.semper.data.session.SessionRecordSettings
+import com.indicvision.semper.field.DicParams
+import com.indicvision.semper.field.Roi
+import com.indicvision.semper.field.RunStop
 import com.indicvision.semper.fixtures.sessionRecord
 import com.indicvision.semper.ui.analysis.run.RunSpec
 import com.indicvision.semper.ui.analysis.sweep.VsgStudy
@@ -23,7 +26,6 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 class RunSpecTest {
 
-    private val cacheDir = File("cache")
     private val debugDir = File("debug")
     private val mask = byteArrayOf(1, 0, 1)
 
@@ -42,27 +44,12 @@ class RunSpecTest {
     )
 
     @Test
-    fun `batch params are field-equal to the hand-built ones they replace`() {
-        // What StaticAnalysisActivity.startBatchAnalysis built before ADR-004.
-        val before = AnalysisViewModel.BatchAnalysisParams(
-            cacheDir = cacheDir,
-            subset = 21,
-            step = 5,
-            strainWin = 15,
-            finalRectX = resolved[0],
-            finalRectY = resolved[1],
-            finalRectW = resolved[2],
-            finalRectH = resolved[3],
-            use6x6 = true,
-            maskData = mask,
-            debugDir = debugDir,
-            processingStartTime = 42L,
-        )
-
-        val after = spec.batchParams(cacheDir, 42L)
-
-        assertEquals(before, after)
-        assertSame("the engine reads the mask the user drew, not a copy", mask, after.maskData)
+    fun `the spec holds exactly the values the engine is handed`() {
+        assertEquals(DicParams(subset = 21, step = 5, strainWindow = 15), spec.params)
+        assertEquals(Roi(resolved[0], resolved[1], resolved[2], resolved[3]), spec.roi)
+        assertEquals(true, spec.use6x6)
+        assertSame(debugDir, spec.debugDir)
+        assertSame("the engine reads the mask the user drew, not a copy", mask, spec.mask)
     }
 
     @Test
@@ -86,7 +73,7 @@ class RunSpecTest {
     fun `no mask is an empty one, as the engine expects`() {
         val noMask = RunSpec.of(21, 5, 15, resolved, mask = null, use6x6 = false, debugDir = null)
 
-        assertEquals(0, noMask.batchParams(cacheDir, 0L).maskData.size)
+        assertEquals(0, noMask.mask.size)
     }
 
     @Test
@@ -94,12 +81,12 @@ class RunSpecTest {
         val plan = listOf(VsgStudy.Point(31, 10, 9), VsgStudy.Point(41, 14, 15))
         val sweep = RunSpec.Sweep(plan, listOf("a", "b"), lineCutHorizontal = false, frameIndex = 1)
 
-        val spec = RunSpec.sweep(sweep, resolved, mask, use6x6 = false, debugDir = null)
+        val spec = RunSpec.sweep(sweep, Roi.fromXywh(resolved)!!, mask, use6x6 = false, debugDir = null)
 
-        assertEquals(31, spec.subset)
-        assertEquals(10, spec.step)
+        assertEquals(31, spec.params.subset)
+        assertEquals(10, spec.params.step)
         // 9 points at step 10: the engine gets the VSG, (9 - 1) * 10 + 1 px.
-        assertEquals(81, spec.strainWindow)
+        assertEquals(81, spec.params.strainWindow)
         assertEquals(sweep, spec.sweep)
     }
 
@@ -118,7 +105,7 @@ class RunSpecTest {
         resetRunResult("/sessions/f0f0406f-8c2", spec)
         recordRunSettings(spec.recordSettings())
         lastRefPath = "/sessions/f0f0406f-8c2/reference.png"
-        lastStopCode = 0
+        lastStop = RunStop.Finished
         lastPlannedFrames = 2
     }
 
@@ -177,8 +164,11 @@ class RunSpecTest {
         val plan = listOf(VsgStudy.Point(31, 10, 9))
         val sweep = RunSpec.Sweep(plan, listOf("a"), lineCutHorizontal = false, frameIndex = 0)
         val vm = AnalysisViewModel().apply {
-            lastStopCode = -7 // a previous run's
-            resetRunResult("/sessions/x", RunSpec.sweep(sweep, resolved, null, use6x6 = false, debugDir = null))
+            lastStop = RunStop.Other(-7) // a previous run's
+            resetRunResult(
+                "/sessions/x",
+                RunSpec.sweep(sweep, Roi.fromXywh(resolved)!!, null, use6x6 = false, debugDir = null),
+            )
         }
 
         val args = AnalysisNavHelper.resultArgs(vm, sweep = true, frameNames = emptyList())

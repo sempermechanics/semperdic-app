@@ -2,8 +2,8 @@ package com.indicvision.semper.session
 
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SkippedNode
+import com.indicvision.semper.field.RunStop
 import com.indicvision.semper.fixtures.sessionRecord
-import com.indicvision.semper.ui.analysis.run.AnalysisRunCodes
 import com.indicvision.semper.ui.analysis.run.EngineFailure
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -51,7 +51,7 @@ class FailureProvenanceTest {
     fun `a run that stopped carries why, and what it had planned`() {
         val r = record(
             RecordArgs(
-                stopCode = AnalysisRunCodes.ERROR_LOW_CONVERGENCE,
+                stopCode = RunStop.LowConvergence.wireCode,
                 frameCount = 39,
                 plannedFrameCount = 50,
             ),
@@ -64,7 +64,7 @@ class FailureProvenanceTest {
 
     @Test
     fun `the stored code resolves to a reason the user can read`() {
-        val r = record(RecordArgs(stopCode = AnalysisRunCodes.ERROR_LOW_CONVERGENCE))
+        val r = record(RecordArgs(stopCode = RunStop.LowConvergence.wireCode))
 
         assertTrue(EngineFailure.shortReasonRes(r.stopCode) != 0)
         assertNotEquals(

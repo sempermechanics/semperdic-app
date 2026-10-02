@@ -70,7 +70,6 @@
     <string name="roi_invalid_size">Invalid ROI size</string>
 
     <!-- Static analysis -->
-    <string name="analysis_running_back_blocked">Analysis running. Please wait or cancel first.</string>
     <string name="exit_indic_title">Exit Semper?</string>
     <string name="exit_indic_message">Are you sure you want to exit the app?</string>
     <string name="exit_analysis_title">Exit analysis?</string>
@@ -83,6 +82,8 @@
     <string name="roi_too_small">ROI is too small. It must be larger than the subset size.</string>
     <string name="analysis_failed_title">Analysis failed</string>
     <string name="analysis_unexpected_title">Analysis stopped unexpectedly</string>
+    <string name="analysis_not_saved_title">Analysis not saved</string>
+    <string name="analysis_index_unavailable_body">The analysis ran, but this phone\'s list of analyses could not be read or updated, so the result was not saved. Check that the phone has free storage, then run it again.</string>
     <string name="analysis_unexpected_fmt">The run ended with an error it could not describe:
 
 %1$s
@@ -474,6 +475,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="sweep_reason_decode">Image could not be decoded</string>
     <string name="sweep_reason_low_convergence">Convergence collapsed before this combination</string>
     <string name="sweep_reason_vsg">VSG failure — no strain survived this window at this step</string>
+    <string name="run_reason_cancelled">Cancelled before every frame was solved</string>
+    <string name="run_fail_cancelled">The analysis was cancelled before every frame was solved. The frames solved before the cancel are kept.</string>
     <!-- A single run whose first frame kept no points (engine code 0), split by how many points ICGN accepted there. -->
     <plurals name="run_fail_strain_window_fmt">
         <item quantity="one">%1$d point correlated, but it did not have enough solved neighbours to fill the strain window (VSG %2$d px at step %3$d px), so no strain could be fitted. Use a smaller strain window, a smaller step, or a larger region of interest.</item>
@@ -791,6 +794,14 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="video_mode_uniform">Fixed interval</string>
     <string name="video_keyframes_estimate_note">Extracts sync I-frames with zero temporal distortion</string>
     <string name="video_extracting_progress_fmt">Extracting frame %1$d of %2$d</string>
+    <string name="video_fps_fmt">%1$.0f fps</string>
+    <string name="video_resolution_fmt">%1$d×%2$d</string>
+    <string name="video_info_separator">"   ·   "</string>
+    <string name="video_segment_fmt">%1$s – %2$s</string>
+    <plurals name="video_estimate_fmt">
+        <item quantity="one">≈ %1$d frame: 1 reference + %2$d deformed%3$s</item>
+        <item quantity="other">≈ %1$d frames: 1 reference + %2$d deformed%3$s</item>
+    </plurals>
     <string name="info_subset">Bigger means more robust on weak speckle, but smoothens sharp strain gradients.</string>
     <string name="info_step">Spacing between tracked points, in pixels. Smaller means denser results but longer analysis time. Linked to subset overlap: overlap = 1 − step / subset.</string>
     <string name="info_strain_window">How many data points across each strain value averages over. The virtual strain gauge (VSG) it gives, in pixels, is (window − 1) × step + 1, shown under the slider. Bigger means smoother strain but less local detail.</string>

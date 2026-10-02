@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.R
 import com.indicvision.semper.data.prefs.WizardDraft
+import com.indicvision.semper.field.ImageSize
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -55,7 +56,7 @@ class WizardRestorePreviewTest {
         val raw = ByteArray(W * H * 4) { (it % 251).toByte() }
         val before = Robolectric.buildActivity(StaticAnalysisActivity::class.java).setup()
         val vm = ViewModelProvider(before.get())[AnalysisViewModel::class.java]
-        vm.applyNewReference(raw, "shot.dng", W, H)
+        vm.applyNewReference(raw, "shot.dng", ImageSize(W, H))
         val draft = WizardDraft(app)
         await("the draft's reference") { draft.readReference()?.size == raw.size }
 
