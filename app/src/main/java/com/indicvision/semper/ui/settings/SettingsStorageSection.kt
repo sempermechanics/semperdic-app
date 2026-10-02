@@ -11,8 +11,8 @@ import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.data.session.StorageBudget
 import com.indicvision.semper.databinding.SettingsScrollContentBinding
 import com.indicvision.semper.ui.common.ByteSize
-import com.indicvision.semper.ui.common.Dialogs
-import com.indicvision.semper.ui.common.bindInfo
+import com.indicvision.semper.ui.common.dialog.Dialogs
+import com.indicvision.semper.ui.common.dialog.bindInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

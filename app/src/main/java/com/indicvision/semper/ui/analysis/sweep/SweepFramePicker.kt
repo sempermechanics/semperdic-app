@@ -12,6 +12,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.radiobutton.MaterialRadioButton
 import com.indicvision.semper.R
 import com.indicvision.semper.SemperNativeLib
+import com.indicvision.semper.data.session.originalNameOr
 import com.indicvision.semper.databinding.DialogSweepFramePickBinding
 import com.indicvision.semper.imaging.BitmapDecode
 import com.indicvision.semper.imaging.RawRgba
@@ -37,10 +38,10 @@ internal class SweepFramePicker(
     /** The frame-pick preview decode; a new pick or closing the dialog cancels it. */
     private val framePreview = SerialJob()
 
-    /** A frame's file name, or "Frame n" when it has none. */
-    fun frameLabel(index: Int): String =
-        viewModel.defOriginalNames.getOrNull(index)?.substringAfterLast('/')
-            ?: activity.getString(R.string.sweep_frame_btn_fmt, index + 1)
+    /** A frame's file name, or "Frame n" when it has none (or a restored draft padded it blank). */
+    fun frameLabel(index: Int): String = viewModel.defOriginalNames
+        .originalNameOr(index, activity.getString(R.string.sweep_frame_btn_fmt, index + 1))
+        .substringAfterLast('/')
 
     /** Opens the dialog on frame [initial]; does nothing for a sequence of one frame. */
     fun show(initial: Int) {

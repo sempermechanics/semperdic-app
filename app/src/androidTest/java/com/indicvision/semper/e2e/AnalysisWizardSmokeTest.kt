@@ -18,6 +18,7 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.indicvision.semper.R
 import com.indicvision.semper.data.prefs.CoachPrefs
 import com.indicvision.semper.ui.analysis.StaticAnalysisActivity
+import com.indicvision.semper.ui.analysis.wizard.WizardStep
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -85,7 +86,7 @@ class AnalysisWizardSmokeTest {
 
     @Test
     fun analysisActivity_step2SingleSweepAndStep3Summary() {
-        goToWizardStep(2)
+        goToWizardStep(WizardStep.SETTINGS)
         onView(withId(R.id.rgAnalysisMode)).check(matches(isDisplayed()))
         onView(withId(R.id.tvOverlapValue)).check(matches(isDisplayed()))
         scenarioRule.scenario.onActivity { activity ->
@@ -104,7 +105,7 @@ class AnalysisWizardSmokeTest {
         }
         captureWizardShot("step2-sweep.png")
 
-        goToWizardStep(3)
+        goToWizardStep(WizardStep.SWEEP)
         scenarioRule.scenario.onActivity { activity ->
             assertTrue(activity.findViewById<View>(R.id.plannedLatticeCard).isShown)
             assertTrue(activity.findViewById<View>(R.id.lineCutPreviewCard).isShown)
@@ -112,16 +113,8 @@ class AnalysisWizardSmokeTest {
         captureWizardShot("step3-summary.png")
     }
 
-    private fun goToWizardStep(step: Int) {
-        scenarioRule.scenario.onActivity { activity ->
-            val method = StaticAnalysisActivity::class.java.getDeclaredMethod(
-                "goToStep",
-                Int::class.javaPrimitiveType,
-                Boolean::class.javaPrimitiveType,
-            )
-            method.isAccessible = true
-            method.invoke(activity, step, false)
-        }
+    private fun goToWizardStep(step: WizardStep) {
+        scenarioRule.scenario.onActivity { activity -> activity.goToStep(step, animate = false) }
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
     }
 

@@ -4,7 +4,7 @@ import com.indicvision.semper.R
 import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.prefs.DicSettings
 import com.indicvision.semper.databinding.SettingsScrollContentBinding
-import com.indicvision.semper.ui.common.bindInfo
+import com.indicvision.semper.ui.common.dialog.bindInfo
 import java.util.Locale
 
 /**

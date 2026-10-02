@@ -8,7 +8,7 @@ import com.indicvision.semper.data.prefs.DicSettings
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.databinding.SettingsScrollContentBinding
-import com.indicvision.semper.ui.common.Dialogs
+import com.indicvision.semper.ui.common.dialog.Dialogs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

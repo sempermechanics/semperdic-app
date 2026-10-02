@@ -6,7 +6,7 @@ import android.content.Intent
 import com.indicvision.semper.R
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SkippedNode
-import com.indicvision.semper.ui.common.Dialogs
+import com.indicvision.semper.ui.common.dialog.Dialogs
 import com.indicvision.semper.ui.viewer.ViewerArgs
 import com.indicvision.semper.ui.viewer.ViewerSweepArgs
 

@@ -5,7 +5,6 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.view.View
 import androidx.core.graphics.withRotation
-import com.indicvision.semper.ui.common.PlotStyle
 import com.indicvision.semper.ui.common.dp
 import java.util.Locale
 import kotlin.math.abs

@@ -1,6 +1,6 @@
 package com.indicvision.semper.cloud
 
-import com.indicvision.semper.data.net.nextWindowBytes
+import com.indicvision.semper.data.net.drive.nextWindowBytes
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

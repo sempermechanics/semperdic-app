@@ -1,5 +1,3 @@
-@file:SuppressLint("ClickableViewAccessibility")
-
 package com.indicvision.semper.ui.analysis.sweep
 
 import android.annotation.SuppressLint
@@ -15,7 +13,6 @@ import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.withSave
 import com.indicvision.semper.R
-import com.indicvision.semper.ui.common.PlotStyle
 import com.indicvision.semper.ui.common.dp
 import kotlin.math.hypot
 

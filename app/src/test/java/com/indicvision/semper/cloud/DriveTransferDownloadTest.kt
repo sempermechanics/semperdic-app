@@ -1,9 +1,9 @@
 package com.indicvision.semper.cloud
 
 import com.indicvision.semper.data.LogCapture
-import com.indicvision.semper.data.net.DriveTransfer
 import com.indicvision.semper.data.net.HttpStatus
 import com.indicvision.semper.data.net.IndicApi
+import com.indicvision.semper.data.net.drive.DriveTransfer
 import com.indicvision.semper.util.AtomicFiles
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse

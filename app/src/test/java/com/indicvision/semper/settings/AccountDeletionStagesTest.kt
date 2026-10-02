@@ -12,7 +12,7 @@ import com.indicvision.semper.cloud.FakeTokens
 import com.indicvision.semper.data.cloud.CloudSync
 import com.indicvision.semper.data.net.CloudApi
 import com.indicvision.semper.fixtures.idleUntil
-import com.indicvision.semper.ui.common.AuthRoute
+import com.indicvision.semper.ui.common.auth.AuthRoute
 import com.indicvision.semper.ui.settings.AccountDeletionRun
 import com.indicvision.semper.ui.settings.AccountDeletionRun.Outcome
 import com.indicvision.semper.ui.settings.SettingsActivity

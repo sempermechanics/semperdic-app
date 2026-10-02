@@ -20,11 +20,11 @@ import com.indicvision.semper.data.session.SessionEverythingExporter
 import com.indicvision.semper.databinding.SettingsScrollContentBinding
 import com.indicvision.semper.diagnostics.Diagnostics
 import com.indicvision.semper.diagnostics.SemperAnalytics
-import com.indicvision.semper.ui.common.AuthRoute
-import com.indicvision.semper.ui.common.Dialogs
-import com.indicvision.semper.ui.common.ExternalLinks
-import com.indicvision.semper.ui.common.Feedback
-import com.indicvision.semper.ui.common.TransferBannerController
+import com.indicvision.semper.ui.common.auth.AuthRoute
+import com.indicvision.semper.ui.common.auth.ExternalLinks
+import com.indicvision.semper.ui.common.dialog.Dialogs
+import com.indicvision.semper.ui.common.dialog.Feedback
+import com.indicvision.semper.ui.common.transfer.TransferBannerController
 import com.indicvision.semper.ui.viewer.share.SendToSheet
 import com.indicvision.semper.util.ProgressCount
 import kotlinx.coroutines.launch

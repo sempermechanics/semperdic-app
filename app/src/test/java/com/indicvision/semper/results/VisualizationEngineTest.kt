@@ -1,6 +1,7 @@
 package com.indicvision.semper.results
 
 import com.indicvision.semper.field.DicResult
+import com.indicvision.semper.report.HeatmapColorScale
 import com.indicvision.semper.report.VisualizationEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -228,8 +229,8 @@ class VisualizationEngineTest {
         // (Robolectric does not enforce @Test(timeout), so the bound is asserted.)
         val values = FloatArray(300_000) { 0f }.also { it[7] = -1f }
         val t0 = System.nanoTime()
-        assertEquals(0f, VisualizationEngine.quickSelect(values.copyOf(), 294_000, 0, values.size), 0f)
-        assertEquals(-1f, VisualizationEngine.quickSelect(values.copyOf(), 0, 0, values.size), 0f)
+        assertEquals(0f, HeatmapColorScale.quickSelect(values.copyOf(), 294_000, 0, values.size), 0f)
+        assertEquals(-1f, HeatmapColorScale.quickSelect(values.copyOf(), 0, 0, values.size), 0f)
         val ms = (System.nanoTime() - t0) / 1_000_000
         assertTrue("took $ms ms", ms < 5_000)
     }
@@ -250,8 +251,8 @@ class VisualizationEngineTest {
         )) {
             val sorted = values.copyOf().also { it.sort() }
             val t0 = System.nanoTime()
-            val p02 = VisualizationEngine.quickSelect(values, low, 0, n)
-            val p98 = VisualizationEngine.quickSelect(values, high, low, n)
+            val p02 = HeatmapColorScale.quickSelect(values, low, 0, n)
+            val p98 = HeatmapColorScale.quickSelect(values, high, low, n)
             ns += System.nanoTime() - t0
             assertEquals(sorted[low], p02, 0f)
             assertEquals(sorted[high], p98, 0f)
@@ -268,7 +269,7 @@ class VisualizationEngineTest {
             val values = FloatArray(n) { (if (it < n / 2) it else n - it).toFloat() }
             val sorted = values.copyOf().also { it.sort() }
             for (k in intArrayOf(2, n / 50, n / 2, n * 49 / 50)) {
-                assertEquals("n=$n k=$k", sorted[k], VisualizationEngine.quickSelect(values.copyOf(), k, 0, n), 0f)
+                assertEquals("n=$n k=$k", sorted[k], HeatmapColorScale.quickSelect(values.copyOf(), k, 0, n), 0f)
             }
         }
     }
@@ -286,8 +287,8 @@ class VisualizationEngineTest {
             val low = rng.nextInt(n)
             val high = rng.nextInt(low, n)
             val scratch = values.copyOf()
-            assertEquals(sorted[low], VisualizationEngine.quickSelect(scratch, low, 0, n), 0f)
-            assertEquals(sorted[high], VisualizationEngine.quickSelect(scratch, high, low, n), 0f)
+            assertEquals(sorted[low], HeatmapColorScale.quickSelect(scratch, low, 0, n), 0f)
+            assertEquals(sorted[high], HeatmapColorScale.quickSelect(scratch, high, low, n), 0f)
         }
     }
 
@@ -338,7 +339,7 @@ class VisualizationEngineTest {
             for (k in values.indices) {
                 val actual = values.copyOf()
                 val expected = values.copyOf().also { it.sort() }
-                val got = VisualizationEngine.quickSelect(actual, k, 0, actual.size)
+                val got = HeatmapColorScale.quickSelect(actual, k, 0, actual.size)
                 assertEquals(
                     "trial=$trial k=$k expected=${expected[k]} (bits=${expected[k].toRawBits()}) " +
                         "got=$got (bits=${got.toRawBits()})",

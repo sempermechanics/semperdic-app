@@ -75,8 +75,8 @@ internal object ReportFieldExtrema {
         // change, same reasoning, as VisualizationEngine.computeSigmaClampedRange).
         val p02Index = (count * 0.02).toInt().coerceIn(0, count - 1)
         val p98Index = (count * 0.98).toInt().coerceIn(0, count - 1)
-        val p02 = VisualizationEngine.quickSelect(scratch, p02Index, 0, count)
-        val p98 = VisualizationEngine.quickSelect(scratch, p98Index, p02Index, count)
+        val p02 = HeatmapColorScale.quickSelect(scratch, p02Index, 0, count)
+        val p98 = HeatmapColorScale.quickSelect(scratch, p98Index, p02Index, count)
 
         var maxV = -Float.MAX_VALUE
         var minV = Float.MAX_VALUE

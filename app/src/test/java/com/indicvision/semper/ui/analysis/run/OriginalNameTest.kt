@@ -1,5 +1,6 @@
 package com.indicvision.semper.ui.analysis.run
 
+import com.indicvision.semper.data.session.originalNameOr
 import com.indicvision.semper.ui.analysis.wizard.WizardState
 import com.indicvision.semper.ui.analysis.wizard.toDeformedFrames
 import org.junit.Assert.assertEquals

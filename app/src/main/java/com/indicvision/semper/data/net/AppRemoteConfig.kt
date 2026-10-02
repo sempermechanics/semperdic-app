@@ -240,10 +240,10 @@ object AppRemoteConfig {
     /**
      * Whether the cache is older than [maxAgeMillis].
      *
-     * `now` is a parameter with a production default, matching
-     * `CacheJanitor.isReclaimable` and `SessionRepository.defaultSessionName`
-     * — the app has no clock abstraction and this is not the place to invent
-     * one. A cache that has never been written is stale.
+     * `now` is a parameter with a production default, as in
+     * `WizardDraft.isLive` and `LicenseEntitlements.daysUntilExpiry` — the app
+     * has no clock abstraction and this is not the place to invent one. A
+     * cache that has never been written is stale.
      *
      * The `in 0 until` guard is `CloudSync`'s: a stored time in the future
      * (NTP correction, the user changing the date) reads as stale rather than

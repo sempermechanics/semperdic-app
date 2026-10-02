@@ -12,7 +12,7 @@ import com.indicvision.semper.ui.auth.AccessRouter
 import com.indicvision.semper.ui.auth.AuthActivity
 import com.indicvision.semper.ui.auth.PendingApprovalActivity
 import com.indicvision.semper.ui.auth.TermsActivity
-import com.indicvision.semper.ui.common.SignOutRun
+import com.indicvision.semper.ui.common.auth.SignOutRun
 import com.indicvision.semper.ui.home.HomeActivity
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.After

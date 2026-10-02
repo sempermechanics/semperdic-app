@@ -2,8 +2,8 @@ package com.indicvision.semper.data
 
 import android.app.ActivityManager
 import android.content.Context
-import com.indicvision.semper.data.net.MAX_CHUNK_BYTES
-import com.indicvision.semper.data.net.MIN_CHUNK_BYTES
+import com.indicvision.semper.data.net.drive.MAX_CHUNK_BYTES
+import com.indicvision.semper.data.net.drive.MIN_CHUNK_BYTES
 
 /**
  * Fraction of *currently available* memory the whole upload pipeline (all
@@ -26,13 +26,13 @@ private const val CHUNK_MEMORY_BUDGET_FRACTION = 0.10
  * Drive's resumable PUT declares its own Content-Range per request, so nothing
  * about the protocol requires a fixed chunk size across a transfer — shrinking
  * it here is always safe, and
- * [com.indicvision.semper.data.net.DriveTransfer.uploadResumable] re-clamps to
+ * [com.indicvision.semper.data.net.drive.DriveTransfer.uploadResumable] re-clamps to
  * [MIN_CHUNK_BYTES]/[MAX_CHUNK_BYTES] regardless, so a missing/zero `availMem`
  * reading (some OEM ROMs) falls back to exactly the old behavior — the server's
  * own value, clamped.
  *
  * Top-level so it is directly unit-testable — mirrors
- * [com.indicvision.semper.data.net.nextWindowBytes] in `DriveTransfer.kt`.
+ * [com.indicvision.semper.data.net.drive.nextWindowBytes] in `DriveDownloader.kt`.
  */
 internal fun uploadChunkBytes(context: Context, serverChunkSize: Int, concurrency: Int): Int {
     val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager

@@ -15,6 +15,8 @@ import com.indicvision.semper.databinding.WizardStepSettingsContentBinding
 import com.indicvision.semper.ui.analysis.run.ComputeOverlayHelper
 import com.indicvision.semper.ui.analysis.run.RunChrome
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
+import com.indicvision.semper.ui.analysis.wizard.AnalysisWizardHost
+import com.indicvision.semper.ui.analysis.wizard.WizardStep
 import com.indicvision.semper.ui.common.showUnlessEditing
 import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
@@ -83,7 +85,7 @@ internal class FakeWizardHost : AnalysisWizardHost {
         calls += "resetSweepInputs"
     }
 
-    override fun goToStep(step: Int, animate: Boolean) {
+    override fun goToStep(step: WizardStep, animate: Boolean) {
         calls += "goToStep $step"
     }
 

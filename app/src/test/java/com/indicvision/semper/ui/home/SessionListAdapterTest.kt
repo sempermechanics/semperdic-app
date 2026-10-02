@@ -9,8 +9,7 @@ import com.indicvision.semper.R
 import com.indicvision.semper.data.cloud.TransferPhase
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.fixtures.sessionRecord
-import com.indicvision.semper.ui.analysis.run.EngineFailure
-import com.indicvision.semper.ui.common.TransferWorkObserver
+import com.indicvision.semper.ui.common.transfer.TransferWorkObserver
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -126,7 +125,7 @@ class SessionListAdapterTest {
         val subtitle = bind(0).subtitle.text.toString()
 
         assertTrue(subtitle, subtitle.contains(" · 39 of 50 frames"))
-        assertTrue(subtitle, subtitle.endsWith(" · " + activity.getString(EngineFailure.shortReasonRes(code))))
+        assertTrue(subtitle, subtitle.endsWith(" · Unknown engine error (code 3)"))
     }
 
     @Test

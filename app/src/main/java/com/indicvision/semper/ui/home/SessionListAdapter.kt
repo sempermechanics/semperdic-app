@@ -16,8 +16,8 @@ import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.databinding.ItemSessionBinding
 import com.indicvision.semper.imaging.BitmapDecode
 import com.indicvision.semper.ui.analysis.run.EngineFailure
-import com.indicvision.semper.ui.common.ThumbnailLoader
-import com.indicvision.semper.ui.common.TransferWorkObserver
+import com.indicvision.semper.ui.common.media.ThumbnailLoader
+import com.indicvision.semper.ui.common.transfer.TransferWorkObserver
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -138,7 +138,7 @@ class SessionListAdapter(
         }
         if (r.stoppedEarly) {
             append(" · ")
-            append(ctx.getString(EngineFailure.shortReasonRes(r.stopCode)))
+            append(EngineFailure.shortReason(ctx, r.stopCode))
         }
     }
 

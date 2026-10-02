@@ -21,10 +21,10 @@ import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.databinding.SettingsScrollContentBinding
 import com.indicvision.semper.ui.common.ByteSize
 import com.indicvision.semper.ui.common.ConflatedRefresh
-import com.indicvision.semper.ui.common.Feedback
-import com.indicvision.semper.ui.common.RestoreFailureNotice
-import com.indicvision.semper.ui.common.TransferBannerController
-import com.indicvision.semper.ui.common.TransferWorkObserver
+import com.indicvision.semper.ui.common.dialog.Feedback
+import com.indicvision.semper.ui.common.transfer.RestoreFailureNotice
+import com.indicvision.semper.ui.common.transfer.TransferBannerController
+import com.indicvision.semper.ui.common.transfer.TransferWorkObserver
 import com.indicvision.semper.ui.home.SessionListAdapter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

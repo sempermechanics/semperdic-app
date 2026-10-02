@@ -1,7 +1,7 @@
 // The public face of the heatmap renders: each entry point takes the field,
 // the grid and its optional bounds and cap, and there is one per render the
 // viewer, the report, the GIF and the tests call.
-@file:Suppress("LongParameterList", "TooManyFunctions")
+@file:Suppress("LongParameterList")
 
 package com.indicvision.semper.report
 
@@ -79,14 +79,6 @@ object VisualizationEngine {
      * colour bar that matches the map.
      */
     fun rampColors(): IntArray = JET_LUT.copyOf(LAST_COLOR + 1)
-
-    /**
-     * The k-th smallest value of `values[fromIndex, toIndex)`, in [Float.compareTo]
-     * order: what `values.sort(fromIndex, toIndex); values[k]` would give, found
-     * in expected O(n). Partially reorders that range. See [HeatmapColorScale.quickSelect].
-     */
-    internal fun quickSelect(values: FloatArray, k: Int, fromIndex: Int, toIndex: Int): Float =
-        HeatmapColorScale.quickSelect(values, k, fromIndex, toIndex)
 
     /**
      * The displayed value range of several fields at once, in one pass over the

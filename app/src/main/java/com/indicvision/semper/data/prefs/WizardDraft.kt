@@ -28,7 +28,8 @@ import java.util.concurrent.TimeUnit
  *
  * Every write refreshes [MARKER]'s timestamp, which is what "live" is
  * measured from. Blocking I/O throughout: call it on [io], the one lane all
- * draft I/O shares, except [discard], which returns at once.
+ * draft I/O shares. Which wizard may still write or delete it is decided by
+ * the wizard's side, `WizardDraftBinding`.
  */
 class WizardDraft(private val dir: File) {
 
@@ -52,10 +53,6 @@ class WizardDraft(private val dir: File) {
     @WorkerThread
     fun readFrames(): String? = read(FRAMES)?.toString(Charsets.UTF_8)
 
-    /** Set by [discard]; a write still queued behind it must not bring the draft back. */
-    @Volatile
-    private var discarded = false
-
     /** Empties the draft for a wizard that starts from nothing. */
     @WorkerThread
     @Synchronized
@@ -63,24 +60,9 @@ class WizardDraft(private val dir: File) {
         if (dir.exists() && !dir.deleteRecursively()) Timber.w("Could not delete the wizard draft")
     }
 
-    /**
-     * Drops the draft for good: the wizard was left, so nothing will restore it.
-     *
-     * Called from `onDestroy`, so it does not wait: it marks the draft, which
-     * stops any write still queued, and deletes the files on [io], behind a
-     * write in flight. Taking the lock here made the main thread wait out a
-     * reference write of tens of megabytes.
-     */
-    @AnyThread
-    fun discard() {
-        discarded = true
-        queue(this) { it.clear() }
-    }
-
     /** Writes atomically; null deletes the part. Failures are logged, not thrown. */
     @Synchronized
     private fun write(name: String, bytes: ByteArray?) {
-        if (discarded) return
         try {
             dir.mkdirs()
             val target = File(dir, name)
@@ -108,11 +90,10 @@ class WizardDraft(private val dir: File) {
          * order it was queued. Shared by every view model, so a restore reads
          * what the stop queued before it.
          *
-         * Order is only as good as the queueing: a wizard that finishes queues
-         * its delete from `onDestroy`, which can run after the next wizard has
-         * queued its first writes, and then deletes them. A process death
-         * after that restores as LOST (the Bundle names parts the draft no
-         * longer holds), never as the wrong inputs.
+         * A wizard that finishes queues its delete from `onDestroy`, which can
+         * run after the next wizard has queued its first writes. The delete
+         * then does nothing: `WizardDraftBinding` runs a wizard's queued work
+         * only while that wizard still owns the draft.
          */
         val io: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(1)
 

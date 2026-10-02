@@ -10,7 +10,6 @@ import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.fixtures.idleUntil
 import com.indicvision.semper.fixtures.launchViewer
 import com.indicvision.semper.fixtures.viewerArgs
-import com.indicvision.semper.ui.analysis.run.EngineFailure
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -106,7 +105,7 @@ class ViewerSettingsSheetTest {
         val rows = entries.toMap()
 
         assertEquals(
-            host.getString(EngineFailure.shortReasonRes(code)),
+            "Unknown engine error (code 3)",
             rows[host.getString(R.string.setting_stopped_early)],
         )
         assertEquals("3 of 5 frames", rows[host.getString(R.string.setting_frames_solved)])

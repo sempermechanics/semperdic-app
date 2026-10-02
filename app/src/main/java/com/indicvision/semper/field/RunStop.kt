@@ -17,7 +17,7 @@ package com.indicvision.semper.field
  * The named codes come from three places, pinned to them by test:
  * the engine's frozen return codes (`ENGINE_APP_CONTRACT.md` and
  * `full_field_path_c.cpp` for `-1`; `EngineFailure.ENGINE_ERROR_*`),
- * the app's own codes (once `AnalysisRunCodes`, now only here), and
+ * the app's own codes (defined only here), and
  * [SweepEngineFailed]'s `-97`, which the sweep runner
  * once defined and no code path produces any more (pinned as a literal).
  *

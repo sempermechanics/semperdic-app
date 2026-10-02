@@ -14,7 +14,7 @@ import com.indicvision.semper.ui.analysis.sweep.VsgStudyRunner
 import com.indicvision.semper.ui.analysis.wizard.AnalysisNavHelper
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
 import com.indicvision.semper.ui.analysis.wizard.BatchAnalysisOutcome
-import com.indicvision.semper.ui.common.Dialogs
+import com.indicvision.semper.ui.common.dialog.Dialogs
 import kotlinx.coroutines.launch
 
 /**
@@ -96,12 +96,15 @@ class BatchRunController(
      * A sweep ends with the same chrome teardown as a batch run but its own
      * routing: the lattice, not the frame viewer, is what a finished sweep
      * opens. A failure is reported as a null outcome, which is the shape
-     * [Host.onSweepFinished] already branched on.
+     * [Host.onSweepFinished] already branched on. A sweep whose session the
+     * index refused is told so as a batch run is.
      */
-    private fun handleSweepOutcome(result: Result<BatchAnalysisOutcome>) {
+    @VisibleForTesting
+    internal fun handleSweepOutcome(result: Result<BatchAnalysisOutcome>) {
         chrome.end()
         host.checkReady()
-        host.onSweepFinished(result.getOrNull())
+        val outcome = result.getOrNull()
+        if (outcome?.indexUnavailable == true) showNotSaved() else host.onSweepFinished(outcome)
     }
 
     @VisibleForTesting
@@ -128,11 +131,7 @@ class BatchRunController(
         when {
             // Ahead of the cancel: a cancelled re-run saves its frames, and must
             // say so when that save could not reach the index.
-            outcome.indexUnavailable -> {
-                host.clearEngineFailFaq()
-                tvResult.setText(R.string.analysis_not_saved_title)
-                Dialogs.info(activity, R.string.analysis_not_saved_title, R.string.analysis_index_unavailable_body)
-            }
+            outcome.indexUnavailable -> showNotSaved()
             outcome.stop == RunStop.Cancelled -> Unit
             outcome.stop == RunStop.SessionLimit -> AnalysisNavHelper.openSessionLimit(activity)
             // Stopped early (low convergence included) with frames kept. Only a
@@ -159,6 +158,13 @@ class BatchRunController(
                 host.openResultViewer()
             }
         }
+    }
+
+    /** The run solved, but the session index could not be read or written, so nothing was saved. */
+    private fun showNotSaved() {
+        host.clearEngineFailFaq()
+        tvResult.setText(R.string.analysis_not_saved_title)
+        Dialogs.info(activity, R.string.analysis_not_saved_title, R.string.analysis_index_unavailable_body)
     }
 
     private fun showNamedEngineFailure(outcome: BatchAnalysisOutcome) {

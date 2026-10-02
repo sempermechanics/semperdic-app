@@ -7,8 +7,8 @@ import com.indicvision.semper.data.prefs.ParamClipboard
 import com.indicvision.semper.databinding.WizardStepSettingsContentBinding
 import com.indicvision.semper.ui.analysis.recommend.StrainWindowText
 import com.indicvision.semper.ui.analysis.sweep.VsgStudy
-import com.indicvision.semper.ui.common.bindInfo
 import com.indicvision.semper.ui.common.commitOnDone
+import com.indicvision.semper.ui.common.dialog.bindInfo
 import com.indicvision.semper.ui.common.showUnlessEditing
 import java.util.Locale
 import kotlin.math.roundToInt

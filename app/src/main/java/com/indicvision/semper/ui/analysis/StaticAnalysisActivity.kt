@@ -1,11 +1,9 @@
 // The wizard's host: it builds the parts and implements the sweep setup's
 // callbacks, each a one-line hand-off, hence the function count.
 @file:Suppress("TooManyFunctions")
-@file:SuppressLint("PrivateResource")
 
 package com.indicvision.semper.ui.analysis
 
-import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
@@ -27,25 +25,39 @@ import com.indicvision.semper.databinding.WizardStepSweepBinding
 import com.indicvision.semper.imaging.BitmapDecode
 import com.indicvision.semper.imaging.video.ExtractionRequest
 import com.indicvision.semper.navigation.DicKeys
+import com.indicvision.semper.ui.analysis.frames.FrameImportController
+import com.indicvision.semper.ui.analysis.frames.FrameOrderController
+import com.indicvision.semper.ui.analysis.frames.ReferenceImportController
+import com.indicvision.semper.ui.analysis.frames.VideoSamplingSheet
+import com.indicvision.semper.ui.analysis.frames.WizardMediaPickers
+import com.indicvision.semper.ui.analysis.frames.checkFrameSizes
+import com.indicvision.semper.ui.analysis.recommend.SubsetRecommendationController
 import com.indicvision.semper.ui.analysis.roi.RoiResolveHelper
+import com.indicvision.semper.ui.analysis.roi.RoiStudioLauncher
 import com.indicvision.semper.ui.analysis.run.BatchRunController
 import com.indicvision.semper.ui.analysis.run.ComputeOverlayHelper
 import com.indicvision.semper.ui.analysis.run.RunChrome
+import com.indicvision.semper.ui.analysis.run.RunStatusLine
+import com.indicvision.semper.ui.analysis.run.WizardRunLauncher
+import com.indicvision.semper.ui.analysis.run.WizardRunOutcomes
 import com.indicvision.semper.ui.analysis.sweep.SweepSetupHelper
 import com.indicvision.semper.ui.analysis.sweep.VsgStudy
+import com.indicvision.semper.ui.analysis.wizard.AnalysisLeaveController
 import com.indicvision.semper.ui.analysis.wizard.AnalysisReadyGate
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
 import com.indicvision.semper.ui.analysis.wizard.AnalysisWizardChrome
 import com.indicvision.semper.ui.analysis.wizard.AnalysisWizardCoach
+import com.indicvision.semper.ui.analysis.wizard.AnalysisWizardHost
 import com.indicvision.semper.ui.analysis.wizard.AnalysisWizardSlots
 import com.indicvision.semper.ui.analysis.wizard.DraftRestore
 import com.indicvision.semper.ui.analysis.wizard.ReferencePreviewLoader
+import com.indicvision.semper.ui.analysis.wizard.WizardParamFields
 import com.indicvision.semper.ui.analysis.wizard.WizardStep
 import com.indicvision.semper.ui.common.CoachMarkController
-import com.indicvision.semper.ui.common.FaqRedirect
 import com.indicvision.semper.ui.common.Insets
 import com.indicvision.semper.ui.common.Motion
-import com.indicvision.semper.ui.common.WarnChip
+import com.indicvision.semper.ui.common.dialog.FaqRedirect
+import com.indicvision.semper.ui.common.dialog.WarnChip
 import com.indicvision.semper.ui.common.onButtonChecked
 import com.indicvision.semper.ui.common.showUnlessEditing
 import kotlinx.coroutines.launch
@@ -327,16 +339,14 @@ class StaticAnalysisActivity :
     // ------------------------------------------------------------------
     // Wizard navigation: page 1 (images) → page 2 (settings) → page 3 (sweep)
     // ------------------------------------------------------------------
-    /** The sweep setup's way to the settings page; also how the smoke test moves the wizard. */
-    override fun goToStep(step: Int, animate: Boolean) = goToStep(WizardStep.of(step), animate)
-
     override fun updateWizardChrome() = wizardChrome.updateBottomNav(viewModel.step, viewModel.sweepMode)
 
     override fun refPreviewBitmap(): Bitmap? = refPreviewBmp
 
     override fun renderParamField(field: EditText, value: Int) = field.showUnlessEditing(value.toString())
 
-    private fun goToStep(step: WizardStep, animate: Boolean) {
+    /** Shows page [step]: also the sweep setup's way back to settings, and how the smoke test moves the wizard. */
+    override fun goToStep(step: WizardStep, animate: Boolean) {
         val target = wizardChrome.applyStep(
             previous = viewModel.step,
             requested = step,

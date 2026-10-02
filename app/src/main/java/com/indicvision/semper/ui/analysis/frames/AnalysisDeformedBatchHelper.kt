@@ -10,8 +10,8 @@ import com.indicvision.semper.data.prefs.DicSettings
 import com.indicvision.semper.ui.analysis.StaticAnalysisActivity
 import com.indicvision.semper.ui.analysis.run.ComputeOverlayHelper
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
-import com.indicvision.semper.ui.common.FaqRedirect
-import com.indicvision.semper.ui.common.Feedback
+import com.indicvision.semper.ui.common.dialog.FaqRedirect
+import com.indicvision.semper.ui.common.dialog.Feedback
 import com.indicvision.semper.util.ProgressCount
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher

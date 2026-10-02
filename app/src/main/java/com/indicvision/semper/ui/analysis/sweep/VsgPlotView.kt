@@ -16,7 +16,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withClip
 import com.indicvision.semper.R
-import com.indicvision.semper.ui.common.PlotStyle
 import com.indicvision.semper.ui.common.dp
 
 /**

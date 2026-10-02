@@ -3,8 +3,6 @@ package com.indicvision.semper.data.session
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import org.json.JSONArray
-import org.json.JSONObject
 
 /** One unsolved sweep combination: subset, step, strain window, and engine code. */
 @Serializable
@@ -92,20 +90,6 @@ data class SkippedNode(
             strainWindows = nodes.map { it.strainWindow },
             codes = nodes.map { it.code },
         )
-
-        fun toMetadataJsonArray(nodes: List<SkippedNode>): JSONArray {
-            val arr = JSONArray()
-            for (node in nodes) {
-                arr.put(
-                    JSONObject()
-                        .put("subset", node.subset)
-                        .put("step", node.step)
-                        .put("strainWindow", node.strainWindow)
-                        .put("code", node.code),
-                )
-            }
-            return arr
-        }
 
         data class LegacyLists(
             val subsets: List<Int>,

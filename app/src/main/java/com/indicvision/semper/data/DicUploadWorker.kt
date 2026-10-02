@@ -49,7 +49,7 @@ private fun appInForeground(): Boolean {
  * worker, so these cannot be constructor parameters (ADR-002); tests swap them
  * for `FakeCloudApi` / `FakeTokens` and put them back.
  */
-@VisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
 internal object DicUploadSeams {
     var api: (Context) -> CloudApi = { IndicApi.get(it) }
     var tokens: TokenSource = TokenProvider

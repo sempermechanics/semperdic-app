@@ -7,9 +7,9 @@ import com.indicvision.semper.data.account.DeviceKeyManager
 import com.indicvision.semper.data.net.TokenStore
 import com.indicvision.semper.databinding.SettingsScrollContentBinding
 import com.indicvision.semper.diagnostics.SemperAnalytics
-import com.indicvision.semper.ui.common.ExternalLinks
-import com.indicvision.semper.ui.common.SupportMail
-import com.indicvision.semper.ui.common.contextLines
+import com.indicvision.semper.ui.common.auth.ExternalLinks
+import com.indicvision.semper.ui.common.auth.SupportMail
+import com.indicvision.semper.ui.common.auth.contextLines
 
 /**
  * Help & support: public docs, feedback mail, and the support address.

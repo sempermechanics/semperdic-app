@@ -1,7 +1,7 @@
 package com.indicvision.semper.field
 
 import android.graphics.Bitmap
-import com.indicvision.semper.data.net.DriveUpload
+import com.indicvision.semper.data.net.drive.DriveUpload
 import com.indicvision.semper.data.session.SkippedNode
 import com.indicvision.semper.report.BakedHeatmap
 import com.indicvision.semper.ui.analysis.sweep.VsgStudy

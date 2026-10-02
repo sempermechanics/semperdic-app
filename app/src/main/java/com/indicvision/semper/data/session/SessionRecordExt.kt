@@ -35,8 +35,8 @@ val SessionRecord.runStop: RunStop get() = RunStop.fromWireCode(stopCode)
 /**
  * True when the backend is known to hold this analysis: it reported the
  * upload [SessionRecord.SyncState.SYNCED], or the row carries the cloud id.
- * Home's rule (`SessionSelectionController.hasCloudCopy`,
- * `HomeActivity.openSession`).
+ * Home's rule: `SessionSelectionController` reads it for its cloud actions
+ * and counts, and [isRestorable] for restore.
  *
  * Not [SessionRecord.hasCloudCopy], which also counts a PENDING or FAILED row
  * because a rename must still reach a copy on its way; nor the "Only in
@@ -47,7 +47,8 @@ val SessionRecord.isKnownInCloud: Boolean
 
 /**
  * True when Home offers to restore this row: its frames are not on the phone
- * and the cloud holds it ([isKnownInCloud]). `SessionSelectionController.isCloudOnly`.
+ * and the cloud holds it ([isKnownInCloud]). Home asks it when a row is opened
+ * (`HomeActivity.openSession`) and before it offers Restore on a selection.
  *
  * The caller says whether the frames are on the phone: Home passes the list's
  * cached answer; [SessionRecord.hasLocalData] is a disk read, so it is never

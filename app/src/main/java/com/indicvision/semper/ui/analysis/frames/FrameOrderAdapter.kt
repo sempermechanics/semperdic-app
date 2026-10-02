@@ -12,8 +12,8 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.indicvision.semper.R
 import com.indicvision.semper.databinding.ItemFrameOrderBinding
-import com.indicvision.semper.ui.common.ThumbnailLoader
 import com.indicvision.semper.ui.common.dp
+import com.indicvision.semper.ui.common.media.ThumbnailLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import java.io.File

@@ -5,7 +5,7 @@ import com.indicvision.semper.databinding.ActivityStaticAnalysisBinding
 import com.indicvision.semper.databinding.WizardStepSettingsContentBinding
 import com.indicvision.semper.ui.analysis.StaticAnalysisActivity
 import com.indicvision.semper.ui.analysis.sweep.SweepSetupHelper
-import com.indicvision.semper.ui.common.WarnChip
+import com.indicvision.semper.ui.common.dialog.WarnChip
 
 /**
  * Wizard readiness / Compute / Sweep enablement extracted from

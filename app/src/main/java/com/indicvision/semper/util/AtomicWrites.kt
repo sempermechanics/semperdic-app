@@ -11,7 +11,7 @@ import java.io.File
  * throws, the `finally` deletes it and the throwable (cancellation included)
  * propagates unchanged. No abandoned write leaves a sidecar behind for the next
  * run to mistake for a finished one (the default `.part` name is the one
- * [com.indicvision.semper.data.net.DriveTransfer] resumes from).
+ * [com.indicvision.semper.data.net.drive.DriveTransfer] resumes from).
  *
  * [write] is `crossinline`, so a non-local `return` (or `break`/`continue`)
  * out of it does not compile. It has to be: inlined, such a return leaves
@@ -32,7 +32,7 @@ import java.io.File
  * index relies on the rename replacing it in one step).
  *
  * Not for resumable downloads: those keep their `.part` across attempts on
- * purpose ([com.indicvision.semper.data.net.DriveTransfer]).
+ * purpose ([com.indicvision.semper.data.net.drive.DriveTransfer]).
  *
  * @return what [write] returned (a digest, a count, …).
  */

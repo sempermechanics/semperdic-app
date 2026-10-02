@@ -1,10 +1,14 @@
 package com.indicvision.semper.analysis
 
+import android.os.Bundle
 import android.os.Looper
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.ViewModelProvider
 import com.indicvision.semper.field.ImageSize
 import com.indicvision.semper.field.RunStop
 import com.indicvision.semper.ui.analysis.frames.DeformedFrame
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
+import com.indicvision.semper.ui.analysis.wizard.WizardStep
 import com.indicvision.semper.ui.analysis.wizard.repointDeformedPathsOnMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,6 +18,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import kotlin.concurrent.thread
@@ -223,5 +228,18 @@ class AnalysisViewModelTest {
         assertNull(snapshot.settings)
         assertEquals(RunStop.Finished, snapshot.stop)
         assertEquals(0, snapshot.plannedFrames)
+    }
+
+    // ------------------------------------------------------------ saved state
+
+    @Test
+    fun `the Activity's factory hands it the saved state a process death restores`() {
+        val first = Robolectric.buildActivity(ComponentActivity::class.java).setup()
+        ViewModelProvider(first.get())[AnalysisViewModel::class.java].step = WizardStep.SETTINGS
+        val state = Bundle()
+        first.saveInstanceState(state).pause().stop().destroy()
+
+        val second = Robolectric.buildActivity(ComponentActivity::class.java).setup(state)
+        assertEquals(WizardStep.SETTINGS, ViewModelProvider(second.get())[AnalysisViewModel::class.java].step)
     }
 }

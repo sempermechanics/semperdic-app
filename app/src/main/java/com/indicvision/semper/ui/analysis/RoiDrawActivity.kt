@@ -28,8 +28,8 @@ import com.indicvision.semper.navigation.DicKeys
 import com.indicvision.semper.ui.analysis.roi.StudioOverlayMaskEncoder
 import com.indicvision.semper.ui.analysis.roi.StudioOverlayView
 import com.indicvision.semper.ui.analysis.wizard.ReferencePreviewLoader
-import com.indicvision.semper.ui.common.Feedback
 import com.indicvision.semper.ui.common.Insets
+import com.indicvision.semper.ui.common.dialog.Feedback
 import com.indicvision.semper.ui.common.hideKeyboard
 import com.indicvision.semper.ui.common.onButtonChecked
 import kotlinx.coroutines.Dispatchers

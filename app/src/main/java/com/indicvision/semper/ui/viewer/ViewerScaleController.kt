@@ -12,8 +12,8 @@ import com.indicvision.semper.field.ValueRange
 import com.indicvision.semper.report.BakedHeatmap
 import com.indicvision.semper.report.ReportBuilder
 import com.indicvision.semper.report.VisualizationEngine
-import com.indicvision.semper.ui.common.FaqRedirect
 import com.indicvision.semper.ui.common.SerialJob
+import com.indicvision.semper.ui.common.dialog.FaqRedirect
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

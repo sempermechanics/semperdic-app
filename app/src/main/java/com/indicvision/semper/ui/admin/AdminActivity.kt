@@ -19,8 +19,8 @@ import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.TokenProvider
 import com.indicvision.semper.databinding.ActivityAdminBinding
 import com.indicvision.semper.databinding.ItemAdminUserBinding
-import com.indicvision.semper.ui.common.Feedback
 import com.indicvision.semper.ui.common.Insets
+import com.indicvision.semper.ui.common.dialog.Feedback
 import com.indicvision.semper.ui.common.setBusy
 import com.indicvision.semper.util.suspendRunCatching
 import kotlinx.coroutines.launch

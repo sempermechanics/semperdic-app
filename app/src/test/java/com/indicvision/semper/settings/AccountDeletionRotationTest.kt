@@ -9,7 +9,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.R
 import com.indicvision.semper.data.cloud.CloudSync
-import com.indicvision.semper.ui.common.AuthRoute
+import com.indicvision.semper.ui.common.auth.AuthRoute
 import com.indicvision.semper.ui.settings.AccountDeletionRun
 import com.indicvision.semper.ui.settings.SettingsActivity
 import kotlinx.coroutines.CompletableDeferred

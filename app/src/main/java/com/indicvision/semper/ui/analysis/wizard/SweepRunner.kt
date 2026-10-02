@@ -12,12 +12,15 @@ import com.indicvision.semper.data.session.RunReference
 import com.indicvision.semper.data.session.SessionPaths
 import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.data.session.SkippedNode
+import com.indicvision.semper.data.session.originalNameOr
 import com.indicvision.semper.diagnostics.SemperAnalytics
 import com.indicvision.semper.field.RunStop
 import com.indicvision.semper.report.EngineStats
+import com.indicvision.semper.ui.analysis.run.AfterSave
 import com.indicvision.semper.ui.analysis.run.RunSpec
+import com.indicvision.semper.ui.analysis.run.afterSave
 import com.indicvision.semper.ui.analysis.run.baseName
-import com.indicvision.semper.ui.analysis.run.originalNameOr
+import com.indicvision.semper.ui.analysis.run.saveRunRecord
 import com.indicvision.semper.ui.analysis.sweep.VsgStudyRunner
 import com.indicvision.semper.ui.analysis.sweep.toSkippedNode
 import kotlinx.coroutines.withContext
@@ -124,21 +127,51 @@ private fun AnalysisViewModel.solveSweep(
         )
     }
 
-    persistSweepSession(appContext, SweepSession(localSessionId, batchDir, bytes, result, spec, executionTimeMs))
+    return finishSolvedSweep(appContext, SweepSession(localSessionId, batchDir, bytes, result, spec, executionTimeMs))
+}
 
-    sweepEvent(
-        appContext,
-        SemperAnalytics.ANALYSIS_COMPLETED,
-        "frames" to SemperAnalytics.frameCountBucket(result.runs.size),
-        duration,
+/**
+ * Saves [run], a sweep that solved at least one combination, as a session
+ * and says how it ended, reading the save as a batch run's is ([afterSave]):
+ * a full quota ends it at the session limit, and an index that could not be
+ * read or written as not saved. [cloudEnabled] is whether a saved session
+ * queues its upload.
+ */
+@WorkerThread
+internal fun AnalysisViewModel.finishSolvedSweep(
+    appContext: Context,
+    run: SweepSession,
+    cloudEnabled: Boolean = CloudSync.uploadsEnabled(appContext),
+): BatchAnalysisOutcome {
+    val saved = persistSweepSession(appContext, run, cloudEnabled)
+    val outcome = BatchAnalysisOutcome(
+        engineErrorCode = saved.stop.wireCode,
+        firstFrameValidPoints = run.result.runs.first().pointsSolved,
+        totalFrames = run.result.runs.size,
+        executionTimeMs = run.executionTimeMs,
+        batchDirPath = run.batchDir.absolutePath,
+        saved = saved.recordSaved,
+        indexUnavailable = saved.indexUnavailable,
     )
-    return BatchAnalysisOutcome(
-        engineErrorCode = result.engineErrorCode,
-        firstFrameValidPoints = result.runs.first().pointsSolved,
-        totalFrames = result.runs.size,
-        executionTimeMs = executionTimeMs,
-        batchDirPath = batchDir.absolutePath,
-    )
+    sweepEndEvent(appContext, outcome)
+    return outcome
+}
+
+/** The analytics event a sweep that solved ends with: completed, or why its session was not saved. */
+private fun sweepEndEvent(appContext: Context, outcome: BatchAnalysisOutcome) {
+    val duration = "duration" to SemperAnalytics.durationBucket(outcome.executionTimeMs.toLong())
+    when {
+        outcome.indexUnavailable ->
+            sweepEvent(appContext, SemperAnalytics.ANALYSIS_FAILED, "reason" to "index_unavailable", duration)
+        outcome.stop == RunStop.SessionLimit ->
+            sweepEvent(appContext, SemperAnalytics.ANALYSIS_FAILED, "reason" to "session_limit", duration)
+        else -> sweepEvent(
+            appContext,
+            SemperAnalytics.ANALYSIS_COMPLETED,
+            "frames" to SemperAnalytics.frameCountBucket(outcome.totalFrames),
+            duration,
+        )
+    }
 }
 
 /** A sweep analytics [event], `mode` first as every sweep event has it. */
@@ -151,7 +184,7 @@ private fun VsgStudyRunner.Result.skippedNodes(): List<SkippedNode> =
     skipped.mapIndexed { index, point -> point.toSkippedNode(skippedCodes[index]) }
 
 /** What a finished sweep's session is assembled from. */
-private class SweepSession(
+internal class SweepSession(
     val localSessionId: String,
     val batchDir: File,
     val reference: ByteArray,
@@ -163,9 +196,14 @@ private class SweepSession(
 /**
  * The deformed frame the sweep was solved against is persisted once, under
  * the name every combination shares — a sweep varies settings, not images.
+ * Returns how the session's save came back.
  */
 @WorkerThread
-private fun AnalysisViewModel.persistSweepSession(appContext: Context, run: SweepSession) {
+private fun AnalysisViewModel.persistSweepSession(
+    appContext: Context,
+    run: SweepSession,
+    cloudEnabled: Boolean,
+): AfterSave {
     val result = run.result
     val sweep = checkNotNull(run.spec.sweep)
     val refPngPath = sessions.writeReferenceCopy(run.batchDir, run.reference, realRefWidth, realRefHeight)
@@ -180,7 +218,6 @@ private fun AnalysisViewModel.persistSweepSession(appContext: Context, run: Swee
         )
     }
 
-    val cloudEnabled = CloudSync.uploadsEnabled(appContext)
     val first = result.runs.first().point
     val defDisplay = rawName.ifBlank {
         defOriginalNames.originalNameOr(frameIndex, File(defFilePaths[frameIndex]).name)
@@ -219,7 +256,7 @@ private fun AnalysisViewModel.persistSweepSession(appContext: Context, run: Swee
         sweepSkippedNodes = this.sweepSkippedNodes,
         headline = summary.headline,
     )
-    sessions.saveSession(appContext, record, enqueueCloudIfSaved = cloudEnabled)
+    return afterSave(RunStop.fromWireCode(result.engineErrorCode), saveRunRecord(appContext, record, cloudEnabled))
 }
 
 /** The Home-list name, headline and per-frame labels of a finished sweep. */

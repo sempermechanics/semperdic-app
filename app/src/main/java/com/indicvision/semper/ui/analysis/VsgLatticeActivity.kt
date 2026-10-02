@@ -1,8 +1,5 @@
-@file:SuppressLint("PrivateResource")
-
 package com.indicvision.semper.ui.analysis
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.View
 import android.widget.AdapterView
@@ -20,14 +17,24 @@ import com.indicvision.semper.field.Roi
 import com.indicvision.semper.navigation.DicKeys
 import com.indicvision.semper.ui.analysis.recommend.StrainWindowText
 import com.indicvision.semper.ui.analysis.run.EngineFailure
+import com.indicvision.semper.ui.analysis.sweep.LatticeGraphExport
+import com.indicvision.semper.ui.analysis.sweep.StrainProfiles
 import com.indicvision.semper.ui.analysis.sweep.VsgLatticeView
 import com.indicvision.semper.ui.analysis.sweep.VsgPlotView
 import com.indicvision.semper.ui.analysis.sweep.VsgStudy
+import com.indicvision.semper.ui.analysis.sweep.animateCopyConfirmation
+import com.indicvision.semper.ui.analysis.sweep.bindCopyGestures
+import com.indicvision.semper.ui.analysis.sweep.latticeSummary
+import com.indicvision.semper.ui.analysis.sweep.loadSweepFrameProfiles
+import com.indicvision.semper.ui.analysis.sweep.scrubReadout
+import com.indicvision.semper.ui.analysis.sweep.skippedLatticeNodes
+import com.indicvision.semper.ui.analysis.sweep.solvedLatticeNodes
+import com.indicvision.semper.ui.analysis.sweep.sweepFrameProfiles
 import com.indicvision.semper.ui.common.CoachMarkController
-import com.indicvision.semper.ui.common.CrispToast
-import com.indicvision.semper.ui.common.FaqRedirect
-import com.indicvision.semper.ui.common.Feedback
 import com.indicvision.semper.ui.common.Insets
+import com.indicvision.semper.ui.common.dialog.CrispToast
+import com.indicvision.semper.ui.common.dialog.FaqRedirect
+import com.indicvision.semper.ui.common.dialog.Feedback
 import com.indicvision.semper.ui.common.onButtonChecked
 import com.indicvision.semper.ui.viewer.ViewerArgs
 import kotlinx.coroutines.Dispatchers
@@ -124,7 +131,7 @@ class VsgLatticeActivity : AppCompatActivity() {
         }
 
         val solved = solvedLatticeNodes(args.sweep)
-        val skipped = skippedLatticeNodes(args.sweep) { code -> getString(EngineFailure.shortReasonRes(code)) }
+        val skipped = skippedLatticeNodes(args.sweep) { code -> EngineFailure.shortReason(this, code) }
         val nodes = (solved + skipped).sortedWith(compareBy({ it.subset }, { it.vsg }))
         solvedNodes = nodes.filter { it.solved }
         // Frame-index lookup, so per-frame loops don't scan solvedNodes (was O(F²)).

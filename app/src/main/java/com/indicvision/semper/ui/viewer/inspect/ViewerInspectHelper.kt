@@ -1,8 +1,5 @@
-@file:SuppressLint("ClickableViewAccessibility", "SetTextI18n")
-
 package com.indicvision.semper.ui.viewer.inspect
 
-import android.annotation.SuppressLint
 import android.graphics.Matrix
 import android.view.View
 import android.widget.TextView

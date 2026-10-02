@@ -1,7 +1,7 @@
 package com.indicvision.semper.data
 
 import android.content.Context
-import android.net.Uri
+import androidx.core.net.toUri
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
@@ -67,7 +67,7 @@ class DicBundleDownloadWorker internal constructor(
             ?: return@withContext Result.failure()
         val displayName = inputData.getString(KEY_DISPLAY_NAME).orEmpty()
         val localSessionId = inputData.getString(KEY_LOCAL_SESSION_ID).orEmpty()
-        val dest = inputData.getString(KEY_DEST_URI)?.let { SafDestination(applicationContext, Uri.parse(it)) }
+        val dest = inputData.getString(KEY_DEST_URI)?.let { SafDestination(applicationContext, it.toUri()) }
             ?: return@withContext fail("no_dest")
 
         var staged: File? = null

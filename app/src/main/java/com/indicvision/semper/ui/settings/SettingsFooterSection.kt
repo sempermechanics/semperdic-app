@@ -5,10 +5,10 @@ import com.indicvision.semper.BuildConfig
 import com.indicvision.semper.R
 import com.indicvision.semper.data.account.AuthRepository
 import com.indicvision.semper.databinding.SettingsScrollContentBinding
-import com.indicvision.semper.ui.common.AuthRoute
-import com.indicvision.semper.ui.common.ExternalLinks
-import com.indicvision.semper.ui.common.SignOutRun
-import com.indicvision.semper.ui.common.confirm
+import com.indicvision.semper.ui.common.auth.AuthRoute
+import com.indicvision.semper.ui.common.auth.ExternalLinks
+import com.indicvision.semper.ui.common.auth.SignOutRun
+import com.indicvision.semper.ui.common.auth.confirm
 
 /** The foot of Settings: About (version, privacy, terms) and Sign out. */
 internal class SettingsFooterSection(

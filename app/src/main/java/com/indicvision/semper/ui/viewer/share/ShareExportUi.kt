@@ -5,10 +5,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.indicvision.semper.R
-import com.indicvision.semper.ui.common.CrispToast
-import com.indicvision.semper.ui.common.DeterminateProgressDialog
-import com.indicvision.semper.ui.common.Feedback
-import com.indicvision.semper.ui.common.TransferBannerController
+import com.indicvision.semper.ui.common.dialog.CrispToast
+import com.indicvision.semper.ui.common.dialog.DeterminateProgressDialog
+import com.indicvision.semper.ui.common.dialog.Feedback
+import com.indicvision.semper.ui.common.transfer.TransferBannerController
 import com.indicvision.semper.ui.viewer.ResultViewerActivity
 import kotlinx.coroutines.launch
 import java.io.File

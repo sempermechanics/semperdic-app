@@ -3,7 +3,7 @@ package com.indicvision.semper.settings
 import android.view.View
 import android.widget.TextView
 import com.indicvision.semper.R
-import com.indicvision.semper.ui.common.TransferBannerController
+import com.indicvision.semper.ui.common.transfer.TransferBannerController
 import com.indicvision.semper.ui.settings.SettingsActivity
 import org.junit.After
 import org.junit.Assert.assertEquals

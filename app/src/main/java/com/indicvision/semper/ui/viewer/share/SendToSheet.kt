@@ -4,7 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import androidx.core.content.FileProvider
 import com.indicvision.semper.R
-import com.indicvision.semper.ui.common.inflateSheet
+import com.indicvision.semper.ui.common.dialog.inflateSheet
 import com.indicvision.semper.ui.viewer.SaveExportActivity
 import java.io.File
 

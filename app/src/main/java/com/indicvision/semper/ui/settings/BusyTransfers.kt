@@ -1,7 +1,7 @@
 package com.indicvision.semper.ui.settings
 
 import com.indicvision.semper.data.cloud.WorkTags
-import com.indicvision.semper.ui.common.TransferWorkObserver
+import com.indicvision.semper.ui.common.transfer.TransferWorkObserver
 import java.util.UUID
 
 /**

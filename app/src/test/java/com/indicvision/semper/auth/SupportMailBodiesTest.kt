@@ -10,7 +10,7 @@ import com.indicvision.semper.R
 import com.indicvision.semper.data.account.DeviceKeyManager
 import com.indicvision.semper.data.net.TokenStore
 import com.indicvision.semper.ui.auth.PendingApprovalActivity
-import com.indicvision.semper.ui.common.SupportMail
+import com.indicvision.semper.ui.common.auth.SupportMail
 import com.indicvision.semper.ui.limit.SessionLimitActivity
 import com.indicvision.semper.ui.settings.SettingsActivity
 import org.junit.After

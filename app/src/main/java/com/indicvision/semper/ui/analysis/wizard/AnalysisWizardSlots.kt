@@ -8,7 +8,7 @@ import com.indicvision.semper.databinding.ActivityStaticAnalysisBinding
 import com.indicvision.semper.databinding.WizardStepSettingsContentBinding
 import com.indicvision.semper.ui.analysis.frames.FrameOrderAdapter
 import com.indicvision.semper.ui.analysis.frames.FrameOrderMode
-import com.indicvision.semper.ui.common.WarnChip
+import com.indicvision.semper.ui.common.dialog.WarnChip
 
 /**
  * Load-frames and confirm-settings slot chrome: dropzones vs filled cards,

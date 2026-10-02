@@ -78,7 +78,7 @@ data class Roi(val x: Int, val y: Int, val w: Int, val h: Int) {
     /** `[left, top, right, bottom]` as floats: `HeatmapFit.resolve`'s box. */
     fun toLtrb(): FloatArray = floatArrayOf(x.toFloat(), y.toFloat(), right.toFloat(), bottom.toFloat())
 
-    /** `[x, y, w, h]`: the array `RoiResolveHelper` returns and the wizard's saved state holds. */
+    /** `[x, y, w, h]`: the array the wizard's saved state holds ([putRoi]). */
     fun toXywh(): IntArray = intArrayOf(x, y, w, h)
 
     companion object {
@@ -107,7 +107,7 @@ data class Roi(val x: Int, val y: Int, val w: Int, val h: Int) {
         /**
          * The rectangle the engine solves over, or null when it cannot hold one
          * subset: [drawn] clamped to the image when [hasCustomRoi], else
-         * [insetFullFrame]. `RoiResolveHelper.resolve` returns this as `[x, y, w, h]`.
+         * [insetFullFrame].
          */
         fun forSolve(subset: Int, hasCustomRoi: Boolean, drawn: Roi, size: ImageSize): Roi? {
             val roi = if (hasCustomRoi) drawn.clampTo(size) else insetFullFrame(size, subset)

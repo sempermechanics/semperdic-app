@@ -2,7 +2,6 @@ package com.indicvision.semper.data.cloud.restore
 
 import android.app.Application
 import com.indicvision.semper.data.cloud.SessionMetadataDoc
-import com.indicvision.semper.data.session.SkippedNode
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -40,14 +39,18 @@ class RestoredSweepHeadlineTest {
         return SessionMetadataDoc.decode(text).toRecord("s", "c", File("r"), "", null).headline
     }
 
+    private fun node(subset: Int, code: Int) = JSONObject()
+        .put("subset", subset)
+        .put("step", 5)
+        .put("strainWindow", 15)
+        .put("code", code)
+
     @Test
     fun `skips written as nodes are counted`() {
-        val nodes = SkippedNode.toMetadataJsonArray(
-            listOf(
-                SkippedNode(subset = 21, step = 5, strainWindow = 15, code = 12),
-                SkippedNode(subset = 25, step = 5, strainWindow = 15, code = 7),
-            ),
-        )
+        // As SessionMetadataDoc writes `engine.sweep.skipped.nodes`.
+        val nodes = JSONArray()
+            .put(node(subset = 21, code = 12))
+            .put(node(subset = 25, code = 7))
         assertEquals(
             "def.png · 3 of 5 solved · subset 31–51",
             headline(JSONObject().put("nodes", nodes)),

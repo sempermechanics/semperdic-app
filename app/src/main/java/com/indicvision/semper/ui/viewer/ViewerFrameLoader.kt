@@ -7,8 +7,8 @@ import com.indicvision.semper.R
 import com.indicvision.semper.data.session.SessionPaths
 import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.field.ImageSize
-import com.indicvision.semper.ui.common.FaqRedirect
 import com.indicvision.semper.ui.common.SerialJob
+import com.indicvision.semper.ui.common.dialog.FaqRedirect
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

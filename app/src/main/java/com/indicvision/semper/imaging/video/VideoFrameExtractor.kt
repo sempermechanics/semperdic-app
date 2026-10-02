@@ -1,4 +1,4 @@
-@file:Suppress("NestedBlockDepth", "TooGenericExceptionCaught", "ReturnCount")
+@file:Suppress("NestedBlockDepth", "TooGenericExceptionCaught")
 
 @file:SuppressLint("InlinedApi")
 

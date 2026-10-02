@@ -6,9 +6,9 @@ import com.indicvision.semper.ui.analysis.recommend.SubsetRecommender
 
 /**
  * ROI math for the analysis wizard, over the wizard's loose `roiX..roiH` and
- * reference size: inset a full-frame solve so subsets stay on-image, and cap
- * subset size so the engine still has grid points after its edge buffer.
- * The geometry itself is [Roi]'s.
+ * reference size: cap subset size so the engine still has grid points after
+ * its edge buffer. The geometry itself, including the rectangle a run solves
+ * over ([Roi.forSolve]), is [Roi]'s.
  */
 object RoiResolveHelper {
 
@@ -20,34 +20,8 @@ object RoiResolveHelper {
      */
     const val ENGINE_EDGE_BUFFER_PX = 19
 
-    /** Slack [resolve] adds beyond half a subset when insetting a frame. */
+    /** Slack [Roi.insetFullFrame] adds beyond half a subset when insetting a frame. */
     const val ROI_MARGIN_SLACK_PX = Roi.FULL_FRAME_SLACK_PX
-
-    /**
-     * Returns `[x, y, w, h]` for the rectangle the engine solves over, or null
-     * if it cannot hold one [subset]-sized window ([Roi.forSolve]).
-     *
-     * A custom ROI is clipped to the image first. It is kept across a
-     * reference of the same size, and restored from a saved state, so it is
-     * never assumed to fit: the engine's grid would otherwise start off the
-     * image and the run fail with an ROI error instead of this check.
-     */
-    @Suppress("LongParameterList") // the wizard's loose ROI and image fields
-    fun resolve(
-        subset: Int,
-        hasCustomRoi: Boolean,
-        roiX: Int,
-        roiY: Int,
-        roiW: Int,
-        roiH: Int,
-        realRefWidth: Int,
-        realRefHeight: Int,
-    ): IntArray? = Roi.forSolve(
-        subset = subset,
-        hasCustomRoi = hasCustomRoi,
-        drawn = Roi(roiX, roiY, roiW, roiH),
-        size = ImageSize(realRefWidth, realRefHeight),
-    )?.toXywh()
 
     /**
      * Largest odd subset the loaded image and ROI can actually hold, given

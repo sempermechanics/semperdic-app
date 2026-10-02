@@ -15,11 +15,11 @@ import com.indicvision.semper.data.account.AuthRepository
 import com.indicvision.semper.data.account.LegalTerms
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.databinding.ActivityTermsBinding
-import com.indicvision.semper.ui.common.AuthRoute
-import com.indicvision.semper.ui.common.ExternalLinks
-import com.indicvision.semper.ui.common.Feedback
 import com.indicvision.semper.ui.common.Insets
-import com.indicvision.semper.ui.common.SignOutRun
+import com.indicvision.semper.ui.common.auth.AuthRoute
+import com.indicvision.semper.ui.common.auth.ExternalLinks
+import com.indicvision.semper.ui.common.auth.SignOutRun
+import com.indicvision.semper.ui.common.dialog.Feedback
 import com.indicvision.semper.ui.common.setBusy
 import com.indicvision.semper.ui.home.HomeActivity
 import kotlinx.coroutines.launch

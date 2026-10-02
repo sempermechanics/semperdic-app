@@ -21,9 +21,9 @@ import com.indicvision.semper.data.account.isTrustedAuthLink
 import com.indicvision.semper.data.net.TokenStore
 import com.indicvision.semper.databinding.ActivityAuthBinding
 import com.indicvision.semper.navigation.DicKeys
-import com.indicvision.semper.ui.common.CrispToast
 import com.indicvision.semper.ui.common.Insets
-import com.indicvision.semper.ui.common.SignOutRun
+import com.indicvision.semper.ui.common.auth.SignOutRun
+import com.indicvision.semper.ui.common.dialog.CrispToast
 import com.indicvision.semper.ui.common.setBusy
 import com.indicvision.semper.util.suspendRunCatching
 import kotlinx.coroutines.CancellationException

@@ -80,6 +80,25 @@ class LocalStorageFootprintTest {
     }
 
     @Test
+    fun `a frame with a blank recorded name is persisted under its file name`() {
+        val staged = File(ctx.cacheDir, FrameImportHelper.COMMITTED_DIR_NAME).apply { mkdirs() }
+        val source = File(staged, "0000_specimen.png").apply { writeText("image-bytes") }
+        val batchDir = SessionStore.dirFor(ctx, "s4")
+
+        // A restored draft pads a frame with no recorded name with "".
+        val name = SessionRepository().persistRawDeformed(
+            batchDir,
+            frameIndex = 0,
+            defFilePaths = listOf(source.absolutePath),
+            defOriginalNames = listOf(""),
+        )
+
+        assertEquals("0000_specimen.png", name)
+        val persisted = File(File(batchDir, SessionPaths.RAW_DEFORMED_SUBDIR), name)
+        assertEquals("image-bytes", persisted.readText())
+    }
+
+    @Test
     fun `re-running over an already persisted frame keeps it`() {
         val batchDir = SessionStore.dirFor(ctx, "s2")
         val rawDir = File(batchDir, SessionPaths.RAW_DEFORMED_SUBDIR).apply { mkdirs() }

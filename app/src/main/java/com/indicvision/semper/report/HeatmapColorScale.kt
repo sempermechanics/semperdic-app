@@ -64,8 +64,7 @@ internal object HeatmapColorScale {
      * reorders that range as a side effect (same contract a full sort would have —
      * every caller here treats the array as scratch, consumed after the call).
      *
-     * [VisualizationEngine.quickSelect] is this; [ReportFieldExtrema] reuses it,
-     * through that, for the same p02/p98 pick.
+     * [ReportFieldExtrema] reuses it for the same p02/p98 pick.
      */
     internal fun quickSelect(values: FloatArray, k: Int, fromIndex: Int, toIndex: Int): Float {
         var lo = fromIndex

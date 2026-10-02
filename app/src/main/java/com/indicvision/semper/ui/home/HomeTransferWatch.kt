@@ -5,9 +5,9 @@ import androidx.work.WorkManager
 import com.indicvision.semper.R
 import com.indicvision.semper.data.cloud.TransferWork
 import com.indicvision.semper.data.cloud.UploadErrors
-import com.indicvision.semper.ui.common.CrispToast
-import com.indicvision.semper.ui.common.RestoreFailureNotice
-import com.indicvision.semper.ui.common.TransferWorkObserver
+import com.indicvision.semper.ui.common.dialog.CrispToast
+import com.indicvision.semper.ui.common.transfer.RestoreFailureNotice
+import com.indicvision.semper.ui.common.transfer.TransferWorkObserver
 
 /**
  * Home's view of the backup and restore jobs while it is alive: live

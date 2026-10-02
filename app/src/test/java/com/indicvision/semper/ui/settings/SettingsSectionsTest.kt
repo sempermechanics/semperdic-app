@@ -14,7 +14,7 @@ import com.indicvision.semper.data.net.AppConfigDto
 import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.prefs.DicSettings
 import com.indicvision.semper.fixtures.CleanAppState
-import com.indicvision.semper.ui.common.SignOutRun
+import com.indicvision.semper.ui.common.auth.SignOutRun
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

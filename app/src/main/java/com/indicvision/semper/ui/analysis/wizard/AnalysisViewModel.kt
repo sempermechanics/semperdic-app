@@ -1,5 +1,6 @@
 package com.indicvision.semper.ui.analysis.wizard
 import android.os.Bundle
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import com.indicvision.semper.SemperNativeLib
@@ -33,7 +34,11 @@ import kotlinx.coroutines.flow.update
  * ([SemperNativeLib]) on a dedicated thread, writes per-frame `.dat`
  * results, and enqueues cloud sync via DicUploadWorker.
  */
-class AnalysisViewModel(private val saved: SavedStateHandle = SavedStateHandle()) : ViewModel() {
+class AnalysisViewModel(private val saved: SavedStateHandle) : ViewModel() {
+
+    /** With an empty [SavedStateHandle], for tests; the Activity's factory passes its own. */
+    @VisibleForTesting
+    constructor() : this(SavedStateHandle())
 
     companion object {
         /** Below this, the correlation has effectively lost the speckle. */
@@ -238,7 +243,7 @@ class AnalysisViewModel(private val saved: SavedStateHandle = SavedStateHandle()
     /** The page the wizard shows. */
     var step: WizardStep = WizardStep.IMAGES
 
-    /** [step]'s number, as the saved state and the sweep setup read it. */
+    /** [step]'s number, as the saved state holds it. */
     var wizardStep: Int
         get() = step.number
         set(value) {

@@ -8,6 +8,7 @@ import com.indicvision.semper.ui.analysis.frames.DeformedFrame
 import com.indicvision.semper.ui.analysis.sweep.SweepSetupHelper
 import com.indicvision.semper.ui.analysis.sweep.VsgStudy
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
+import com.indicvision.semper.ui.analysis.wizard.WizardStep
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -26,7 +27,7 @@ import org.robolectric.annotation.Config
 class SweepSetupHelperTest {
 
     private class FakeCallbacks(var maxSubset: Int) : SweepSetupHelper.Callbacks {
-        override fun goToStep(step: Int, animate: Boolean) = Unit
+        override fun goToStep(step: WizardStep, animate: Boolean) = Unit
         override fun updateWizardChrome() = Unit
         override fun checkReady() = Unit
         override fun commitParamFields() = Unit

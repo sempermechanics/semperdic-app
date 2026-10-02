@@ -13,8 +13,8 @@ import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.field.FrameParams
 import com.indicvision.semper.field.ImageSize
 import com.indicvision.semper.report.ReportImageNames
-import com.indicvision.semper.ui.common.CrispToast
-import com.indicvision.semper.ui.common.inflateSheet
+import com.indicvision.semper.ui.common.dialog.CrispToast
+import com.indicvision.semper.ui.common.dialog.inflateSheet
 import com.indicvision.semper.ui.viewer.ResultViewerActivity
 import com.indicvision.semper.ui.viewer.summary.SummaryAnimation
 import timber.log.Timber

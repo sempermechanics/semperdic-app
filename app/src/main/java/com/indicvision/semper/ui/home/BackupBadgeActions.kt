@@ -12,8 +12,8 @@ import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.prefs.DicSettings
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SessionStore
-import com.indicvision.semper.ui.common.Dialogs
-import com.indicvision.semper.ui.common.Feedback
+import com.indicvision.semper.ui.common.dialog.Dialogs
+import com.indicvision.semper.ui.common.dialog.Feedback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

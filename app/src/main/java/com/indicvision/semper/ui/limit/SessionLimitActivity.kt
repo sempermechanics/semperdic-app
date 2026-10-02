@@ -12,10 +12,10 @@ import com.indicvision.semper.data.cloud.CloudSync
 import com.indicvision.semper.data.net.TokenStore
 import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.databinding.ActivitySessionLimitBinding
-import com.indicvision.semper.ui.common.Feedback
 import com.indicvision.semper.ui.common.Insets
-import com.indicvision.semper.ui.common.SupportMail
-import com.indicvision.semper.ui.common.contextLines
+import com.indicvision.semper.ui.common.auth.SupportMail
+import com.indicvision.semper.ui.common.auth.contextLines
+import com.indicvision.semper.ui.common.dialog.Feedback
 import com.indicvision.semper.ui.common.setBusy
 import kotlinx.coroutines.launch
 

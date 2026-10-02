@@ -35,11 +35,3 @@ internal object DicFieldIo {
 
 /** Filename without any directory prefix, handling both '/' and '\' separators. */
 internal fun String.baseName(): String = substringAfterLast('/').substringAfterLast('\\')
-
-/**
- * The name frame [index] was picked as, or [fallback] when none is known. A
- * restored draft pads a frame with no recorded name with "", so a blank name
- * counts as none.
- */
-internal fun List<String>.originalNameOr(index: Int, fallback: String): String =
-    getOrNull(index)?.takeIf { it.isNotBlank() } ?: fallback

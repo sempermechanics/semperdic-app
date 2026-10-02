@@ -14,8 +14,9 @@ import com.indicvision.semper.R
 import com.indicvision.semper.field.ImageSize
 import com.indicvision.semper.field.Roi
 import com.indicvision.semper.ui.analysis.wizard.AnalysisViewModel
-import com.indicvision.semper.ui.common.WarnChip
-import com.indicvision.semper.ui.common.bindInfo
+import com.indicvision.semper.ui.analysis.wizard.WizardStep
+import com.indicvision.semper.ui.common.dialog.WarnChip
+import com.indicvision.semper.ui.common.dialog.bindInfo
 import com.indicvision.semper.ui.common.onButtonChecked
 
 /**
@@ -32,7 +33,7 @@ class SweepSetupHelper(
     private val callbacks: Callbacks,
 ) {
     interface Callbacks {
-        fun goToStep(step: Int, animate: Boolean)
+        fun goToStep(step: WizardStep, animate: Boolean)
         fun updateWizardChrome()
         fun checkReady()
         fun commitParamFields()
@@ -51,10 +52,6 @@ class SweepSetupHelper(
         /** Hard bounds on strain window input, in data points — the guardrail against a mistyped huge number. */
         const val STRAIN_WIN_MIN_INPUT = VsgStudy.MIN_WINDOW_POINTS
         const val STRAIN_WIN_MAX_INPUT = VsgStudy.MAX_WINDOW_POINTS
-
-        /** The wizard's settings and sweep pages ([AnalysisViewModel.wizardStep]). */
-        private const val SETTINGS_STEP = 2
-        private const val SWEEP_STEP = 3
     }
 
     private lateinit var rgAnalysisMode: MaterialButtonToggleGroup
@@ -100,8 +97,8 @@ class SweepSetupHelper(
         rgAnalysisMode.onButtonChecked { checkedId ->
             viewModel.sweepMode = checkedId == R.id.rbModeSweep
             // Leaving sweep mode while on the sweep page returns to settings.
-            if (!viewModel.sweepMode && viewModel.wizardStep == SWEEP_STEP) {
-                callbacks.goToStep(SETTINGS_STEP, animate = true)
+            if (!viewModel.sweepMode && viewModel.step == WizardStep.SWEEP) {
+                callbacks.goToStep(WizardStep.SETTINGS, animate = true)
             } else {
                 applyAnalysisModeUi()
                 refreshSweepPlan()

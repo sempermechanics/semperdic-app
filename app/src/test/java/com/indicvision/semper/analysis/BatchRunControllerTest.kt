@@ -52,6 +52,9 @@ class BatchRunControllerTest {
 
     private lateinit var activity: AppCompatActivity
 
+    /** What each controller handed its host's [BatchRunController.Host.onSweepFinished]. */
+    private val sweepsFinished = mutableListOf<BatchAnalysisOutcome?>()
+
     private fun controller(
         gate: Gate,
         viewModel: AnalysisViewModel = AnalysisViewModel(),
@@ -86,7 +89,9 @@ class BatchRunControllerTest {
 
             override fun clearEngineFailFaq() = Unit
             override fun onSweepProgress(progress: VsgStudyRunner.Progress) = Unit
-            override fun onSweepFinished(outcome: BatchAnalysisOutcome?) = Unit
+            override fun onSweepFinished(outcome: BatchAnalysisOutcome?) {
+                sweepsFinished += outcome
+            }
         }
         return BatchRunController(activity, viewModel, chrome, resultLine ?: TextView(activity), host)
     }
@@ -270,6 +275,33 @@ class BatchRunControllerTest {
             Result.success(outcome(RunStop.SessionLimit.wireCode, validPoints = 500, frames = 3).copy(saved = false)),
         )
         assertTrue(shadowOf(activity).nextStartedActivity != null)
+    }
+
+    @Test
+    fun `a sweep the index refused says it was not saved and opens nothing`() {
+        val line = TextView(ApplicationProvider.getApplicationContext<Application>())
+        val refused = outcome(code = 0, validPoints = 500, frames = 9).copy(saved = false, indexUnavailable = true)
+        val gate = Gate()
+        controller(gate, resultLine = line).handleSweepOutcome(Result.success(refused))
+
+        assertTrue("no lattice or viewer", sweepsFinished.isEmpty())
+        assertEquals(activity.getString(R.string.analysis_not_saved_title), line.text.toString())
+        val dialog = ShadowDialog.getLatestDialog() as AlertDialog
+        assertEquals(
+            activity.getString(R.string.analysis_index_unavailable_body),
+            dialog.findViewById<TextView>(android.R.id.message)?.text.toString(),
+        )
+        assertTrue(gate.computeEnabled)
+    }
+
+    @Test
+    fun `a saved or quota-stopped sweep is routed by the host`() {
+        val saved = outcome(code = 0, validPoints = 500, frames = 9)
+        val limited = outcome(RunStop.SessionLimit.wireCode, validPoints = 500, frames = 9).copy(saved = false)
+        listOf(saved, limited).forEach {
+            controller(Gate()).handleSweepOutcome(Result.success(it))
+        }
+        assertEquals(listOf(saved, limited), sweepsFinished)
     }
 
     /** The status line a finished run leaves, with [planned] frames recorded by the runner. */

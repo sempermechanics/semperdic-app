@@ -53,7 +53,10 @@ object EngineFailure {
         Cause.VSG -> R.string.sweep_reason_vsg
     }
 
-    /** One-line label for lattice nodes. Code 0 → strain window; unknown positive → [Cause.UNKNOWN]. */
+    /**
+     * One-line label for lattice nodes. Code 0 → strain window; unknown positive → [Cause.UNKNOWN].
+     * The unknown label formats the code, so show it through [shortReason].
+     */
     @StringRes
     fun shortReasonRes(engineErrorCode: Int): Int = when (cause(engineErrorCode)) {
         Cause.FEATURES -> R.string.sweep_reason_decorrelated
@@ -64,6 +67,10 @@ object EngineFailure {
         Cause.UNKNOWN -> R.string.sweep_reason_unknown
         Cause.VSG -> R.string.sweep_reason_vsg
     }
+
+    /** The [shortReasonRes] label as text, with [engineErrorCode] filled in where it is named. */
+    fun shortReason(context: Context, engineErrorCode: Int): String =
+        context.getString(shortReasonRes(engineErrorCode), engineErrorCode)
 
     /**
      * Why a single run's first frame kept no points (engine code 0). Code 0

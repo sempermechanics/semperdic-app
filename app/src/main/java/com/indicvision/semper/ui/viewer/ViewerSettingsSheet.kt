@@ -18,7 +18,7 @@ import com.indicvision.semper.ui.analysis.recommend.StrainWindowText
 import com.indicvision.semper.ui.analysis.run.EngineFailure
 import com.indicvision.semper.ui.analysis.sweep.VsgPlotView
 import com.indicvision.semper.ui.analysis.sweep.VsgStudy
-import com.indicvision.semper.ui.common.inflateSheet
+import com.indicvision.semper.ui.common.dialog.inflateSheet
 import kotlin.math.roundToInt
 
 /**
@@ -45,7 +45,7 @@ object ViewerSettingsSheet {
         return buildList {
             add(
                 host.getString(R.string.setting_stopped_early) to
-                    host.getString(EngineFailure.shortReasonRes(stopCode)),
+                    EngineFailure.shortReason(host, stopCode),
             )
             if (planned > 0) {
                 add(

@@ -28,10 +28,10 @@ import com.indicvision.semper.field.Roi
 import com.indicvision.semper.field.ValueRange
 import com.indicvision.semper.navigation.DicKeys
 import com.indicvision.semper.report.ReportImageNames
-import com.indicvision.semper.ui.common.CrispToast
-import com.indicvision.semper.ui.common.FaqRedirect
 import com.indicvision.semper.ui.common.Insets
-import com.indicvision.semper.ui.common.TransferBannerController
+import com.indicvision.semper.ui.common.dialog.CrispToast
+import com.indicvision.semper.ui.common.dialog.FaqRedirect
+import com.indicvision.semper.ui.common.transfer.TransferBannerController
 import com.indicvision.semper.ui.home.HomeActivity
 import com.indicvision.semper.ui.viewer.inspect.ViewerInspectHelper
 import com.indicvision.semper.ui.viewer.share.ShareCenter

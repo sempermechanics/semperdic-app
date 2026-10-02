@@ -11,7 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.os.BundleCompat
 import androidx.lifecycle.lifecycleScope
 import com.indicvision.semper.R
-import com.indicvision.semper.ui.common.Feedback
+import com.indicvision.semper.ui.common.dialog.Feedback
 import com.indicvision.semper.util.Mime
 import kotlinx.coroutines.launch
 import java.io.File

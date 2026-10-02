@@ -12,8 +12,8 @@ import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.TokenProvider
 import com.indicvision.semper.databinding.ActivitySeatRequiredBinding
-import com.indicvision.semper.ui.common.Feedback
 import com.indicvision.semper.ui.common.Insets
+import com.indicvision.semper.ui.common.dialog.Feedback
 import com.indicvision.semper.ui.common.setBusy
 import com.indicvision.semper.util.suspendRunCatching
 import kotlinx.coroutines.launch

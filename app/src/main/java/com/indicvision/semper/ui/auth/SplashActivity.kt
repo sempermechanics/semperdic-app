@@ -17,8 +17,8 @@ import com.indicvision.semper.data.account.AuthRepository
 import com.indicvision.semper.data.account.DevAuth
 import com.indicvision.semper.databinding.ActivitySplashBinding
 import com.indicvision.semper.navigation.DicKeys
-import com.indicvision.semper.ui.common.Feedback
-import com.indicvision.semper.ui.common.SignOutRun
+import com.indicvision.semper.ui.common.auth.SignOutRun
+import com.indicvision.semper.ui.common.dialog.Feedback
 import com.indicvision.semper.ui.home.HomeActivity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch

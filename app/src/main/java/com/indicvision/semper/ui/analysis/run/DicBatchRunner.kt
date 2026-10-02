@@ -11,6 +11,7 @@ import com.indicvision.semper.data.session.RunOutcome
 import com.indicvision.semper.data.session.RunReference
 import com.indicvision.semper.data.session.SessionPaths
 import com.indicvision.semper.data.session.SessionStore
+import com.indicvision.semper.data.session.originalNameOr
 import com.indicvision.semper.diagnostics.EngineDebug
 import com.indicvision.semper.diagnostics.SemperAnalytics
 import com.indicvision.semper.field.DicResult

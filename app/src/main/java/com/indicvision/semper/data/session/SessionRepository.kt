@@ -5,7 +5,6 @@ package com.indicvision.semper.data.session
 import android.content.Context
 import android.graphics.Bitmap
 import com.indicvision.semper.SemperNativeLib
-import com.indicvision.semper.data.cloud.CloudSync
 import com.indicvision.semper.field.ImageSize
 import com.indicvision.semper.imaging.BitmapDecode
 import com.indicvision.semper.imaging.ImageEncode
@@ -91,7 +90,7 @@ class SessionRepository {
             rawDir.listFiles()?.forEach { if (it.name != source.name) it.delete() }
             return source.name
         }
-        val name = (defOriginalNames.getOrNull(frameIndex) ?: source.name)
+        val name = defOriginalNames.originalNameOr(frameIndex, source.name)
             .substringAfterLast('/')
             .substringAfterLast('\\')
         return runCatching {
@@ -162,22 +161,6 @@ class SessionRepository {
             executionTimeMs = metrics.executionTimeMs,
             syncState = if (cloudEnabled) SessionRecord.SyncState.PENDING else SessionRecord.SyncState.LOCAL_ONLY,
         )
-    }
-
-    /**
-     * Persist [record] via [SessionStore.upsert] and optionally enqueue a cloud
-     * upload. Returns the upsert result (false = quota refuse / corrupt index).
-     */
-    fun saveSession(
-        context: Context,
-        record: SessionRecord,
-        enqueueCloudIfSaved: Boolean = false,
-    ): Boolean {
-        val saved = SessionStore.upsert(context, record)
-        if (saved && enqueueCloudIfSaved) {
-            CloudSync.enqueueUpload(context, record.id)
-        }
-        return saved
     }
 }
 

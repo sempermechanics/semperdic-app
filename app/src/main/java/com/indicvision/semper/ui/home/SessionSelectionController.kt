@@ -21,9 +21,9 @@ import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.data.session.isKnownInCloud
 import com.indicvision.semper.data.session.isRestorable
-import com.indicvision.semper.ui.common.DeleteChoiceDialog
-import com.indicvision.semper.ui.common.Dialogs
-import com.indicvision.semper.ui.common.Feedback
+import com.indicvision.semper.ui.common.dialog.DeleteChoiceDialog
+import com.indicvision.semper.ui.common.dialog.Dialogs
+import com.indicvision.semper.ui.common.dialog.Feedback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

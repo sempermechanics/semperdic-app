@@ -1,14 +1,17 @@
 package com.indicvision.semper.ui.analysis.roi
 
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.field.Roi
 import com.indicvision.semper.ui.analysis.recommend.SubsetRecommender
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * The rectangle the engine is handed. A custom ROI outlives the image it was
- * drawn on (it is kept across a same-size reference and restored after a
- * process death), so it is clipped to the image, never trusted to fit.
+ * The rectangle the engine is handed ([Roi.forSolve], which the wizard's run
+ * launcher calls). A custom ROI outlives the image it was drawn on (it is
+ * kept across a same-size reference and restored after a process death), so
+ * it is clipped to the image, never trusted to fit.
  */
 class RoiResolveHelperTest {
 
@@ -18,7 +21,9 @@ class RoiResolveHelperTest {
         custom: Boolean = true,
         subset: Int = 21,
         image: Pair<Int, Int> = 640 to 480,
-    ) = RoiResolveHelper.resolve(subset, custom, roi[0], roi[1], roi[2], roi[3], image.first, image.second)?.toList()
+    ) = Roi.forSolve(subset, custom, Roi(roi[0], roi[1], roi[2], roi[3]), ImageSize(image.first, image.second))
+        ?.toXywh()
+        ?.toList()
 
     @Test
     fun `a custom ROI inside the image is solved as drawn`() {

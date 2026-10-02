@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import com.indicvision.semper.data.account.AccessStatus
 import com.indicvision.semper.data.account.AuthRepository
-import com.indicvision.semper.ui.common.AuthRoute
+import com.indicvision.semper.ui.common.auth.AuthRoute
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

@@ -268,14 +268,6 @@ class WizardStateTest {
     }
 
     @Test
-    fun `a discarded draft ignores a write still queued behind it`() {
-        draft.discard()
-        draft.writeReference(REF)
-        drainDraftLane()
-        assertFalse(WizardDraft.dirIn(ctx.filesDir).exists())
-    }
-
-    @Test
     fun `leaving the wizard deletes its draft`() {
         val vm = AnalysisViewModel().also { it.attachDraft(draft) }
         vm.refBytes = REF
@@ -365,9 +357,11 @@ class WizardStateTest {
 
     @Test
     fun `leaving the wizard does not wait for a draft write in flight`() {
+        val vm = AnalysisViewModel().also { it.attachDraft(draft) }
+        drainDraftLane()
         draft.writeReference(REF)
 
-        assertTrue("discard blocked on the draft's lock", returnsWhileDraftIsBusy { draft.discard() })
+        assertTrue("discard blocked on the draft's lock", returnsWhileDraftIsBusy { vm.discardDraft() })
         drainDraftLane()
         assertFalse(WizardDraft.dirIn(ctx.filesDir).exists())
     }
