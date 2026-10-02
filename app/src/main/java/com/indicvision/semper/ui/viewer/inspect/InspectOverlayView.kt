@@ -1,7 +1,3 @@
-// Custom overlay view: literal marker sizes, stroke widths and colours are
-// clearest inline, so MagicNumber is suppressed for this whole file.
-@file:Suppress("MagicNumber")
-
 package com.indicvision.semper.ui.viewer.inspect
 
 import android.content.Context
@@ -25,13 +21,13 @@ class InspectOverlayView @JvmOverloads constructor(
     private val paintProbe = Paint().apply {
         color = Color.GREEN
         style = Paint.Style.STROKE
-        strokeWidth = 3f
+        strokeWidth = PROBE_STROKE
         isAntiAlias = true
     }
     private val paintShadow = Paint().apply {
         color = "#88000000".toColorInt()
         style = Paint.Style.STROKE
-        strokeWidth = 6f
+        strokeWidth = SHADOW_STROKE
         isAntiAlias = true
     }
 
@@ -48,9 +44,9 @@ class InspectOverlayView @JvmOverloads constructor(
     }
 
     private fun drawReticle(canvas: Canvas, x: Float, y: Float, paint: Paint) {
-        val radius = 15f
-        val lineLen = 35f
-        val gap = 5f
+        val radius = RETICLE_RADIUS
+        val lineLen = RETICLE_ARM
+        val gap = RETICLE_GAP
 
         canvas.drawCircle(x, y, radius, paintShadow)
         canvas.drawLine(x - lineLen, y, x - gap, y, paintShadow)
@@ -68,5 +64,14 @@ class InspectOverlayView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (showCrosshair) drawReticle(canvas, drawX, drawY, paintProbe)
+    }
+
+    /** The probe reticle, in px: a ring and four arms that stop short of it. */
+    private companion object {
+        const val PROBE_STROKE = 3f
+        const val SHADOW_STROKE = 6f
+        const val RETICLE_RADIUS = 15f
+        const val RETICLE_ARM = 35f
+        const val RETICLE_GAP = 5f
     }
 }

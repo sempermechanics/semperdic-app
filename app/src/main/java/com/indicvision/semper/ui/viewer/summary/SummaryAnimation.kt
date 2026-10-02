@@ -7,11 +7,14 @@ package com.indicvision.semper.ui.viewer.summary
 
 import com.indicvision.semper.field.DatDecoder
 import com.indicvision.semper.field.DicResult
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.field.Roi
 import com.indicvision.semper.report.FieldRangesStore
 import com.indicvision.semper.report.GifEncoder
 import com.indicvision.semper.report.VisualizationEngine
 import com.indicvision.semper.ui.viewer.HeatmapFit
 import com.indicvision.semper.util.AtomicFiles
+import com.indicvision.semper.util.writeVia
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
@@ -225,16 +228,8 @@ class SummaryAnimation(private val spec: Spec) {
         }
         for (file in spec.batchFiles) {
             val data = DicResult.decodeDatFile(file) ?: continue
-            val accepted = DicResult.acceptedPointsBounds(data)
-            val box = HeatmapFit.resolve(
-                spec.imgW,
-                spec.imgH,
-                roiX = 0,
-                roiY = 0,
-                roiW = spec.imgW,
-                roiH = spec.imgH,
-                accepted = accepted,
-            )
+            val size = ImageSize(spec.imgW, spec.imgH)
+            val box = HeatmapFit.resolve(size, Roi.full(size), accepted = DicResult.acceptedPointsBounds(data))
             resolvedFit = box
             return box
         }
@@ -407,9 +402,7 @@ class SummaryAnimation(private val spec: Spec) {
         ) {
             if (rangesFile == null || perFrame.isEmpty()) return
             runCatching {
-                val part = AtomicFiles.partOf(rangesFile)
-                FieldRangesStore.write(part, indices, perFrame)
-                AtomicFiles.promote(part, rangesFile)
+                AtomicFiles.writeVia(rangesFile) { part -> FieldRangesStore.write(part, indices, perFrame) }
             }.onFailure { Timber.w(it, "Could not save summary field ranges") }
         }
 

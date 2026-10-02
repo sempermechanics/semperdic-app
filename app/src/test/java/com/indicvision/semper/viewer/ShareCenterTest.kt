@@ -18,8 +18,10 @@ import com.indicvision.semper.fixtures.viewerController
 import com.indicvision.semper.fixtures.writeGridBatch
 import com.indicvision.semper.ui.viewer.ResultViewerActivity
 import com.indicvision.semper.ui.viewer.ResultViewerViewModel
+import com.indicvision.semper.ui.viewer.ViewerSweepArgs
 import com.indicvision.semper.ui.viewer.share.ShareCenter
 import com.indicvision.semper.ui.viewer.share.ShareExportBuilder
+import com.indicvision.semper.ui.viewer.share.ShareKind
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
@@ -183,7 +185,7 @@ class ShareCenterTest {
     fun `a save-as picked across a rotation saves from the rebuilt viewer`() {
         val controller = controller()
         val activity = controller.get()
-        activity.pickShareDocument("csv", "text/csv", "picked.csv")
+        activity.pickShareDocument(ShareKind.CSV, "picked.csv")
         val picker = shadowOf(activity).nextStartedActivityForResult
 
         // Rotated while the picker was up: its answer reaches the new viewer.
@@ -204,7 +206,7 @@ class ShareCenterTest {
     fun `a save-as answer that lands before the frames are read still saves`() {
         val held = mutableListOf<Runnable>()
         val activity = heldController(held).setup().get()
-        activity.pickShareDocument("csv", "text/csv", "picked.csv")
+        activity.pickShareDocument(ShareKind.CSV, "picked.csv")
         val picker = shadowOf(activity).nextStartedActivityForResult
         val dest = File(temp.root, "picked.csv")
 
@@ -229,7 +231,7 @@ class ShareCenterTest {
         val held = mutableListOf<Runnable>()
         val controller = heldController(held)
         val activity = controller.setup().get()
-        activity.pickShareDocument("csv", "text/csv", "picked.csv")
+        activity.pickShareDocument(ShareKind.CSV, "picked.csv")
         val picker = shadowOf(activity).nextStartedActivityForResult
         val dest = File(temp.root, "picked.csv")
         activity.activityResultRegistry.dispatchResult(
@@ -261,7 +263,7 @@ class ShareCenterTest {
      */
     private fun heldShareJob(activity: ResultViewerActivity, release: CompletableDeferred<Unit>): String {
         val app = activity.applicationContext
-        activity.shareExports.start("csv", "Exporting", destUri = null, direct = false) {
+        activity.shareExports.start(ShareKind.CSV, "Exporting", destUri = null, direct = false) {
             release.await()
             val file = File(ShareExportBuilder.newJobDir(app.cacheDir), "held.csv").apply { writeText("a,b\n1,2\n") }
             file to "text/csv"
@@ -327,11 +329,11 @@ class ShareCenterTest {
         // let the second job truncate the file the first was still handing over.
         val (first, _) = runBlocking {
             ShareExportBuilder(whole, app.resources, ShareExportBuilder.newJobDir(app.cacheDir))
-                .produce("csv") { _, _ -> }
+                .produce(ShareKind.CSV) { _, _ -> }
         }
         val (second, _) = runBlocking {
             ShareExportBuilder(oneFrame, app.resources, ShareExportBuilder.newJobDir(app.cacheDir))
-                .produce("csv") { _, _ -> }
+                .produce(ShareKind.CSV) { _, _ -> }
         }
 
         assertEquals(first.name, second.name)
@@ -386,10 +388,18 @@ class ShareCenterTest {
     @Test
     fun `a sweep renders each frame at its own pitch`() {
         val base = viewer().buildShareSnapshot()!!
-        val sweep = base.copy(stepPerFrame = intArrayOf(3, 5))
+        val source = base.reportSource
+        val sweepArgs = ViewerSweepArgs(
+            subsets = emptyList(),
+            steps = listOf(3, 5),
+            strainWindows = emptyList(),
+            lineCutHorizontal = true,
+            skippedJson = "[]",
+        )
+        val sweep = base.copy(reportSource = source.copy(args = source.args.copy(sweep = sweepArgs)))
         assertEquals(3, sweep.stepAt(0))
         assertEquals(5, sweep.stepAt(1))
-        assertEquals("past the sweep's list, the shared step", sweep.step, sweep.stepAt(2))
+        assertEquals("past the sweep's list, the shared step", STEP, sweep.stepAt(2))
         assertEquals(STEP, base.stepAt(1))
     }
 }

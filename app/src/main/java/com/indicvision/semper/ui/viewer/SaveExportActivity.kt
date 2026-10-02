@@ -1,9 +1,9 @@
 package com.indicvision.semper.ui.viewer
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.MainThread
@@ -11,6 +11,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.os.BundleCompat
 import androidx.lifecycle.lifecycleScope
 import com.indicvision.semper.R
+import com.indicvision.semper.ui.common.Feedback
+import com.indicvision.semper.util.Mime
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -48,10 +50,10 @@ class SaveExportActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val path = intent.getStringExtra(EXTRA_PATH)
-        val mime = intent.getStringExtra(EXTRA_MIME) ?: "*/*"
+        val mime = intent.getStringExtra(EXTRA_MIME) ?: Mime.ANY
         val file = path?.let { File(it) }
         if (file == null || !file.exists()) {
-            Toast.makeText(this, R.string.save_failed, Toast.LENGTH_SHORT).show()
+            Feedback.toast(this, R.string.save_failed)
             finish()
             return
         }
@@ -100,11 +102,8 @@ class SaveExportActivity : AppCompatActivity() {
         val copy = copier.copyOnce(uri, file)
         lifecycleScope.launch {
             val ok = copy.await()
-            Toast.makeText(
-                this@SaveExportActivity,
-                if (ok) R.string.save_success else R.string.save_failed,
-                Toast.LENGTH_LONG,
-            ).show()
+            val message = if (ok) R.string.save_success else R.string.save_failed
+            Feedback.toast(this@SaveExportActivity, message, long = true)
             finish()
         }
     }
@@ -115,7 +114,7 @@ class SaveExportActivity : AppCompatActivity() {
         private const val STATE_AWAITING_PICKER = "save_export_awaiting_picker"
         private const val STATE_DEST_URI = "save_export_dest_uri"
 
-        fun intent(host: android.content.Context, file: File, mime: String): Intent =
+        fun intent(host: Context, file: File, mime: String): Intent =
             Intent(host, SaveExportActivity::class.java).apply {
                 putExtra(EXTRA_PATH, file.absolutePath)
                 putExtra(EXTRA_MIME, mime)

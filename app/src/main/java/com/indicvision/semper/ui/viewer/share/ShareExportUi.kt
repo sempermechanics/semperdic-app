@@ -1,13 +1,13 @@
 package com.indicvision.semper.ui.viewer.share
 
 import android.net.Uri
-import android.widget.Toast
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.indicvision.semper.R
 import com.indicvision.semper.ui.common.CrispToast
 import com.indicvision.semper.ui.common.DeterminateProgressDialog
+import com.indicvision.semper.ui.common.Feedback
 import com.indicvision.semper.ui.common.TransferBannerController
 import com.indicvision.semper.ui.viewer.ResultViewerActivity
 import kotlinx.coroutines.launch
@@ -51,13 +51,13 @@ internal class ShareExportUi(
 
     /** Starts an export of [kind]; see [ShareExportJobs.start]. */
     fun start(
-        kind: String,
+        kind: ShareKind,
         title: String,
         destUri: Uri?,
         direct: Boolean,
         produce: suspend (report: (Int, String) -> Unit) -> Pair<File, String>,
     ) {
-        jobs.start(jobs.newId(kind), title, destUri, direct, produce)
+        jobs.start(jobs.newId(kind.wire), title, destUri, direct, produce)
     }
 
     private fun render(running: Map<String, ShareExportJobs.Running>) {
@@ -115,11 +115,8 @@ internal class ShareExportUi(
                     // share sheet ignores custom icons on EXTRA_INITIAL_INTENTS on Android 12+.
                     SendToSheet.show(host, outcome.file, outcome.mime)
                 }
-            is ShareExportJobs.Outcome.Saved -> Toast.makeText(
-                host,
-                if (outcome.ok) R.string.save_success else R.string.save_failed,
-                Toast.LENGTH_LONG,
-            ).show()
+            is ShareExportJobs.Outcome.Saved ->
+                Feedback.toast(host, if (outcome.ok) R.string.save_success else R.string.save_failed, long = true)
             is ShareExportJobs.Outcome.Failed ->
                 CrispToast.show(host, host.getString(R.string.share_failed), long = true)
             is ShareExportJobs.Outcome.Cancelled ->

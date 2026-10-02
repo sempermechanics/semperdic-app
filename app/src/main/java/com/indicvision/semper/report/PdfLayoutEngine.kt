@@ -14,7 +14,6 @@ import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import androidx.core.graphics.toColorInt
-import java.util.Locale
 
 class PdfLayoutEngine(
     private val pdfDocument: PdfDocument,
@@ -77,14 +76,26 @@ class PdfLayoutEngine(
     // Smooth Upscaling Paint for our tiny Bitmaps
     private val upscalerPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 
-    // Smart Mathematical Formatter for PDF Tables!
-    private fun formatMetric(value: Float): String {
-        val absVal = kotlin.math.abs(value)
-        return if (absVal > 0f && (absVal < 0.001f || absVal >= 10000f)) {
-            String.format(Locale.US, "%.2e", value)
-        } else {
-            String.format(Locale.US, "%.5f", value)
+    /** A solid fill of [color]. */
+    private fun fill(color: Int) = Paint().apply { this.color = color }
+
+    /** A line of [color], [width] wide; [rule]'s paint. */
+    private fun line(color: Int, width: Float) = Paint().apply {
+        this.color = color
+        strokeWidth = width
+    }
+
+    /** The outline of a shape in [color], [width] wide. */
+    private fun outline(color: Int, width: Float, antiAlias: Boolean = false) =
+        (if (antiAlias) Paint(Paint.ANTI_ALIAS_FLAG) else Paint()).apply {
+            this.color = color
+            style = Paint.Style.STROKE
+            strokeWidth = width
         }
+
+    /** A rule across the content width at [y]. */
+    private fun rule(y: Float, color: Int, width: Float) {
+        canvas?.drawLine(margin, y, pageWidth - margin, y, line(color, width))
     }
 
     fun newPage(): Canvas {
@@ -111,16 +122,7 @@ class PdfLayoutEngine(
             textSize = 30f
             textAlign = Paint.Align.CENTER
         }
-        canvas?.drawLine(
-            margin,
-            pageHeight - margin,
-            pageWidth - margin,
-            pageHeight - margin,
-            Paint().apply {
-                color = colorBorder
-                strokeWidth = 2f
-            },
-        )
+        rule(pageHeight - margin, colorBorder, 2f)
         canvas?.drawText(
             "Semper Metrology Report • Page $pageNumber",
             pageWidth / 2f,
@@ -144,16 +146,7 @@ class PdfLayoutEngine(
     fun drawTitle(title: String) {
         canvas?.drawText(title, margin, cursorY + 80f, h1Paint)
         cursorY += 120f
-        canvas?.drawLine(
-            margin,
-            cursorY,
-            pageWidth - margin,
-            cursorY,
-            Paint().apply {
-                color = colorPrimary
-                strokeWidth = 6f
-            },
-        )
+        rule(cursorY, colorPrimary, 6f)
         cursorY += 60f
     }
 
@@ -166,16 +159,7 @@ class PdfLayoutEngine(
         canvas?.drawText(key, margin, cursorY + 40f, bodyPaintLeft)
         canvas?.drawText(value, pageWidth - margin, cursorY + 40f, bodyPaintRight)
         cursorY += 60f
-        canvas?.drawLine(
-            margin,
-            cursorY,
-            pageWidth - margin,
-            cursorY,
-            Paint().apply {
-                color = colorZebra
-                strokeWidth = 2f
-            },
-        )
+        rule(cursorY, colorZebra, 2f)
         cursorY += 20f
     }
 
@@ -196,22 +180,9 @@ class PdfLayoutEngine(
     fun drawNotice(text: String) {
         val lines = wrap(text, noticePaint, contentWidth - (NOTICE_PAD * 2))
         val height = NOTICE_PAD * 2 + lines.size * NOTICE_LINE
-        canvas?.drawRoundRect(
-            RectF(margin, cursorY, pageWidth - margin, cursorY + height),
-            12f,
-            12f,
-            Paint().apply { color = colorWarnFill },
-        )
-        canvas?.drawRoundRect(
-            RectF(margin, cursorY, pageWidth - margin, cursorY + height),
-            12f,
-            12f,
-            Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = colorWarn
-                style = Paint.Style.STROKE
-                strokeWidth = 3f
-            },
-        )
+        val box = RectF(margin, cursorY, pageWidth - margin, cursorY + height)
+        canvas?.drawRoundRect(box, 12f, 12f, fill(colorWarnFill))
+        canvas?.drawRoundRect(box, 12f, 12f, outline(colorWarn, 3f, antiAlias = true))
         lines.forEachIndexed { index, line ->
             canvas?.drawText(
                 line,
@@ -244,13 +215,7 @@ class PdfLayoutEngine(
         val rowHeight = 80f
         val colWidths = colWeights.map { it * contentWidth }
 
-        canvas?.drawRect(
-            margin,
-            cursorY,
-            pageWidth - margin,
-            cursorY + rowHeight,
-            Paint().apply { color = colorPrimary },
-        )
+        canvas?.drawRect(margin, cursorY, pageWidth - margin, cursorY + rowHeight, fill(colorPrimary))
 
         var currentX = margin
         for ((i, header) in headers.withIndex()) {
@@ -265,7 +230,7 @@ class PdfLayoutEngine(
         }
         cursorY += rowHeight
 
-        val rowBgZebra = Paint().apply { color = colorZebra }
+        val rowBgZebra = fill(colorZebra)
         for ((rowIndex, row) in rows.withIndex()) {
             if (rowIndex % 2 == 1) {
                 canvas?.drawRect(margin, cursorY, pageWidth - margin, cursorY + rowHeight, rowBgZebra)
@@ -280,16 +245,7 @@ class PdfLayoutEngine(
             }
             cursorY += rowHeight
         }
-        canvas?.drawLine(
-            margin,
-            cursorY,
-            pageWidth - margin,
-            cursorY,
-            Paint().apply {
-                color = colorPrimary
-                strokeWidth = 4f
-            },
-        )
+        rule(cursorY, colorPrimary, 4f)
         cursorY += 60f
     }
 
@@ -306,17 +262,8 @@ class PdfLayoutEngine(
         val maxImgHeight = maxOf(refHeight, defHeight)
 
         val cardRect = RectF(margin, cursorY, pageWidth - margin, startY + maxImgHeight + 100f)
-        canvas?.drawRoundRect(cardRect, 20f, 20f, Paint().apply { color = Color.WHITE })
-        canvas?.drawRoundRect(
-            cardRect,
-            20f,
-            20f,
-            Paint().apply {
-                color = colorBorder
-                style = Paint.Style.STROKE
-                strokeWidth = 4f
-            },
-        )
+        canvas?.drawRoundRect(cardRect, 20f, 20f, fill(Color.WHITE))
+        canvas?.drawRoundRect(cardRect, 20f, 20f, outline(colorBorder, 4f))
 
         canvas?.drawBitmap(
             refBmp,
@@ -353,43 +300,21 @@ class PdfLayoutEngine(
         cursorY += 100f
 
         // Dynamic Scientific Notation applied here!
+        val format = ReportBuilder::formatMetric
         drawTable(
             headers = listOf("Metric", "Value", "Location (X,Y)"),
             rows = listOf(
-                listOf("Maximum (+)", formatMetric(field.maxValue), "(${field.maxCoordX}, ${field.maxCoordY})"),
-                listOf("Minimum (-)", formatMetric(field.minValue), "(${field.minCoordX}, ${field.minCoordY})"),
-                listOf(field.meanType, formatMetric(field.meanValue), "—"),
-                listOf("Standard Dev.", formatMetric(field.stdDevValue), "—"),
+                listOf("Maximum (+)", format(field.maxValue), "(${field.maxCoordX}, ${field.maxCoordY})"),
+                listOf("Minimum (-)", format(field.minValue), "(${field.minCoordX}, ${field.minCoordY})"),
+                listOf(field.meanType, format(field.meanValue), "—"),
+                listOf("Standard Dev.", format(field.stdDevValue), "—"),
             ),
             colWeights = listOf(0.4f, 0.3f, 0.3f),
         )
         canvas?.drawText(EXTREMA_NOTE, margin, cursorY, bodyPaintLeft)
         cursorY += 60f
 
-        val remainingSpace = blockHeight - (cursorY - startY) - 40f
-        val scale = contentWidth / field.bakedHeatmap.width
-        var drawH = field.bakedHeatmap.height * scale
-        var drawW = contentWidth
-
-        if (drawH > remainingSpace) {
-            drawH = remainingSpace
-            drawW = field.bakedHeatmap.width * (remainingSpace / field.bakedHeatmap.height)
-        }
-
-        val centerOffset = (contentWidth - drawW) / 2f
-        val destRect = RectF(margin + centerOffset, cursorY, margin + centerOffset + drawW, cursorY + drawH)
-
-        canvas?.drawBitmap(field.bakedHeatmap, null, destRect, upscalerPaint)
-        canvas?.drawRect(
-            destRect,
-            Paint().apply {
-                color = colorBorder
-                style = Paint.Style.STROKE
-                strokeWidth = 3f
-            },
-        )
-
-        cursorY = startY + blockHeight
+        drawFittedBitmap(field.bakedHeatmap, startY, blockHeight)
     }
 
     fun drawDiagnosticBlock(title: String, bitmap: Bitmap, blockHeight: Float) {
@@ -398,6 +323,16 @@ class PdfLayoutEngine(
         canvas?.drawText(title, margin, cursorY + 60f, h2Paint)
         cursorY += 100f
 
+        drawFittedBitmap(bitmap, startY, blockHeight)
+    }
+
+    /**
+     * Draws [bitmap] outlined at the cursor, as wide as the content or as tall
+     * as what is left of the block that started at [startY] and is
+     * [blockHeight] tall, whichever is smaller, and centred across. The cursor
+     * then moves to the end of the block.
+     */
+    private fun drawFittedBitmap(bitmap: Bitmap, startY: Float, blockHeight: Float) {
         val remainingSpace = blockHeight - (cursorY - startY) - 40f
         val scale = contentWidth / bitmap.width
         var drawH = bitmap.height * scale
@@ -412,14 +347,7 @@ class PdfLayoutEngine(
         val destRect = RectF(margin + centerOffset, cursorY, margin + centerOffset + drawW, cursorY + drawH)
 
         canvas?.drawBitmap(bitmap, null, destRect, upscalerPaint)
-        canvas?.drawRect(
-            destRect,
-            Paint().apply {
-                color = colorBorder
-                style = Paint.Style.STROKE
-                strokeWidth = 3f
-            },
-        )
+        canvas?.drawRect(destRect, outline(colorBorder, 3f))
 
         cursorY = startY + blockHeight
     }

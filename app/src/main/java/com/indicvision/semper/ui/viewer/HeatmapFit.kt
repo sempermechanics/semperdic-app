@@ -2,6 +2,8 @@
 
 package com.indicvision.semper.ui.viewer
 
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.field.Roi
 import com.indicvision.semper.report.VisualizationEngine
 import kotlin.math.ceil
 import kotlin.math.max
@@ -33,23 +35,18 @@ object HeatmapFit {
         roiW: Int,
         roiH: Int,
         accepted: FloatArray? = null,
-    ): FloatArray {
-        if (isCustomRoi(imgW, imgH, roiX, roiY, roiW, roiH)) {
-            return floatArrayOf(
-                roiX.toFloat(),
-                roiY.toFloat(),
-                (roiX + roiW).toFloat(),
-                (roiY + roiH).toFloat(),
-            )
-        }
-        if (accepted != null && accepted.size >= BOX_LEN) {
-            return accepted.copyOf(BOX_LEN)
-        }
-        return floatArrayOf(0f, 0f, imgW.toFloat(), imgH.toFloat())
+    ): FloatArray = resolve(ImageSize(imgW, imgH), Roi(roiX, roiY, roiW, roiH), accepted)
+
+    /** [resolve] for an image of [size] and its [roi]. */
+    fun resolve(size: ImageSize, roi: Roi, accepted: FloatArray? = null): FloatArray = when {
+        roi.isCustomFor(size) -> roi.toLtrb()
+        accepted != null && accepted.size >= BOX_LEN -> accepted.copyOf(BOX_LEN)
+        else -> floatArrayOf(0f, 0f, size.width.toFloat(), size.height.toFloat())
     }
 
+    /** [Roi.isCustomFor], for callers that hold the ROI as four ints. */
     fun isCustomRoi(imgW: Int, imgH: Int, roiX: Int, roiY: Int, roiW: Int, roiH: Int): Boolean =
-        roiW > 0 && roiH > 0 && (roiX > 0 || roiY > 0 || roiW < imgW || roiH < imgH)
+        Roi(roiX, roiY, roiW, roiH).isCustomFor(ImageSize(imgW, imgH))
 
     /**
      * Long-edge cap to pass into [VisualizationEngine.generateHeatmapIndices] so

@@ -1,8 +1,5 @@
-@file:SuppressLint("InflateParams")
-
 package com.indicvision.semper.ui.viewer
 
-import android.annotation.SuppressLint
 import android.graphics.Color
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.OvalShape
@@ -12,8 +9,8 @@ import android.text.style.ImageSpan
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.indicvision.semper.R
+import com.indicvision.semper.databinding.SheetSettingsUsedBinding
 import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.field.FieldHistogram
 import com.indicvision.semper.report.ReportBuilder
@@ -21,7 +18,7 @@ import com.indicvision.semper.ui.analysis.recommend.StrainWindowText
 import com.indicvision.semper.ui.analysis.run.EngineFailure
 import com.indicvision.semper.ui.analysis.sweep.VsgPlotView
 import com.indicvision.semper.ui.analysis.sweep.VsgStudy
-import com.indicvision.semper.ui.viewer.inspect.FieldHistogramView
+import com.indicvision.semper.ui.common.inflateSheet
 import kotlin.math.roundToInt
 
 /**
@@ -70,15 +67,12 @@ object ViewerSettingsSheet {
      */
     internal fun entriesFor(host: ResultViewerActivity): List<Pair<String, String>> {
         val args = host.args
-        val roiW = args.roiW
-        val roiH = args.roiH
+        val roi = args.roi
         // A sweep varies the settings frame by frame, so the sheet must describe
         // the combination on screen rather than the one the run started with.
-        val frame = host.currentFrameIndex
-        val subset = host.sweepSubsets?.getOrNull(frame)
-            ?: args.subsetSize
-        val strainWin = host.sweepStrainWins?.getOrNull(frame)
-            ?: args.strainWindow
+        val params = host.frameParams.at(host.currentFrameIndex)
+        val subset = params.subset
+        val strainWin = params.strainWindow
         return buildList {
             add(host.getString(R.string.setting_subset) to host.getString(R.string.setting_px_fmt, subset))
             add(host.getString(R.string.setting_step) to host.getString(R.string.setting_px_fmt, host.step))
@@ -90,16 +84,9 @@ object ViewerSettingsSheet {
             )
             addAll(stopRows(host))
             // ROI is only meaningful when one was actually recorded.
-            if (roiW > 0 && roiH > 0) {
-                add(
-                    host.getString(R.string.setting_roi) to host.getString(
-                        R.string.setting_roi_fmt,
-                        roiW,
-                        roiH,
-                        args.roiX,
-                        args.roiY,
-                    ),
-                )
+            if (roi.w > 0 && roi.h > 0) {
+                val roiText = host.getString(R.string.setting_roi_fmt, roi.w, roi.h, roi.x, roi.y)
+                add(host.getString(R.string.setting_roi) to roiText)
             }
             add(
                 host.getString(R.string.setting_image_size) to host.getString(
@@ -115,27 +102,20 @@ object ViewerSettingsSheet {
         // Themed so Material's own sheet background is transparent and the content
         // layout's bg_viewer_peek_sheet supplies the 22dp top radius — otherwise the
         // two stack and you get a hard card edge inside a rounded one.
-        val sheet = BottomSheetDialog(host, R.style.ThemeOverlay_Semper_ViewerPeekSheet)
-        val view = host.layoutInflater.inflate(R.layout.sheet_settings_used, null)
-        sheet.setContentView(view)
+        val sheet = inflateSheet(host, R.layout.sheet_settings_used, R.style.ThemeOverlay_Semper_ViewerPeekSheet)
+        val view = SheetSettingsUsedBinding.bind(sheet.view)
         // The overlay makes the *dialog* window transparent; this clears the sheet
         // container Material inflates around the content, which the theme cannot reach.
-        sheet.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+        sheet.dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             ?.setBackgroundColor(Color.TRANSPARENT)
 
-        view.findViewById<TextView>(R.id.tvSettingsUsedSpecimen).text =
-            host.args.refName
-
-        view.findViewById<TextView>(R.id.tvSheetStats).text = host.detailStatsText()
+        view.tvSettingsUsedSpecimen.text = host.args.refName
+        view.tvSheetStats.text = host.detailStatsText()
         populateHistogram(host, view)
 
-        val rows = view.findViewById<LinearLayout>(R.id.settingsUsedRows)
-
-        val entries = entriesFor(host)
-
-        entries.forEachIndexed { index, (label, value) ->
-            if (index > 0) rows.addView(settingsDivider(host))
-            rows.addView(settingsRow(host, label, value))
+        entriesFor(host).forEachIndexed { index, (label, value) ->
+            if (index > 0) view.settingsUsedRows.addView(settingsDivider(host))
+            view.settingsUsedRows.addView(settingsRow(host, label, value))
         }
         if (host.isSweep) populateLineCut(host, view)
 
@@ -147,8 +127,8 @@ object ViewerSettingsSheet {
      * GIF — that sheet quotes the sequence colour-bar ends, not this frame's
      * population.
      */
-    private fun populateHistogram(host: ResultViewerActivity, sheetView: View) {
-        val section = sheetView.findViewById<View>(R.id.distributionSection)
+    private fun populateHistogram(host: ResultViewerActivity, sheetView: SheetSettingsUsedBinding) {
+        val section = sheetView.distributionSection
         if (host.isShowingSummary) {
             section.visibility = View.GONE
             return
@@ -167,10 +147,9 @@ object ViewerSettingsSheet {
                 R.string.scale_unit_px
             },
         )
-        sheetView.findViewById<TextView>(R.id.tvHistogramTitle).text =
-            host.getString(R.string.viewer_histogram_title_fmt, host.currentTypeString)
-        val caption = sheetView.findViewById<TextView>(R.id.tvHistogramCaption)
-        val plot = sheetView.findViewById<FieldHistogramView>(R.id.plotFieldHistogram)
+        sheetView.tvHistogramTitle.text = host.getString(R.string.viewer_histogram_title_fmt, host.currentTypeString)
+        val caption = sheetView.tvHistogramCaption
+        val plot = sheetView.plotFieldHistogram
         plot.setHistogram(hist, unit)
         plot.onBinSelected = { index ->
             val count = hist.counts[index]
@@ -191,17 +170,12 @@ object ViewerSettingsSheet {
      * at once (guide step 4). The cut is the same physical line for every
      * combination of the sweep, so scrubbing frames compares like with like.
      */
-    fun populateLineCut(host: ResultViewerActivity, sheetView: View) {
+    private fun populateLineCut(host: ResultViewerActivity, sheetView: SheetSettingsUsedBinding) {
         val data = host.rawData ?: return
-        val section = sheetView.findViewById<View>(R.id.lineCutSection)
-        val plot = sheetView.findViewById<VsgPlotView>(R.id.plotLineCut)
-        val line = VsgStudy.centreLine(
-            host.roiX,
-            host.roiY,
-            host.roiW,
-            host.roiH,
-            host.lineCutHorizontal,
-        )
+        val section = sheetView.lineCutSection
+        val plot = sheetView.plotLineCut
+        val roi = host.roi
+        val line = VsgStudy.centreLine(roi.x, roi.y, roi.w, roi.h, host.lineCutHorizontal)
         val tolerance = host.step / 2f
 
         val labels = listOf(R.string.field_exx, R.string.field_eyy, R.string.field_exy)
@@ -220,8 +194,8 @@ object ViewerSettingsSheet {
         }
 
         section.visibility = View.VISIBLE
-        sheetView.findViewById<TextView>(R.id.tvLineCutTitle).setText(R.string.line_cut_title)
-        sheetView.findViewById<TextView>(R.id.tvLineCutLegend).text = lineCutLegend(
+        sheetView.tvLineCutTitle.setText(R.string.line_cut_title)
+        sheetView.tvLineCutLegend.text = lineCutLegend(
             host,
             host.getString(
                 if (host.lineCutHorizontal) R.string.axis_x else R.string.axis_y,

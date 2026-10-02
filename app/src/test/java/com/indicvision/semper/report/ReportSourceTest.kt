@@ -7,8 +7,10 @@ import androidx.core.graphics.createBitmap
 import com.indicvision.semper.data.cloud.SessionUploadBundler
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.field.DicResult
+import com.indicvision.semper.field.ImageSize
 import com.indicvision.semper.fixtures.sessionRecord
 import com.indicvision.semper.ui.viewer.ViewerArgs
+import com.indicvision.semper.ui.viewer.ViewerSweepArgs
 import com.indicvision.semper.ui.viewer.share.ViewerReportFactory
 import com.indicvision.semper.ui.viewer.share.nameIndexAt
 import com.indicvision.semper.ui.viewer.share.toReportSource
@@ -150,7 +152,7 @@ class ReportSourceTest {
             refName = "spec.png",
             refPath = "",
             batchDirPath = null,
-            frameNames = listOf("f0.png", "f1.png", "f2.png"),
+            frameNames = if (sweep) listOf("S21", "S31", "S41") else listOf("f0.png", "f1.png", "f2.png"),
             stopCode = 0,
             plannedFrames = 3,
             sessionId = sessionId,
@@ -162,16 +164,20 @@ class ReportSourceTest {
             roiY = 0,
             roiW = cols * step,
             roiH = rows * step,
+            sweep = if (sweep) {
+                ViewerSweepArgs(
+                    subsets = listOf(21, 31),
+                    steps = listOf(step, step),
+                    strainWindows = listOf(41),
+                    lineCutHorizontal = true,
+                    skippedJson = "[]",
+                )
+            } else {
+                null
+            },
             strainMethod = "VSG",
         ),
-        imgW = cols * step,
-        imgH = rows * step,
-        baseStep = step,
-        sweepSteps = if (sweep) intArrayOf(step, step) else null,
-        sweepSubsets = if (sweep) intArrayOf(21, 31) else null,
-        sweepStrainWins = if (sweep) intArrayOf(41) else null,
-        roi = RoiData(0, 0, cols * step, rows * step),
-        frameNames = if (sweep) listOf("S21", "S31", "S41") else listOf("f0.png", "f1.png", "f2.png"),
+        imageSize = ImageSize(cols * step, rows * step),
         plannedFrames = if (sweep) emptyList() else listOf(0, 2, 5),
         defImagePaths = emptyList(),
         displayBase = base,

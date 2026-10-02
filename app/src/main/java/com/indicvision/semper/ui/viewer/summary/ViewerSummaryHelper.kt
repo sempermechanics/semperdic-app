@@ -24,10 +24,10 @@ import com.indicvision.semper.data.session.CacheJanitor
 import com.indicvision.semper.field.DicResult
 import com.indicvision.semper.report.FieldRangesStore
 import com.indicvision.semper.report.ReportBuilder
+import com.indicvision.semper.ui.common.SerialJob
 import com.indicvision.semper.ui.viewer.ResultViewerActivity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -42,17 +42,17 @@ import java.io.File
  */
 class ViewerSummaryHelper(private val host: ResultViewerActivity) {
 
-    private val layer: View = host.findViewById(R.id.summaryLayer)
-    private val image: ImageView = host.findViewById(R.id.imgSummary)
-    private val statusPanel: View = host.findViewById(R.id.summaryStatus)
-    private val progress: ProgressBar = host.findViewById(R.id.progressSummary)
-    private val status: TextView = host.findViewById(R.id.tvSummaryStatus)
-    private val cancelButton: MaterialButton = host.findViewById(R.id.btnSummaryCancel)
+    private val layer: View = host.binding.summaryLayer
+    private val image: ImageView = host.binding.imgSummary
+    private val statusPanel: View = host.binding.summaryStatus
+    private val progress: ProgressBar = host.binding.progressSummary
+    private val status: TextView = host.binding.tvSummaryStatus
+    private val cancelButton: MaterialButton = host.binding.btnSummaryCancel
 
     /** Value range per field over the whole sequence; empty until the pass finishes. */
     private var ranges: Map<Int, Pair<Float, Float>> = emptyMap()
-    private var rangesJob: Job? = null
-    private var buildJob: Job? = null
+    private val rangesJob = SerialJob()
+    private val buildJob = SerialJob()
 
     /** Which field the on-screen animation belongs to, so a re-show can skip work. */
     private var shownField: Int? = null
@@ -66,14 +66,13 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
      * must not reach back into this viewer.
      */
     internal val animation: SummaryAnimation by lazy {
-        val sweepSteps = host.sweepSteps
-        val baseStep = host.baseStep
+        val frameParams = host.frameParams
         SummaryAnimation(
             SummaryAnimation.Spec(
                 batchFiles = host.summaryBatchFiles(),
-                imgW = host.imgW,
-                imgH = host.imgH,
-                stepAt = { index -> sweepSteps?.getOrNull(index) ?: baseStep },
+                imgW = host.imageSize.width,
+                imgH = host.imageSize.height,
+                stepAt = { index -> frameParams.at(index).step },
                 outputDir = CacheJanitor.shareDir(host.cacheDir),
                 backgroundColor = ContextCompat.getColor(host, R.color.viewer_canvas),
                 fitBounds = host.summaryFitBounds(),
@@ -98,8 +97,8 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
      */
     fun start() {
         if (host.summaryBatchFiles().isEmpty()) return
-        if (rangesJob?.isActive == true || ranges.isNotEmpty()) return
-        rangesJob = host.lifecycleScope.launch {
+        if (rangesJob.isActive || ranges.isNotEmpty()) return
+        rangesJob.launch(host.lifecycleScope) {
             val files = host.summaryBatchFiles()
             val computed = try {
                 withContext(Dispatchers.Default) {
@@ -108,7 +107,7 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
                     }
                     SummaryAnimation.globalRanges(files, rangesFile) { done, total ->
                         host.lifecycleScope.launch(Dispatchers.Main.immediate) {
-                            if (!isShowing || rangesJob?.isActive != true) return@launch
+                            if (!isShowing || !rangesJob.isActive) return@launch
                             progress.progress = done * PERCENT / total.coerceAtLeast(1)
                             showStatus(host.getString(R.string.summary_scanning_fmt, done, total))
                         }
@@ -150,14 +149,14 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
     }
 
     fun cancel() {
-        rangesJob?.cancel()
-        buildJob?.cancel()
+        rangesJob.cancel()
+        buildJob.cancel()
         stopPlayback()
     }
 
     /** Bounds for [dataIndex]: a user-set fixed scale wins, else the global range. */
     fun boundsFor(dataIndex: Int): Pair<Float, Float>? =
-        host.customBoundsFor(dataIndex) ?: ranges[dataIndex]
+        host.customBoundsFor(dataIndex)?.toPair() ?: ranges[dataIndex]
 
     /** The label the frame counter shows while the summary is up. */
     fun counterText(): String = host.getString(R.string.summary_gif)
@@ -172,7 +171,7 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
             // Either the range pass is still running or nothing correlated at all.
             // Do not steal the determinate "Reading frames…" status that [start]
             // already pushes — a static "Preparing files…" looked hung on PLC.
-            if (rangesJob?.isActive == true) {
+            if (rangesJob.isActive) {
                 if (!statusPanel.isVisible) {
                     showStatus(host.getString(R.string.summary_scanning_fmt, 0, host.summaryBatchFiles().size))
                 }
@@ -184,10 +183,10 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
 
         val label = host.currentTypeString
         val total = host.summaryBatchFiles().size
-        buildJob?.cancel()
+        buildJob.cancel()
         stopPlayback()
         showStatus(host.getString(R.string.summary_building_fmt, label, 0, total))
-        buildJob = host.lifecycleScope.launch {
+        buildJob.launch(host.lifecycleScope) {
             val file = try {
                 withContext(Dispatchers.Default) {
                     animation.build(dataIndex, label, bounds) { done, count ->
@@ -266,7 +265,7 @@ class ViewerSummaryHelper(private val host: ResultViewerActivity) {
             message != host.getString(R.string.summary_no_data) &&
             message != host.getString(R.string.summary_needs_android_9)
         progress.isVisible = building
-        cancelButton.isVisible = building && (rangesJob?.isActive == true || buildJob?.isActive == true)
+        cancelButton.isVisible = building && (rangesJob.isActive || buildJob.isActive)
     }
 
     private companion object {
@@ -280,8 +279,8 @@ internal fun ResultViewerActivity.refreshSummaryScaleLabels(dataIndex: Int, boun
     val unit = getString(
         if (DicResult.isStrainFieldIndex(dataIndex)) R.string.scale_unit_strain else R.string.scale_unit_px,
     )
-    findViewById<TextView>(R.id.tvScaleMax).text =
+    binding.tvScaleMax.text =
         getString(R.string.scale_max_fmt, ReportBuilder.formatMetric(bounds.second * multiplier), unit)
-    findViewById<TextView>(R.id.tvScaleMin).text =
+    binding.tvScaleMin.text =
         getString(R.string.scale_min_fmt, ReportBuilder.formatMetric(bounds.first * multiplier), unit)
 }

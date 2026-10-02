@@ -1,6 +1,3 @@
-// Probe gestures: literal touch thresholds read clearest inline.
-@file:Suppress("MagicNumber")
-
 @file:SuppressLint("ClickableViewAccessibility", "SetTextI18n")
 
 package com.indicvision.semper.ui.viewer.inspect
@@ -20,9 +17,9 @@ import com.indicvision.semper.ui.viewer.ResultViewerActivity
  */
 class ViewerInspectHelper(private val host: ResultViewerActivity) {
 
-    private val imgMain: TouchImageView get() = host.imgMain
-    private val glassShield: InspectOverlayView get() = host.glassShield
-    private val tvProbeReadout: TextView get() = host.tvProbeReadout
+    private val imgMain: TouchImageView get() = host.binding.imgBaseResult
+    private val glassShield: InspectOverlayView get() = host.binding.glassShield
+    private val tvProbeReadout: TextView get() = host.binding.tvProbeReadout
 
     var lastClosestIdx = -1
     private var probeVisible = false
@@ -82,7 +79,7 @@ class ViewerInspectHelper(private val host: ResultViewerActivity) {
      */
     fun findNearestDataPoint(physX: Float, physY: Float) {
         val data = host.rawData ?: return
-        val searchRadius = host.step * 1.5f
+        val searchRadius = host.step * SEARCH_RADIUS_STEPS
         val index = spatialIndex ?: PointSpatialIndex.build(
             if (host.onFramePhoto) displacedPositions(data) else data,
             host.step,
@@ -141,6 +138,9 @@ class ViewerInspectHelper(private val host: ResultViewerActivity) {
     }
 
     internal companion object {
+        /** How far from a tap a point may be and still be probed, in grid steps. */
+        private const val SEARCH_RADIUS_STEPS = 1.5f
+
         /**
          * A copy of [data] with each point's x, y moved by its u, v — the
          * layout [PointSpatialIndex] reads, so the same index finds points on

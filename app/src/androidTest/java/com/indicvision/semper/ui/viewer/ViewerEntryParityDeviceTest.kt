@@ -125,7 +125,7 @@ class ViewerEntryParityDeviceTest {
                 seen = Seen(
                     viewer.args,
                     ViewerSettingsSheet.entriesFor(viewer),
-                    listOf(viewer.roiX, viewer.roiY, viewer.roiW, viewer.roiH),
+                    viewer.roi.let { listOf(it.x, it.y, it.w, it.h) },
                 )
             }
         }

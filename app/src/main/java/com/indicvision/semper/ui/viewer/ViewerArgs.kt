@@ -4,6 +4,10 @@ import android.content.Context
 import android.content.Intent
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SkippedNode
+import com.indicvision.semper.field.DicParams
+import com.indicvision.semper.field.FrameParams
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.field.Roi
 import com.indicvision.semper.navigation.DicKeys
 import com.indicvision.semper.ui.analysis.VsgLatticeActivity
 import timber.log.Timber
@@ -117,15 +121,34 @@ data class ViewerArgs(
     /** [engineStats] in the array form `EngineStats.fromArray` reads, or null. */
     fun engineStatsArray(): FloatArray? = engineStats?.toFloatArray()
 
+    /** The reference's size, as the Intent gave it (0 × 0 when an old writer left it out). */
+    val imageSize: ImageSize get() = ImageSize(imgW, imgH)
+
+    /** The ROI the run solved over. */
+    val roi: Roi get() = Roi(roiX, roiY, roiW, roiH)
+
+    /** Every frame's solver parameters: the run's own, or a sweep's per-frame lists. */
+    val frameParams: FrameParams
+        get() = FrameParams(
+            base = DicParams(subsetSize, step, strainWindow),
+            subsets = sweep?.subsets.orEmpty(),
+            steps = sweep?.steps.orEmpty(),
+            strainWindows = sweep?.strainWindows.orEmpty(),
+        )
+
     companion object {
         /** Step when neither the Intent nor a record says; the wizard's default. */
-        const val DEFAULT_STEP = 5
+        const val DEFAULT_STEP = DicParams.DEFAULT_STEP
 
         /** Subset when neither the Intent nor a record says; the engine's default. */
-        const val DEFAULT_SUBSET = 41
+        const val DEFAULT_SUBSET = DicParams.DEFAULT_SUBSET
 
-        /** Strain window when neither the Intent nor a record says; the wizard's default. */
-        const val DEFAULT_STRAIN_WINDOW = 15
+        /**
+         * Strain window when neither the Intent nor a record says. The wizard now
+         * defaults to a 21 px VSG; readers keep 15 so a key-less Intent still opens
+         * as it always did ([DicParams.DEFAULT_STRAIN_WINDOW]).
+         */
+        const val DEFAULT_STRAIN_WINDOW = DicParams.DEFAULT_STRAIN_WINDOW
 
         /** The only strain method the engine has. */
         const val STRAIN_METHOD_VSG = "VSG"

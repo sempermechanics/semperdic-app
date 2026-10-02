@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.io.IOException
@@ -70,52 +71,33 @@ object PdfReportGenerator {
         outputStream: OutputStream,
         frameTitle: (Int) -> String = { "DIC Analysis Report — Frame ${it + 1}" },
         resources: Resources? = null,
-    ): Flow<Progress> = flow {
-        val pdfDocument = PdfDocument()
-        val brandLogo = decodeBrandLogo(resources)
-        val layout = PdfLayoutEngine(pdfDocument, brandLogo)
-        try {
-            // The session's engine stats are its first frame's, so one page
-            // closes the document; its ZNSSD is pooled over every frame drawn.
-            // Holds no bitmaps, so it survives the recycling below.
-            var telemetrySource: ReportData? = null
-            val znssdFrames = mutableListOf<ZnssdFrame>()
+    ): Flow<Progress> = renderPdf(outputStream, resources) { layout ->
+        // The session's engine stats are its first frame's, so one page
+        // closes the document; its ZNSSD is pooled over every frame drawn.
+        // Holds no bitmaps, so it survives the recycling below.
+        var telemetrySource: ReportData? = null
+        val znssdFrames = mutableListOf<ZnssdFrame>()
 
-            for (index in 0 until frameCount) {
-                currentCoroutineContext().ensureActive()
-                val percent = FRAMES_PROGRESS_START + (index * FRAMES_PROGRESS_SPAN / frameCount)
-                emit(Progress.Status("Frame ${index + 1} of $frameCount…", percent))
-                val data = dataAt(index) ?: continue
-                if (telemetrySource == null) telemetrySource = data
-                znssdFrames += ZnssdFrame(data.globalAvgZnssd, data.znssdAcceptedPoints)
+        for (index in 0 until frameCount) {
+            currentCoroutineContext().ensureActive()
+            val percent = FRAMES_PROGRESS_START + (index * FRAMES_PROGRESS_SPAN / frameCount)
+            emit(Progress.Status("Frame ${index + 1} of $frameCount…", percent))
+            val data = dataAt(index) ?: continue
+            if (telemetrySource == null) telemetrySource = data
+            znssdFrames += ZnssdFrame(data.globalAvgZnssd, data.znssdAcceptedPoints)
 
-                try {
-                    drawCoverPage(layout, data, frameTitle(index), frameCount)
-                    drawFieldPages(layout, data)
-                } finally {
-                    // A page that fails to draw still frees this frame's images.
-                    recycleImages(data)
-                }
+            try {
+                drawCoverPage(layout, data, frameTitle(index), frameCount)
+                drawFieldPages(layout, data)
+            } finally {
+                // A page that fails to draw still frees this frame's images.
+                recycleImages(data)
             }
+        }
 
-            telemetrySource?.let {
-                emit(Progress.Status("Compiling Engine Telemetry...", TELEMETRY_PROGRESS))
-                drawTelemetryPage(layout, it, TelemetrySummary.batch(znssdFrames))
-            }
-
-            // Finish the still-open page before writing — PdfDocument rejects
-            // writeTo()/close() while any page is unfinished.
-            layout.finishCurrentPage()
-            writeChecked(pdfDocument, outputStream)
-            emit(Progress.Complete)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            emit(Progress.Error(e))
-        } finally {
-            layout.finishCurrentPage()
-            pdfDocument.close()
-            recycleLogo(brandLogo)
+        telemetrySource?.let {
+            emit(Progress.Status("Compiling Engine Telemetry...", TELEMETRY_PROGRESS))
+            drawTelemetryPage(layout, it, TelemetrySummary.batch(znssdFrames))
         }
     }.flowOn(Dispatchers.Default)
 
@@ -123,28 +105,42 @@ object PdfReportGenerator {
         data: ReportData,
         outputStream: OutputStream,
         resources: Resources? = null,
+    ): Flow<Progress> = renderPdf(outputStream, resources) { layout ->
+        currentCoroutineContext().ensureActive()
+        emit(Progress.Status("Building Cover Page...", 10))
+        drawCoverPage(layout, data, "Master DIC Analysis Report", frameCount = null)
+
+        currentCoroutineContext().ensureActive()
+        emit(Progress.Status("Rendering Visualization Maps...", 30))
+        drawFieldPages(layout, data)
+
+        currentCoroutineContext().ensureActive()
+        emit(Progress.Status("Compiling Engine Telemetry...", 90))
+        drawTelemetryPage(layout, data, TelemetrySummary.single(data))
+
+        emit(Progress.Status("Finalizing PDF...", 98))
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * One PDF document into [outputStream]: [draw] lays its pages out on a
+     * [PdfLayoutEngine] (the wordmark from [resources] heads each page), then
+     * the document is written and [Progress.Complete] follows. A failure is
+     * emitted as [Progress.Error] rather than thrown; cancellation is not caught.
+     */
+    private fun renderPdf(
+        outputStream: OutputStream,
+        resources: Resources?,
+        draw: suspend FlowCollector<Progress>.(PdfLayoutEngine) -> Unit,
     ): Flow<Progress> = flow {
         val pdfDocument = PdfDocument()
         val brandLogo = decodeBrandLogo(resources)
         val layout = PdfLayoutEngine(pdfDocument, brandLogo)
-
         try {
-            currentCoroutineContext().ensureActive()
-            emit(Progress.Status("Building Cover Page...", 10))
-            drawCoverPage(layout, data, "Master DIC Analysis Report", frameCount = null)
-
-            currentCoroutineContext().ensureActive()
-            emit(Progress.Status("Rendering Visualization Maps...", 30))
-            drawFieldPages(layout, data)
-
-            currentCoroutineContext().ensureActive()
-            emit(Progress.Status("Compiling Engine Telemetry...", 90))
-            drawTelemetryPage(layout, data, TelemetrySummary.single(data))
-
-            emit(Progress.Status("Finalizing PDF...", 98))
+            draw(layout)
+            // Finish the still-open page before writing — PdfDocument rejects
+            // writeTo()/close() while any page is unfinished.
             layout.finishCurrentPage()
             writeChecked(pdfDocument, outputStream)
-
             emit(Progress.Complete)
         } catch (e: CancellationException) {
             throw e
@@ -158,7 +154,7 @@ object PdfReportGenerator {
             pdfDocument.close()
             recycleLogo(brandLogo)
         }
-    }.flowOn(Dispatchers.IO)
+    }
 
     /**
      * Page 1 of a report: session metadata, the parameters it was solved with,

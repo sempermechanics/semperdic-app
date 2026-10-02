@@ -1,5 +1,3 @@
-@file:Suppress("MagicNumber")
-
 package com.indicvision.semper.ui.viewer.inspect
 
 import android.content.Context
@@ -34,7 +32,7 @@ class FieldHistogramView @JvmOverloads constructor(
     private var selectedBin: Int = -1
 
     private val labelPx =
-        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 11f, resources.displayMetrics)
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, LABEL_SP, resources.displayMetrics)
 
     private val barPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val axisPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -138,7 +136,7 @@ class FieldHistogramView @JvmOverloads constructor(
         val left = dp(PAD_LEFT_DP)
         val right = width - dp(PAD_RIGHT_DP)
         if (right <= left) return
-        val rel = ((x - left) / (right - left)).coerceIn(0f, 0.9999f)
+        val rel = ((x - left) / (right - left)).coerceIn(0f, LAST_BIN_EDGE)
         val index = (rel * hist.binCount).toInt().coerceIn(0, hist.binCount - 1)
         selectedBin = index
         onBinSelected?.invoke(index)
@@ -152,5 +150,9 @@ class FieldHistogramView @JvmOverloads constructor(
         private const val PAD_BOTTOM_DP = 20f
         private const val TICK_GAP_DP = 4f
         private const val TICK_BASELINE = 0.33f
+        private const val LABEL_SP = 11f
+
+        /** Just short of the right edge, so a touch there selects the last bin. */
+        private const val LAST_BIN_EDGE = 0.9999f
     }
 }

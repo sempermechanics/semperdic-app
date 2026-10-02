@@ -7,6 +7,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.R
 import com.indicvision.semper.field.DicResult
+import com.indicvision.semper.field.ValueRange
 import com.indicvision.semper.fixtures.idleUntil
 import com.indicvision.semper.fixtures.viewerArgs
 import com.indicvision.semper.fixtures.viewerController
@@ -81,11 +82,11 @@ class ViewerRotationTest {
         dialog.findViewById<EditText>(R.id.etScaleMax)!!.setText("3")
         dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
         shadowOf(activity.mainLooper).idle()
-        assertEquals(-2f to 3f, activity.customBoundsFor(DicResult.IDX_U))
+        assertEquals(ValueRange(-2f, 3f), activity.customBoundsFor(DicResult.IDX_U))
 
         val rebuilt = controller.recreate().get()
         idleUntil("the rebuilt viewer's frame") { rebuilt.rawData != null }
 
-        assertEquals(-2f to 3f, rebuilt.customBoundsFor(DicResult.IDX_U))
+        assertEquals(ValueRange(-2f, 3f), rebuilt.customBoundsFor(DicResult.IDX_U))
     }
 }

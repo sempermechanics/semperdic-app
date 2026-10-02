@@ -47,7 +47,7 @@ of the class they test.
 | `ui/analysis/roi/` | ROI studio: `StudioOverlayView`, its mask encoder, `RoiViewport`, `RoiResolveHelper` |
 | `ui/analysis/recommend/` | `SubsetRecommender`, speckle scale, noise floor, good-practice and strain-window copy, EXIF patch map |
 | `ui/analysis/sweep/` | VSG sweep: setup, `VsgStudy` / runner, lattice and plot views, line-cut preview |
-| `ui/viewer/` | `ResultViewerActivity`, `SaveExportActivity`, their ViewModels, `ViewerArgs` ([ADR-003](../adr/ADR-003-viewerargs-read-side.md)), scrub cache, `ViewerFieldPills`, the ⓘ details sheet; heatmaps draw each frame on its own photo at the displaced positions ([ADR-011](../adr/ADR-011-viewer-deformed-frame.md)) |
+| `ui/viewer/` | `ResultViewerActivity` and its controllers (`ViewerChromeController`, `ViewerImageLoader`, `ViewerFrameLoader`, `ViewerScaleController`, `FrameJumpController`, `ViewerCaptions`, `ViewerShareController`, `FieldPopup`), `SaveExportActivity`, their ViewModels, `ViewerArgs` ([ADR-003](../adr/ADR-003-viewerargs-read-side.md)), scrub cache, `ViewerFieldPills`, the ⓘ details sheet; heatmaps draw each frame on its own photo at the displaced positions ([ADR-011](../adr/ADR-011-viewer-deformed-frame.md)) |
 | `ui/viewer/share/` | `ShareCenter`, export builder / jobs / UI, `SendToSheet`, `ViewerReportFactory` |
 | `ui/viewer/summary/` | Summary GIF (`SummaryAnimation`), caption, summary helper |
 | `ui/viewer/inspect/` | Tap-to-probe: `InspectOverlayView`, `PointSpatialIndex`, `TouchImageView`, field histogram view |
@@ -221,7 +221,7 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
 - **The viewer's frame look-ahead is bounded by bytes, not just by count.**
   `ScrubFrameCache` caps decoded frames on both a frame count and a byte ceiling
   (`maxDataBytes`, heap/8 by default), so a heavy PLC frame simply holds fewer slots
-  instead of the window growing with frame size. `ResultViewerActivity.prefetchAround`
+  instead of the window growing with frame size. `ViewerFrameLoader.prefetchAround`
   fills that window with **one serialized worker**, cancelled and restarted as the user
   scrubs, admitting a frame only while the cache has room and the heap guard passes.
   It must stay serialized: an earlier version launched a coroutine per neighbour on
@@ -261,7 +261,7 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
 | Change AVI support | `imaging/AviReader` (demuxer), `imaging/AviLuma` (uncompressed layouts), `imaging/MjpegHuffman` (table repair), `AviCodecDecoder` (`MediaCodec` for Xvid/H.264) |
 | Change parameter-sweep setup UI | `SweepSetupHelper` (run loop stays in the Activity + `VsgStudyRunner`) |
 | Change the sweep result lattice | `ui/analysis/VsgLatticeActivity.kt`, `VsgLatticeView`, `VsgPlotView` |
-| Change heatmap / probe | `ui/viewer/ResultViewerActivity.kt` + `Viewer*` helpers |
+| Change heatmap / probe | `ui/viewer/ViewerScaleController.kt` (heatmap, colour scale), `ViewerImageLoader.kt` (photo under the map), `inspect/ViewerInspectHelper.kt` (probe); wired in `ResultViewerActivity.kt` |
 | Change how exports are handed off | `ui/viewer/share/ShareCenter.kt`, `SendToSheet.kt`, `SaveExportActivity.kt` |
 | Change transfer progress UI | `ui/common/TransferBannerController.kt` (Settings + viewer), `data/cloud/TransferNotifications.kt` (the one channel) |
 | Change the new-analysis media sheet | `ui/common/MediaPickerSheet.kt` / `MediaSourceChooser.kt` — shared by the Home **+** and both wizard dropzones |

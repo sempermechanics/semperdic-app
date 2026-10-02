@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import com.indicvision.semper.field.DicResult
+import com.indicvision.semper.field.ValueRange
 import com.indicvision.semper.report.ReportBuilder
 import com.indicvision.semper.report.VisualizationEngine
 import org.junit.Assert.assertArrayEquals
@@ -42,13 +43,10 @@ class ReportColorBarTest {
             Canvas(bitmap),
             SIZE,
             SIZE,
-            minValRaw = 0f,
-            maxValRaw = 1f,
-            typeString = "U",
-            unit = "px",
-            maxIdx = -1,
-            minIdx = -1,
-            dataArray = FloatArray(0),
+            range = ValueRange(min = 0f, max = 1f),
+            extrema = ReportBuilder.FieldExtrema(maxIdx = -1, minIdx = -1),
+            data = FloatArray(0),
+            annotation = ReportBuilder.FieldAnnotation(typeString = "U", unit = "px"),
         )
 
         // The bar's geometry, as bakeAnnotationsToCanvas lays it out.

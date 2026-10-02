@@ -1,14 +1,10 @@
-@file:SuppressLint("InflateParams")
-
 package com.indicvision.semper.ui.viewer.share
 
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
-import android.view.View
 import androidx.core.content.FileProvider
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.indicvision.semper.R
+import com.indicvision.semper.ui.common.inflateSheet
 import com.indicvision.semper.ui.viewer.SaveExportActivity
 import java.io.File
 
@@ -39,18 +35,9 @@ object SendToSheet {
         onSave: () -> Unit,
         onShare: () -> Unit,
     ) {
-        val sheet = BottomSheetDialog(activity)
-        val v = activity.layoutInflater.inflate(R.layout.sheet_send_to, null)
-        sheet.setContentView(v)
-
-        v.findViewById<View>(R.id.rowSendSave).setOnClickListener {
-            sheet.dismiss()
-            onSave()
-        }
-        v.findViewById<View>(R.id.rowSendShare).setOnClickListener {
-            sheet.dismiss()
-            onShare()
-        }
+        val sheet = inflateSheet(activity, R.layout.sheet_send_to)
+        sheet.row(R.id.rowSendSave, onSave)
+        sheet.row(R.id.rowSendShare, onShare)
         sheet.show()
     }
 

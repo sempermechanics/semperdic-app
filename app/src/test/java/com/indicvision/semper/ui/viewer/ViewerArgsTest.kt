@@ -5,6 +5,9 @@ import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SkippedNode
+import com.indicvision.semper.field.DicParams
+import com.indicvision.semper.field.ImageSize
+import com.indicvision.semper.field.Roi
 import com.indicvision.semper.fixtures.sessionRecord
 import com.indicvision.semper.navigation.DicKeys
 import com.indicvision.semper.ui.analysis.VsgLatticeActivity
@@ -232,5 +235,130 @@ class ViewerArgsTest {
         // No ROI recorded means the whole image, for every reader alike.
         assertEquals(listOf(0, 0, 800, 600), listOf(read.roiX, read.roiY, read.roiW, read.roiH))
         assertNull(read.startFrame)
+    }
+
+    // ------------------------------------------------------ wire format
+
+    /** Every extra on [intent], arrays and lists as lists, so the map compares by value. */
+    private fun extrasOf(intent: Intent): Map<String, Any?> {
+        val extras = intent.extras!!
+        return extras.keySet().associateWith { key ->
+            @Suppress("DEPRECATION") // a plain read of whatever was put, for comparison only
+            when (val value = extras.get(key)) {
+                is IntArray -> value.toList()
+                is FloatArray -> value.toList()
+                else -> value
+            }
+        }
+    }
+
+    @Test
+    fun `the Intent carries the keys and values the base build wrote`() {
+        // Written out by hand: an Intent already in a back stack must keep
+        // opening, so neither a key's spelling nor its value's type may move.
+        val expected = mapOf(
+            "IMG_W" to 1920,
+            "IMG_H" to 1080,
+            "STEP" to 5,
+            "REF_NAME" to "ref.png",
+            "REF_PATH" to "/sessions/s1/ref.png",
+            "DEF_PATH" to "/tmp/def.png",
+            "BATCH_DIR_PATH" to "/sessions/s1",
+            "DEF_FILE_NAMES" to arrayListOf("f1.png", "f2.png"),
+            "DEF_FILE_PATHS" to arrayListOf("/tmp/f1.png"),
+            "SWEEP_SUBSETS" to listOf(41, 51),
+            "SWEEP_STEPS" to listOf(5, 7),
+            "SWEEP_STRAIN_WINS" to listOf(15, 21),
+            "LINE_CUT_HORIZONTAL" to false,
+            "SWEEP_SKIPPED" to """[{"subset":61,"step":9,"strainWindow":27,"code":-3}]""",
+            "STOP_CODE" to 0,
+            "PLANNED_FRAMES" to 2,
+            "SESSION_ID" to "cloud-1",
+            "SESSION_LOCAL_ID" to "local-1",
+            "SUBSET_SIZE" to 41,
+            "STRAIN_WINDOW" to 15,
+            "STRAIN_METHOD" to "VSG",
+            "ENGINE_STATS" to listOf(1f, 2f),
+            "ROI_X" to 10,
+            "ROI_Y" to 20,
+            "ROI_W" to 300,
+            "ROI_H" to 400,
+            "START_FRAME" to 1,
+        )
+        val sent = args(sweepArgs).copy(defPath = "/tmp/def.png", defFilePaths = listOf("/tmp/f1.png"), startFrame = 1)
+
+        assertEquals(expected, extrasOf(sent.toIntent(context)))
+    }
+
+    @Test
+    fun `an Intent the base build wrote reads back field by field`() {
+        // Built by hand with the base build's keys and value types, not through
+        // toIntent: what an Intent already in a back stack carries must still read.
+        val sent = Intent(context, ResultViewerActivity::class.java)
+            .putExtra("IMG_W", 1920)
+            .putExtra("IMG_H", 1080)
+            .putExtra("STEP", 7)
+            .putExtra("REF_NAME", "ref.png")
+            .putExtra("REF_PATH", "/sessions/s1/ref.png")
+            .putExtra("DEF_PATH", "/tmp/def.png")
+            .putExtra("BATCH_DIR_PATH", "/sessions/s1")
+            .putStringArrayListExtra("DEF_FILE_NAMES", arrayListOf("f1.png", "f2.png"))
+            .putStringArrayListExtra("DEF_FILE_PATHS", arrayListOf("/tmp/f1.png"))
+            .putExtra("SWEEP_SUBSETS", intArrayOf(41, 51))
+            .putExtra("SWEEP_STEPS", intArrayOf(5, 7))
+            .putExtra("SWEEP_STRAIN_WINS", intArrayOf(15, 21))
+            .putExtra("LINE_CUT_HORIZONTAL", false)
+            .putExtra("SWEEP_SKIPPED", """[{"subset":61,"step":9,"strainWindow":27,"code":-3}]""")
+            .putExtra("STOP_CODE", 3)
+            .putExtra("PLANNED_FRAMES", 4)
+            .putExtra("SESSION_ID", "cloud-1")
+            .putExtra("SESSION_LOCAL_ID", "local-1")
+            .putExtra("SUBSET_SIZE", 31)
+            .putExtra("STRAIN_WINDOW", 21)
+            .putExtra("STRAIN_METHOD", "VSG")
+            .putExtra("ENGINE_STATS", floatArrayOf(1f, 2f))
+            .putExtra("ROI_X", 10)
+            .putExtra("ROI_Y", 20)
+            .putExtra("ROI_W", 300)
+            .putExtra("ROI_H", 400)
+            .putExtra("START_FRAME", 1)
+
+        val read = ViewerArgs.from(sent, ::noRecord)
+
+        assertEquals(ImageSize(1920, 1080), read.imageSize)
+        assertEquals(7, read.step)
+        assertEquals("ref.png", read.refName)
+        assertEquals("/sessions/s1/ref.png", read.refPath)
+        assertEquals("/tmp/def.png", read.defPath)
+        assertEquals("/sessions/s1", read.batchDirPath)
+        assertEquals(listOf("f1.png", "f2.png"), read.frameNames)
+        assertEquals(listOf("/tmp/f1.png"), read.defFilePaths)
+        assertEquals(listOf(41, 51), read.sweep!!.subsets)
+        assertEquals(listOf(5, 7), read.sweep!!.steps)
+        assertEquals(listOf(15, 21), read.sweep!!.strainWindows)
+        assertFalse(read.sweep!!.lineCutHorizontal)
+        assertEquals(listOf(SkippedNode(61, 9, 27, -3)), SkippedNode.decodeJson(read.sweep!!.skippedJson))
+        assertEquals(3, read.stopCode)
+        assertEquals(4, read.plannedFrames)
+        assertEquals("cloud-1", read.sessionId)
+        assertEquals("local-1", read.sessionLocalId)
+        assertEquals(31, read.subsetSize)
+        assertEquals(21, read.strainWindow)
+        assertEquals("VSG", read.strainMethod)
+        assertEquals(listOf(1f, 2f), read.engineStats)
+        assertEquals(Roi(10, 20, 300, 400), read.roi)
+        assertEquals(1, read.startFrame)
+    }
+
+    @Test
+    fun `the typed views read the same fields`() {
+        val read = args(sweepArgs)
+
+        assertEquals(ImageSize(1920, 1080), read.imageSize)
+        assertEquals(Roi(10, 20, 300, 400), read.roi)
+        assertEquals(DicParams(subset = 41, step = 5, strainWindow = 15), read.frameParams.base)
+        assertEquals(DicParams(subset = 51, step = 7, strainWindow = 21), read.frameParams.at(1))
+        assertEquals("past a sweep's lists, the run's own", read.frameParams.base, read.frameParams.at(2))
+        assertEquals(DicParams(41, 5, 15), args().frameParams.at(1))
     }
 }

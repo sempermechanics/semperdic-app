@@ -1,21 +1,20 @@
 // Share sheet UI: one row per export kind, each started through [runJob]; the
 // generators live in ShareExportBuilder.
 
-@file:SuppressLint("InflateParams")
-
 package com.indicvision.semper.ui.viewer.share
 
-import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.net.Uri
 import android.view.View
-import android.widget.TextView
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.indicvision.semper.R
 import com.indicvision.semper.data.account.LicenseEntitlements
+import com.indicvision.semper.databinding.SheetShareBinding
 import com.indicvision.semper.field.DicResult
+import com.indicvision.semper.field.FrameParams
+import com.indicvision.semper.field.ImageSize
 import com.indicvision.semper.report.ReportImageNames
 import com.indicvision.semper.ui.common.CrispToast
+import com.indicvision.semper.ui.common.inflateSheet
 import com.indicvision.semper.ui.viewer.ResultViewerActivity
 import com.indicvision.semper.ui.viewer.summary.SummaryAnimation
 import timber.log.Timber
@@ -45,63 +44,31 @@ class ShareCenter(private val host: ResultViewerActivity) {
     fun show() {
         if (!ensureShareAllowed()) return
         val s = snap ?: return
-        val sheet = BottomSheetDialog(host)
-        val v = host.layoutInflater.inflate(R.layout.sheet_share, null)
-        sheet.setContentView(v)
+        val sheet = inflateSheet(host, R.layout.sheet_share)
+        val v = SheetShareBinding.bind(sheet.view)
 
+        val frames = s.batchFiles.size
         val frameName = s.nameAt(s.frameIndex) ?: "Frame ${s.plannedAt(s.frameIndex) + 1}"
-        v.findViewById<TextView>(R.id.tvShareCaption).text =
-            host.resources.getQuantityString(
-                R.plurals.share_caption_fmt,
-                s.batchFiles.size,
-                s.frameIndex + 1,
-                s.batchFiles.size,
-            )
-        v.findViewById<TextView>(R.id.tvSharePhotoSub).text =
-            host.getString(R.string.share_photo_sub_fmt, s.typeString, frameName)
+        val res = host.resources
+        v.tvShareCaption.text = res.getQuantityString(R.plurals.share_caption_fmt, frames, s.frameIndex + 1, frames)
+        v.tvSharePhotoSub.text = host.getString(R.string.share_photo_sub_fmt, s.typeString, frameName)
         val allName = s.sourceImageName(s.frameIndex) ?: frameName
-        v.findViewById<TextView>(R.id.tvShareAllPhotosSub).text =
-            host.resources.getQuantityString(
-                R.plurals.share_all_photos_sub_fmt,
-                FIELDS.size,
-                FIELDS.size,
-                allName,
-            )
-        v.findViewById<TextView>(R.id.tvSharePdfSub).text =
-            host.resources.getQuantityString(R.plurals.share_pdf_sub_fmt, s.batchFiles.size, s.batchFiles.size)
-        v.findViewById<TextView>(R.id.tvShareCsvSub).text =
-            host.resources.getQuantityString(R.plurals.share_csv_sub_fmt, s.batchFiles.size, s.batchFiles.size)
+        v.tvShareAllPhotosSub.text =
+            res.getQuantityString(R.plurals.share_all_photos_sub_fmt, FIELDS.size, FIELDS.size, allName)
+        v.tvSharePdfSub.text = res.getQuantityString(R.plurals.share_pdf_sub_fmt, frames, frames)
+        v.tvShareCsvSub.text = res.getQuantityString(R.plurals.share_csv_sub_fmt, frames, frames)
 
-        v.findViewById<View>(R.id.rowSharePhoto).setOnClickListener {
-            sheet.dismiss()
-            runJob(KIND_PHOTO, R.string.share_generating)
-        }
-        v.findViewById<View>(R.id.rowShareAllPhotos).setOnClickListener {
-            sheet.dismiss()
-            offerSlowExport(KIND_PHOTOS, "application/zip", s, R.string.share_generating)
-        }
+        sheet.row(R.id.rowSharePhoto) { runJob(ShareKind.PHOTO) }
+        sheet.row(R.id.rowShareAllPhotos) { offerSlowExport(ShareKind.PHOTOS, s) }
         // Parameter sweeps are not a time series — no summary GIF and no Animations row.
-        val animationsRow = v.findViewById<View>(R.id.rowShareAnimations)
-        if (s.stepPerFrame != null) {
-            animationsRow.visibility = View.GONE
+        if (s.isSweep) {
+            v.rowShareAnimations.visibility = View.GONE
         } else {
-            animationsRow.setOnClickListener {
-                sheet.dismiss()
-                offerSlowExport(KIND_GIFS, "application/zip", s, R.string.share_generating_gif)
-            }
+            sheet.row(R.id.rowShareAnimations) { offerSlowExport(ShareKind.GIFS, s) }
         }
-        v.findViewById<View>(R.id.rowSharePdf).setOnClickListener {
-            sheet.dismiss()
-            offerSlowExport(KIND_PDF, "application/pdf", s, R.string.share_generating_pdf)
-        }
-        v.findViewById<View>(R.id.rowShareCsv).setOnClickListener {
-            sheet.dismiss()
-            offerSlowExport(KIND_CSV, "text/csv", s, R.string.share_generating)
-        }
-        v.findViewById<View>(R.id.rowShareZip).setOnClickListener {
-            sheet.dismiss()
-            offerSlowExport(KIND_ZIP, "application/zip", s, R.string.share_generating_pdf)
-        }
+        sheet.row(R.id.rowSharePdf) { offerSlowExport(ShareKind.PDF, s) }
+        sheet.row(R.id.rowShareCsv) { offerSlowExport(ShareKind.CSV, s) }
+        sheet.row(R.id.rowShareZip) { offerSlowExport(ShareKind.ZIP, s) }
         sheet.show()
     }
 
@@ -111,35 +78,37 @@ class ShareCenter(private val host: ResultViewerActivity) {
      * Save vs Share before any generation. Save opens SAF immediately; Share
      * still has to wait on the job, then hands the file to the system sheet.
      */
-    private fun offerSlowExport(
-        kind: String,
-        mime: String,
-        s: Snapshot,
-        progressText: Int,
-    ) {
+    private fun offerSlowExport(kind: ShareKind, s: Snapshot) {
         SendToSheet.showChooser(
             host,
-            onSave = { host.pickShareDocument(kind, mime, suggestedName(kind, s)) },
-            onShare = { runJob(kind, progressText, direct = true) },
+            onSave = { host.pickShareDocument(kind, suggestedName(kind, s)) },
+            onShare = { runJob(kind, direct = true) },
         )
     }
 
+    /**
+     * Writes an export of the kind saved as [kind] (a [ShareKind.wire]) into
+     * the picked document [uri]. A kind this build does not know fails the
+     * export as any failed export does.
+     */
     internal fun writeKindToUri(kind: String, uri: Uri) {
-        val progressText = when (kind) {
-            KIND_PDF, KIND_ZIP -> R.string.share_generating_pdf
-            KIND_GIFS -> R.string.share_generating_gif
-            else -> R.string.share_generating
+        val known = ShareKind.fromWire(kind)
+        if (known == null) {
+            Timber.e("Unknown share kind %s", kind)
+            CrispToast.show(host, host.getString(R.string.share_failed), long = true)
+            return
         }
-        runJob(kind, progressText, destUri = uri)
+        runJob(known, destUri = uri)
     }
 
     /** The name the save-as picker suggests for an export of [kind] from [s]. */
-    private fun suggestedName(kind: String, s: Snapshot): String = when (kind) {
-        KIND_PDF -> "${s.baseName}_report.pdf"
-        KIND_CSV -> "${s.baseName}_data.csv"
-        KIND_PHOTOS -> "${s.baseName}_fields_frame${s.frameIndex + 1}.zip"
-        KIND_GIFS -> "${s.baseName}_animations.zip"
-        else -> "${s.baseName}_everything_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.zip"
+    private fun suggestedName(kind: ShareKind, s: Snapshot): String = when (kind) {
+        ShareKind.PDF -> "${s.baseName}_report.pdf"
+        ShareKind.CSV -> "${s.baseName}_data.csv"
+        ShareKind.PHOTOS -> "${s.baseName}_fields_frame${s.frameIndex + 1}.zip"
+        ShareKind.GIFS -> "${s.baseName}_animations.zip"
+        ShareKind.PHOTO, ShareKind.ZIP ->
+            "${s.baseName}_everything_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.zip"
     }
 
     /**
@@ -150,27 +119,26 @@ class ShareCenter(private val host: ResultViewerActivity) {
      * the application's resources and the cache dir — so it never holds this
      * viewer ([ShareExportBuilder]).
      */
-    private fun runJob(
-        kind: String,
-        progressText: Int,
-        destUri: Uri? = null,
-        direct: Boolean = false,
-    ) {
+    private fun runJob(kind: ShareKind, destUri: Uri? = null, direct: Boolean = false) {
         val s = snap
         if (s == null) {
-            Timber.e("Share snapshot unavailable for %s", kind)
+            Timber.e("Share snapshot unavailable for %s", kind.wire)
             CrispToast.show(host, host.getString(R.string.share_failed), long = true)
             return
         }
         val app = host.applicationContext
         val resources = app.resources
         val cacheDir = app.cacheDir
-        host.shareExports.start(kind, host.getString(progressText), destUri, direct) { report ->
+        host.shareExports.start(kind, host.getString(kind.progressText), destUri, direct) { report ->
             ShareExportBuilder(s, resources, ShareExportBuilder.newJobDir(cacheDir)).produce(kind, report)
         }
     }
 
-    /** Everything the generators need, captured once from the viewer. */
+    /**
+     * Everything the generators need, captured once from the viewer: the frame
+     * and field on screen, and the [reportSource] the rest of the analysis is
+     * read from.
+     */
     data class Snapshot(
         /**
          * The field of the frame on screen, or null while it is still loading —
@@ -179,31 +147,11 @@ class ShareCenter(private val host: ResultViewerActivity) {
          */
         val data: FloatArray?,
         val batchFiles: List<File>,
-        /** Frame names in planned-frame order; look one up with [nameAt]. */
-        val defNames: List<String>,
         /** Filename-safe base for exports, e.g. the specimen/reference name. */
         val baseName: String,
         val frameIndex: Int,
-        val imgW: Int,
-        val imgH: Int,
-        val step: Int,
-        /**
-         * Per-frame step sizes for a parameter sweep, where each frame is a
-         * different settings combination. Null for an ordinary analysis, whose
-         * frames all share [step]. Its non-null-ness marks a sweep, which the
-         * CSV export splits into subset/step/window/VSG columns.
-         */
-        val stepPerFrame: IntArray?,
-        /** Per-frame subset sizes for a sweep; index-aligned with the frames. */
-        val subsetPerFrame: IntArray?,
-        /** Per-frame strain windows for a sweep; index-aligned with the frames. */
-        val strainWindowPerFrame: IntArray?,
         val dataIndex: Int,
         val typeString: String,
-        /** Display-scale bitmap (may be null while decode is in flight); exports prefer [refImagePath]. */
-        val baseImage: Bitmap?,
-        val refImagePath: String?,
-        val defImagePaths: List<String>,
         /** Single-setting overview builder; null on a parameter sweep. */
         val summary: SummaryAnimation?,
         /**
@@ -218,29 +166,30 @@ class ShareCenter(private val host: ResultViewerActivity) {
          * deformed image — from this, rather than reusing the one on screen.
          */
         val reportSource: ViewerReportFactory.Source,
-        val referenceName: String = "",
-        val strainMethod: String = "VSG",
-        val subset: Int = 41,
-        val strainWindow: Int = 15,
-        val roiX: Int = 0,
-        val roiY: Int = 0,
-        val roiW: Int = 0,
-        val roiH: Int = 0,
-        /**
-         * The planned frame behind each of [batchFiles], by position
-         * (`SessionPaths.plannedFrameIndices`). Past a frame the batch skipped
-         * the position and the planned frame part ways.
-         */
-        val plannedFrames: List<Int> = emptyList(),
     ) {
+        val imageSize: ImageSize get() = reportSource.imageSize
+
+        /** Every frame's solver parameters; a sweep's vary frame by frame. */
+        val frameParams: FrameParams get() = reportSource.frameParams
+
+        /** True when the frames are a parameter sweep's combinations, not a time series. */
+        val isSweep: Boolean get() = reportSource.isSweep
+
+        /** Display-scale reference (null while its decode is in flight); exports prefer [refImagePath]. */
+        val baseImage: Bitmap? get() = reportSource.displayBase
+
+        val refImagePath: String? get() = reportSource.args.refPath.ifBlank { null }
+
+        val defImagePaths: List<String> get() = reportSource.defImagePaths
+
         /** Grid pitch of frame [index] — what rendering that frame depends on. */
-        fun stepAt(index: Int): Int = stepPerFrame?.getOrNull(index) ?: step
+        fun stepAt(index: Int): Int = frameParams.at(index).step
 
         /** The planned frame behind the frame at position [index]. */
-        fun plannedAt(index: Int): Int = plannedFrames.getOrElse(index) { index }
+        fun plannedAt(index: Int): Int = reportSource.plannedAt(index)
 
         /** The name of the frame at position [index], or null when it has none. */
-        fun nameAt(index: Int): String? = ReportImageNames.frameName(defNames, plannedAt(index))
+        fun nameAt(index: Int): String? = ReportImageNames.frameName(reportSource.frameNames, plannedAt(index))
 
         /** The field of frame [frameIndex]: the viewer's copy, else read from disk. Off the main thread. */
         fun frameData(): FloatArray = data
@@ -249,15 +198,10 @@ class ShareCenter(private val host: ResultViewerActivity) {
 
         /** Filename stamped on share photos: the real image, not a sweep settings label. */
         fun sourceImageName(frameIndex: Int): String? =
-            if (stepPerFrame != null) defImagePaths.firstOrNull()?.let { File(it).name } else nameAt(frameIndex)
+            if (isSweep) defImagePaths.firstOrNull()?.let { File(it).name } else nameAt(frameIndex)
     }
+
     private companion object {
         val FIELDS = ShareExportBuilder.FIELDS
-        const val KIND_PDF = ShareExportBuilder.KIND_PDF
-        const val KIND_ZIP = ShareExportBuilder.KIND_ZIP
-        const val KIND_CSV = ShareExportBuilder.KIND_CSV
-        const val KIND_PHOTOS = ShareExportBuilder.KIND_PHOTOS
-        const val KIND_GIFS = ShareExportBuilder.KIND_GIFS
-        const val KIND_PHOTO = ShareExportBuilder.KIND_PHOTO
     }
 }
