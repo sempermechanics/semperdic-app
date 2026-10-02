@@ -1,12 +1,10 @@
 package com.indicvision.semper.ui.settings
 
-import android.widget.ImageButton
-import android.widget.TextView
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.slider.Slider
 import com.indicvision.semper.R
 import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.prefs.DicSettings
+import com.indicvision.semper.databinding.SettingsScrollContentBinding
+import com.indicvision.semper.ui.common.bindInfo
 import java.util.Locale
 
 /**
@@ -14,12 +12,13 @@ import java.util.Locale
  */
 class SettingsPreferencesSection(
     private val activity: SettingsActivity,
+    private val views: SettingsScrollContentBinding,
 ) {
     fun wire() {
-        val valueLabel = activity.findViewById<TextView>(R.id.tvMaxFramesValue)
+        val valueLabel = views.tvMaxFramesValue
         val remoteMaxFrames = AppRemoteConfig.maxFrames(activity)
         val ceiling = DicSettings.frameCeiling(remoteMaxFrames).toFloat()
-        activity.findViewById<Slider>(R.id.sliderMaxFrames).apply {
+        views.sliderMaxFrames.apply {
             valueTo = ceiling
             value = DicSettings.maxFrames(activity, remoteMaxFrames)
                 .toFloat().coerceIn(valueFrom, valueTo)
@@ -29,13 +28,7 @@ class SettingsPreferencesSection(
                 DicSettings.setMaxFrames(activity, v.toInt(), remoteMaxFrames)
             }
         }
-        activity.findViewById<ImageButton>(R.id.btnMaxFramesInfo).setOnClickListener {
-            MaterialAlertDialogBuilder(activity)
-                .setTitle(R.string.setting_max_frames)
-                .setMessage(R.string.setting_max_frames_info)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
-        }
+        views.btnMaxFramesInfo.bindInfo(activity, R.string.setting_max_frames, R.string.setting_max_frames_info)
     }
 
     private fun frameCountText(value: Int): String = String.format(Locale.US, "%d", value)

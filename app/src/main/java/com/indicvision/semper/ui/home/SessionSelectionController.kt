@@ -7,7 +7,6 @@ package com.indicvision.semper.ui.home
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
@@ -20,7 +19,11 @@ import com.indicvision.semper.data.cloud.SessionDeletes
 import com.indicvision.semper.data.cloud.SessionMetadataSync
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SessionStore
+import com.indicvision.semper.data.session.isKnownInCloud
+import com.indicvision.semper.data.session.isRestorable
 import com.indicvision.semper.ui.common.DeleteChoiceDialog
+import com.indicvision.semper.ui.common.Dialogs
+import com.indicvision.semper.ui.common.Feedback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -147,7 +150,7 @@ class SessionSelectionController(
      */
     private fun canRestoreSelection(): Boolean {
         val records = selectedRecords()
-        return records.isNotEmpty() && restoreEnabled() && records.all { isCloudOnly(it) }
+        return records.isNotEmpty() && restoreEnabled() && records.all { it.isRestorable(hasLocalData(it)) }
     }
 
     fun restoreSelected() {
@@ -159,8 +162,6 @@ class SessionSelectionController(
 
     /** Reads phone presence from the list, which read it on IO: a toggle never touches the disk. */
     private fun hasLocalData(record: SessionRecord): Boolean = adapter.hasLocalData(record.id)
-
-    private fun isCloudOnly(record: SessionRecord): Boolean = !hasLocalData(record) && hasCloudCopy(record)
 
     /**
      * Bulk delete. Branches on local data + cloud the same way as [confirmDelete];
@@ -175,8 +176,8 @@ class SessionSelectionController(
         }
 
         val allHaveLocal = records.all { hasLocalData(it) }
-        val allHaveCloud = records.all { hasCloudCopy(it) }
-        val anyCloud = records.any { hasCloudCopy(it) }
+        val allHaveCloud = records.all { it.isKnownInCloud }
+        val anyCloud = records.any { it.isKnownInCloud }
         val title = activity.resources.getQuantityString(
             R.plurals.delete_confirm_title_multi,
             records.size,
@@ -205,7 +206,7 @@ class SessionSelectionController(
 
     /** The prompt above a Delete that erases every copy, naming how many are backed up. */
     private fun eraseEverywhereMessage(records: List<SessionRecord>): String {
-        val backedUp = records.count { hasCloudCopy(it) }
+        val backedUp = records.count { it.isKnownInCloud }
         if (backedUp == 0) return activity.getString(R.string.delete_confirm_body_local_multi)
         return activity.resources.getQuantityString(
             R.plurals.delete_confirm_body_everywhere_multi,
@@ -245,7 +246,7 @@ class SessionSelectionController(
      * only-cloud stubs erase everywhere; local-only deletes fully.
      */
     fun confirmDelete(record: SessionRecord) {
-        val hasCloud = hasCloudCopy(record)
+        val hasCloud = record.isKnownInCloud
         val hasLocal = hasLocalData(record)
         val title = activity.getString(R.string.delete_confirm_title)
 
@@ -281,16 +282,8 @@ class SessionSelectionController(
     }
 
     private fun confirm(title: String, message: String, onDelete: () -> Unit) {
-        MaterialAlertDialogBuilder(activity)
-            .setTitle(title)
-            .setMessage(message)
-            .setPositiveButton(R.string.action_delete) { _, _ -> onDelete() }
-            .setNegativeButton(R.string.action_cancel, null)
-            .show()
+        Dialogs.confirm(activity, title, message, R.string.action_delete, onDelete)
     }
-
-    private fun hasCloudCopy(record: SessionRecord): Boolean =
-        record.syncState == SessionRecord.SyncState.SYNCED || record.cloudSessionId.isNotBlank()
 
     /**
      * One queued job for the whole selection: it runs after the undo window,
@@ -330,7 +323,7 @@ class SessionSelectionController(
                 } else {
                     res.getQuantityString(R.plurals.delete_multi_done, done, done)
                 }
-                Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
+                Feedback.toast(activity, message, long = true)
             }
             clearSelection()
             onRefresh()

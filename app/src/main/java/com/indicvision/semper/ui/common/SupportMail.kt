@@ -4,7 +4,6 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.widget.Toast
 import androidx.core.net.toUri
 import com.indicvision.semper.BuildConfig
 import com.indicvision.semper.R
@@ -38,11 +37,7 @@ object SupportMail {
             context.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
             Timber.w(e, "No email app for %s", purpose)
-            Toast.makeText(
-                context,
-                context.getString(R.string.request_access_none, support),
-                Toast.LENGTH_LONG,
-            ).show()
+            Feedback.toast(context, context.getString(R.string.request_access_none, support), long = true)
         }
     }
 }

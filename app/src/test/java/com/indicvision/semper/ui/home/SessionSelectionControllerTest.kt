@@ -1,37 +1,16 @@
 package com.indicvision.semper.ui.home
 
-import android.app.Application
-import android.app.Dialog
-import android.os.Looper
 import android.view.View
-import android.view.ViewGroup
-import android.widget.EditText
-import android.widget.ImageButton
 import android.widget.TextView
-import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.checkbox.MaterialCheckBox
 import com.indicvision.semper.R
 import com.indicvision.semper.data.cloud.SessionDeletes
-import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.fixtures.idleUntil
-import com.indicvision.semper.fixtures.sessionRecord
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
-import org.junit.runner.RunWith
-import org.robolectric.Robolectric
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
-import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowDialog
-import java.io.File
 import java.util.UUID
 
 /**
@@ -40,123 +19,7 @@ import java.util.UUID
  * is where a cloud backup and a phone copy are told apart, and offering the
  * wrong one deletes the wrong copy.
  */
-@RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class)
-class SessionSelectionControllerTest {
-
-    @get:Rule
-    val temp = TemporaryFolder()
-
-    private lateinit var activity: AppCompatActivity
-    private lateinit var controller: SessionSelectionController
-    private lateinit var adapter: SessionListAdapter
-
-    private lateinit var topBar: View
-    private lateinit var selectionBar: View
-    private lateinit var count: TextView
-    private lateinit var rename: ImageButton
-    private lateinit var restore: ImageButton
-    private lateinit var selectAll: MaterialCheckBox
-    private lateinit var fab: ImageButton
-    private lateinit var close: ImageButton
-    private lateinit var delete: ImageButton
-    private val back = object : OnBackPressedCallback(false) {
-        override fun handleOnBackPressed() = Unit
-    }
-    private var refreshes = 0
-    private var deviceOnlyDeletes = 0
-    private val queuedDeletes = mutableListOf<List<SessionDeletes.Item>>()
-    private val announced = mutableListOf<Pair<UUID, Int>>()
-    private val restored = mutableListOf<List<String>>()
-    private var restoreAllowed = true
-
-    @Before
-    fun setUp() {
-        val built = Robolectric.buildActivity(AppCompatActivity::class.java)
-        built.get().setTheme(R.style.Theme_Semper) // Material dialogs need the app theme
-        activity = built.setup().get()
-        adapter = SessionListAdapter(isSelected = { controller.isSelected(it) }, onClick = {}, onLongClick = {})
-        topBar = View(activity)
-        selectionBar = View(activity).apply { visibility = View.GONE }
-        count = TextView(activity)
-        rename = ImageButton(activity)
-        restore = ImageButton(activity).apply { visibility = View.GONE }
-        selectAll = MaterialCheckBox(activity)
-        fab = ImageButton(activity)
-        close = ImageButton(activity)
-        delete = ImageButton(activity)
-        controller = SessionSelectionController(
-            activity = activity,
-            adapter = adapter,
-            topBar = topBar,
-            selectionBar = selectionBar,
-            selectionCount = count,
-            btnSelectionRename = rename,
-            btnSelectionRestore = restore,
-            selectAllBox = selectAll,
-            fab = fab,
-            backCallback = back,
-            onRefresh = { refreshes++ },
-            onDeviceOnlyDeleted = { deviceOnlyDeletes++ },
-            restoreEnabled = { restoreAllowed },
-            onRestore = { records -> restored += records.map { it.id } },
-            onDeleteQueued = { id, items -> announced += id to items.size },
-            enqueueDelete = { items ->
-                queuedDeletes += items
-                UUID(0L, queuedDeletes.size.toLong())
-            },
-        )
-        controller.bindBarActions(btnClose = close, btnDelete = delete)
-    }
-
-    /** [local] gives the record a session dir holding a `.dat`, so it has phone data. */
-    private fun record(id: String, local: Boolean = true, cloud: Boolean = false): SessionRecord {
-        val dir = File(temp.root, id).apply { mkdirs() }
-        if (local) File(dir, "frame_0000.dat").writeBytes(ByteArray(32))
-        return sessionRecord(
-            id = id,
-            name = "Specimen $id",
-            createdAt = 0L,
-            refPath = File(dir, "ref.png").path,
-            sessionDir = dir.path,
-            cloudSessionId = if (cloud) "cloud-$id" else "",
-            syncState = if (cloud) SessionRecord.SyncState.SYNCED else SessionRecord.SyncState.LOCAL_ONLY,
-        )
-    }
-
-    private val a by lazy { record("a") }
-    private val b by lazy { record("b") }
-    private val c by lazy { record("c") }
-
-    private fun list(vararg records: SessionRecord) = submit(records.toList())
-
-    /** Submits as Home does: phone presence read from disk once, up front. */
-    private fun submit(records: List<SessionRecord>) =
-        adapter.submit(records, records.filterNot { it.hasLocalData() }.map { it.id }.toSet())
-
-    private fun latestDialog(): Dialog = ShadowDialog.getLatestDialog()
-
-    private fun dialogMessage(): String? =
-        latestDialog().findViewById<TextView>(android.R.id.message)?.text?.toString()
-
-    /** The labels of the choice dialog's buttons, top to bottom. */
-    private fun choices(): List<MaterialButton> {
-        val box = latestDialog().findViewById<ViewGroup>(R.id.deleteChoices)
-        return (0 until box.childCount).map { box.getChildAt(it) as MaterialButton }
-    }
-
-    private fun pick(labelRes: Int) {
-        val label = activity.getString(labelRes)
-        choices().single { it.text.toString() == label }.performClick()
-        shadowOf(Looper.getMainLooper()).idle()
-    }
-
-    private fun confirmPositive() {
-        (latestDialog() as androidx.appcompat.app.AlertDialog)
-            .getButton(android.content.DialogInterface.BUTTON_POSITIVE)
-            .performClick()
-        shadowOf(Looper.getMainLooper()).idle()
-    }
+class SessionSelectionControllerTest : SessionSelectionFixture() {
 
     // ── Selection set and bar ────────────────────────────────────────────────
 
@@ -394,111 +257,5 @@ class SessionSelectionControllerTest {
         assertEquals(1, deviceOnlyDeletes)
         assertTrue(queuedDeletes.isEmpty())
         assertFalse(controller.inSelectionMode)
-    }
-
-    // ── Restore ──────────────────────────────────────────────────────────────
-
-    private val cloudOnly1 by lazy { record("r1", local = false, cloud = true) }
-    private val cloudOnly2 by lazy { record("r2", local = false, cloud = true) }
-
-    @Test
-    fun `a selection of cloud-only rows offers Restore, and it restores every row once`() {
-        list(cloudOnly1, cloudOnly2, a)
-        controller.startSelection(cloudOnly1)
-        controller.toggleSelection(cloudOnly2)
-
-        assertEquals(View.VISIBLE, restore.visibility)
-        restore.performClick()
-
-        assertEquals(listOf(listOf("r1", "r2")), restored)
-        assertFalse("selection ends", controller.inSelectionMode)
-    }
-
-    @Test
-    fun `selection decides from the list's phone presence, not from the disk`() {
-        // The list was read while the frames were still there; they have gone
-        // since. A toggle must not list the directory (it ran on the main
-        // thread per selected row, per tap): it acts on what was read.
-        val row = record("gone", local = true, cloud = true)
-        list(row)
-        File(row.sessionDir).listFiles()?.forEach { it.delete() }
-
-        controller.startSelection(row)
-        assertEquals("still on the phone as far as the list knows", View.GONE, restore.visibility)
-        controller.confirmDelete(row)
-        assertEquals(
-            activity.getString(R.string.delete_confirm_body_cloud),
-            latestDialog().findViewById<TextView>(R.id.tvDeleteMessage).text.toString(),
-        )
-    }
-
-    @Test
-    fun `a row already on the phone hides Restore`() {
-        list(cloudOnly1, a)
-        controller.startSelection(cloudOnly1)
-        assertEquals(View.VISIBLE, restore.visibility)
-
-        controller.toggleSelection(a)
-
-        assertEquals(View.GONE, restore.visibility)
-        controller.restoreSelected()
-        assertTrue("nothing restored for a mixed selection", restored.isEmpty())
-    }
-
-    @Test
-    fun `a backed-up row with its frames on the phone has nothing to restore`() {
-        val both = record("both", local = true, cloud = true)
-        list(both)
-        controller.startSelection(both)
-
-        assertEquals(View.GONE, restore.visibility)
-    }
-
-    @Test
-    fun `an account without restore never sees the action`() {
-        restoreAllowed = false
-        list(cloudOnly1, cloudOnly2)
-        controller.startSelection(cloudOnly1)
-        controller.toggleSelection(cloudOnly2)
-
-        assertEquals(View.GONE, restore.visibility)
-        controller.restoreSelected()
-        assertTrue(restored.isEmpty())
-    }
-
-    // ── Rename ───────────────────────────────────────────────────────────────
-
-    @Test
-    fun `rename is offered prefilled with the current name`() {
-        list(a)
-        controller.startSelection(a)
-        rename.performClick()
-
-        val input = findEditText(latestDialog().window!!.decorView)
-        assertEquals("Specimen a", input.text.toString())
-    }
-
-    @Test
-    fun `a blank rename is ignored`() {
-        list(a)
-        controller.startSelection(a)
-        rename.performClick()
-        val dialog = latestDialog() as androidx.appcompat.app.AlertDialog
-        findEditText(dialog.window!!.decorView).setText("   ")
-        dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
-        shadowOf(Looper.getMainLooper()).idle()
-
-        assertEquals(0, refreshes)
-        assertTrue("still selected", controller.isSelected("a"))
-    }
-
-    private fun findEditText(root: View): EditText {
-        if (root is EditText) return root
-        if (root is android.view.ViewGroup) {
-            for (i in 0 until root.childCount) {
-                runCatching { return findEditText(root.getChildAt(i)) }
-            }
-        }
-        error("no EditText under $root")
     }
 }

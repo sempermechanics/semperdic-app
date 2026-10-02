@@ -9,6 +9,10 @@ import androidx.work.WorkManager
 import com.google.android.material.snackbar.Snackbar
 import com.indicvision.semper.R
 import com.indicvision.semper.data.cloud.SessionDeletes
+import com.indicvision.semper.data.prefs.PrefFiles
+import com.indicvision.semper.data.prefs.get
+import com.indicvision.semper.data.prefs.privatePrefs
+import com.indicvision.semper.data.prefs.put
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -100,15 +104,14 @@ class DeleteFeedback(
     }
 
     private companion object {
-        const val PREFS = "session_deletes"
-        const val KEY_SHOWN = "shown_outcomes"
         val UNDO_WINDOW_MS = TimeUnit.SECONDS.toMillis(SessionDeletes.UNDO_WINDOW_SECONDS).toInt()
 
-        fun shownOutcomes(context: Context): Set<String> =
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getStringSet(KEY_SHOWN, null).orEmpty()
+        fun prefs(context: Context) = privatePrefs(context, PrefFiles.SessionDeletes.NAME)
+
+        fun shownOutcomes(context: Context): Set<String> = prefs(context)[PrefFiles.SessionDeletes.SHOWN_OUTCOMES]
 
         fun saveShownOutcomes(context: Context, ids: Set<String>) {
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putStringSet(KEY_SHOWN, ids) }
+            prefs(context).edit { put(PrefFiles.SessionDeletes.SHOWN_OUTCOMES, ids) }
         }
     }
 }

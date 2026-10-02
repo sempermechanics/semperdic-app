@@ -1,32 +1,28 @@
 package com.indicvision.semper.ui.auth
 
 import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.CheckBox
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.annotation.MainThread
 import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.button.MaterialButton
 import com.indicvision.semper.R
 import com.indicvision.semper.data.account.AuthRepository
 import com.indicvision.semper.data.account.LegalTerms
 import com.indicvision.semper.data.net.IndicApi
+import com.indicvision.semper.databinding.ActivityTermsBinding
 import com.indicvision.semper.ui.common.AuthRoute
+import com.indicvision.semper.ui.common.ExternalLinks
+import com.indicvision.semper.ui.common.Feedback
 import com.indicvision.semper.ui.common.Insets
 import com.indicvision.semper.ui.common.SignOutRun
+import com.indicvision.semper.ui.common.setBusy
 import com.indicvision.semper.ui.home.HomeActivity
 import kotlinx.coroutines.launch
-import timber.log.Timber
 
 /**
  * The clickwrap gate. Shown once per Terms version, after sign-in and before
@@ -50,38 +46,28 @@ class TermsActivity : AppCompatActivity() {
     @VisibleForTesting
     internal var signOut: suspend () -> Unit = { authRepo.signOut() }
 
-    private lateinit var cbAgree: CheckBox
-    private lateinit var cbImprove: CheckBox
-    private lateinit var btnAgree: MaterialButton
-    private lateinit var btnDecline: MaterialButton
-    private lateinit var progress: ProgressBar
+    private lateinit var binding: ActivityTermsBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_terms)
-        Insets.padVertical(findViewById(R.id.termsRoot))
+        binding = ActivityTermsBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        Insets.padVertical(binding.termsRoot)
 
-        cbAgree = findViewById(R.id.cbAgreeTerms)
-        cbImprove = findViewById(R.id.cbImprovementConsent)
-        btnAgree = findViewById(R.id.btnAgree)
-        btnDecline = findViewById(R.id.btnDecline)
-        progress = findViewById(R.id.progressTerms)
-
-        findViewById<TextView>(R.id.tvTermsVersion).text =
-            getString(R.string.terms_version_fmt, LegalTerms.requiredVersion(this))
-        findViewById<View>(R.id.tvOpenTerms).setOnClickListener {
-            openExternalUrl(getString(R.string.legal_terms_url))
+        binding.tvTermsVersion.text = getString(R.string.terms_version_fmt, LegalTerms.requiredVersion(this))
+        binding.tvOpenTerms.setOnClickListener {
+            ExternalLinks.open(this, getString(R.string.legal_terms_url))
         }
-        findViewById<View>(R.id.tvOpenPrivacy).setOnClickListener {
-            openExternalUrl(getString(R.string.legal_privacy_url))
+        binding.tvOpenPrivacy.setOnClickListener {
+            ExternalLinks.open(this, getString(R.string.legal_privacy_url))
         }
 
         // The affirmative act: the button only becomes usable once the required
         // box is ticked by the user — never pre-ticked, never implied by "Continue".
-        btnAgree.isEnabled = false
-        cbAgree.setOnCheckedChangeListener { _, checked -> btnAgree.isEnabled = checked }
-        btnAgree.setOnClickListener { onAgree() }
-        btnDecline.setOnClickListener { onDecline() }
+        binding.btnAgree.isEnabled = false
+        binding.cbAgreeTerms.setOnCheckedChangeListener { _, checked -> binding.btnAgree.isEnabled = checked }
+        binding.btnAgree.setOnClickListener { onAgree() }
+        binding.btnDecline.setOnClickListener { onDecline() }
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
@@ -92,12 +78,12 @@ class TermsActivity : AppCompatActivity() {
     }
 
     private fun onAgree() {
-        if (!cbAgree.isChecked) return
+        if (!binding.cbAgreeTerms.isChecked) return
         setLoading(true)
         lifecycleScope.launch {
             val result = authRepo.acceptTerms(
                 version = LegalTerms.requiredVersion(this@TermsActivity),
-                improvementConsent = cbImprove.isChecked,
+                improvementConsent = binding.cbImprovementConsent.isChecked,
             )
             setLoading(false)
             result.fold(
@@ -108,7 +94,7 @@ class TermsActivity : AppCompatActivity() {
                     } else {
                         error.message ?: getString(R.string.terms_error_generic)
                     }
-                    Toast.makeText(this@TermsActivity, message, Toast.LENGTH_LONG).show()
+                    Feedback.toast(this@TermsActivity, message, long = true)
                 },
             )
         }
@@ -132,21 +118,16 @@ class TermsActivity : AppCompatActivity() {
         finish()
     }
 
+    /** Agree follows the required box once the spinner stops. */
     private fun setLoading(loading: Boolean) {
-        progress.visibility = if (loading) View.VISIBLE else View.INVISIBLE
-        btnAgree.isEnabled = !loading && cbAgree.isChecked
-        btnDecline.isEnabled = !loading
-        cbAgree.isEnabled = !loading
-        cbImprove.isEnabled = !loading
-    }
-
-    private fun openExternalUrl(url: String) {
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
-        } catch (e: ActivityNotFoundException) {
-            Timber.w(e, "No browser to open %s", url)
-            Toast.makeText(this, url, Toast.LENGTH_LONG).show()
-        }
+        binding.progressTerms.setBusy(
+            loading,
+            binding.btnDecline,
+            binding.cbAgreeTerms,
+            binding.cbImprovementConsent,
+            idleVisibility = View.INVISIBLE,
+        )
+        binding.btnAgree.isEnabled = !loading && binding.cbAgreeTerms.isChecked
     }
 
     companion object {

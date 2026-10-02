@@ -6,9 +6,11 @@ import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.indicvision.semper.R
 import com.indicvision.semper.data.cloud.CloudBackupListing
 import com.indicvision.semper.data.cloud.restore.RestoreStart
+import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -51,6 +53,23 @@ class CloudBackupsCardTest {
         restore = View(activity)
         hide = View(activity)
         controller = CloudBackupsCard(card, text, restore, hide, { restored += it }, { hidden += it })
+    }
+
+    @Test
+    fun `a newer read wins over one still in flight`() {
+        val slow = CompletableDeferred<List<CloudBackupListing.Backup>>()
+        val shown = mutableListOf<List<CloudBackupListing.Backup>>()
+
+        // Home's refreshes come in bursts: a resume read still waiting on disk,
+        // then the reconcile's fresher listing.
+        controller.refresh(activity.lifecycleScope, read = { slow.await() }) { shown += it }
+        controller.refresh(activity.lifecycleScope, read = { listOf(beam) }) { shown += it }
+        shadowOf(Looper.getMainLooper()).idle()
+        slow.complete(listOf(beam, video))
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals("only the newer listing lands", listOf(listOf(beam)), shown)
+        assertEquals("1 analysis in your cloud backup isn't on this phone.", text.text.toString())
     }
 
     @Test

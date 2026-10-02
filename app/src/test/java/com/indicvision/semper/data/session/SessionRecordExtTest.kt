@@ -10,6 +10,7 @@ import com.indicvision.semper.field.RunStop
 import com.indicvision.semper.fixtures.sessionRecord
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -67,25 +68,36 @@ class SessionRecordExtTest {
         assertFalse(single.frameParams.isSweep)
     }
 
-    /**
-     * A copy of Home's private rule (`SessionSelectionController.isCloudOnly` /
-     * `hasCloudCopy`, inlined again in `HomeActivity.openSession`):
-     * `!hasLocalData && (syncState == SYNCED || cloudSessionId.isNotBlank())`.
-     * Keep it in step with those until wave 4 points them at [isRestorable].
-     */
-    private fun homeIsCloudOnly(r: SessionRecord, hasLocal: Boolean) =
-        !hasLocal && (r.syncState == SyncState.SYNCED || r.cloudSessionId.isNotBlank())
+    @Test
+    fun `the cloud knows a synced row, or one that carries a cloud id`() {
+        val known = mapOf(
+            sessionRecord(syncState = SyncState.SYNCED) to true,
+            sessionRecord(syncState = SyncState.SYNCED, cloudSessionId = "c1") to true,
+            sessionRecord(syncState = SyncState.PENDING, cloudSessionId = "c1") to true,
+            sessionRecord(syncState = SyncState.FAILED, cloudSessionId = "c1") to true,
+            sessionRecord(syncState = SyncState.LOCAL_ONLY, cloudSessionId = "c1") to true,
+            sessionRecord(syncState = SyncState.PENDING) to false,
+            sessionRecord(syncState = SyncState.FAILED) to false,
+            sessionRecord(syncState = SyncState.LOCAL_ONLY) to false,
+            // A blank id is no id.
+            sessionRecord(syncState = SyncState.PENDING, cloudSessionId = "  ") to false,
+        )
+        known.forEach { (r, expected) ->
+            assertEquals("${r.syncState} '${r.cloudSessionId}'", expected, r.isKnownInCloud)
+        }
+    }
 
     @Test
-    fun `isRestorable is Home's cloud-only rule for every sync state, id and local state`() {
-        for (state in SyncState.entries) {
-            for (id in listOf("", "  ", "c1")) {
-                for (local in listOf(true, false)) {
-                    val r = sessionRecord(syncState = state, cloudSessionId = id)
-                    val label = "$state '$id' local=$local"
-                    assertEquals(label, homeIsCloudOnly(r, local), r.isRestorable(hasLocalData = local))
-                }
-            }
+    fun `a row is restorable when its frames are gone and the cloud knows it`() {
+        val synced = sessionRecord(syncState = SyncState.SYNCED)
+        val withId = sessionRecord(syncState = SyncState.PENDING, cloudSessionId = "c1")
+        val unknown = sessionRecord(syncState = SyncState.PENDING, cloudSessionId = "  ")
+
+        assertTrue(synced.isRestorable(hasLocalData = false))
+        assertTrue(withId.isRestorable(hasLocalData = false))
+        assertFalse("nothing in the cloud to restore from", unknown.isRestorable(hasLocalData = false))
+        for (r in listOf(synced, withId, unknown)) {
+            assertFalse("frames already on the phone", r.isRestorable(hasLocalData = true))
         }
     }
 

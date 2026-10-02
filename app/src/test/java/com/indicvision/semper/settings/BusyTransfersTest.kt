@@ -1,7 +1,9 @@
 package com.indicvision.semper.settings
 
 import androidx.work.WorkInfo
+import com.indicvision.semper.data.cloud.TransferWork
 import com.indicvision.semper.data.cloud.restore.CloudRestore
+import com.indicvision.semper.ui.common.TransferWorkObserver
 import com.indicvision.semper.ui.settings.BusyTransfers
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,12 +23,15 @@ import java.util.UUID
 class BusyTransfersTest {
 
     private fun restore(cloudId: String, state: WorkInfo.State, id: UUID = UUID.randomUUID()) =
-        WorkInfo(id, state, setOf("restore", "restore-$cloudId"))
+        TransferWorkObserver.Job(WorkInfo(id, state, setOf("restore", "restore-$cloudId")), TransferWork.Kind.RESTORE)
 
-    private fun download(cloudId: String, state: WorkInfo.State) = WorkInfo(
-        UUID.randomUUID(),
-        state,
-        setOf(CloudRestore.TAG_BUNDLE_DOWNLOAD, "${CloudRestore.TAG_BUNDLE_DOWNLOAD}-$cloudId"),
+    private fun download(cloudId: String, state: WorkInfo.State) = TransferWorkObserver.Job(
+        WorkInfo(
+            UUID.randomUUID(),
+            state,
+            setOf(CloudRestore.TAG_BUNDLE_DOWNLOAD, "${CloudRestore.TAG_BUNDLE_DOWNLOAD}-$cloudId"),
+        ),
+        TransferWork.Kind.BUNDLE_DOWNLOAD,
     )
 
     @Test
@@ -40,22 +45,18 @@ class BusyTransfersTest {
                 restore("bad", WorkInfo.State.FAILED),
                 restore("off", WorkInfo.State.CANCELLED),
             ),
-            "restore",
         )
         assertEquals(setOf("enq", "run", "blk"), ids)
     }
 
     @Test
     fun `the cloud id comes from the per-session tag, not the shared one`() {
-        val untagged = WorkInfo(UUID.randomUUID(), WorkInfo.State.RUNNING, setOf("restore"))
-        assertEquals(emptySet<String>(), BusyTransfers.unfinishedIds(listOf(untagged), "restore"))
-        assertEquals(
-            setOf("c1"),
-            BusyTransfers.unfinishedIds(
-                listOf(download("c1", WorkInfo.State.RUNNING)),
-                CloudRestore.TAG_BUNDLE_DOWNLOAD,
-            ),
+        val untagged = TransferWorkObserver.Job(
+            WorkInfo(UUID.randomUUID(), WorkInfo.State.RUNNING, setOf("restore")),
+            TransferWork.Kind.RESTORE,
         )
+        assertEquals(emptySet<String>(), BusyTransfers.unfinishedIds(listOf(untagged)))
+        assertEquals(setOf("c1"), BusyTransfers.unfinishedIds(listOf(download("c1", WorkInfo.State.RUNNING))))
     }
 
     @Test

@@ -1,30 +1,25 @@
-// List adapter: onBindViewHolder assembles one row's subtitle/badges inline, and
-// literal view-type/dimension constants read clearest there too.
-@file:Suppress("MagicNumber", "CyclomaticComplexMethod", "TooManyFunctions")
+@file:Suppress("TooManyFunctions")
 
 @file:SuppressLint("NotifyDataSetChanged")
 
 package com.indicvision.semper.ui.home
 
 import android.annotation.SuppressLint
-import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
+import androidx.annotation.StringRes
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.indicvision.semper.R
+import com.indicvision.semper.data.cloud.TransferPhase
 import com.indicvision.semper.data.session.SessionRecord
+import com.indicvision.semper.databinding.ItemSessionBinding
 import com.indicvision.semper.imaging.BitmapDecode
-import com.indicvision.semper.navigation.DicKeys
 import com.indicvision.semper.ui.analysis.run.EngineFailure
+import com.indicvision.semper.ui.common.ThumbnailLoader
+import com.indicvision.semper.ui.common.TransferWorkObserver
 import java.io.File
 import java.text.SimpleDateFormat
-import java.util.Collections
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
@@ -44,7 +39,7 @@ class SessionListAdapter(
     private val dateFmt = SimpleDateFormat("MMM d", Locale.getDefault())
 
     /** id → live upload progress; empty except for rows currently backing up. */
-    private var progress: Map<String, RowProgress> = emptyMap()
+    private var progress: Map<String, TransferWorkObserver.RowProgress> = emptyMap()
 
     /**
      * Ids whose frames are not on this phone, read off the main thread with
@@ -60,18 +55,8 @@ class SessionListAdapter(
      */
     private var syncVisible: Boolean = true
 
-    /** Path → thumbnail; recycles evicted bitmaps. Cap keeps scroll GC mild. */
-    private val thumbCache =
-        object : LinkedHashMap<String, Bitmap>(THUMB_CACHE_MAX + 1, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Bitmap>?): Boolean {
-                if (size <= THUMB_CACHE_MAX) return false
-                eldest?.value?.takeIf { !it.isRecycled }?.recycle()
-                return true
-            }
-        }
-
-    /** Paths that are not platform-decodable (e.g. TIFF bytes named `.png`). */
-    private val thumbMisses: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
+    /** Reference thumbnails; an evicted one is dropped, never recycled under a live row. */
+    private val thumbs = ThumbnailLoader(THUMB_CACHE_MAX, thumbExecutor, ::decodeThumb)
 
     /**
      * Shows [newItems]. [withoutLocalData] are the ids among them with no frame
@@ -101,7 +86,7 @@ class SessionListAdapter(
     }
 
     /** Update live backup progress; rebinds only the rows whose progress changed. */
-    fun setUploadProgress(new: Map<String, RowProgress>) {
+    fun setUploadProgress(new: Map<String, TransferWorkObserver.RowProgress>) {
         val old = progress
         if (old == new) return
         progress = new
@@ -115,32 +100,12 @@ class SessionListAdapter(
         items.filter { it.id in ids }
 
     /** Drop cached thumbs (e.g. when Home is destroyed). */
-    fun clearThumbCache() {
-        for (bmp in thumbCache.values) {
-            if (!bmp.isRecycled) bmp.recycle()
-        }
-        thumbCache.clear()
-    }
+    fun clearThumbCache() = thumbs.clear()
 
-    /** Live backup progress for a row while its upload work is running. */
-    data class RowProgress(val phase: String, val percent: Int)
+    class Holder(val row: ItemSessionBinding) : RecyclerView.ViewHolder(row.root)
 
-    class Holder(v: View) : RecyclerView.ViewHolder(v) {
-        val card: com.google.android.material.card.MaterialCardView =
-            v.findViewById(R.id.sessionCard)
-        val thumb: ImageView = v.findViewById(R.id.sessionThumb)
-        val check: ImageView = v.findViewById(R.id.sessionCheck)
-        val title: TextView = v.findViewById(R.id.sessionTitle)
-        val subtitle: TextView = v.findViewById(R.id.sessionSubtitle)
-        val badge: TextView = v.findViewById(R.id.sessionBadge)
-        val progressBar: com.google.android.material.progressindicator.LinearProgressIndicator =
-            v.findViewById(R.id.sessionProgress)
-    }
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
-        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_session, parent, false)
-        return Holder(v)
-    }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder =
+        Holder(ItemSessionBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
     override fun getItemCount() = items.size
 
@@ -179,19 +144,20 @@ class SessionListAdapter(
 
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val r = items[position]
+        val row = holder.row
         val ctx = holder.itemView.context
-        holder.title.text = r.name
-        holder.subtitle.text = subtitleFor(ctx, r)
+        row.sessionTitle.text = r.name
+        row.sessionSubtitle.text = subtitleFor(ctx, r)
 
         bindSyncBadge(holder, r)
-        bindThumbnail(holder, r)
+        thumbs.bind(row.sessionThumb, r.refPath.takeIf { it.isNotBlank() }?.let { Thumb(it, r.imgW, r.imgH) })
 
         val selected = isSelected(r.id)
-        holder.check.isVisible = selected
-        holder.card.setCardBackgroundColor(
+        row.sessionCheck.isVisible = selected
+        row.sessionCard.setCardBackgroundColor(
             ctx.getColor(if (selected) R.color.sky_container else R.color.surface_muted),
         )
-        holder.card.strokeColor =
+        row.sessionCard.strokeColor =
             ctx.getColor(if (selected) R.color.sky_primary else R.color.surface_outline)
 
         // Outside selection mode a tap opens the analysis and a long-press
@@ -211,43 +177,37 @@ class SessionListAdapter(
      */
     private fun bindSyncBadge(holder: Holder, r: SessionRecord) {
         val ctx = holder.itemView.context
+        val badge = holder.row.sessionBadge
+        val progressBar = holder.row.sessionProgress
         val prog = progress[r.id]
-        holder.badge.isVisible = syncVisible
+        badge.isVisible = syncVisible
         if (!syncVisible) {
-            holder.progressBar.isIndeterminate = false
-            holder.progressBar.isVisible = false
-            holder.badge.setOnClickListener(null)
+            progressBar.isIndeterminate = false
+            progressBar.isVisible = false
+            badge.setOnClickListener(null)
         } else if (prog != null) {
-            holder.progressBar.isVisible = true
+            progressBar.isVisible = true
             // Bundle restore reports 0% for most of the Session.zip download —
             // indeterminate reads as "working" instead of a stuck empty bar.
-            val indeterminate = prog.phase == DicKeys.PHASE_DOWNLOAD && prog.percent <= 0
-            holder.progressBar.isIndeterminate = indeterminate
+            val indeterminate = prog.phase == TransferPhase.DOWNLOAD && prog.percent <= 0
+            progressBar.isIndeterminate = indeterminate
             if (!indeterminate) {
-                holder.progressBar.setProgressCompat(prog.percent.coerceIn(0, 100), true)
+                progressBar.setProgressCompat(prog.percent.coerceIn(0, PERCENT_MAX), true)
             }
-            holder.badge.text = ctx.getString(
+            badge.text = ctx.getString(
                 when (prog.phase) {
-                    "prepare" -> R.string.badge_preparing_fmt
-                    "download" -> R.string.badge_downloading_fmt
-                    else -> R.string.badge_uploading_fmt
+                    TransferPhase.PREPARE -> R.string.badge_preparing_fmt
+                    TransferPhase.DOWNLOAD -> R.string.badge_downloading_fmt
+                    TransferPhase.UPLOAD -> R.string.badge_uploading_fmt
                 },
                 prog.percent.coerceAtLeast(0),
             )
-            holder.badge.setTextColor(ctx.getColor(R.color.sky_on_container))
+            badge.setTextColor(ctx.getColor(R.color.sky_on_container))
         } else {
-            holder.progressBar.isIndeterminate = false
-            holder.progressBar.isVisible = false
-            holder.badge.text = when {
-                r.syncState == SessionRecord.SyncState.SYNCED && r.id in withoutLocalData ->
-                    ctx.getString(R.string.badge_cloud_only)
-                r.syncState == SessionRecord.SyncState.SYNCED -> ctx.getString(R.string.badge_synced)
-                r.syncState == SessionRecord.SyncState.PENDING -> ctx.getString(R.string.badge_pending)
-                r.syncState == SessionRecord.SyncState.LOCAL_ONLY -> ctx.getString(R.string.badge_local)
-                r.syncState == SessionRecord.SyncState.FAILED -> ctx.getString(R.string.badge_not_backed_up)
-                else -> ctx.getString(R.string.badge_local)
-            }
-            holder.badge.setTextColor(
+            progressBar.isIndeterminate = false
+            progressBar.isVisible = false
+            badge.setText(syncStateLabel(r))
+            badge.setTextColor(
                 if (r.syncState == SessionRecord.SyncState.FAILED) {
                     ctx.getColor(R.color.semantic_danger)
                 } else {
@@ -255,68 +215,56 @@ class SessionListAdapter(
                 },
             )
         }
-        if (syncVisible) holder.badge.setOnClickListener { onBadgeClick(r) }
+        if (syncVisible) badge.setOnClickListener { onBadgeClick(r) }
     }
 
-    /**
-     * The view's tag names the reference it is showing (or waiting for), and a
-     * decode only lands while it still matches. Every branch sets it: a holder
-     * rebound from a row still decoding to a cached row used to keep the old
-     * tag, and the old decode then painted over the new row's thumbnail.
-     */
-    private fun bindThumbnail(holder: Holder, r: SessionRecord) {
-        val path = r.refPath
-        val cached = thumbCache[path]?.takeIf { !it.isRecycled }
-        when {
-            path.isBlank() || path in thumbMisses -> {
-                holder.thumb.tag = null
-                holder.thumb.setImageDrawable(null)
-            }
-            cached != null -> {
-                holder.thumb.tag = path
-                holder.thumb.setImageBitmap(cached)
-            }
-            else -> {
-                holder.thumb.setImageDrawable(null)
-                holder.thumb.tag = path
-                thumbExecutor.execute {
-                    // The existence check is file I/O, so it runs here rather
-                    // than on every bind. A missing reference is not a miss: a
-                    // restore can still bring it back.
-                    val exists = File(path).exists()
-                    // Sniff-first via BitmapDecode — never hand TIFF/RAW to
-                    // BitmapFactory (Skia "invalid input" spam on Home rebind).
-                    val bmp = if (exists) {
-                        BitmapDecode.decodeFileForView(
-                            path,
-                            THUMB_EDGE,
-                            THUMB_EDGE,
-                            THUMB_EDGE,
-                            rawWidth = r.imgW,
-                            rawHeight = r.imgH,
-                        )
-                    } else {
-                        null
-                    }
-                    mainHandler.post {
-                        if (holder.thumb.tag != path) {
-                            bmp?.recycle()
-                        } else if (bmp != null) {
-                            thumbCache[path] = bmp
-                            holder.thumb.setImageBitmap(bmp)
-                        } else if (exists) {
-                            thumbMisses.add(path)
-                        }
-                    }
-                }
-            }
-        }
-    }
+    /** The idle badge: where [r]'s backup stands, and "Only in cloud" for a synced one off this phone. */
+    @StringRes
+    private fun syncStateLabel(r: SessionRecord): Int =
+        syncStateLabel(r.syncState, framesOnPhone = r.id !in withoutLocalData)
+
+    /** A row's reference image, with the raw dimensions a TIFF/RAW sniff needs. */
+    private data class Thumb(val path: String, val rawWidth: Int, val rawHeight: Int)
 
     companion object {
+        /**
+         * The words for a backup in [state], on Home's badge and Settings'
+         * analysis rows alike; a synced one whose frames are not on this
+         * phone ([framesOnPhone] false) is "Only in cloud".
+         */
+        @StringRes
+        internal fun syncStateLabel(state: SessionRecord.SyncState, framesOnPhone: Boolean = true): Int =
+            when (state) {
+                SessionRecord.SyncState.SYNCED ->
+                    if (framesOnPhone) R.string.badge_synced else R.string.badge_cloud_only
+                SessionRecord.SyncState.PENDING -> R.string.badge_pending
+                SessionRecord.SyncState.LOCAL_ONLY -> R.string.badge_local
+                SessionRecord.SyncState.FAILED -> R.string.badge_not_backed_up
+            }
+
         private const val THUMB_CACHE_MAX = 24
         private const val THUMB_EDGE = 256
+        private const val PERCENT_MAX = 100
         private val thumbExecutor = Executors.newSingleThreadExecutor()
-        private val mainHandler = Handler(Looper.getMainLooper())
+
+        /**
+         * Runs on the decode thread. The existence check is file I/O, so it
+         * runs here rather than on every bind. A missing reference is not a
+         * miss: a restore can still bring it back. Sniff-first via
+         * [BitmapDecode] — never hand TIFF/RAW to BitmapFactory (Skia
+         * "invalid input" spam on Home rebind).
+         */
+        private fun decodeThumb(thumb: Thumb): ThumbnailLoader.Decoded {
+            if (!File(thumb.path).exists()) return ThumbnailLoader.Decoded.Missing
+            val bitmap = BitmapDecode.decodeFileForView(
+                thumb.path,
+                THUMB_EDGE,
+                THUMB_EDGE,
+                THUMB_EDGE,
+                rawWidth = thumb.rawWidth,
+                rawHeight = thumb.rawHeight,
+            )
+            return if (bitmap != null) ThumbnailLoader.Decoded.Loaded(bitmap) else ThumbnailLoader.Decoded.Undecodable
+        }
     }
 }

@@ -5,31 +5,12 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="TooManyViews">
             <!-- 1. Account -->
-            <LinearLayout
+            <include
                 android:id="@+id/headerAccount"
+                layout="@layout/settings_section_header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingVertical="4dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/account_section"
-                    android:textAppearance="@style/TextAppearance.Semper.SectionHeader" />
-
-                <ImageView
-                    android:id="@+id/ivAccountChevron"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:contentDescription="@string/account_section"
-                    android:src="@drawable/ic_expand_more"
-                    app:tint="@color/text_secondary" />
-            </LinearLayout>
+                android:layout_marginTop="8dp" />
 
             <LinearLayout
                 android:id="@+id/bodyAccount"
@@ -81,31 +62,9 @@
             </LinearLayout>
 
             <!-- 2. Cloud backup -->
-            <LinearLayout
+            <include
                 android:id="@+id/headerCloud"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingVertical="4dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/cloud_section"
-                    android:textAppearance="@style/TextAppearance.Semper.SectionHeader" />
-
-                <ImageView
-                    android:id="@+id/ivCloudChevron"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:contentDescription="@string/cloud_section"
-                    android:src="@drawable/ic_expand_more"
-                    app:tint="@color/text_secondary" />
-            </LinearLayout>
+                layout="@layout/settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyCloud"
@@ -199,31 +158,9 @@
             </LinearLayout>
 
             <!-- 3. Analyses data management: one row per analysis, phone + cloud -->
-            <LinearLayout
+            <include
                 android:id="@+id/headerAnalysesData"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingVertical="4dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/analyses_data_management"
-                    android:textAppearance="@style/TextAppearance.Semper.SectionHeader" />
-
-                <ImageView
-                    android:id="@+id/ivAnalysesDataChevron"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:contentDescription="@string/analyses_data_management"
-                    android:src="@drawable/ic_expand_more"
-                    app:tint="@color/text_secondary" />
-            </LinearLayout>
+                layout="@layout/settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyAnalysesData"
@@ -272,31 +209,9 @@
             </LinearLayout>
 
             <!-- 3b. Storage: what this phone holds, and how to get it back -->
-            <LinearLayout
+            <include
                 android:id="@+id/headerStorage"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingVertical="4dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/storage_section"
-                    android:textAppearance="@style/TextAppearance.Semper.SectionHeader" />
-
-                <ImageView
-                    android:id="@+id/ivStorageChevron"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:contentDescription="@string/storage_section"
-                    android:src="@drawable/ic_expand_more"
-                    app:tint="@color/text_secondary" />
-            </LinearLayout>
+                layout="@layout/settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyStorage"
@@ -444,31 +359,9 @@
             </LinearLayout>
 
             <!-- 4. Your data -->
-            <LinearLayout
+            <include
                 android:id="@+id/headerYourData"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingVertical="4dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/your_data_section"
-                    android:textAppearance="@style/TextAppearance.Semper.SectionHeader" />
-
-                <ImageView
-                    android:id="@+id/ivYourDataChevron"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:contentDescription="@string/your_data_section"
-                    android:src="@drawable/ic_expand_more"
-                    app:tint="@color/text_secondary" />
-            </LinearLayout>
+                layout="@layout/settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyYourData"
@@ -613,31 +506,9 @@
             </LinearLayout>
 
             <!-- 5. Analysis preferences -->
-            <LinearLayout
+            <include
                 android:id="@+id/headerAnalysisPrefs"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingVertical="4dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/analysis_preferences"
-                    android:textAppearance="@style/TextAppearance.Semper.SectionHeader" />
-
-                <ImageView
-                    android:id="@+id/ivAnalysisPrefsChevron"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:contentDescription="@string/analysis_preferences"
-                    android:src="@drawable/ic_expand_more"
-                    app:tint="@color/text_secondary" />
-            </LinearLayout>
+                layout="@layout/settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyAnalysisPrefs"
@@ -700,31 +571,9 @@
             </LinearLayout>
 
             <!-- 6. Help & support -->
-            <LinearLayout
+            <include
                 android:id="@+id/headerHelpSupport"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingVertical="4dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/help_support_section"
-                    android:textAppearance="@style/TextAppearance.Semper.SectionHeader" />
-
-                <ImageView
-                    android:id="@+id/ivHelpSupportChevron"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:contentDescription="@string/help_support_section"
-                    android:src="@drawable/ic_expand_more"
-                    app:tint="@color/text_secondary" />
-            </LinearLayout>
+                layout="@layout/settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyHelpSupport"

@@ -1,32 +1,33 @@
 package com.indicvision.semper.ui.settings
 
 import android.os.Build
-import android.view.View
 import com.indicvision.semper.BuildConfig
 import com.indicvision.semper.R
 import com.indicvision.semper.data.account.DeviceKeyManager
 import com.indicvision.semper.data.net.TokenStore
+import com.indicvision.semper.databinding.SettingsScrollContentBinding
 import com.indicvision.semper.diagnostics.SemperAnalytics
+import com.indicvision.semper.ui.common.ExternalLinks
 import com.indicvision.semper.ui.common.SupportMail
+import com.indicvision.semper.ui.common.contextLines
 
 /**
  * Help & support: public docs, feedback mail, and the support address.
  */
 class SettingsHelpSupportSection(
     private val activity: SettingsActivity,
+    private val views: SettingsScrollContentBinding,
 ) {
     fun wire() {
-        activity.findViewById<View>(R.id.btnOpenManual).setOnClickListener {
-            activity.openExternalUrl(activity.getString(R.string.url_manual))
-        }
-        activity.findViewById<View>(R.id.btnReportBug).setOnClickListener {
-            activity.openExternalUrl(activity.getString(R.string.url_report_bug))
-        }
-        activity.findViewById<View>(R.id.btnRequestFeature).setOnClickListener {
-            activity.openExternalUrl(activity.getString(R.string.url_request_feature))
-        }
-        activity.findViewById<View>(R.id.btnSendFeedback).setOnClickListener { sendFeedback() }
-        activity.findViewById<View>(R.id.btnEmailSupport).setOnClickListener { emailSupport() }
+        views.btnOpenManual.setOnClickListener { openUrl(R.string.url_manual) }
+        views.btnReportBug.setOnClickListener { openUrl(R.string.url_report_bug) }
+        views.btnRequestFeature.setOnClickListener { openUrl(R.string.url_request_feature) }
+        views.btnSendFeedback.setOnClickListener { sendFeedback() }
+        views.btnEmailSupport.setOnClickListener { emailSupport() }
+    }
+
+    private fun openUrl(url: Int) {
+        ExternalLinks.open(activity, activity.getString(url))
     }
 
     /** Product feedback mail with version / device context (no account PII required). */
@@ -56,17 +57,12 @@ class SettingsHelpSupportSection(
     private fun emailSupport() {
         val account = TokenStore.cachedEmail(activity)
             ?: activity.getString(R.string.pending_unknown_account)
+        // The Keystore-free lookup: a Keystore that refuses to open must not
+        // cost the user their way of reaching support.
+        val deviceId = DeviceKeyManager.deviceId(activity)
         // The blank lines leave the cursor above the diagnostics, so the user
         // writes their question first and the context travels underneath it.
-        val body = buildString {
-            append("\n\n---\n")
-            append("Account: ").append(account).append('\n')
-            // The Keystore-free lookup: a Keystore that refuses to open must not
-            // cost the user their way of reaching support.
-            val deviceId = DeviceKeyManager.deviceId(activity)
-            append("Device ID: ").append(deviceId).append('\n')
-            append(SupportMail.deviceLines())
-        }
+        val body = "\n\n---\n" + SupportMail.contextLines(account, deviceId)
         SupportMail.open(
             activity,
             subject = activity.getString(R.string.help_support_subject),

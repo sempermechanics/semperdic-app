@@ -8,13 +8,17 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.annotation.MainThread
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.indicvision.semper.BuildConfig
 import com.indicvision.semper.R
 import com.indicvision.semper.data.account.AccessStatus
 import com.indicvision.semper.data.account.AuthRepository
 import com.indicvision.semper.data.account.DevAuth
+import com.indicvision.semper.databinding.ActivitySplashBinding
 import com.indicvision.semper.navigation.DicKeys
+import com.indicvision.semper.ui.common.Feedback
+import com.indicvision.semper.ui.common.SignOutRun
 import com.indicvision.semper.ui.home.HomeActivity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -34,12 +38,14 @@ class SplashActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_splash)
+        // Opened after a sign-out no screen was left to route: the routing below takes it.
+        SignOutRun.claimUnclaimed()
+        val binding = ActivitySplashBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         // Spinner only if routing takes longer than 400 ms — a flash on a
         // fast session restore reads as slowness.
-        val spinner = findViewById<android.widget.ProgressBar>(R.id.progressBar)
-        spinnerHandler.postDelayed({ spinner.visibility = android.view.View.VISIBLE }, SPINNER_DELAY_MS)
+        spinnerHandler.postDelayed({ binding.progressBar.isVisible = true }, SPINNER_DELAY_MS)
 
         // Using lifecycleScope ensures that if the user minimizes or closes
         // the app while it's loading, it doesn't crash trying to update UI.
@@ -90,11 +96,7 @@ class SplashActivity : AppCompatActivity() {
                 when (target) {
                     HomeActivity::class.java -> {
                         if (status == AccessStatus.OFFLINE_CACHE_APPROVED) {
-                            android.widget.Toast.makeText(
-                                this,
-                                R.string.status_offline_mode,
-                                android.widget.Toast.LENGTH_LONG,
-                            ).show()
+                            Feedback.toast(this, R.string.status_offline_mode, long = true)
                         }
                         navigateTo(target)
                     }
@@ -146,11 +148,7 @@ class SplashActivity : AppCompatActivity() {
     private fun routeDevShortcut(): Boolean {
         if (DevAuth.active) {
             DevAuth.install(this)
-            android.widget.Toast.makeText(
-                this,
-                "Dev sign-in bypass (emulator) — cloud disabled",
-                android.widget.Toast.LENGTH_LONG,
-            ).show()
+            Feedback.toast(this, "Dev sign-in bypass (emulator) — cloud disabled", long = true)
         } else if (!(BuildConfig.DEBUG && !authRepo.cloudConfigured)) {
             return false
         }

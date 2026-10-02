@@ -1,25 +1,21 @@
 package com.indicvision.semper.ui.common
 
-import android.app.Application
-import com.indicvision.semper.ui.settings.SettingsActivity
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.Robolectric
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 import java.util.Locale
 
 /**
  * [ByteSize.format] is Settings' `humanSize`, ported: both run over the same
  * counts (every unit boundary and rounding edge) and must print the same.
  */
-@RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class)
 class ByteSizeTest {
 
-    /** Never created: `humanSize` reads no state, so the bare instance is enough. */
-    private val settings = Robolectric.buildActivity(SettingsActivity::class.java).get()
+    /** `SettingsActivity.humanSize` as it was before Settings moved to [ByteSize], verbatim. */
+    private fun humanSize(bytes: Long): String = when {
+        bytes >= gb -> String.format(Locale.US, "%.1f GB", bytes / gb.toDouble())
+        bytes >= mb -> String.format(Locale.US, "%.0f MB", bytes / mb.toDouble())
+        else -> String.format(Locale.US, "%.0f KB", bytes / 1024.0)
+    }
 
     private val kb = 1024L
     private val mb = 1_048_576L
@@ -37,7 +33,7 @@ class ByteSizeTest {
     @Test
     fun `matches Settings' humanSize everywhere`() {
         for (bytes in counts) {
-            assertEquals("bytes=$bytes", settings.humanSize(bytes), ByteSize.format(bytes))
+            assertEquals("bytes=$bytes", humanSize(bytes), ByteSize.format(bytes))
         }
     }
 
@@ -47,7 +43,7 @@ class ByteSizeTest {
         try {
             Locale.setDefault(Locale.GERMANY)
             assertEquals("1.5 GB", ByteSize.format(gb + gb / 2))
-            assertEquals(settings.humanSize(gb + gb / 2), ByteSize.format(gb + gb / 2))
+            assertEquals(humanSize(gb + gb / 2), ByteSize.format(gb + gb / 2))
         } finally {
             Locale.setDefault(previous)
         }

@@ -2,10 +2,6 @@ package com.indicvision.semper.ui.limit
 
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.Toast
 import androidx.annotation.MainThread
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -15,7 +11,10 @@ import com.indicvision.semper.data.net.ApiErrors
 import com.indicvision.semper.data.net.AppRemoteConfig
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.TokenProvider
+import com.indicvision.semper.databinding.ActivitySeatRequiredBinding
+import com.indicvision.semper.ui.common.Feedback
 import com.indicvision.semper.ui.common.Insets
+import com.indicvision.semper.ui.common.setBusy
 import com.indicvision.semper.util.suspendRunCatching
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -35,22 +34,17 @@ import timber.log.Timber
 @MainThread
 class SeatRequiredActivity : AppCompatActivity() {
 
-    private lateinit var tvBody: TextView
-    private lateinit var btnTake: Button
-    private lateinit var progress: ProgressBar
+    private lateinit var binding: ActivitySeatRequiredBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_seat_required)
-        Insets.padVertical(findViewById(R.id.seatRoot))
+        binding = ActivitySeatRequiredBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        Insets.padVertical(binding.seatRoot)
 
-        tvBody = findViewById(R.id.tvSeatBody)
-        btnTake = findViewById(R.id.btnTakeSeat)
-        progress = findViewById(R.id.progressSeat)
-
-        tvBody.text = getString(R.string.seat_body)
-        btnTake.setOnClickListener { takeSeat() }
-        findViewById<TextView>(R.id.tvSeatBack).setOnClickListener { finish() }
+        binding.tvSeatBody.setText(R.string.seat_body)
+        binding.btnTakeSeat.setOnClickListener { takeSeat() }
+        binding.tvSeatBack.setOnClickListener { finish() }
     }
 
     /**
@@ -66,7 +60,7 @@ class SeatRequiredActivity : AppCompatActivity() {
             val token = TokenProvider.usableIdToken()
             if (!api.enabled || token == null) {
                 setLoading(false)
-                Toast.makeText(this@SeatRequiredActivity, R.string.seat_offline, Toast.LENGTH_LONG).show()
+                Feedback.toast(this@SeatRequiredActivity, R.string.seat_offline, long = true)
                 return@launch
             }
             val outcome = suspendRunCatching { api.checkoutLease(token) }
@@ -75,7 +69,7 @@ class SeatRequiredActivity : AppCompatActivity() {
                 .onSuccess { config ->
                     AppRemoteConfig.apply(this@SeatRequiredActivity, config)
                     LicenseConfigWorker.enqueue(this@SeatRequiredActivity)
-                    Toast.makeText(this@SeatRequiredActivity, R.string.seat_taken, Toast.LENGTH_SHORT).show()
+                    Feedback.toast(this@SeatRequiredActivity, R.string.seat_taken)
                     finish()
                 }
                 .onFailure { error ->
@@ -95,7 +89,7 @@ class SeatRequiredActivity : AppCompatActivity() {
                             R.string.seat_error
                         }
                     }
-                    Toast.makeText(this@SeatRequiredActivity, message, Toast.LENGTH_LONG).show()
+                    Feedback.toast(this@SeatRequiredActivity, message, long = true)
                 }
         }
     }
@@ -104,9 +98,8 @@ class SeatRequiredActivity : AppCompatActivity() {
     private fun Throwable.hasApiCode(code: String): Boolean =
         this is IndicApi.ApiException && ApiErrors.isCode(parsedDetail, code)
 
+    /** INVISIBLE, not GONE, so the layout does not jump while it spins. */
     private fun setLoading(loading: Boolean) {
-        // INVISIBLE, not GONE, so the layout does not jump while it spins.
-        progress.visibility = if (loading) View.VISIBLE else View.INVISIBLE
-        btnTake.isEnabled = !loading
+        binding.progressSeat.setBusy(loading, binding.btnTakeSeat, idleVisibility = View.INVISIBLE)
     }
 }

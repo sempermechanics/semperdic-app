@@ -3,12 +3,12 @@ package com.indicvision.semper.ui.settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
-import android.widget.TextView
 import androidx.core.view.isVisible
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.button.MaterialButton
 import com.indicvision.semper.R
+import com.indicvision.semper.databinding.ItemAnalysisDataBinding
 
 /**
  * Rows for the settings page's per-analysis list. Which buttons a row shows is
@@ -23,66 +23,70 @@ class AnalysisDataAdapter(
     private val onBackup: (AnalysisEntry) -> Unit,
     private val onLocalDownload: (AnalysisEntry) -> Unit,
     private val onCloudRestore: (AnalysisEntry) -> Unit,
-    private val onDelete: (AnalysisEntry, View) -> Unit,
-) : RecyclerView.Adapter<AnalysisDataAdapter.Row>() {
+    private val onDelete: (AnalysisEntry) -> Unit,
+) : ListAdapter<AnalysisEntry, AnalysisDataAdapter.Row>(BY_KEY) {
 
-    private val entries = mutableListOf<AnalysisEntry>()
     private var downloadingKeys: Set<String> = emptySet()
 
+    /**
+     * The list last handed to [submitList]. [getCurrentList] only catches up
+     * once its diff has run off the main thread, so a change made before
+     * then must start from this one, or it drops the change before it.
+     */
+    private var submitted: List<AnalysisEntry> = emptyList()
+
+    /**
+     * Shows [items]. Every row is rebound afterwards, as a whole-list refresh
+     * did: a row's wording and backup action also read settings that are not
+     * part of its entry (Save to cloud), so an unchanged entry is not an
+     * unchanged row.
+     */
     fun submit(items: List<AnalysisEntry>) {
-        entries.clear()
-        entries.addAll(items)
-        @Suppress("NotifyDataSetChanged") // whole-list refresh after a cloud round-trip
-        notifyDataSetChanged()
+        submitted = items
+        submitList(items) { notifyItemRangeChanged(0, itemCount) }
     }
 
     /** Keys from [AnalysisEntry.downloadKey] with an in-flight Download / restore. */
     fun setDownloadingKeys(keys: Set<String>) {
         if (keys == downloadingKeys) return
         downloadingKeys = keys
-        @Suppress("NotifyDataSetChanged")
-        notifyDataSetChanged()
+        notifyItemRangeChanged(0, itemCount)
     }
 
-    /** Drops one row immediately, before its deletion is actually sent. */
-    fun removeAt(position: Int) {
-        if (position !in entries.indices) return
-        entries.removeAt(position)
-        notifyItemRemoved(position)
+    /**
+     * Drops the row for [key] ([AnalysisEntry.downloadKey]) immediately,
+     * before its deletion is actually sent.
+     */
+    fun remove(key: String) {
+        val kept = submitted.filterNot { it.downloadKey() == key }
+        if (kept.size == submitted.size) return
+        submitted = kept
+        submitList(kept)
     }
 
-    override fun getItemCount(): Int = entries.size
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Row =
+        Row(ItemAnalysisDataBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Row = Row(
-        LayoutInflater.from(parent.context).inflate(R.layout.item_analysis_data, parent, false),
-    )
+    override fun onBindViewHolder(holder: Row, position: Int) = holder.bind(getItem(position))
 
-    override fun onBindViewHolder(holder: Row, position: Int) = holder.bind(entries[position])
-
-    inner class Row(view: View) : RecyclerView.ViewHolder(view) {
-        private val name: TextView = view.findViewById(R.id.tvAnalysisName)
-        private val state: TextView = view.findViewById(R.id.tvAnalysisState)
-        private val backup: MaterialButton = view.findViewById(R.id.btnAnalysisBackup)
-        private val localDownload: ImageButton = view.findViewById(R.id.btnAnalysisLocalDownload)
-        private val restore: ImageButton = view.findViewById(R.id.btnAnalysisRestore)
-        private val delete: ImageButton = view.findViewById(R.id.btnAnalysisDelete)
+    inner class Row(private val row: ItemAnalysisDataBinding) : RecyclerView.ViewHolder(row.root) {
 
         fun bind(entry: AnalysisEntry) {
-            name.text = entry.name
+            row.tvAnalysisName.text = entry.name
             val busy = entry.downloadKey() in downloadingKeys
-            state.text = if (busy) {
+            row.tvAnalysisState.text = if (busy) {
                 itemView.context.getString(R.string.download_analysis_working)
             } else {
                 stateLine(entry)
             }
 
             val hasCloud = entry.offersCloudActions()
-            val showDownload = entry.offersDownload()
-            val showRestore = entry.offersRestore()
+            val localDownload = row.btnAnalysisLocalDownload
+            val restore = row.btnAnalysisRestore
             // Download when cloud is listed; Restore only when local frames are missing.
-            localDownload.isVisible = showDownload
-            restore.isVisible = showRestore
-            delete.isVisible = hasCloud
+            localDownload.isVisible = entry.offersDownload()
+            restore.isVisible = entry.offersRestore()
+            row.btnAnalysisDelete.isVisible = hasCloud
             localDownload.isEnabled = !busy
             restore.isEnabled = !busy
             localDownload.alpha = if (busy) BUSY_ICON_ALPHA else 1f
@@ -95,14 +99,14 @@ class AnalysisDataAdapter(
                 if (entry.downloadKey() in downloadingKeys) return@setOnClickListener
                 onCloudRestore(entry)
             }
-            delete.setOnClickListener { onDelete(entry, itemView) }
+            row.btnAnalysisDelete.setOnClickListener { onDelete(entry) }
 
             // A backup action only applies to a row with no cloud copy listed.
             val label = if (hasCloud) null else backupLabel(entry)
-            backup.isVisible = label != null && !busy
+            row.btnAnalysisBackup.isVisible = label != null && !busy
             label?.let {
-                backup.setText(it)
-                backup.setOnClickListener { onBackup(entry) }
+                row.btnAnalysisBackup.setText(it)
+                row.btnAnalysisBackup.setOnClickListener { onBackup(entry) }
             }
 
             itemView.isClickable = entry.record != null
@@ -113,5 +117,13 @@ class AnalysisDataAdapter(
     private companion object {
         /** Dim action icons while a transfer for this row is running. */
         const val BUSY_ICON_ALPHA = 0.4f
+
+        /** A row is its analysis ([AnalysisEntry.downloadKey]); a changed entry rebinds it. */
+        val BY_KEY = object : DiffUtil.ItemCallback<AnalysisEntry>() {
+            override fun areItemsTheSame(oldItem: AnalysisEntry, newItem: AnalysisEntry) =
+                oldItem.downloadKey() == newItem.downloadKey()
+
+            override fun areContentsTheSame(oldItem: AnalysisEntry, newItem: AnalysisEntry) = oldItem == newItem
+        }
     }
 }

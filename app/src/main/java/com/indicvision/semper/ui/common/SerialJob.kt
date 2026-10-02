@@ -47,4 +47,9 @@ class SerialJob {
         job?.cancel()
         job = null
     }
+
+    /** Suspends until the latest job, if any, has finished or been cancelled. */
+    suspend fun join() {
+        job?.join()
+    }
 }

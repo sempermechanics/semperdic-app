@@ -4,6 +4,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -40,6 +41,27 @@ class SerialJobTest {
         assertFalse(second.isCancelled)
         assertEquals(listOf(2), landed)
         assertFalse(serial.isActive)
+    }
+
+    @Test
+    fun `join waits for the latest job, and returns at once with none`() = runTest {
+        val serial = SerialJob()
+        serial.join()
+
+        val gate = CompletableDeferred<Unit>()
+        var landed = false
+        serial.launch(this) {
+            gate.await()
+            landed = true
+        }
+        val waiter = launch { serial.join() }
+        advanceUntilIdle()
+        assertFalse("still waiting on the gate", waiter.isCompleted)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(landed)
+        assertTrue(waiter.isCompleted)
     }
 
     @Test

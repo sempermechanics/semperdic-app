@@ -12,6 +12,8 @@ import com.indicvision.semper.data.cloud.CloudBackupListing
 import com.indicvision.semper.data.cloud.restore.CloudRestore
 import com.indicvision.semper.data.cloud.restore.RestoreStart
 import com.indicvision.semper.data.net.CloudSessionDto
+import com.indicvision.semper.ui.common.SerialJob
+import kotlinx.coroutines.CoroutineScope
 
 /**
  * The card above Home's list that offers backups this phone has no row for:
@@ -34,9 +36,29 @@ internal class CloudBackupsCard(
     private val context: Context get() = card.context
     private var offered: List<CloudBackupListing.Backup> = emptyList()
 
+    /** The read in flight ([refresh]); a newer one replaces it. */
+    private val reads = SerialJob()
+
     init {
         restoreButton.setOnClickListener { pickAndRestore() }
         hideButton.setOnClickListener { if (offered.isNotEmpty()) onHide(offered) }
+    }
+
+    /**
+     * Reads what to offer with [read] in [scope] and [show]s it, then hands it
+     * to [onShown]. Latest wins: a newer call cancels a read still in flight,
+     * so an older listing never lands after a newer one.
+     */
+    fun refresh(
+        scope: CoroutineScope,
+        read: suspend () -> List<CloudBackupListing.Backup>,
+        onShown: (List<CloudBackupListing.Backup>) -> Unit,
+    ) {
+        reads.launch(scope) {
+            val backups = read()
+            show(backups)
+            onShown(backups)
+        }
     }
 
     fun show(backups: List<CloudBackupListing.Backup>) {

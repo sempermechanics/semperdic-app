@@ -3,10 +3,10 @@ package com.indicvision.semper.ui.home
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.indicvision.semper.R
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.data.session.SkippedNode
+import com.indicvision.semper.ui.common.Dialogs
 import com.indicvision.semper.ui.viewer.ViewerArgs
 import com.indicvision.semper.ui.viewer.ViewerSweepArgs
 
@@ -27,11 +27,7 @@ object SessionOpenHelper {
      */
     fun openOrExplain(activity: Activity, session: SessionRecord, hasLocalData: Boolean) {
         if (!hasLocalData) {
-            MaterialAlertDialogBuilder(activity)
-                .setTitle(R.string.session_data_gone_title)
-                .setMessage(R.string.session_data_gone_body)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
+            Dialogs.info(activity, R.string.session_data_gone_title, R.string.session_data_gone_body)
             return
         }
         activity.startActivity(intentFor(activity, session))

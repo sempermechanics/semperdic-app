@@ -1,42 +1,46 @@
 package com.indicvision.semper.ui.common
 
-import android.app.Application
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
 import com.indicvision.semper.R
 import com.indicvision.semper.databinding.SettingsSectionHeaderBinding
+import com.indicvision.semper.ui.settings.SettingsActivity
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
+import org.robolectric.android.controller.ActivityController
 
 /**
- * The shared section header inflates to the same views, attributes and text
- * as the hand-copied headers in `settings_scroll_content.xml`: each copy is
- * compared with the include-able one bound to that copy's title.
+ * Settings' seven section headers are `<include>`s of
+ * `settings_section_header.xml`, titled by [SettingsSectionHeader.bind]. Each
+ * one on the real screen must look exactly like the hand-copied header it
+ * replaced — the same views, attributes and text, with the chevron described
+ * by the title — and open its own section from its own chevron.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class)
 class SettingsSectionHeaderTest {
 
-    private lateinit var activity: AppCompatActivity
-    private lateinit var settings: LinearLayout
+    private lateinit var controller: ActivityController<SettingsActivity>
+    private lateinit var activity: SettingsActivity
 
     @Before
     fun setUp() {
-        val built = Robolectric.buildActivity(AppCompatActivity::class.java)
-        built.get().setTheme(R.style.Theme_Semper)
-        activity = built.setup().get()
-        settings = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-        LayoutInflater.from(activity).inflate(R.layout.settings_scroll_content, settings, true)
+        controller = Robolectric.buildActivity(SettingsActivity::class.java).setup()
+        activity = controller.get()
+    }
+
+    @After
+    fun tearDown() {
+        runCatching { controller.pause().stop().destroy() }
     }
 
     private data class Look(
@@ -83,42 +87,65 @@ class SettingsSectionHeaderTest {
         )
     }
 
-    /** The shared header, inflated through its generated binding (the route wave 4 takes) and bound. */
+    /** The shared header, inflated through its generated binding into a vertical list, and bound. */
     private fun shared(title: Int): View {
-        val binding = SettingsSectionHeaderBinding.inflate(LayoutInflater.from(activity), settings, false)
+        val list = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+        val binding = SettingsSectionHeaderBinding.inflate(LayoutInflater.from(activity), list, false)
         SettingsSectionHeader.bind(binding, title)
         return binding.root
     }
 
+    private val sections = mapOf(
+        R.id.headerCloud to (R.string.cloud_section to R.id.bodyCloud),
+        R.id.headerAnalysesData to (R.string.analyses_data_management to R.id.bodyAnalysesData),
+        R.id.headerStorage to (R.string.storage_section to R.id.bodyStorage),
+        R.id.headerYourData to (R.string.your_data_section to R.id.bodyYourData),
+        R.id.headerAnalysisPrefs to (R.string.analysis_preferences to R.id.bodyAnalysisPrefs),
+        R.id.headerHelpSupport to (R.string.help_support_section to R.id.bodyHelpSupport),
+    )
+
     @Test
-    fun `matches every 14dp copy`() {
-        val copies = mapOf(
-            R.id.headerCloud to R.string.cloud_section,
-            R.id.headerAnalysesData to R.string.analyses_data_management,
-            R.id.headerStorage to R.string.storage_section,
-            R.id.headerYourData to R.string.your_data_section,
-            R.id.headerAnalysisPrefs to R.string.analysis_preferences,
-            R.id.headerHelpSupport to R.string.help_support_section,
-        )
-        for ((id, title) in copies) {
-            assertEquals(activity.getString(title), look(settings.findViewById(id)), look(shared(title)))
+    fun `every 14dp header on the screen is the shared one, titled`() {
+        for ((id, section) in sections) {
+            val title = section.first
+            assertEquals(activity.getString(title), look(shared(title)), look(activity.findViewById(id)))
         }
     }
 
     @Test
-    fun `the Account copy differs only in its top margin`() {
-        val account = look(settings.findViewById(R.id.headerAccount))
+    fun `the Account header differs only in its 8dp top margin`() {
+        val account = look(activity.findViewById(R.id.headerAccount))
         val shared = look(shared(R.string.account_section))
         val density = activity.resources.displayMetrics.density
 
         assertEquals((8 * density).toInt(), account.margins[1])
         assertEquals((14 * density).toInt(), shared.margins[1])
-        assertEquals(account.copy(margins = shared.margins), shared)
+        assertEquals(shared.copy(margins = account.margins), account)
+    }
+
+    @Test
+    fun `each header opens and closes its own section, turning its own chevron`() {
+        for ((id, section) in sections + (R.id.headerAccount to (R.string.account_section to R.id.bodyAccount))) {
+            val header = activity.findViewById<View>(id)
+            val chevron = header.findViewById<ImageView>(R.id.ivSectionChevron)
+            val body = activity.findViewById<View>(section.second)
+            val name = activity.getString(section.first)
+            assertFalse("$name starts closed", body.isShown)
+            assertEquals(name, 0f, chevron.rotation)
+
+            header.performClick()
+            assertEquals(name, View.VISIBLE, body.visibility)
+            assertEquals(name, 180f, chevron.rotation)
+
+            header.performClick()
+            assertEquals(name, View.GONE, body.visibility)
+            assertEquals(name, 0f, chevron.rotation)
+        }
     }
 
     @Test
     fun `bind titles a header and describes its chevron`() {
-        val header = SettingsSectionHeaderBinding.inflate(LayoutInflater.from(activity), settings, false)
+        val header = SettingsSectionHeaderBinding.inflate(LayoutInflater.from(activity), null, false)
         SettingsSectionHeader.bind(header, R.string.storage_section)
 
         val title = activity.getString(R.string.storage_section)

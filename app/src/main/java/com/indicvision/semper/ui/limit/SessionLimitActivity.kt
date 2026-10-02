@@ -2,20 +2,21 @@ package com.indicvision.semper.ui.limit
 
 import android.os.Bundle
 import android.view.View
-import android.widget.Button
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.Toast
 import androidx.annotation.MainThread
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.indicvision.semper.R
 import com.indicvision.semper.data.account.DeviceKeyManager
 import com.indicvision.semper.data.cloud.CloudSync
 import com.indicvision.semper.data.net.TokenStore
 import com.indicvision.semper.data.session.SessionStore
+import com.indicvision.semper.databinding.ActivitySessionLimitBinding
+import com.indicvision.semper.ui.common.Feedback
 import com.indicvision.semper.ui.common.Insets
 import com.indicvision.semper.ui.common.SupportMail
+import com.indicvision.semper.ui.common.contextLines
+import com.indicvision.semper.ui.common.setBusy
 import kotlinx.coroutines.launch
 
 /**
@@ -27,52 +28,38 @@ import kotlinx.coroutines.launch
 @MainThread
 class SessionLimitActivity : AppCompatActivity() {
 
-    private lateinit var tvBody: TextView
-    private lateinit var tvQuota: TextView
-    private lateinit var btnEmail: Button
-    private lateinit var btnRecheck: Button
-    private lateinit var progress: ProgressBar
+    private lateinit var binding: ActivitySessionLimitBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_session_limit)
-        Insets.padVertical(findViewById(R.id.limitRoot))
+        binding = ActivitySessionLimitBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        Insets.padVertical(binding.limitRoot)
 
-        tvBody = findViewById(R.id.tvLimitBody)
-        tvQuota = findViewById(R.id.tvLimitQuota)
-        btnEmail = findViewById(R.id.btnEmailSupport)
-        btnRecheck = findViewById(R.id.btnRecheckLimit)
-        progress = findViewById(R.id.progressLimit)
-
-        tvBody.text = getString(R.string.limit_body, getString(R.string.support_email))
+        binding.tvLimitBody.text = getString(R.string.limit_body, getString(R.string.support_email))
         renderQuota()
 
-        btnEmail.setOnClickListener { emailSupport() }
-        btnRecheck.setOnClickListener { recheck() }
-        findViewById<TextView>(R.id.tvLimitBack).setOnClickListener { finish() }
+        binding.btnEmailSupport.setOnClickListener { emailSupport() }
+        binding.btnRecheckLimit.setOnClickListener { recheck() }
+        binding.tvLimitBack.setOnClickListener { finish() }
     }
 
     private fun renderQuota() {
         val used = TokenStore.quotaUsed(this)
         val max = TokenStore.quotaMax(this)
         // Only show the counter when the backend actually reported numbers.
-        tvQuota.visibility = if (max > 0) View.VISIBLE else View.GONE
-        if (max > 0) tvQuota.text = resources.getQuantityString(R.plurals.limit_quota_fmt, used, used, max)
+        binding.tvLimitQuota.isVisible = max > 0
+        if (max > 0) {
+            binding.tvLimitQuota.text = resources.getQuantityString(R.plurals.limit_quota_fmt, used, used, max)
+        }
     }
 
     /** Opens the mail app pre-filled to support with account + device context. */
     private fun emailSupport() {
-        val email = TokenStore.cachedEmail(this) ?: "(unknown account)"
-        val deviceId = DeviceKeyManager.deviceId(this)
-        val used = TokenStore.quotaUsed(this)
-        val max = TokenStore.quotaMax(this)
-        val body = buildString {
-            append("I've reached my Semper analysis limit and would like it raised.\n\n")
-            append("Account: ").append(email).append('\n')
-            append("Quota: ").append(used).append('/').append(max).append('\n')
-            append("Device ID: ").append(deviceId).append('\n')
-            append(SupportMail.deviceLines())
-        }
+        val email = TokenStore.cachedEmail(this) ?: getString(R.string.pending_unknown_account)
+        val quota = "Quota: ${TokenStore.quotaUsed(this)}/${TokenStore.quotaMax(this)}"
+        val context = SupportMail.contextLines(email, DeviceKeyManager.deviceId(this), extra = listOf(quota))
+        val body = "I've reached my Semper analysis limit and would like it raised.\n\n$context"
         SupportMail.open(
             this,
             subject = getString(R.string.limit_subject) + " — " + email,
@@ -103,18 +90,21 @@ class SessionLimitActivity : AppCompatActivity() {
             }
             setLoading(false)
             if (!TokenStore.isSessionLimitReached(this@SessionLimitActivity)) {
-                Toast.makeText(this@SessionLimitActivity, R.string.limit_cleared, Toast.LENGTH_SHORT).show()
+                Feedback.toast(this@SessionLimitActivity, R.string.limit_cleared)
                 finish()
             } else {
                 renderQuota()
-                Toast.makeText(this@SessionLimitActivity, R.string.limit_still_full, Toast.LENGTH_LONG).show()
+                Feedback.toast(this@SessionLimitActivity, R.string.limit_still_full, long = true)
             }
         }
     }
 
     private fun setLoading(loading: Boolean) {
-        progress.visibility = if (loading) View.VISIBLE else View.INVISIBLE
-        btnRecheck.isEnabled = !loading
-        btnEmail.isEnabled = !loading
+        binding.progressLimit.setBusy(
+            loading,
+            binding.btnRecheckLimit,
+            binding.btnEmailSupport,
+            idleVisibility = View.INVISIBLE,
+        )
     }
 }

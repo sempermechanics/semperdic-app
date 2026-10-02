@@ -1,16 +1,11 @@
 package com.indicvision.semper.ui.common
 
 import android.app.Activity
-import android.content.ActivityNotFoundException
-import android.content.Intent
 import android.view.View
-import android.widget.Toast
 import androidx.annotation.StringRes
-import androidx.core.net.toUri
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.indicvision.semper.R
-import timber.log.Timber
 
 /**
  * One leave-the-app confirm before any FAQ browser hop. Warning chips, Why?
@@ -30,12 +25,9 @@ object FaqRedirect {
     private const val MAX_MS = 10_000
 
     fun confirm(activity: Activity, url: String) {
-        MaterialAlertDialogBuilder(activity)
-            .setTitle(R.string.faq_redirect_title)
-            .setMessage(R.string.faq_redirect_body)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.faq_redirect_open) { _, _ -> open(activity, url) }
-            .show()
+        Dialogs.confirm(activity, R.string.faq_redirect_title, R.string.faq_redirect_body, R.string.faq_redirect_open) {
+            ExternalLinks.open(activity, url)
+        }
     }
 
     fun confirm(activity: Activity, @StringRes urlRes: Int) {
@@ -86,24 +78,15 @@ object FaqRedirect {
         message: CharSequence,
         @StringRes faqUrlRes: Int?,
     ) {
-        val builder = MaterialAlertDialogBuilder(activity)
+        if (faqUrlRes == null) {
+            Dialogs.info(activity, title, message)
+            return
+        }
+        MaterialAlertDialogBuilder(activity)
             .setTitle(title)
             .setMessage(message)
             .setPositiveButton(android.R.string.ok, null)
-        if (faqUrlRes != null) {
-            builder.setNeutralButton(R.string.action_why) { _, _ ->
-                confirm(activity, faqUrlRes)
-            }
-        }
-        builder.show()
-    }
-
-    private fun open(activity: Activity, url: String) {
-        try {
-            activity.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
-        } catch (e: ActivityNotFoundException) {
-            Timber.w(e, "No browser to open %s", url)
-            Toast.makeText(activity, url, Toast.LENGTH_LONG).show()
-        }
+            .setNeutralButton(R.string.action_why) { _, _ -> confirm(activity, faqUrlRes) }
+            .show()
     }
 }

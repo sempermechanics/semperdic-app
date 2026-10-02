@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.indicvision.semper.R
 import com.indicvision.semper.data.session.SessionRecord
 import com.indicvision.semper.fixtures.idleUntil
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -73,7 +74,7 @@ class SessionListThumbnailTest {
     private fun holder(position: Int) =
         adapter.createViewHolder(parent, 0).also { adapter.bindViewHolder(it, position) }
 
-    private fun SessionListAdapter.Holder.bitmap(): Bitmap? = (thumb.drawable as? BitmapDrawable)?.bitmap
+    private fun SessionListAdapter.Holder.bitmap(): Bitmap? = (row.sessionThumb.drawable as? BitmapDrawable)?.bitmap
 
     @Test
     fun `a late decode for the previous row does not overwrite a cached thumbnail`() {
@@ -115,7 +116,26 @@ class SessionListThumbnailTest {
         assertNotNull(restored.bitmap())
     }
 
+    @Test
+    fun `a thumbnail pushed out of the cache is not recycled under the row still showing it`() {
+        val rows = (0..CACHE).map { record("r$it") }
+        adapter.submit(rows, emptySet())
+        val oldest = holder(0)
+        idleUntil("the oldest thumbnail decode") { oldest.bitmap() != null }
+        val shown = oldest.bitmap()!!
+
+        // One more decode than the cache holds evicts the oldest entry.
+        val last = (1..CACHE).map { holder(it) }.last()
+        idleUntil("the newest thumbnail decode") { last.bitmap() != null }
+
+        assertFalse("still drawn by a live row", shown.isRecycled)
+        assertSame(shown, oldest.bitmap())
+    }
+
     private companion object {
         const val EDGE = 8
+
+        /** Home's thumbnail cache size. */
+        const val CACHE = 24
     }
 }

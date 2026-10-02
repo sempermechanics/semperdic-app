@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Account deletion outcomes added after strings.xml's delete_account_* block;
+     kept here so the lane that added them did not edit the shared file. -->
+<resources>
+    <string name="delete_account_phone_not_cleared">Your account and cloud data are deleted, but this phone\'s copy could not be cleared. Clear Semper\'s storage in Android settings to remove it.</string>
+</resources>

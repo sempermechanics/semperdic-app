@@ -43,7 +43,7 @@ class AccountDeletionRotationTest {
     @Before
     fun setUp() {
         AccountDeletionRun.resetForTest()
-        AccountDeletionRun.delete = {
+        AccountDeletionRun.delete = { _, _ ->
             deletions++
             gate.await()
         }
@@ -149,7 +149,7 @@ class AccountDeletionRotationTest {
 
     @Test
     fun `a deletion that throws ends, keeps the user here, and can be retried`() {
-        AccountDeletionRun.delete = { error("boom") }
+        AccountDeletionRun.delete = { _, _ -> error("boom") }
         val controller = settings()
 
         assertTrue(AccountDeletionRun.start(controller.get()))
@@ -159,7 +159,7 @@ class AccountDeletionRotationTest {
         assertNull("told it failed, not routed", shadowOf(controller.get()).nextStartedActivity)
         assertFalse(ShadowDialog.getLatestDialog().isShowing)
 
-        AccountDeletionRun.delete = { CloudSync.AccountDeletion.DELETED }
+        AccountDeletionRun.delete = { _, _ -> CloudSync.AccountDeletion.DELETED }
         assertTrue("a retry starts", AccountDeletionRun.start(controller.get()))
         idle()
         assertEquals(signInComponent(controller.get()), shadowOf(controller.get()).nextStartedActivity.component)
@@ -167,14 +167,14 @@ class AccountDeletionRotationTest {
 
     @Test
     fun `a throw with no screen to read it still reaches Done`() {
-        AccountDeletionRun.delete = { throw IllegalStateException("boom") }
+        AccountDeletionRun.delete = { _, _ -> throw IllegalStateException("boom") }
         val app = ApplicationProvider.getApplicationContext<android.app.Application>()
 
         assertTrue(AccountDeletionRun.start(app))
         idle()
 
         assertEquals(
-            AccountDeletionRun.State.Done(CloudSync.AccountDeletion.CLOUD_UNREACHABLE),
+            AccountDeletionRun.State.Done(AccountDeletionRun.Outcome.CLOUD_NOT_REACHED),
             AccountDeletionRun.state.value,
         )
     }

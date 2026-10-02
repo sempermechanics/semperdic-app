@@ -4,21 +4,24 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.Toast
 import androidx.annotation.MainThread
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.button.MaterialButton
 import com.indicvision.semper.R
 import com.indicvision.semper.data.account.AccessStatus
 import com.indicvision.semper.data.net.AdminUserDto
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.TokenProvider
+import com.indicvision.semper.databinding.ActivityAdminBinding
+import com.indicvision.semper.databinding.ItemAdminUserBinding
+import com.indicvision.semper.ui.common.Feedback
 import com.indicvision.semper.ui.common.Insets
+import com.indicvision.semper.ui.common.setBusy
 import com.indicvision.semper.util.suspendRunCatching
 import kotlinx.coroutines.launch
 
@@ -32,21 +35,17 @@ class AdminActivity : AppCompatActivity() {
 
     private val api by lazy { IndicApi.get(applicationContext) }
 
-    private lateinit var rv: RecyclerView
-    private lateinit var tvEmpty: TextView
-    private lateinit var progress: ProgressBar
+    private lateinit var binding: ActivityAdminBinding
     private val adapter = RequestAdapter()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_admin)
-        Insets.padVertical(findViewById(R.id.adminRoot))
+        binding = ActivityAdminBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        Insets.padVertical(binding.adminRoot)
 
-        rv = findViewById(R.id.rvRequests)
-        tvEmpty = findViewById(R.id.tvEmpty)
-        progress = findViewById(R.id.progressAdmin)
-        rv.layoutManager = LinearLayoutManager(this)
-        rv.adapter = adapter
+        binding.rvRequests.layoutManager = LinearLayoutManager(this)
+        binding.rvRequests.adapter = adapter
 
         load()
     }
@@ -57,22 +56,19 @@ class AdminActivity : AppCompatActivity() {
             val token = TokenProvider.usableIdToken()
             if (token == null) {
                 setLoading(false)
-                Toast.makeText(this@AdminActivity, R.string.error_generic, Toast.LENGTH_LONG).show()
+                Feedback.toast(this@AdminActivity, R.string.error_generic, long = true)
                 finish()
                 return@launch
             }
             // Cancellation (the screen closed) propagates: it is not a load error.
             suspendRunCatching { api.listUsers(token, AccessStatus.PENDING) }
                 .onSuccess { users ->
-                    adapter.submit(users)
-                    tvEmpty.visibility = if (users.isEmpty()) View.VISIBLE else View.GONE
+                    adapter.submitList(users)
+                    binding.tvEmpty.isVisible = users.isEmpty()
                 }
                 .onFailure { e ->
-                    Toast.makeText(
-                        this@AdminActivity,
-                        getString(R.string.admin_load_error, e.message ?: ""),
-                        Toast.LENGTH_LONG,
-                    ).show()
+                    val message = getString(R.string.admin_load_error, e.message ?: "")
+                    Feedback.toast(this@AdminActivity, message, long = true)
                 }
             setLoading(false)
         }
@@ -94,54 +90,46 @@ class AdminActivity : AppCompatActivity() {
                     } else {
                         getString(R.string.admin_denied_toast, label)
                     }
-                    Toast.makeText(this@AdminActivity, msg, Toast.LENGTH_SHORT).show()
+                    Feedback.toast(this@AdminActivity, msg)
                     load() // refresh the list
                 }
                 .onFailure { e ->
                     setLoading(false)
-                    Toast.makeText(
+                    Feedback.toast(
                         this@AdminActivity,
                         getString(R.string.admin_action_error, e.message ?: ""),
-                        Toast.LENGTH_LONG,
-                    ).show()
+                        long = true,
+                    )
                 }
         }
     }
 
     private fun setLoading(loading: Boolean) {
-        progress.visibility = if (loading) View.VISIBLE else View.GONE
+        binding.progressAdmin.setBusy(loading, idleVisibility = View.GONE)
     }
 
-    private inner class RequestAdapter : RecyclerView.Adapter<RequestAdapter.Holder>() {
-        private var items: List<AdminUserDto> = emptyList()
+    private inner class RequestAdapter : ListAdapter<AdminUserDto, RequestAdapter.Holder>(BY_UID) {
 
-        fun submit(newItems: List<AdminUserDto>) {
-            items = newItems
-            @Suppress("NotifyDataSetChanged")
-            notifyDataSetChanged()
-        }
+        inner class Holder(val row: ItemAdminUserBinding) : RecyclerView.ViewHolder(row.root)
 
-        inner class Holder(v: View) : RecyclerView.ViewHolder(v) {
-            val email: TextView = v.findViewById(R.id.tvEmail)
-            val name: TextView = v.findViewById(R.id.tvName)
-            val approve: MaterialButton = v.findViewById(R.id.btnApprove)
-            val deny: MaterialButton = v.findViewById(R.id.btnDeny)
-        }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
-            val v = LayoutInflater.from(parent.context).inflate(R.layout.item_admin_user, parent, false)
-            return Holder(v)
-        }
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder =
+            Holder(ItemAdminUserBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
         override fun onBindViewHolder(holder: Holder, position: Int) {
-            val u = items[position]
-            holder.email.text = u.email ?: u.uid
-            holder.name.text = u.displayName ?: ""
-            holder.name.visibility = if (u.displayName.isNullOrBlank()) View.GONE else View.VISIBLE
-            holder.approve.setOnClickListener { act(u, "approve") }
-            holder.deny.setOnClickListener { act(u, "revoke") }
+            val u = getItem(position)
+            holder.row.tvEmail.text = u.email ?: u.uid
+            holder.row.tvName.text = u.displayName ?: ""
+            holder.row.tvName.isVisible = !u.displayName.isNullOrBlank()
+            holder.row.btnApprove.setOnClickListener { act(u, "approve") }
+            holder.row.btnDeny.setOnClickListener { act(u, "revoke") }
         }
+    }
 
-        override fun getItemCount(): Int = items.size
+    private companion object {
+        val BY_UID = object : DiffUtil.ItemCallback<AdminUserDto>() {
+            override fun areItemsTheSame(oldItem: AdminUserDto, newItem: AdminUserDto) = oldItem.uid == newItem.uid
+
+            override fun areContentsTheSame(oldItem: AdminUserDto, newItem: AdminUserDto) = oldItem == newItem
+        }
     }
 }

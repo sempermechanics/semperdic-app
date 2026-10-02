@@ -1,15 +1,15 @@
 package com.indicvision.semper.ui.settings
 
-import androidx.work.WorkInfo
-import com.indicvision.semper.data.cloud.restore.CloudRestore
+import com.indicvision.semper.data.cloud.WorkTags
+import com.indicvision.semper.ui.common.TransferWorkObserver
 import java.util.UUID
 
 /**
  * Which analyses on the settings page have a restore or a Save-to-Files
  * download in flight, keyed by [AnalysisEntry.downloadKey] (the cloud id).
  *
- * Answered from the WorkInfo lists Settings already observes for the
- * `restore` and [CloudRestore.TAG_BUNDLE_DOWNLOAD] tags, never by asking
+ * Answered from the job lists Settings already observes for the
+ * [WorkTags.RESTORE] and [WorkTags.BUNDLE_DOWNLOAD] tags, never by asking
  * WorkManager: its `getWorkInfosForUniqueWork(…).get()` blocks on a database
  * read, and Settings ran it on the main thread on every row tap and twice per
  * busy row on every WorkInfo change.
@@ -29,23 +29,23 @@ internal class BusyTransfers {
         var seenUnfinished = false
     }
 
-    private var restoreInfos: List<WorkInfo> = emptyList()
-    private var downloadInfos: List<WorkInfo> = emptyList()
+    private var restoreJobs: List<TransferWorkObserver.Job> = emptyList()
+    private var downloadJobs: List<TransferWorkObserver.Job> = emptyList()
     private var restoring: Set<String> = emptySet()
     private var downloading: Set<String> = emptySet()
     private val marks = mutableMapOf<String, Mark>()
 
-    /** The latest `restore` tag list. */
-    fun onRestoreWork(infos: List<WorkInfo>) {
-        restoreInfos = infos
-        restoring = unfinishedIds(infos, RESTORE_TAG)
+    /** The latest restore list. */
+    fun onRestoreWork(jobs: List<TransferWorkObserver.Job>) {
+        restoreJobs = jobs
+        restoring = unfinishedIds(jobs)
         settle()
     }
 
-    /** The latest Save-to-Files tag list. */
-    fun onDownloadWork(infos: List<WorkInfo>) {
-        downloadInfos = infos
-        downloading = unfinishedIds(infos, CloudRestore.TAG_BUNDLE_DOWNLOAD)
+    /** The latest Save-to-Files list. */
+    fun onDownloadWork(jobs: List<TransferWorkObserver.Job>) {
+        downloadJobs = jobs
+        downloading = unfinishedIds(jobs)
         settle()
     }
 
@@ -83,27 +83,22 @@ internal class BusyTransfers {
 
     /** Ids of finished restore or download jobs for [key] in the latest lists. */
     private fun finishedIds(key: String): Set<UUID> {
-        val tags = setOf("$RESTORE_TAG-$key", "${CloudRestore.TAG_BUNDLE_DOWNLOAD}-$key")
-        return (restoreInfos + downloadInfos)
-            .filter { info -> info.state.isFinished && info.tags.any { it in tags } }
+        val tags = setOf(WorkTags.restoreTag(key), WorkTags.bundleDownloadTag(key))
+        return (restoreJobs + downloadJobs)
+            .filter { job -> job.isFinished && job.info.tags.any { it in tags } }
             .map { it.id }
             .toSet()
     }
 
     internal companion object {
-        private const val RESTORE_TAG = "restore"
-
         /**
-         * Cloud ids among [infos] whose work is not finished, read from the
-         * per-session `<tag>-<cloudId>` tag each request carries next to [tag].
+         * Cloud ids among [jobs] whose work is not finished, read from the
+         * per-session `<tag>-<cloudId>` tag each request carries.
          */
-        fun unfinishedIds(infos: List<WorkInfo>, tag: String): Set<String> {
-            val prefix = "$tag-"
-            return infos.asSequence()
-                .filter { !it.state.isFinished }
-                .mapNotNull { info -> info.tags.firstOrNull { it.startsWith(prefix) }?.removePrefix(prefix) }
-                .filter { it.isNotBlank() }
-                .toSet()
-        }
+        fun unfinishedIds(jobs: List<TransferWorkObserver.Job>): Set<String> = jobs.asSequence()
+            .filter { !it.isFinished }
+            .mapNotNull { it.taggedCloudId }
+            .filter { it.isNotBlank() }
+            .toSet()
     }
 }

@@ -1,11 +1,7 @@
 package com.indicvision.semper.ui.settings
 
-import android.view.View
-import android.widget.ImageButton
-import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
 import com.indicvision.semper.R
 import com.indicvision.semper.data.account.LicenseEntitlements
@@ -13,6 +9,10 @@ import com.indicvision.semper.data.prefs.DicSettings
 import com.indicvision.semper.data.session.CacheJanitor
 import com.indicvision.semper.data.session.SessionStore
 import com.indicvision.semper.data.session.StorageBudget
+import com.indicvision.semper.databinding.SettingsScrollContentBinding
+import com.indicvision.semper.ui.common.ByteSize
+import com.indicvision.semper.ui.common.Dialogs
+import com.indicvision.semper.ui.common.bindInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -23,35 +23,30 @@ import kotlinx.coroutines.withContext
  */
 class SettingsStorageSection(
     private val activity: SettingsActivity,
+    private val views: SettingsScrollContentBinding,
 ) {
     fun wire() {
-        activity.findViewById<View>(R.id.btnStorageClearCache).setOnClickListener { clearTemporaryFiles() }
+        views.btnStorageClearCache.setOnClickListener { clearTemporaryFiles() }
         // Free-up and the auto-free budget evict local copies the cloud can
         // give back — the licensed half of cloud. A demo account has no
         // restore, so neither control exists for it (StorageBudget itself
         // also refuses, so a stale budget pref cannot drop anything).
         if (!LicenseEntitlements.cloudBackupEnabled(activity)) {
             listOf(
-                R.id.tvStorageFreeUpSub,
-                R.id.btnStorageFreeUp,
-                R.id.rowAutoFreeHeader,
-                R.id.tvAutoFreeValue,
-                R.id.sliderAutoFree,
-            ).forEach { activity.findViewById<View>(it).isVisible = false }
+                views.tvStorageFreeUpSub,
+                views.btnStorageFreeUp,
+                views.rowAutoFreeHeader,
+                views.tvAutoFreeValue,
+                views.sliderAutoFree,
+            ).forEach { it.isVisible = false }
             refreshStorageTotals()
             return
         }
-        activity.findViewById<View>(R.id.btnStorageFreeUp).setOnClickListener { confirmFreeUpSpace() }
-        activity.findViewById<ImageButton>(R.id.btnAutoFreeInfo).setOnClickListener {
-            MaterialAlertDialogBuilder(activity)
-                .setTitle(R.string.storage_auto_free)
-                .setMessage(R.string.storage_auto_free_info)
-                .setPositiveButton(android.R.string.ok, null)
-                .show()
-        }
+        views.btnStorageFreeUp.setOnClickListener { confirmFreeUpSpace() }
+        views.btnAutoFreeInfo.bindInfo(activity, R.string.storage_auto_free, R.string.storage_auto_free_info)
 
-        val valueLabel = activity.findViewById<TextView>(R.id.tvAutoFreeValue)
-        activity.findViewById<Slider>(R.id.sliderAutoFree).apply {
+        val valueLabel = views.tvAutoFreeValue
+        views.sliderAutoFree.apply {
             valueTo = DicSettings.MAX_AUTO_FREE_GB.toFloat()
             value = DicSettings.autoFreeBudgetGb(activity)
                 .toFloat().coerceIn(valueFrom, valueTo)
@@ -94,14 +89,13 @@ class SettingsStorageSection(
                 )
             }
             val (analyses, cache, reclaimable) = sizes
-            activity.findViewById<TextView>(R.id.tvStorageAnalysesSize).text = activity.humanSize(analyses)
-            activity.findViewById<TextView>(R.id.tvStorageCacheSize).text = activity.humanSize(cache)
-            activity.findViewById<View>(R.id.btnStorageClearCache).isEnabled = cache > 0
+            views.tvStorageAnalysesSize.text = ByteSize.format(analyses)
+            views.tvStorageCacheSize.text = ByteSize.format(cache)
+            views.btnStorageClearCache.isEnabled = cache > 0
 
-            val freeUpSub = activity.findViewById<TextView>(R.id.tvStorageFreeUpSub)
-            activity.findViewById<View>(R.id.btnStorageFreeUp).isEnabled = reclaimable > 0
-            freeUpSub.text = if (reclaimable > 0) {
-                activity.getString(R.string.storage_free_up_sub_fmt, activity.humanSize(reclaimable))
+            views.btnStorageFreeUp.isEnabled = reclaimable > 0
+            views.tvStorageFreeUpSub.text = if (reclaimable > 0) {
+                activity.getString(R.string.storage_free_up_sub_fmt, ByteSize.format(reclaimable))
             } else {
                 activity.getString(R.string.storage_free_up_none)
             }
@@ -117,12 +111,12 @@ class SettingsStorageSection(
                 activity.toast(activity.getString(R.string.storage_freed_none))
                 return@launch
             }
-            MaterialAlertDialogBuilder(activity)
-                .setTitle(R.string.storage_free_up_title)
-                .setMessage(activity.getString(R.string.storage_free_up_body, activity.humanSize(reclaimable)))
-                .setPositiveButton(R.string.storage_free_up_confirm) { _, _ -> freeUpSpace() }
-                .setNegativeButton(R.string.action_cancel, null)
-                .show()
+            Dialogs.confirm(
+                activity,
+                activity.getText(R.string.storage_free_up_title),
+                activity.getString(R.string.storage_free_up_body, ByteSize.format(reclaimable)),
+                R.string.storage_free_up_confirm,
+            ) { freeUpSpace() }
         }
     }
 
@@ -134,7 +128,7 @@ class SettingsStorageSection(
                     activity.resources.getQuantityString(
                         R.plurals.storage_freed_fmt,
                         outcome.sessionsDropped,
-                        activity.humanSize(outcome.freedBytes),
+                        ByteSize.format(outcome.freedBytes),
                         outcome.sessionsDropped,
                     ),
                 )
@@ -152,7 +146,7 @@ class SettingsStorageSection(
                 CacheJanitor.sweepUserRequested(activity)
             }
             if (freed > 0) {
-                activity.toast(activity.getString(R.string.storage_cache_cleared_fmt, activity.humanSize(freed)))
+                activity.toast(activity.getString(R.string.storage_cache_cleared_fmt, ByteSize.format(freed)))
             } else {
                 activity.toast(activity.getString(R.string.storage_cache_cleared_none))
             }
@@ -168,7 +162,7 @@ class SettingsStorageSection(
                     activity.resources.getQuantityString(
                         R.plurals.storage_freed_fmt,
                         outcome.sessionsDropped,
-                        activity.humanSize(outcome.freedBytes),
+                        ByteSize.format(outcome.freedBytes),
                         outcome.sessionsDropped,
                     ),
                 )

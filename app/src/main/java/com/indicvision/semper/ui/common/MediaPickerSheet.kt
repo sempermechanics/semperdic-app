@@ -1,29 +1,22 @@
-@file:SuppressLint("InflateParams")
-@file:Suppress("MagicNumber", "TooManyFunctions")
+@file:Suppress("TooManyFunctions")
 
 package com.indicvision.semper.ui.common
 
-import android.annotation.SuppressLint
 import android.net.Uri
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.TextView
 import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.button.MaterialButtonToggleGroup
 import com.indicvision.semper.R
 import com.indicvision.semper.data.prefs.CoachPrefs
+import com.indicvision.semper.databinding.SheetMediaPickerBinding
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -41,18 +34,15 @@ class MediaPickerSheet private constructor(
     /** Where the MediaStore query runs, fixed when the sheet opens. */
     private val queryDispatcher: CoroutineDispatcher = Companion.queryDispatcher
 
-    private val sheet = BottomSheetDialog(activity)
-    private val root: View = activity.layoutInflater.inflate(R.layout.sheet_media_picker, null)
-    private val title: TextView = root.findViewById(R.id.tvMediaTitle)
-    private val toggle: MaterialButtonToggleGroup = root.findViewById(R.id.toggleMediaSource)
-    private val btnImages: View = root.findViewById(R.id.btnMediaImages)
-    private val btnFiles: View = root.findViewById(R.id.btnMediaFiles)
-    private val btnUse: MaterialButton = root.findViewById(R.id.btnMediaUse)
-    private val btnAllow: View = root.findViewById(R.id.btnMediaAllow)
-    private val empty: View = root.findViewById(R.id.mediaEmpty)
-    private val emptyText: TextView = root.findViewById(R.id.tvMediaEmpty)
-    private val list: RecyclerView = root.findViewById(R.id.listMedia)
-    private val pickScrim: View = root.findViewById(R.id.mediaPickScrim)
+    private val content = inflateSheet(activity, R.layout.sheet_media_picker)
+    private val sheet = content.dialog
+    private val views = SheetMediaPickerBinding.bind(content.view)
+    private val btnUse = views.btnMediaUse
+    private val btnAllow = views.btnMediaAllow
+    private val empty = views.mediaEmpty
+    private val emptyText = views.tvMediaEmpty
+    private val list = views.listMedia
+    private val pickScrim = views.mediaPickScrim
     private val coach = CoachMarkController(activity)
     private val selected = linkedSetOf<Uri>()
     private val includeVideo = mode == MediaSourceChooser.Mode.HOME_REFERENCE
@@ -62,6 +52,7 @@ class MediaPickerSheet private constructor(
     private var selectionUnlocked = multi
 
     private val adapter = MediaGridAdapter(
+        resolver = activity.contentResolver,
         isSelected = { selected.contains(it) },
         onClick = { item -> onTile(item) },
     )
@@ -70,7 +61,7 @@ class MediaPickerSheet private constructor(
         selectionUnlocked = true
         pickScrim.animate()
             .alpha(0f)
-            .setDuration(180L)
+            .setDuration(SCRIM_FADE_MS)
             .withEndAction {
                 pickScrim.isVisible = false
                 pickScrim.alpha = 1f
@@ -79,23 +70,22 @@ class MediaPickerSheet private constructor(
     }
 
     /** The gallery query in flight; a newer reload (permission granted) replaces it. */
-    private var reloadJob: Job? = null
+    private val reloadJob = SerialJob()
 
     private var expandWaitBehavior: BottomSheetBehavior<View>? = null
     private var expandWaitCallback: BottomSheetBehavior.BottomSheetCallback? = null
 
     init {
-        title.setText(
+        views.tvMediaTitle.setText(
             when (mode) {
                 MediaSourceChooser.Mode.HOME_REFERENCE -> R.string.new_analysis_title
                 MediaSourceChooser.Mode.REFERENCE -> R.string.reference_image
                 MediaSourceChooser.Mode.DEFORMED -> R.string.deformed_frames
             },
         )
-        list.layoutManager = GridLayoutManager(activity, 3)
+        list.layoutManager = GridLayoutManager(activity, GRID_COLUMNS)
         list.adapter = adapter
-        toggle.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (!isChecked) return@addOnButtonCheckedListener
+        views.toggleMediaSource.onButtonChecked { checkedId ->
             if (checkedId == R.id.btnMediaFiles) {
                 sheet.dismiss()
                 onBrowseSaf()
@@ -104,14 +94,13 @@ class MediaPickerSheet private constructor(
         btnAllow.setOnClickListener { requestPermission() }
         btnUse.setOnClickListener { confirm() }
         sheet.setOnDismissListener {
-            reloadJob?.cancel()
+            reloadJob.cancel()
             list.removeCallbacks(unlockSelection)
             clearExpandWait()
             coach.dismiss(markSeen = false)
             adapter.shutdown()
         }
-        sheet.setContentView(root)
-        root.layoutParams?.height = ViewGroup.LayoutParams.MATCH_PARENT
+        content.view.layoutParams?.height = ViewGroup.LayoutParams.MATCH_PARENT
         sheet.behavior.skipCollapsed = true
         // Keep the first layout off-screen so wrap→match-parent remesaure is invisible.
         sheet.behavior.peekHeight = 0
@@ -199,7 +188,7 @@ class MediaPickerSheet private constructor(
     }
 
     private fun reload() {
-        reloadJob?.cancel()
+        reloadJob.cancel()
         if (!MediaStoreBrowser.hasReadAccess(activity)) {
             adapter.submit(emptyList())
             showEmpty(needPermission = true)
@@ -207,7 +196,7 @@ class MediaPickerSheet private constructor(
         }
         // A content-resolver query over the whole gallery: it can take a
         // while on a big one, so it stays off the main thread.
-        reloadJob = activity.lifecycleScope.launch {
+        reloadJob.launch(activity.lifecycleScope) {
             val items = withContext(queryDispatcher) {
                 runCatching {
                     MediaStoreBrowser.query(
@@ -319,7 +308,7 @@ class MediaPickerSheet private constructor(
                         activity.getString(R.string.coach_picker_multi),
                     ),
                     CoachMarkController.Step(
-                        btnFiles,
+                        views.btnMediaFiles,
                         activity.getString(R.string.coach_picker_files_select_all),
                         illustration = R.drawable.coach_saf_select_all,
                     ),
@@ -332,11 +321,11 @@ class MediaPickerSheet private constructor(
             CoachPrefs.Screen.MEDIA_PICKER_REF,
             listOf(
                 CoachMarkController.Step(
-                    btnImages,
+                    views.btnMediaImages,
                     activity.getString(R.string.coach_picker_images),
                 ),
                 CoachMarkController.Step(
-                    btnFiles,
+                    views.btnMediaFiles,
                     activity.getString(R.string.coach_picker_files),
                 ),
             ),
@@ -346,6 +335,8 @@ class MediaPickerSheet private constructor(
 
     companion object {
         private const val REF_HINT_MS = 1000L
+        private const val SCRIM_FADE_MS = 180L
+        private const val GRID_COLUMNS = 3
 
         /** Seam for tests, which query inline so the grid fills as the main thread idles. */
         @VisibleForTesting
