@@ -1,11 +1,26 @@
 package com.indicvision.semper.data.net
 
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Request
 import okhttp3.Response
 import timber.log.Timber
 import java.io.IOException
 
-/** Shared OkHttp response helpers for [IndicApi]. */
+/** Shared OkHttp request and response helpers for [IndicApi]. */
 internal object IndicApiHttp {
+
+    const val AUTHORIZATION = "Authorization"
+    const val DEVICE_ID = "X-Device-Id"
+
+    val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
+    val OCTET_MEDIA = "application/octet-stream".toMediaType()
+
+    /** The backend's wire format: unknown fields ignored, defaults sent. */
+    val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
 
     /** Defensive cap: the header is attacker-influencable in principle. */
     private const val MAX_REQUEST_ID_LEN = 64
@@ -31,15 +46,6 @@ internal object IndicApiHttp {
         if (requestId.isNullOrBlank()) text else "$text (ref: $requestId)"
 
     /**
-     * The generic failure for a Semper-backend call: status, body and the
-     * correlation id that joins it to the backend access log.
-     *
-     * Reads the body, so the caller must not have consumed it.
-     */
-    fun apiException(resp: Response): IndicApi.ApiException =
-        IndicApi.ApiException(resp.code, bodyText(resp), requestIdOf(resp))
-
-    /**
      * [base] + [path] for a backend call. With no backend configured the URL
      * would be the bare [path], which OkHttp rejects with an unchecked
      * IllegalArgumentException that killed the process wherever a caller only
@@ -56,10 +62,32 @@ internal object IndicApiHttp {
         ""
     }
 
-    fun parseDriveResult(body: String): Pair<String, String?> {
-        val obj = org.json.JSONObject(body)
-        val id = obj.optString("id")
-        val md5 = if (obj.has("md5Checksum")) obj.optString("md5Checksum") else null
-        return id to md5
+    /** The `id` of the Drive file resource a finished resumable upload answers with. */
+    fun driveFileIdOf(body: String): String = org.json.JSONObject(body).optString("id")
+}
+
+/** The ID token, then this device's id: the pair every token-authenticated call sends. */
+internal fun Request.Builder.bearer(idToken: String, deviceId: String): Request.Builder =
+    header(IndicApiHttp.AUTHORIZATION, "Bearer $idToken").header(IndicApiHttp.DEVICE_ID, deviceId)
+
+/**
+ * A backend answer other than the one a call wanted (a 4xx, a 5xx, or a 2xx it
+ * did not expect), read once: its status, body and the request id that joins
+ * it to the backend access log.
+ */
+internal class ApiAnswer(val code: Int, val body: String, val requestId: String?) {
+
+    /** The generic failure: an [IndicApi.ApiException] carrying all three. */
+    fun exception(): IndicApi.ApiException = IndicApi.ApiException(code, body, requestId)
+
+    fun fail(): Nothing = throw exception()
+
+    /** Whether the body's `detail` is [detailCode] ([ApiErrors.hasCode]). */
+    fun hasCode(detailCode: String): Boolean = ApiErrors.hasCode(body, detailCode)
+
+    companion object {
+        /** Reads [resp]'s body, so the caller must not have consumed it. */
+        fun of(resp: Response): ApiAnswer =
+            ApiAnswer(resp.code, IndicApiHttp.bodyText(resp), IndicApiHttp.requestIdOf(resp))
     }
 }

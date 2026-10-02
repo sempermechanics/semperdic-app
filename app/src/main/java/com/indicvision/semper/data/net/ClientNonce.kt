@@ -83,12 +83,10 @@ object ClientNonce {
     }
 
     /** Learns the server clock from the API host's `Date` header. */
-    class ServerDateObserver(private val apiHost: String) : Interceptor {
-        override fun intercept(chain: Interceptor.Chain): Response {
+    class ServerDateObserver(apiHost: String) : ApiHostInterceptor(apiHost) {
+        override fun interceptApiCall(chain: Interceptor.Chain): Response {
             val response = chain.proceed(chain.request())
-            if (apiHost.isNotEmpty() && chain.request().url.host == apiHost) {
-                response.headers.getDate("Date")?.let { date: Date -> observeServerTime(date.time) }
-            }
+            response.headers.getDate("Date")?.let { date: Date -> observeServerTime(date.time) }
             return response
         }
     }

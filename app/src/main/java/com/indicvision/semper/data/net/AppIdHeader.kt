@@ -16,26 +16,17 @@ private const val APP_ID_HEADER = "X-App-Id"
  * knows which app's binding a request is for. A request without it is read as
  * Semper, which is what every build before this header was.
  *
- * Scoped to the API host like [AppCheckHeader]: Drive shares this client and
+ * Scoped to the API host ([ApiHostInterceptor]): Drive shares this client and
  * has no use for it.
  */
 class AppIdHeader(
-    private val apiHost: String = apiHostOf(BuildConfig.INDIC_API_BASE_URL),
+    apiHost: String = ApiHost.configured,
     private val appId: String = BuildConfig.APPLICATION_ID,
-) : Interceptor {
+) : ApiHostInterceptor(apiHost) {
 
-    override fun intercept(chain: Interceptor.Chain): Response {
+    override fun interceptApiCall(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        if (apiHost.isEmpty() || appId.isEmpty() || request.url.host != apiHost) {
-            return chain.proceed(request)
-        }
+        if (appId.isEmpty()) return chain.proceed(request)
         return chain.proceed(request.newBuilder().header(APP_ID_HEADER, appId).build())
-    }
-
-    private companion object {
-        fun apiHostOf(baseUrl: String): String =
-            runCatching {
-                baseUrl.trimEnd('/').removePrefix("https://").substringBefore('/')
-            }.getOrNull().orEmpty()
     }
 }

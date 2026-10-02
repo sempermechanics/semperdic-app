@@ -1,8 +1,10 @@
 package com.indicvision.semper.cloud
 
+import com.indicvision.semper.data.LogCapture
 import com.indicvision.semper.data.net.DriveTransfer
 import com.indicvision.semper.data.net.HttpStatus
 import com.indicvision.semper.data.net.IndicApi
+import com.indicvision.semper.util.AtomicFiles
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.junit4.MockWebServerRule
@@ -46,7 +48,8 @@ class DriveTransferDownloadTest {
     private lateinit var dir: File
     private lateinit var dest: File
 
-    private val fileId = "f1"
+    /** As the backend builds it, `{session}_{role}_{name}`; a legacy name is the user's own. */
+    private val fileId = "sid1_raw_SpecimenA-07.png"
 
     @Before
     fun setUp() {
@@ -332,5 +335,44 @@ class DriveTransferDownloadTest {
         assertTrue("restore UI needs at least one progress tick", seen.isNotEmpty())
         assertEquals("progress must be monotonic", seen.sorted(), seen)
         assertEquals(1000L, seen.last())
+    }
+
+    @Test
+    fun `an interrupted download logs neither a local path nor the file's name`() {
+        // A directory where the full-body scratch file goes makes every write fail
+        // with an IOException whose message is that path.
+        val scratch = AtomicFiles.fullOf(dest)
+        File(scratch, "blocker").apply { parentFile?.mkdirs() }.writeText("x")
+        repeat(DOWNLOAD_ATTEMPTS) { server.enqueue(MockResponse(code = HttpStatus.OK, body = payload(10))) }
+
+        LogCapture().use { log ->
+            assertThrows(java.io.IOException::class.java) { download(expectedBytes = 10L) }
+
+            assertTrue("the retries are logged", log.warnings.isNotEmpty())
+            assertTrue(log.warnings.joinToString(" / "), log.warnings.none { dir.name in it })
+            assertTrue(log.warnings.joinToString(" / "), log.warnings.none { "SpecimenA" in it })
+        }
+    }
+
+    @Test
+    fun `a transient failure is logged with its reason, under a label instead of the file id`() {
+        server.enqueue(MockResponse(code = HttpStatus.SERVICE_UNAVAILABLE, body = "upstream busy"))
+        server.enqueue(
+            MockResponse(code = HttpStatus.PARTIAL_CONTENT, headers = contentRange(0, 9, "10"), body = payload(10)),
+        )
+
+        LogCapture().use { log ->
+            download(expectedBytes = 10L)
+
+            val line = log.warnings.single()
+            assertTrue(line, "transient HTTP 503" in line && "upstream busy" in line)
+            assertTrue(line, "file " in line)
+            assertFalse(line, "SpecimenA" in line || "sid1" in line)
+        }
+    }
+
+    private companion object {
+        /** DriveTransfer's DOWNLOAD_MAX_ATTEMPTS. */
+        const val DOWNLOAD_ATTEMPTS = 8
     }
 }

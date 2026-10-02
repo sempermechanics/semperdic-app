@@ -5,10 +5,10 @@ package com.indicvision.semper.data.net
  * [md5Hex] of the local file, which the backend's `:complete` checks against
  * Drive's own checksum.
  *
- * `CloudApi.uploadResumable` / `IndicApi` / `DriveTransfer` return this today
- * as `Pair<String, String>` (driveFileId, md5Hex), destructured by
- * `DicUploadWorker` into a `FileCompleteRequest`. The property order matches
- * the `Pair`, so `val (driveId, md5) = ...` reads the same after adoption.
+ * [DriveTransfer] returns this. `CloudApi.uploadResumable` still returns the
+ * `Pair<String, String>` ([toPair]) that `DicUploadWorker` destructures; the
+ * property order matches it, so `val (driveId, md5) = ...` reads the same
+ * when that signature moves over.
  */
 data class DriveUpload(val driveFileId: String, val md5Hex: String) {
 

@@ -1,9 +1,11 @@
 package com.indicvision.semper.cloud
 
+import com.indicvision.semper.data.net.ApiAnswer
 import com.indicvision.semper.data.net.ApiErrors
 import com.indicvision.semper.data.net.HttpStatus
 import com.indicvision.semper.data.net.IndicApi
 import com.indicvision.semper.data.net.IndicApiHttp
+import com.indicvision.semper.data.net.failMe
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
@@ -86,13 +88,13 @@ class ApiErrorMappingTest {
         val quotaBody = """{"detail":"session_quota_exceeded: 5/5"}"""
 
         assertThrows(IndicApi.DeviceInUseException::class.java) {
-            IndicApi.throwForMeConflict(inUseBody, "req-1")
+            ApiAnswer(HttpStatus.CONFLICT, inUseBody, "req-1").failMe()
         }
         assertThrows(IndicApi.DeviceConflictException::class.java) {
-            IndicApi.throwForMeConflict(conflictBody, "req-2")
+            ApiAnswer(HttpStatus.CONFLICT, conflictBody, "req-2").failMe()
         }
         val quota = assertThrows(IndicApi.ApiException::class.java) {
-            IndicApi.throwForMeConflict(quotaBody, "req-3")
+            ApiAnswer(HttpStatus.CONFLICT, quotaBody, "req-3").failMe()
         }
         assertEquals(HttpStatus.CONFLICT, quota.code)
     }

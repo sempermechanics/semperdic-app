@@ -15,6 +15,7 @@ import okhttp3.Headers
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
@@ -147,5 +148,60 @@ class UploadResumableTest {
         server.takeRequest() // probe
         assertEquals("bytes 0-${chunk256k - 1}/$total", server.takeRequest().headers["Content-Range"])
         assertEquals("bytes $chunk256k-${total - 1}/$total", server.takeRequest().headers["Content-Range"])
+    }
+
+    @Test
+    fun `an expired upload link fails at the probe without sending bytes`() {
+        writeBytes(1000)
+        enqueue(404, body = "Not Found")
+        // Before: the probe read 404 as "start at zero" and PUT the whole file.
+        enqueue(200, body = """{"id":"never"}""")
+
+        val e = assertThrows(IndicApi.UploadLinkExpiredException::class.java) {
+            runBlocking { api.uploadResumable(server.url("/u").toString(), file, chunk256k) }
+        }
+
+        assertEquals(404, e.code)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `a 410 from the probe is an expired link too`() {
+        writeBytes(1000)
+        enqueue(410)
+
+        val e = assertThrows(IndicApi.UploadLinkExpiredException::class.java) {
+            runBlocking { api.uploadResumable(server.url("/u").toString(), file, chunk256k) }
+        }
+
+        assertEquals(410, e.code)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `a 499 from the probe is a cancelled session, so an expired link too`() {
+        writeBytes(1000)
+        enqueue(499)
+
+        val e = assertThrows(IndicApi.UploadLinkExpiredException::class.java) {
+            runBlocking { api.uploadResumable(server.url("/u").toString(), file, chunk256k) }
+        }
+
+        assertEquals(499, e.code)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `a probe that fails transiently does not restart the upload at zero`() {
+        writeBytes(1000)
+        enqueue(500, body = "backend error")
+        enqueue(200, body = """{"id":"never"}""")
+
+        val e = assertThrows(IndicApi.ApiException::class.java) {
+            runBlocking { api.uploadResumable(server.url("/u").toString(), file, chunk256k) }
+        }
+
+        assertEquals(500, e.code)
+        assertEquals(1, server.requestCount)
     }
 }

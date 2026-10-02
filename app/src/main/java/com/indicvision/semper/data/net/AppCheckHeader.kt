@@ -2,7 +2,6 @@ package com.indicvision.semper.data.net
 
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.appcheck.FirebaseAppCheck
-import com.indicvision.semper.BuildConfig
 import okhttp3.Interceptor
 import okhttp3.Response
 import timber.log.Timber
@@ -17,18 +16,6 @@ private const val APP_CHECK_HEADER = "X-Firebase-AppCheck"
  * cache. Past this the request goes out bare rather than stalling behind it.
  */
 private const val TOKEN_TIMEOUT_S = 10L
-
-/**
- * Host of [BuildConfig.INDIC_API_BASE_URL], or empty when cloud is disabled.
- * It cannot change while the process is up.
- */
-private fun apiHostFromBuildConfig(): String =
-    runCatching {
-        BuildConfig.INDIC_API_BASE_URL
-            .trimEnd('/')
-            .removePrefix("https://")
-            .substringBefore('/')
-    }.getOrNull().orEmpty()
 
 /**
  * The SDK's cached token, refreshed by it when close to expiry. Blocking is
@@ -59,7 +46,7 @@ private fun currentAppCheckToken(): String? =
  * tokens ships inside the APK and is an identifier, not a secret, so nothing
  * else on the wire can make that claim.
  *
- * **Scoped to the API host.** Drive uploads and downloads share this client and
+ * **Scoped to the API host** ([ApiHostInterceptor]). Drive uploads and downloads share this client and
  * go to Google's own endpoints, which have no use for the header and no reason
  * to be told this project's App Check state.
  *
@@ -74,15 +61,12 @@ private fun currentAppCheckToken(): String? =
  * can supply a host and a token without a Firebase app behind it.
  */
 class AppCheckHeader(
-    private val apiHost: String = apiHostFromBuildConfig(),
+    apiHost: String = ApiHost.configured,
     private val token: () -> String? = ::currentAppCheckToken,
-) : Interceptor {
+) : ApiHostInterceptor(apiHost) {
 
-    override fun intercept(chain: Interceptor.Chain): Response {
+    override fun interceptApiCall(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        if (apiHost.isEmpty() || request.url.host != apiHost) {
-            return chain.proceed(request)
-        }
         val value = runCatching(token).getOrNull()
         val outbound = if (value.isNullOrEmpty()) {
             request
