@@ -40,18 +40,18 @@ class ClientNonceTest {
 
     @Test
     fun `not usable until the server clock is known`() {
-        assertFalse(ClientNonce.usable())
+        assertFalse(ClientNonce.isUsable())
         ClientNonce.observeServerTime(serverMs = 1_800_000_000_000L, nowMs = 1_800_000_000_000L)
-        assertTrue(ClientNonce.usable())
+        assertTrue(ClientNonce.isUsable())
     }
 
     @Test
     fun `a refusal falls back to challenges for the rest of the process`() {
         ClientNonce.observeServerTime(serverMs = 1_800_000_000_000L, nowMs = 1_800_000_000_000L)
         ClientNonce.markRefused()
-        assertFalse(ClientNonce.usable())
+        assertFalse(ClientNonce.isUsable())
         ClientNonce.observeServerTime(serverMs = 1_800_000_000_000L, nowMs = 1_800_000_000_000L)
-        assertFalse(ClientNonce.usable())
+        assertFalse(ClientNonce.isUsable())
     }
 
     @Test
@@ -104,13 +104,13 @@ class ClientNonceTest {
                 .addInterceptor(ClientNonce.ServerDateObserver("drive.example"))
                 .build()
             elsewhere.newCall(Request.Builder().url(server.url("/")).build()).execute().close()
-            assertFalse(ClientNonce.usable())
+            assertFalse(ClientNonce.isUsable())
 
             val api = OkHttpClient.Builder()
                 .addInterceptor(ClientNonce.ServerDateObserver(server.hostName))
                 .build()
             api.newCall(Request.Builder().url(server.url("/v1/me")).build()).execute().close()
-            assertTrue(ClientNonce.usable())
+            assertTrue(ClientNonce.isUsable())
         }
     }
 }

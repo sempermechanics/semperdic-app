@@ -65,7 +65,7 @@ internal class AccessStatusResolver(
     private suspend fun meAndConfig(token: String): Pair<MeResponse, Result<AppConfigDto>> {
         val (me, fetched) = coroutineScope {
             val config = async { suspendRunCatching { api.getConfig(token) } }
-            api.me(token) to config.await() // 200 = APPROVED
+            api.getMe(token) to config.await() // 200 = APPROVED
         }
         // A config read just before /v1/me's invite claim landed says demo,
         // and a known config is not refetched while reconciles are

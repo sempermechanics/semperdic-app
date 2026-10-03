@@ -106,7 +106,7 @@ class SubsetRecommenderTest {
     // What the recommendation reports about the speckle itself
     // ------------------------------------------------------------------
 
-    private fun result(subset: Int, speckle: Double?) = SubsetRecommender.Result(
+    private fun result(subset: Int, speckle: Double?) = SubsetRecommender.Recommendation(
         subsetSize = subset,
         samples = 16,
         cappedSamples = 0,

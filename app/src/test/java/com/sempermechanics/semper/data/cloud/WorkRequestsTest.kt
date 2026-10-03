@@ -54,7 +54,7 @@ class WorkRequestsTest {
         WorkManagerTestInitHelper.closeWorkDatabase()
         WorkManagerImpl.setDelegate(null)
         AppRemoteConfig.clear(context)
-        DicSettings.setUploadWifiOnly(context, false)
+        DicSettings.setWifiOnlyUploadEnabled(context, false)
     }
 
     private fun queued(name: String): WorkInfo = workManager.getWorkInfosForUniqueWork(name).get().single()
@@ -105,7 +105,7 @@ class WorkRequestsTest {
             ),
         )
 
-        DicSettings.setUploadWifiOnly(context, true)
+        DicSettings.setWifiOnlyUploadEnabled(context, true)
         CloudSync.enqueueUpload(context, "L2")
         assertSameRequest(
             WorkTags.uploadName("L2"),

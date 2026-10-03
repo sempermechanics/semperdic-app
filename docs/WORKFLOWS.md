@@ -177,17 +177,17 @@ One Activity, three pages (`WizardStep`); pages 2 and 3 inflate from ViewStubs.
 
 | Id | Step | Entry | Chain |
 |---|---|---|---|
-| A5.1 | Load frames | `StaticAnalysisActivity` + `AnalysisWizardSlots` / `AnalysisWizardCoach` | `ui/common/media/MediaPickerSheet` → `ui/analysis/frames/FrameImportHelper` → `imaging/BitmapDecode`; ordering via `AnalysisFrameOrderMenuHelper` + `FrameOrderHelper` / `FrameOrderAdapter` |
-| A5.1a | Video source | same | `AnalysisVideoExtractHelper` → `VideoFrameExtractor` |
-| A5.2 | Confirm settings | same | `AnalysisSettingsSheetHelper`, `SubsetRecommender` (SSSIG seed), `data/prefs/ParamClipboard` (Paste params), ROI card → A6, `AnalysisReadyGate` |
-| A5.3 | Sweep summary `[sweep]` | same | `SweepSetupHelper` + `VsgStudy` (plan) + `LineCutPreviewView` |
-| A5.4 | Running | `BatchRunController` + `ComputeOverlayHelper` | `RunChannels.launchBatchAnalysis` → `runBatchAnalysis` → `DicBatchRunner.runBatchAnalysisBody` → `DicFieldIo` → JNI `SemperNativeLib.computeFullFieldDirect`; sweeps go `RunChannels.launchVsgSweep` → `SweepRunner.runVsgSweep` → `VsgStudyRunner` |
+| A5.1 | Load frames | `StaticAnalysisActivity` + `AnalysisWizardSlots` / `AnalysisWizardCoach` | `ui/common/media/MediaPickerSheet` → `ui/analysis/frames/FrameImportHelper` → `imaging/BitmapDecoder`; ordering via `AnalysisFrameOrderMenuHelper` + `FrameOrderHelper` / `FrameOrderAdapter` |
+| A5.1a | Video source | same | `AnalysisVideoExtractController` → `VideoFrameExtractor` |
+| A5.2 | Confirm settings | same | `AnalysisSettingsSheetController`, `SubsetRecommender` (SSSIG seed), `data/prefs/ParamClipboard` (Paste params), ROI card → A6, `AnalysisReadyGate` |
+| A5.3 | Sweep summary `[sweep]` | same | `SweepSetupController` + `VsgStudy` (plan) + `LineCutPreviewView` |
+| A5.4 | Running | `BatchRunController` + `ComputeOverlayController` | `RunChannels.launchBatchAnalysis` → `runBatchAnalysis` → `DicBatchRunner.runBatchAnalysisBody` → `DicFieldIo` → JNI `SemperNativeLib.computeFullFieldDirect`; sweeps go `RunChannels.launchVsgSweep` → `SweepRunner.runVsgSweep` → `VsgStudyRunner` |
 | A5.5 | Terminal states | `EngineFailure` + `ui/common/dialog/FaqRedirect` | `field/RunStop`, `ConvergenceGate`, `AnalysisCancelGate` |
 
 | Field | Value |
 |---|---|
 | Writes | `<sessionDir>/frame_%04d.dat` (`data/session/SessionPaths`), `raw_deformed/`, reference copy and the index row via `data/session/SessionRepository.buildSessionRecord` → `ui/analysis/run/RunRecordSave.saveRunRecord` → `data/session/SessionStore.save` |
-| Then | Once the row is saved, `saveRunRecord` calls `data/cloud/CloudSync.enqueueUpload` → B1 when cloud backup is on. `afterSave` reads the save's `UpsertResult` for both, a sweep's through `SweepRunner.finishSolvedSweep` → `persistSweepSession`: a full quota ends the run at the session limit and opens the session-limit screen; an index that could not be read or written shows **Analysis not saved**. Either way a sweep's lattice does not open, and the sweep records `analysis_failed` with reason `session_limit` or `index_unavailable` (`SweepRunner.sweepEndEvent`) |
+| Then | Once the row is saved, `saveRunRecord` calls `data/cloud/CloudSync.enqueueUpload` → B1 when cloud backup is on. `afterSave` reads the save's `UpsertOutcome` for both, a sweep's through `SweepRunner.finishSolvedSweep` → `persistSweepSession`: a full quota ends the run at the session limit and opens the session-limit screen; an index that could not be read or written shows **Analysis not saved**. Either way a sweep's lattice does not open, and the sweep records `analysis_failed` with reason `session_limit` or `index_unavailable` (`SweepRunner.sweepEndEvent`) |
 | Fails as | `EngineFailure.reasonRes` dialog with **Why?** → FAQ; stop reason persisted on the record (`stopCode`, `plannedFrameCount`) so it survives a restart, and in the backup's `metadata.json` `metrics` so it survives a restore. A re-run that saves nothing updates or drops its Home row to match what is left on disk (`DicBatchRunner.afterUnsavedRerun`); a cancelled re-run is saved as a partial run |
 | Signals | Timber; `android.os.Trace` sections; `diagnostics/SemperAnalytics` analysis started / completed / failed (consent-gated, buckets only) |
 | Tests | `analysis/VsgStudyTest`, `analysis/SubsetRecommenderTest`, `analysis/ConvergenceGateTest`, `session/FailureProvenanceTest`, `results/DicResultDecodeTest`, `EngineFailureTest`, `AnalysisViewModelTest`, instrumented `pipeline/EnginePipelineSmokeTest` |
@@ -226,8 +226,8 @@ exposed by `activity_roi_draw.xml` — see §11 of [app/WORKFLOWS.md](app/WORKFL
 |---|---|
 | Entry | `ui/viewer/ResultViewerActivity` (+ `ResultViewerViewModel`) |
 | Reads | `.dat` frames via `DicResult.decodeDatFile` (memory-mapped) and `data/session/DatCodec` |
-| Renders | `report/VisualizationEngine` heatmaps, `ui/viewer/HeatmapFit` rest-fit, `TouchImageView` zoom/pan, `ViewerFieldPills`, `ScrubFrameCache` look-ahead; single-setting only: `ViewerSummaryHelper` + `SummaryAnimation` + `report/GifEncoder` |
-| Probe | `ViewerInspectHelper` + `PointSpatialIndex` (built lazily on first tap) + `InspectOverlayView` |
+| Renders | `report/VisualizationEngine` heatmaps, `ui/viewer/HeatmapFit` rest-fit, `TouchImageView` zoom/pan, `ViewerFieldPills`, `ScrubFrameCache` look-ahead; single-setting only: `ViewerSummaryController` + `SummaryAnimation` + `report/GifEncoder` |
+| Probe | `ViewerInspectController` + `PointSpatialIndex` (built lazily on first tap) + `InspectOverlayView` |
 | Details | `ViewerSettingsSheet` (ⓘ). On a frame: true extrema plus a Scott-binned histogram of accepted values (`FieldHistogramView`). On the summary: min of every frame's colour-bar min and max of every frame's colour-bar max, matching the GIF; no mean, no histogram |
 | Exports | `ShareCenter` → `ViewerReportFactory` / `report/ReportBuilder` / `PdfReportGenerator` / `AnalysisCsvWriter` / `data/session/SessionEverythingExporter` → `SendToSheet` → `SaveExportActivity` (SAF) |
 | Fails as | Snackbar + **Why?** FAQ (`no_batch_data`, OOM, scale) |
@@ -269,7 +269,7 @@ CloudSync.enqueueUpload → DicUploadWorker.doWork → backUp
     │            → SessionZip (+ ZipDirectory) → Session.zip + .sha256 in upload_staging/
     ├─ declare: UploadSessionPlanner.ensureSession → SessionUploadMetadata
     │            → SemperApi.createSession ......................................... C5
-    ├─ resume : UploadSessionPlanner → SemperApi.sessionUploads (poll while PROVISIONING) C6
+    ├─ resume : UploadSessionPlanner → SemperApi.listSessionUploads (poll while PROVISIONING) C6
     ├─ bytes  : uploadFiles → DriveUploader → Drive resumable URI (never through Cloud Run)
     ├─ finish : SemperApi.completeFile (size + md5 verified server-side) ....... C7
     └─ failure: every refusal and exception is mapped by UploadFailures
@@ -322,7 +322,7 @@ offering what no longer exists.
 ### B5 Reclaim local space
 
 `data/session/StorageBudget` — `enforce` at `SemperApp.onCreate` (before any screen),
-`freeAllBackedUpAsync` / `enforceAsync` from `ui/settings/SettingsStorageSection`.
+`freeAllBackedUpOnIo` / `enforceOnIo` from `ui/settings/SettingsStorageSection`.
 It frees local frames of **backed-up** analyses only; a row whose frames were
 freed becomes "Only in cloud", not "data gone".
 Pinned by `session/LocalStorageFootprintTest`.

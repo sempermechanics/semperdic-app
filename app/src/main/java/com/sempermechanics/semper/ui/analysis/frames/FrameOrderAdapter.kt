@@ -92,7 +92,7 @@ class FrameOrderAdapter(
         fun bind(path: String, order: Int) {
             setBadge(order)
             applyDragging(itemView, false, animate = false)
-            thumbnails.bind(binding.ivFrameThumb, FrameThumb.of(path))
+            thumbnails.bind(binding.imgFrameThumb, FrameThumb.of(path))
         }
     }
 

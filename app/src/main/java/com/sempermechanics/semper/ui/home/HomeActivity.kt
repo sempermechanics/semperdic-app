@@ -203,7 +203,7 @@ class HomeActivity : AppCompatActivity() {
             // check below is false for them by definition and would wave them
             // through. btnEmptyRestore delegates here via performClick(), so
             // both entry points are covered by this one listener.
-            if (LicenseEntitlements.seatRequiredToStart(this)) {
+            if (LicenseEntitlements.isSeatRequiredToStart(this)) {
                 AnalysisNavHelper.openSeatRequired(this)
                 return@setOnClickListener
             }

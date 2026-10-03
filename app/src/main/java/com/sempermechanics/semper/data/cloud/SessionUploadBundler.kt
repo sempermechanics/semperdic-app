@@ -13,8 +13,8 @@ import com.sempermechanics.semper.data.session.StagingLayout
 import com.sempermechanics.semper.data.session.imageSize
 import com.sempermechanics.semper.data.session.paramsAt
 import com.sempermechanics.semper.field.DicResult
-import com.sempermechanics.semper.imaging.BitmapDecode
-import com.sempermechanics.semper.imaging.ImageEncode
+import com.sempermechanics.semper.imaging.BitmapDecoder
+import com.sempermechanics.semper.imaging.ImageEncoder
 import com.sempermechanics.semper.report.AnalysisCsvWriter
 import com.sempermechanics.semper.report.FieldResult
 import com.sempermechanics.semper.report.PdfReportGenerator
@@ -182,7 +182,7 @@ object SessionUploadBundler {
         imgH: Int,
     ): Bitmap? {
         val edge = VisualizationEngine.REPORT_MAX_EDGE
-        return BitmapDecode.decodeFileForView(
+        return BitmapDecoder.decodeFileForView(
             refFile.absolutePath,
             edge,
             edge,
@@ -190,7 +190,7 @@ object SessionUploadBundler {
             rawWidth = imgW,
             rawHeight = imgH,
         ) ?: defName?.let {
-            BitmapDecode.decodeFileForView(
+            BitmapDecoder.decodeFileForView(
                 File(rawDeformedDir, it).absolutePath,
                 edge,
                 edge,
@@ -326,7 +326,7 @@ object SessionUploadBundler {
             val ok = render.frame(data, File(rawDeformedDir, defName), frameName, index) { fields ->
                 fields.forEach { field ->
                     File(frameDir, "${field.fieldKey}.png").outputStream().buffered().use { out ->
-                        field.bakedHeatmap.compress(Bitmap.CompressFormat.PNG, ImageEncode.PNG_QUALITY_MAX, out)
+                        field.bakedHeatmap.compress(Bitmap.CompressFormat.PNG, ImageEncoder.PNG_QUALITY_MAX, out)
                     }
                     processed++
                 }
@@ -364,7 +364,7 @@ object SessionUploadBundler {
             // rather than losing the whole report over it.
             val (coverW, coverH) =
                 VisualizationEngine.cappedDims(record.imgW, record.imgH, VisualizationEngine.REPORT_MAX_EDGE)
-            val originalDefImg = BitmapDecode.decodeFileForView(
+            val originalDefImg = BitmapDecoder.decodeFileForView(
                 defFile.absolutePath,
                 coverW,
                 coverH,

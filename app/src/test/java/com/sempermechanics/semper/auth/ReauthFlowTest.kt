@@ -49,7 +49,7 @@ class ReauthFlowTest {
         val activity = launchReauth()
 
         assertEquals(View.GONE, activity.findViewById<TextView>(R.id.tvToggleMode).visibility)
-        assertEquals(View.GONE, activity.findViewById<View>(R.id.layoutConfirmPassword).visibility)
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.tilConfirmPassword).visibility)
     }
 
     @Test
@@ -112,7 +112,7 @@ class ReauthFlowTest {
             activity.getString(R.string.auth_sign_in),
             activity.findViewById<Button>(R.id.btnMainAction).text.toString(),
         )
-        assertEquals(View.GONE, activity.findViewById<View>(R.id.layoutConfirmPassword).visibility)
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.tilConfirmPassword).visibility)
         assertEquals("new@example.com", activity.findViewById<EditText>(R.id.etEmail).text.toString())
         assertTrue(
             "the password must not survive into the sign-in form",

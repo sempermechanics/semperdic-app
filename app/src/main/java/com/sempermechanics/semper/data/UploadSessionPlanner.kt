@@ -5,10 +5,10 @@ import androidx.work.ListenableWorker.Result
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.cloud.UploadErrors
 import com.sempermechanics.semper.data.cloud.UploadWorkOutcomes
+import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.CloudApi
 import com.sempermechanics.semper.data.net.FileSpecDto
 import com.sempermechanics.semper.data.net.PendingUploadDto
-import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.net.SessionCreateRequest
 import com.sempermechanics.semper.data.net.SessionUploadsResponse
 import com.sempermechanics.semper.data.session.SessionRecord
@@ -246,8 +246,8 @@ internal class UploadSessionPlanner(
      */
     private suspend fun resumeSession(cloudSessionId: String, artifacts: List<UploadArtifact>): Resume {
         val state = try {
-            api.sessionUploads(idToken, cloudSessionId)
-        } catch (e: SemperApi.ApiException) {
+            api.listSessionUploads(idToken, cloudSessionId)
+        } catch (e: ApiException) {
             return unreadable(e)
         }
         return if (state.status == UploadWorkOutcomes.STATUS_COMPLETED) Resume.Done else resumeFrom(state, artifacts)
@@ -257,7 +257,7 @@ internal class UploadSessionPlanner(
      * A failed upload-state query. Rebuilding deletes the half-uploaded session,
      * so only a definite "gone" may lead there — never an outage or a throttle.
      */
-    private fun unreadable(e: SemperApi.ApiException): Resume {
+    private fun unreadable(e: ApiException): Resume {
         UploadLog.phase("resume_query_failed", httpStatus = e.code, requestId = e.requestId)
         return if (UploadErrors.isSessionGone(e.code, e.body)) {
             Timber.w("Cloud session gone (HTTP %d) — will rebuild", e.code)

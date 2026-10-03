@@ -116,7 +116,7 @@ class LatticeControlsTest {
     fun `a missing or empty batch directory has no profiles`() {
         val line = VsgStudy.StudyLine(horizontal = true, position = 0f)
         val components = VsgStudy.STRAIN_COMPONENTS.toIntArray()
-        assertTrue(loadSweepFrameProfiles(File(temp.root, "gone"), listOf(7), 7, components, line).isEmpty())
-        assertTrue(loadSweepFrameProfiles(temp.newFolder("empty"), listOf(7), 7, components, line).isEmpty())
+        assertTrue(readSweepFrameProfiles(File(temp.root, "gone"), listOf(7), 7, components, line).isEmpty())
+        assertTrue(readSweepFrameProfiles(temp.newFolder("empty"), listOf(7), 7, components, line).isEmpty())
     }
 }

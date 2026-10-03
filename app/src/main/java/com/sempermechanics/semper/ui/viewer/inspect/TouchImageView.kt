@@ -52,7 +52,7 @@ class TouchImageView @JvmOverloads constructor(
     private var contentInsetBottom = 0
     private var contentInsetLeft = 0
     private var contentInsetRight = 0
-    private var mScaleDetector: ScaleGestureDetector
+    private var scaleDetector: ScaleGestureDetector
     private val gestureDetector: GestureDetector
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private var dragArmed = false
@@ -96,12 +96,12 @@ class TouchImageView @JvmOverloads constructor(
 
     init {
         super.setClickable(true)
-        mScaleDetector = ScaleGestureDetector(context, ScaleListener())
+        scaleDetector = ScaleGestureDetector(context, ScaleListener())
         gestureDetector = GestureDetector(context, GestureListener())
         scaleType = ScaleType.MATRIX
 
         setOnTouchListener { _, event ->
-            mScaleDetector.onTouchEvent(event)
+            scaleDetector.onTouchEvent(event)
             gestureDetector.onTouchEvent(event)
             val curr = PointF(event.x, event.y)
 
@@ -113,7 +113,7 @@ class TouchImageView @JvmOverloads constructor(
                     dragArmed = false
                     scrubbedThisGesture = false
                 }
-                MotionEvent.ACTION_MOVE -> if (mode == 1 && !mScaleDetector.isInProgress && event.pointerCount == 1) {
+                MotionEvent.ACTION_MOVE -> if (mode == 1 && !scaleDetector.isInProgress && event.pointerCount == 1) {
                     if (!dragArmed) {
                         val travelled = hypot(curr.x - start.x, curr.y - start.y)
                         if (travelled > touchSlop) dragArmed = true
@@ -160,7 +160,7 @@ class TouchImageView @JvmOverloads constructor(
     }
 
     private fun maybeFitSwipe(curr: PointF) {
-        if (!isAtRestScale() || !dragArmed || mScaleDetector.isInProgress) return
+        if (!isAtRestScale() || !dragArmed || scaleDetector.isInProgress) return
         val dx = curr.x - start.x
         val dy = curr.y - start.y
         if (hypot(dx, dy) < SWIPE_DISTANCE) return

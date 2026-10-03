@@ -11,11 +11,15 @@ import com.sempermechanics.semper.data.cloud.TransferNotifications
 import com.sempermechanics.semper.data.cloud.TransferPhase
 import com.sempermechanics.semper.data.cloud.UploadErrors
 import com.sempermechanics.semper.data.cloud.UploadProgressSampler
+import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.CloudApi
+import com.sempermechanics.semper.data.net.DeviceConflictException
+import com.sempermechanics.semper.data.net.DeviceNotActiveException
 import com.sempermechanics.semper.data.net.FileCompleteRequest
 import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.net.TokenProvider
 import com.sempermechanics.semper.data.net.TokenSource
+import com.sempermechanics.semper.data.net.UploadLinkExpiredException
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.data.session.SessionZip
 import com.sempermechanics.semper.data.session.StorageBudget
@@ -38,7 +42,7 @@ import java.io.File
  * the process's own importance — `lifecycle-process` is not on the compile
  * classpath. A foreground service alone (this worker) ranks below FOREGROUND.
  */
-private fun appInForeground(): Boolean {
+private fun isAppInForeground(): Boolean {
     val info = ActivityManager.RunningAppProcessInfo()
     ActivityManager.getMyMemoryState(info)
     return info.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
@@ -53,7 +57,7 @@ private fun appInForeground(): Boolean {
 internal object DicUploadSeams {
     var api: (Context) -> CloudApi = { SemperApi.get(it) }
     var tokens: TokenSource = TokenProvider
-    var inForeground: () -> Boolean = ::appInForeground
+    var inForeground: () -> Boolean = ::isAppInForeground
 }
 
 /**
@@ -130,17 +134,17 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         val failures = UploadFailures(run, stagingDir)
         try {
             when (val staged = staging.stage(progress)) {
-                is StagingResult.Ready -> upload(run, staged.files, progress, stagingDir)
-                is StagingResult.Retry -> UploadLog.retry(staged.reason)
-                StagingResult.InputsGone -> failures.inputsGone()
+                is StagingOutcome.Ready -> upload(run, staged.files, progress, stagingDir)
+                is StagingOutcome.Retry -> UploadLog.retry(staged.reason)
+                StagingOutcome.InputsGone -> failures.inputsGone()
             }
-        } catch (e: SemperApi.DeviceNotActiveException) {
+        } catch (e: DeviceNotActiveException) {
             failures.deviceNotActive(e)
-        } catch (e: SemperApi.DeviceConflictException) {
+        } catch (e: DeviceConflictException) {
             failures.deviceConflict(e)
-        } catch (e: SemperApi.ApiException) {
+        } catch (e: ApiException) {
             failures.refused(e)
-        } catch (e: SemperApi.UploadLinkExpiredException) {
+        } catch (e: UploadLinkExpiredException) {
             failures.linkExpired(e)
         } catch (e: OutOfMemoryError) {
             failures.outOfMemory(e)

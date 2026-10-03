@@ -67,7 +67,7 @@ class AdminActivity : AppCompatActivity() {
                     binding.tvEmpty.isVisible = users.isEmpty()
                 }
                 .onFailure { e ->
-                    val message = getString(R.string.admin_load_error, e.message ?: "")
+                    val message = getString(R.string.admin_load_error_fmt, e.message ?: "")
                     Feedback.toast(this@AdminActivity, message, long = true)
                 }
             setLoading(false)
@@ -85,19 +85,19 @@ class AdminActivity : AppCompatActivity() {
             suspendRunCatching { api.setUserStatus(token, user.uid, action) }
                 .onSuccess {
                     val label = user.email ?: user.uid
-                    val msg = if (action == "approve") {
-                        getString(R.string.admin_approved_toast, label)
+                    val message = if (action == "approve") {
+                        getString(R.string.admin_approved_toast_fmt, label)
                     } else {
-                        getString(R.string.admin_denied_toast, label)
+                        getString(R.string.admin_denied_toast_fmt, label)
                     }
-                    Feedback.toast(this@AdminActivity, msg)
+                    Feedback.toast(this@AdminActivity, message)
                     load() // refresh the list
                 }
                 .onFailure { e ->
                     setLoading(false)
                     Feedback.toast(
                         this@AdminActivity,
-                        getString(R.string.admin_action_error, e.message ?: ""),
+                        getString(R.string.admin_action_error_fmt, e.message ?: ""),
                         long = true,
                     )
                 }

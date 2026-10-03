@@ -43,7 +43,7 @@ class RunChromeTest {
             .get()
         overlay = View(activity).apply { visibility = View.GONE }
         cancel = Button(activity)
-        val helper = ComputeOverlayHelper(
+        val helper = ComputeOverlayController(
             overlay = overlay,
             title = TextView(activity),
             progress = ProgressBar(activity),

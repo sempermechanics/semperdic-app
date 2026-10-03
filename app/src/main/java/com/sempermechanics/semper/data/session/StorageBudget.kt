@@ -42,7 +42,7 @@ object StorageBudget {
         return freeDownTo(context, budgetGb * BYTES_PER_GB)
     }
 
-    suspend fun enforceAsync(context: Context): Outcome = withContext(Dispatchers.IO) { enforce(context) }
+    suspend fun enforceOnIo(context: Context): Outcome = withContext(Dispatchers.IO) { enforce(context) }
 
     /**
      * Drops every backed-up session's local files regardless of budget — what
@@ -50,7 +50,7 @@ object StorageBudget {
      */
     fun freeAllBackedUp(context: Context): Outcome = freeDownTo(context, target = 0L)
 
-    suspend fun freeAllBackedUpAsync(context: Context): Outcome =
+    suspend fun freeAllBackedUpOnIo(context: Context): Outcome =
         withContext(Dispatchers.IO) { freeAllBackedUp(context) }
 
     /**

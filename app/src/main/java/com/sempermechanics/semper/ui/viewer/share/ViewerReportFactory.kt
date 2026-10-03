@@ -5,7 +5,7 @@ import com.sempermechanics.semper.data.session.SessionPaths
 import com.sempermechanics.semper.field.FrameParams
 import com.sempermechanics.semper.field.ImageSize
 import com.sempermechanics.semper.field.Roi
-import com.sempermechanics.semper.imaging.BitmapDecode
+import com.sempermechanics.semper.imaging.BitmapDecoder
 import com.sempermechanics.semper.report.ReportBuilder
 import com.sempermechanics.semper.report.ReportData
 import com.sempermechanics.semper.report.VisualizationEngine
@@ -87,7 +87,7 @@ object ViewerReportFactory {
         val size = source.imageSize
         val cap = VisualizationEngine.REPORT_MAX_EDGE
         val capped = VisualizationEngine.cappedDims(size.width, size.height, cap)
-        fun decodeCapped(path: String): Bitmap? = BitmapDecode.decodeFileForView(
+        fun decodeCapped(path: String): Bitmap? = BitmapDecoder.decodeFileForView(
             path,
             capped.width,
             capped.height,

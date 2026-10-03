@@ -5,7 +5,7 @@ import com.sempermechanics.semper.BuildConfig
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.account.DeviceKeyManager
 import com.sempermechanics.semper.data.net.TokenStore
-import com.sempermechanics.semper.databinding.SettingsScrollContentBinding
+import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
 import com.sempermechanics.semper.diagnostics.SemperAnalytics
 import com.sempermechanics.semper.ui.common.auth.ExternalLinks
 import com.sempermechanics.semper.ui.common.auth.SupportMail
@@ -16,7 +16,7 @@ import com.sempermechanics.semper.ui.common.auth.contextLines
  */
 class SettingsHelpSupportSection(
     private val activity: SettingsActivity,
-    private val views: SettingsScrollContentBinding,
+    private val views: ViewSettingsScrollContentBinding,
 ) {
     fun wire() {
         views.btnOpenManual.setOnClickListener { openUrl(R.string.url_manual) }
@@ -34,7 +34,7 @@ class SettingsHelpSupportSection(
     private fun sendFeedback() {
         SemperAnalytics.event(activity, SemperAnalytics.FEEDBACK_OPENED)
         val body = activity.getString(
-            R.string.help_support_feedback_body,
+            R.string.help_support_feedback_body_fmt,
             BuildConfig.VERSION_NAME,
             BuildConfig.VERSION_CODE,
             "${Build.MANUFACTURER} ${Build.MODEL}",
@@ -44,7 +44,7 @@ class SettingsHelpSupportSection(
         SupportMail.open(
             activity,
             subject = activity.getString(
-                R.string.help_support_feedback_subject,
+                R.string.help_support_feedback_subject_fmt,
                 BuildConfig.VERSION_NAME,
                 BuildConfig.VERSION_CODE,
             ),

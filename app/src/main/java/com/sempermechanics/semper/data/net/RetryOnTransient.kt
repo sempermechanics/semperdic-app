@@ -15,7 +15,7 @@ private const val BASE_DELAY_MS = 500L
 /** Ceiling for one wait, so a long `Retry-After` cannot park the call. */
 private const val MAX_DELAY_MS = 8_000L
 
-private const val MILLIS_PER_SECOND = 1000L
+private const val MS_PER_SECOND = 1000L
 
 /** How often a backoff wait looks for a cancelled call. */
 private const val CANCEL_POLL_MS = 100L
@@ -100,7 +100,7 @@ class RetryOnTransient : Interceptor {
     private fun delayFor(response: Response, attempt: Int): Long {
         val header = response.header("Retry-After")?.trim()?.toLongOrNull()
         if (header != null) {
-            return (header * MILLIS_PER_SECOND).coerceIn(BASE_DELAY_MS, MAX_DELAY_MS)
+            return (header * MS_PER_SECOND).coerceIn(BASE_DELAY_MS, MAX_DELAY_MS)
         }
         return (BASE_DELAY_MS shl attempt).coerceAtMost(MAX_DELAY_MS)
     }

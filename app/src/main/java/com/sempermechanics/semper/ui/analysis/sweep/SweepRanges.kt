@@ -25,7 +25,7 @@ data class SweepRanges(
      * The combinations this sweep solves when the ROI holds subsets up to
      * [subsetCeiling] (`RoiResolveHelper.maxSubsetForRoi`): none when even
      * [subsetMin] is over it, else [VsgStudy.plan] with [subsetMax] capped at
-     * it. The rule `SweepSetupHelper.currentPlan` applies.
+     * it. The rule `SweepSetupController.currentPlan` applies.
      */
     fun plan(subsetCeiling: Int): List<VsgStudy.Point> = if (subsetMin > subsetCeiling) {
         emptyList()

@@ -78,13 +78,13 @@ class ViewerSettingsSheetTest {
 
         assertEquals(
             listOf(
-                host.getString(R.string.setting_subset) to "41 px",
-                host.getString(R.string.setting_step) to "4 px",
+                host.getString(R.string.settings_used_subset) to "41 px",
+                host.getString(R.string.settings_used_step) to "4 px",
                 // VSG 25 px at step 4 is a 7-point window.
-                host.getString(R.string.setting_strain_window) to "7-point window · VSG 25 px",
-                host.getString(R.string.setting_strain_method) to "VSG",
-                host.getString(R.string.setting_roi) to "16 × 16 at (0, 0)",
-                host.getString(R.string.setting_image_size) to "16 × 16 px",
+                host.getString(R.string.settings_used_strain_window) to "7-point window · VSG 25 px",
+                host.getString(R.string.settings_used_strain_method) to "VSG",
+                host.getString(R.string.settings_used_roi) to "16 × 16 at (0, 0)",
+                host.getString(R.string.settings_used_image_size) to "16 × 16 px",
             ),
             entries,
         )
@@ -93,7 +93,7 @@ class ViewerSettingsSheetTest {
     @Test
     fun `no ROI row when none was recorded`() {
         val host = viewer(baseArgs().copy(roiW = 0, roiH = 0))
-        assertTrue(host.getString(R.string.setting_roi) !in host.rows())
+        assertTrue(host.getString(R.string.settings_used_roi) !in host.rows())
     }
 
     @Test
@@ -106,13 +106,13 @@ class ViewerSettingsSheetTest {
 
         assertEquals(
             "Unknown engine error (code 3)",
-            rows[host.getString(R.string.setting_stopped_early)],
+            rows[host.getString(R.string.settings_used_stopped_early)],
         )
-        assertEquals("3 of 5 frames", rows[host.getString(R.string.setting_frames_solved)])
+        assertEquals("3 of 5 frames", rows[host.getString(R.string.settings_used_frames_solved)])
         assertEquals(
             "stop rows sit between the method and the ROI",
-            labels.indexOf(host.getString(R.string.setting_strain_method)) + 1,
-            labels.indexOf(host.getString(R.string.setting_stopped_early)),
+            labels.indexOf(host.getString(R.string.settings_used_strain_method)) + 1,
+            labels.indexOf(host.getString(R.string.settings_used_stopped_early)),
         )
     }
 
@@ -121,8 +121,8 @@ class ViewerSettingsSheetTest {
         val host = viewer(baseArgs().copy(stopCode = 3, plannedFrames = 0))
         val rows = host.rows()
 
-        assertTrue(host.getString(R.string.setting_stopped_early) in rows)
-        assertTrue(host.getString(R.string.setting_frames_solved) !in rows)
+        assertTrue(host.getString(R.string.settings_used_stopped_early) in rows)
+        assertTrue(host.getString(R.string.settings_used_frames_solved) !in rows)
     }
 
     @Test
@@ -147,8 +147,8 @@ class ViewerSettingsSheetTest {
         val host = viewer(sweepArgs(startFrame = 1))
         val rows = host.rows()
 
-        assertEquals("31 px", rows[host.getString(R.string.setting_subset)])
-        assertEquals("9-point window · VSG 33 px", rows[host.getString(R.string.setting_strain_window)])
+        assertEquals("31 px", rows[host.getString(R.string.settings_used_subset)])
+        assertEquals("9-point window · VSG 33 px", rows[host.getString(R.string.settings_used_strain_window)])
     }
 
     @Test

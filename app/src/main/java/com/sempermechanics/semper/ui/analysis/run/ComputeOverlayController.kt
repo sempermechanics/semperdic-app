@@ -25,7 +25,7 @@ import kotlin.math.roundToInt
  * Progress ticks are coalesced (~100 ms) into a single main-thread post that
  * updates all wired widgets together.
  */
-class ComputeOverlayHelper(
+class ComputeOverlayController(
     private val overlay: View,
     private val title: TextView,
     private val progress: ProgressBar,
@@ -124,7 +124,7 @@ class ComputeOverlayHelper(
 
     /** Update the overlay's ring + percentage. Safe to call from any thread. */
     fun setProgress(percent: Float) {
-        pendingPercent = percent.coerceIn(0f, PERCENT_MAX)
+        pendingPercent = percent.coerceIn(0f, PERCENT)
         scheduleFlush()
     }
 
@@ -151,7 +151,7 @@ class ComputeOverlayHelper(
         pointsSolved: Int = -1,
         convergencePercent: Float = -1f,
     ) {
-        if (percent != null) pendingPercent = percent.coerceIn(0f, PERCENT_MAX)
+        if (percent != null) pendingPercent = percent.coerceIn(0f, PERCENT)
         if (status != null) pendingStatus = status
         if (title != null) pendingTitle = title
         if (pointsSolved >= 0) pendingPoints = pointsSolved
@@ -212,7 +212,7 @@ class ComputeOverlayHelper(
     companion object {
         private const val THROTTLE_MS = 100L
         private const val TICK_MS = 1000L
-        private const val PERCENT_MAX = 100f
+        private const val PERCENT = 100f
         private const val RING_MAX = 1000
         private const val RING_SCALE = 10f
     }

@@ -22,7 +22,7 @@ import com.sempermechanics.semper.databinding.ActivityStaticAnalysisBinding
 import com.sempermechanics.semper.databinding.WizardStepSettingsBinding
 import com.sempermechanics.semper.databinding.WizardStepSettingsContentBinding
 import com.sempermechanics.semper.databinding.WizardStepSweepBinding
-import com.sempermechanics.semper.imaging.BitmapDecode
+import com.sempermechanics.semper.imaging.BitmapDecoder
 import com.sempermechanics.semper.imaging.video.ExtractionRequest
 import com.sempermechanics.semper.navigation.DicKeys
 import com.sempermechanics.semper.ui.analysis.frames.FrameImportController
@@ -35,12 +35,12 @@ import com.sempermechanics.semper.ui.analysis.recommend.SubsetRecommendationCont
 import com.sempermechanics.semper.ui.analysis.roi.RoiResolveHelper
 import com.sempermechanics.semper.ui.analysis.roi.RoiStudioLauncher
 import com.sempermechanics.semper.ui.analysis.run.BatchRunController
-import com.sempermechanics.semper.ui.analysis.run.ComputeOverlayHelper
+import com.sempermechanics.semper.ui.analysis.run.ComputeOverlayController
 import com.sempermechanics.semper.ui.analysis.run.RunChrome
 import com.sempermechanics.semper.ui.analysis.run.RunStatusLine
 import com.sempermechanics.semper.ui.analysis.run.WizardRunLauncher
 import com.sempermechanics.semper.ui.analysis.run.WizardRunOutcomes
-import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupHelper
+import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupController
 import com.sempermechanics.semper.ui.analysis.sweep.VsgStudy
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisLeaveController
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisReadyGate
@@ -95,7 +95,7 @@ class StaticAnalysisActivity :
     private lateinit var wizardChrome: AnalysisWizardChrome
     private lateinit var wizardSlots: AnalysisWizardSlots
     private lateinit var wizardCoach: AnalysisWizardCoach
-    private lateinit var sweepHelper: SweepSetupHelper
+    private lateinit var sweepController: SweepSetupController
     private lateinit var frameOrder: FrameOrderController
     private lateinit var subsets: SubsetRecommendationController
     private lateinit var params: WizardParamFields
@@ -114,7 +114,7 @@ class StaticAnalysisActivity :
         settings = settingsPage.settingsColumn.binding
         sweepPage = WizardStepSweepBinding.bind(binding.stubStepSweep.inflate())
 
-        chrome = RunChrome(this, ComputeOverlayHelper(binding), binding.btnRunCancel)
+        chrome = RunChrome(this, ComputeOverlayController(binding), binding.btnRunCancel)
         AnalysisLeaveController(this, viewModel, chrome) { goToStep(it, animate = true) }
         status = RunStatusLine(this, chrome, settings.tvStaticResult, settings.btnEngineFailFaq)
         clearRunStatus()
@@ -164,22 +164,22 @@ class StaticAnalysisActivity :
 
         wizardChrome = AnalysisWizardChrome(this, binding, settingsPage, sweepPage)
         wizardCoach = AnalysisWizardCoach(this, CoachMarkController(this), binding, settings, sweepPage)
-        sweepHelper = SweepSetupHelper(activity = this, viewModel = viewModel, callbacks = this)
+        sweepController = SweepSetupController(activity = this, viewModel = viewModel, callbacks = this)
         // After the wizard views exist: the sweep controls call checkReady().
-        sweepHelper.setup()
+        sweepController.setup()
         wizardSlots = AnalysisWizardSlots(
             viewModel = viewModel,
             binding = binding,
             settings = settings,
             formatChip = formatChip,
             frameOrderAdapter = frameOrder.adapter,
-            onLineCutPreview = { sweepHelper.refreshLineCutPreview() },
+            onLineCutPreview = { sweepController.refreshLineCutPreview() },
         )
     }
 
     private fun buildRuns(): WizardRunOutcomes {
-        runs = WizardRunLauncher(this, viewModel, chrome, sweepHelper, ::checkReady)
-        return WizardRunOutcomes(this, viewModel, chrome, status, sweepHelper, ::checkReady)
+        runs = WizardRunLauncher(this, viewModel, chrome, sweepController, ::checkReady)
+        return WizardRunOutcomes(this, viewModel, chrome, status, sweepController, ::checkReady)
     }
 
     private fun buildImports() {
@@ -209,7 +209,7 @@ class StaticAnalysisActivity :
         binding.btnCalculateFullField.setOnClickListener {
             // A field still holding focus has not committed its typed value yet.
             commitParamFields()
-            if (!viewModel.sweepMode) runs.startBatch(params.dicParams(), params.useKeysInterpolator())
+            if (!viewModel.sweepMode) runs.startBatch(params.dicParams(), params.isKeysInterpolatorSelected())
         }
     }
 
@@ -315,22 +315,22 @@ class StaticAnalysisActivity :
     /** Flushes any in-progress typing into the sliders (focus loss commits). */
     override fun commitParamFields() {
         params.commit()
-        if (::sweepHelper.isInitialized) sweepHelper.clearSweepFieldFocus()
+        if (::sweepController.isInitialized) sweepController.clearSweepFieldFocus()
     }
 
     override fun onSweepInputsChanged() {
-        if (::sweepHelper.isInitialized) sweepHelper.onRecommendationChanged()
+        if (::sweepController.isInitialized) sweepController.onRecommendationChanged()
     }
 
     override fun resetSweepInputs() {
-        if (!::sweepHelper.isInitialized) return
+        if (!::sweepController.isInitialized) return
         viewModel.stepDenominator = VsgStudy.DEFAULT_STEP_DENOM
         viewModel.subsetOverlap = VsgStudy.overlapForDenominator(VsgStudy.DEFAULT_STEP_DENOM)
-        sweepHelper.resetUserModified()
-        sweepHelper.seedSweepSuggestions()
+        sweepController.resetUserModified()
+        sweepController.seedSweepSuggestions()
     }
 
-    override fun startVsgSweep() = runs.startSweep(params.useKeysInterpolator())
+    override fun startVsgSweep() = runs.startSweep(params.isKeysInterpolatorSelected())
 
     override fun confirmOpenFaq(url: String) {
         FaqRedirect.confirm(this, url)
@@ -366,7 +366,7 @@ class StaticAnalysisActivity :
             subsets.request()
         }
         if (target == WizardStep.SWEEP) {
-            sweepHelper.refreshSweepPlan()
+            sweepController.refreshSweepPlan()
         }
 
         checkReady()
@@ -374,7 +374,7 @@ class StaticAnalysisActivity :
     }
 
     override fun checkReady() {
-        readyGate.apply(chrome.isBusy, sweepHelper = if (::sweepHelper.isInitialized) sweepHelper else null)
+        readyGate.apply(chrome.isBusy, sweepController = if (::sweepController.isInitialized) sweepController else null)
     }
 
     private fun consumePickerHandOff() {
@@ -409,7 +409,7 @@ class StaticAnalysisActivity :
                         bytes = bytes,
                         intentWidth = viewModel.realRefWidth,
                         intentHeight = viewModel.realRefHeight,
-                        previewMaxEdge = BitmapDecode.PREVIEW_MAX_EDGE,
+                        previewMaxEdge = BitmapDecoder.PREVIEW_MAX_EDGE,
                     ),
                 ).bitmap
             }

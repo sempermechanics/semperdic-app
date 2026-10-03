@@ -235,7 +235,7 @@ class MediaPickerSheetTest {
     @Test
     fun `choosing Files closes the sheet and hands off to the system picker`() {
         val sheet = open(MediaSourceChooser.Mode.DEFORMED)
-        sheet.findViewById<MaterialButtonToggleGroup>(R.id.toggleMediaSource).check(R.id.btnMediaFiles)
+        sheet.findViewById<MaterialButtonToggleGroup>(R.id.rgMediaSource).check(R.id.btnMediaFiles)
 
         assertEquals(1, safBrowses)
         assertFalse(sheet.isShowing)

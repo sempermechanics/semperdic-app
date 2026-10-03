@@ -131,8 +131,8 @@ class AuthActivity : AppCompatActivity() {
 
     internal fun updateMode() {
         binding.tvSubtitle.setText(mode.subtitle)
-        binding.layoutEmail.isVisible = mode.showsEmail
-        binding.layoutConfirmPassword.isVisible = mode.choosesPassword
+        binding.tilEmail.isVisible = mode.showsEmail
+        binding.tilConfirmPassword.isVisible = mode.choosesPassword
         binding.recoveryLinks.isVisible = mode.showsRecoveryLinks
         binding.tvPasswordRules.isVisible = mode.choosesPassword
         binding.tvPasswordRules.setText(R.string.password_hint_rules)
@@ -161,7 +161,7 @@ class AuthActivity : AppCompatActivity() {
         }
         val email = binding.etEmail.text.toString().trim()
         val password = binding.etPassword.text.toString()
-        if (!validEmail(email)) return
+        if (!isValidEmail(email)) return
         if (mode == AuthMode.REGISTER) {
             val failure = PasswordPolicy.validate(password)
             if (failure != null) {
@@ -196,13 +196,13 @@ class AuthActivity : AppCompatActivity() {
 
     private fun onSendEmailLink() {
         val email = binding.etEmail.text.toString().trim()
-        if (!validEmail(email)) return
+        if (!isValidEmail(email)) return
         setLoading(true)
         lifecycleScope.launch {
             val result = authRepo.sendSignInLink(email)
             setLoading(false)
             result.fold(
-                onSuccess = { showMessage(getString(R.string.auth_link_sent, email)) },
+                onSuccess = { showMessage(getString(R.string.auth_link_sent_fmt, email)) },
                 onFailure = {
                     showMessage(it.message ?: getString(R.string.auth_link_send_failed))
                 },
@@ -214,13 +214,13 @@ class AuthActivity : AppCompatActivity() {
         setLoading(true)
         lifecycleScope.launch {
             try {
-                val idToken = GoogleSignInHelper.getIdToken(this@AuthActivity)
+                val idToken = GoogleSignInHelper.requestIdToken(this@AuthActivity)
                 if (mode == AuthMode.REAUTH) {
                     finishReauth(authRepo.reauthenticateWithGoogle(idToken))
                 } else {
                     routeResult(authRepo.signInWithGoogle(idToken))
                 }
-            } catch (e: GoogleSignInHelper.NotConfigured) {
+            } catch (e: GoogleSignInHelper.NotConfiguredException) {
                 Timber.w(e, "Google sign-in is not configured")
                 setLoading(false)
                 showMessage(getString(R.string.auth_google_unconfigured))
@@ -363,7 +363,7 @@ class AuthActivity : AppCompatActivity() {
         is PasswordPolicy.Failure.Missing -> getString(failure.message)
     }
 
-    internal fun validEmail(email: String): Boolean {
+    internal fun isValidEmail(email: String): Boolean {
         if (email.isEmpty() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             showMessage(getString(R.string.error_email_invalid))
             return false

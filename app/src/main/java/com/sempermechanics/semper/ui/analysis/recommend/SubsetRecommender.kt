@@ -141,7 +141,7 @@ object SubsetRecommender {
      *   measured. See [SpeckleScale]; this is a different question from the
      *   subset size and is reported separately rather than folded into it.
      */
-    data class Result(
+    data class Recommendation(
         val subsetSize: Int,
         val samples: Int,
         val cappedSamples: Int,
@@ -238,7 +238,7 @@ object SubsetRecommender {
         imgH: Int,
         roi: Rect,
         tuning: Tuning = Tuning(),
-    ): Result? {
+    ): Recommendation? {
         val minSize = tuning.sizes.first
         val maxSize = tuning.sizes.last
         if (imgW <= 0 || imgH <= 0) return null
@@ -294,7 +294,7 @@ object SubsetRecommender {
 
             if (perPoint.isEmpty()) return null
             perPoint.sort()
-            return Result(
+            return Recommendation(
                 subsetSize = perPoint[perPoint.size / 2],
                 samples = perPoint.size,
                 cappedSamples = perPoint.count { it >= cappedMax },

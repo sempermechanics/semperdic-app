@@ -412,11 +412,11 @@ internal data class AfterSave(val stop: RunStop, val recordSaved: Boolean, val i
  * as [RunStop.SessionLimit], whatever stopped it; an index that could not be
  * read or written is not the quota, and leaves [stop] as it was.
  */
-internal fun afterSave(stop: RunStop, result: SessionStore.UpsertResult): AfterSave = when (result) {
-    SessionStore.UpsertResult.SAVED -> AfterSave(stop, recordSaved = true, indexUnavailable = false)
-    SessionStore.UpsertResult.QUOTA_FULL ->
+internal fun afterSave(stop: RunStop, result: SessionStore.UpsertOutcome): AfterSave = when (result) {
+    SessionStore.UpsertOutcome.SAVED -> AfterSave(stop, recordSaved = true, indexUnavailable = false)
+    SessionStore.UpsertOutcome.QUOTA_FULL ->
         AfterSave(RunStop.SessionLimit, recordSaved = false, indexUnavailable = false)
-    SessionStore.UpsertResult.INDEX_UNAVAILABLE -> AfterSave(stop, recordSaved = false, indexUnavailable = true)
+    SessionStore.UpsertOutcome.INDEX_UNAVAILABLE -> AfterSave(stop, recordSaved = false, indexUnavailable = true)
 }
 
 /**

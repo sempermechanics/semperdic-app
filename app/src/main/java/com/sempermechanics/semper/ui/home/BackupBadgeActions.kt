@@ -37,7 +37,7 @@ internal class BackupBadgeActions(
             // upload every tap.
             SessionRecord.SyncState.FAILED -> showFailedBackupDialog(record)
             SessionRecord.SyncState.PENDING -> enqueueBackup(record, R.string.cloud_retry_backup)
-            SessionRecord.SyncState.LOCAL_ONLY -> if (DicSettings.saveToCloud(activity)) {
+            SessionRecord.SyncState.LOCAL_ONLY -> if (DicSettings.saveToCloudEnabled(activity)) {
                 enqueueBackup(record, R.string.cloud_backup_now)
             } else {
                 openSettings()
@@ -56,7 +56,7 @@ internal class BackupBadgeActions(
         // to land before the worker is queued, or an upload that finishes first
         // would have its SYNCED stamp overwritten by this one.
         activity.lifecycleScope.launch {
-            SessionStore.setSyncStateAsync(activity, record.id, SessionRecord.SyncState.PENDING)
+            SessionStore.setSyncStateOnIo(activity, record.id, SessionRecord.SyncState.PENDING)
             CloudSync.enqueueUpload(activity, record.id)
             adapter.rebindRow(record.id)
             Feedback.toast(activity, toastRes)

@@ -309,7 +309,7 @@ class SessionSelectionController(
             for (record in records) {
                 if (deviceOnly) {
                     CloudSync.eraseLocalOnly(activity, record.id)
-                } else if (CloudSync.eraseEverywhere(activity, record.id) != CloudSync.EraseResult.ERASED_EVERYWHERE) {
+                } else if (CloudSync.eraseEverywhere(activity, record.id) != CloudSync.EraseOutcome.ERASED_EVERYWHERE) {
                     kept++
                 }
             }

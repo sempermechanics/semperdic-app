@@ -28,7 +28,7 @@ internal class ViewerShareController(private val host: ResultViewerActivity) {
         pendingShareKind = null
         val uri = result.data?.data
         if (result.resultCode != Activity.RESULT_OK || uri == null || kind == null) return@registerForActivityResult
-        host.viewerVm.setPendingSave(kind.wire, uri)
+        host.viewModel.setPendingSave(kind.wire, uri)
         startPendingSave()
     }
 
@@ -38,7 +38,7 @@ internal class ViewerShareController(private val host: ResultViewerActivity) {
      * started does not start it again.
      */
     fun startPendingSave() = host.whenFrameSetLoaded {
-        val (kind, uri) = host.viewerVm.takePendingSave() ?: return@whenFrameSetLoaded
+        val (kind, uri) = host.viewModel.takePendingSave() ?: return@whenFrameSetLoaded
         ShareCenter(host).writeKindToUri(kind, uri)
     }
 

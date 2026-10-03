@@ -127,14 +127,14 @@
     </style>
 
     <!-- Flat variant of Widget.Semper.SegmentedButton.ViewerImmersive for buttons
-         living inside a togglePlotMode-style group: no corner rounding of its
+         living inside an rgPlotMode-style group: no corner rounding of its
          own at all. Neither MaterialButtonToggleGroup's automatic inner/outer
          corner-squaring nor a per-child shapeAppearanceOverlay reliably took
          effect for this control (tried both; both rendered fully square), so
          the one-pill look is produced a different way entirely: the group is
          wrapped in a container with a stadium background and
          clipToOutline="true" (see bg_pill_clip_mask.xml and
-         activity_vsg_lattice.xml's togglePlotMode wrapper), which clips these
+         activity_vsg_lattice.xml's rgPlotMode wrapper), which clips these
          flat rectangular buttons into a pill from the outside instead of
          relying on each button's own shape. -->
     <style name="Widget.Semper.SegmentedButton.ViewerImmersive.Grouped" parent="Widget.Semper.SegmentedButton.ViewerImmersive">

@@ -6,10 +6,10 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 // OkHttp client timeouts, in seconds.
-private const val CONNECT_TIMEOUT_S = 30L
-private const val WRITE_TIMEOUT_S = 300L
-private const val READ_TIMEOUT_S = 60L
-private const val DOWNLOAD_READ_TIMEOUT_S = 300L
+private const val CONNECT_TIMEOUT_SECONDS = 30L
+private const val WRITE_TIMEOUT_SECONDS = 300L
+private const val READ_TIMEOUT_SECONDS = 60L
+private const val DOWNLOAD_READ_TIMEOUT_SECONDS = 300L
 
 /**
  * The OkHttp clients every [SemperApi] shares.
@@ -22,9 +22,9 @@ private const val DOWNLOAD_READ_TIMEOUT_S = 300L
 internal object SemperApiClients {
 
     val api: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(CONNECT_TIMEOUT_S, TimeUnit.SECONDS)
-        .writeTimeout(WRITE_TIMEOUT_S, TimeUnit.SECONDS) // large chunk PUTs to Drive
-        .readTimeout(READ_TIMEOUT_S, TimeUnit.SECONDS)
+        .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS) // large chunk PUTs to Drive
+        .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         // Application interceptors, so each sees the logical call once
         // rather than once per redirect hop. Retry first, so a retried
         // request gets a freshly read App Check token rather than replaying
@@ -40,7 +40,7 @@ internal object SemperApiClients {
 
     /** Longer read idle for large Session.zip / legacy restores through the proxy. */
     val download: OkHttpClient = api.newBuilder()
-        .readTimeout(DOWNLOAD_READ_TIMEOUT_S, TimeUnit.SECONDS)
+        .readTimeout(DOWNLOAD_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
 
     /** `SEMPER_API_CERT_PINS` for the backend host, or null when there are none. */

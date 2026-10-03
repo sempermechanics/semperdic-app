@@ -65,7 +65,7 @@ internal class FirstRunPrompts(private val activity: AppCompatActivity) {
      * recorded, so this does not nag, and the toggle stays in Settings.
      */
     private fun maybeAskDiagnostics(next: () -> Unit) {
-        if (DicSettings.diagnosticsAsked(activity)) {
+        if (DicSettings.wasDiagnosticsAsked(activity)) {
             next()
             return
         }

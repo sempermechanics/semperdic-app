@@ -140,26 +140,26 @@ class SessionStoreAtomicTest {
 
     @Test
     fun `save says why a row was not written`() {
-        assertEquals(SessionStore.UpsertResult.SAVED, SessionStore.save(ctx, record("a", 1)))
+        assertEquals(SessionStore.UpsertOutcome.SAVED, SessionStore.save(ctx, record("a", 1)))
 
         indexFile().writeText("{truncated")
         bakFile().writeText("{also-bad")
 
-        assertEquals(SessionStore.UpsertResult.INDEX_UNAVAILABLE, SessionStore.save(ctx, record("b", 2)))
+        assertEquals(SessionStore.UpsertOutcome.INDEX_UNAVAILABLE, SessionStore.save(ctx, record("b", 2)))
     }
 
     @Test
     fun `save refuses a new row at a full quota but still updates an existing one`() {
         try {
             AppRemoteConfig.apply(ctx, AppConfigDto(maxSessions = 1, maxFilesPerSession = 600, maxFrames = 150))
-            assertEquals(SessionStore.UpsertResult.SAVED, SessionStore.save(ctx, record("a", 1)))
+            assertEquals(SessionStore.UpsertOutcome.SAVED, SessionStore.save(ctx, record("a", 1)))
             TokenStore.setQuota(ctx, used = 1)
 
-            assertEquals(SessionStore.UpsertResult.QUOTA_FULL, SessionStore.save(ctx, record("b", 2)))
+            assertEquals(SessionStore.UpsertOutcome.QUOTA_FULL, SessionStore.save(ctx, record("b", 2)))
             assertEquals(null, SessionStore.get(ctx, "b"))
-            assertEquals(SessionStore.UpsertResult.SAVED, SessionStore.save(ctx, record("a", 3)))
+            assertEquals(SessionStore.UpsertOutcome.SAVED, SessionStore.save(ctx, record("a", 3)))
             assertEquals(
-                SessionStore.UpsertResult.SAVED,
+                SessionStore.UpsertOutcome.SAVED,
                 SessionStore.save(ctx, record("c", 4), allowOverLimit = true),
             )
         } finally {

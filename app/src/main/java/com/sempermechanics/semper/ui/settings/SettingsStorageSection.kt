@@ -9,7 +9,7 @@ import com.sempermechanics.semper.data.prefs.DicSettings
 import com.sempermechanics.semper.data.session.CacheJanitor
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.data.session.StorageBudget
-import com.sempermechanics.semper.databinding.SettingsScrollContentBinding
+import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
 import com.sempermechanics.semper.ui.common.ByteSize
 import com.sempermechanics.semper.ui.common.dialog.Dialogs
 import com.sempermechanics.semper.ui.common.dialog.bindInfo
@@ -23,7 +23,7 @@ import kotlinx.coroutines.withContext
  */
 class SettingsStorageSection(
     private val activity: SettingsActivity,
-    private val views: SettingsScrollContentBinding,
+    private val views: ViewSettingsScrollContentBinding,
 ) {
     fun wire() {
         views.btnStorageClearCache.setOnClickListener { clearTemporaryFiles() }
@@ -114,7 +114,7 @@ class SettingsStorageSection(
             Dialogs.confirm(
                 activity,
                 activity.getText(R.string.storage_free_up_title),
-                activity.getString(R.string.storage_free_up_body, ByteSize.format(reclaimable)),
+                activity.getString(R.string.storage_free_up_body_fmt, ByteSize.format(reclaimable)),
                 R.string.storage_free_up_confirm,
             ) { freeUpSpace() }
         }
@@ -122,7 +122,7 @@ class SettingsStorageSection(
 
     private fun freeUpSpace() {
         activity.lifecycleScope.launch {
-            val outcome = StorageBudget.freeAllBackedUpAsync(activity)
+            val outcome = StorageBudget.freeAllBackedUpOnIo(activity)
             if (outcome.didAnything) {
                 activity.toast(
                     activity.resources.getQuantityString(
@@ -156,7 +156,7 @@ class SettingsStorageSection(
 
     private fun applyStorageBudget() {
         activity.lifecycleScope.launch {
-            val outcome = StorageBudget.enforceAsync(activity)
+            val outcome = StorageBudget.enforceOnIo(activity)
             if (outcome.didAnything) {
                 activity.toast(
                     activity.resources.getQuantityString(

@@ -62,22 +62,22 @@ class StudioOverlayView @JvmOverloads constructor(
     private var pendingRestoreRoi: RectF? = null
 
     fun updateImageBounds() {
-        val iv = imageView ?: return
-        val drawable = iv.drawable
+        val imageView = imageView ?: return
+        val drawable = imageView.drawable
         val imageWidth = drawable?.intrinsicWidth?.toFloat() ?: 0f
         val imageHeight = drawable?.intrinsicHeight?.toFloat() ?: 0f
         // A canvas squeezed to nothing (keyboard + dock taller than the screen)
         // keeps the last bounds, so the ROI still maps back when it regrows.
-        if (imageWidth == 0f || imageHeight == 0f || min(iv.width, iv.height) <= 0) return
-        fitImage(iv, imageWidth, imageHeight)
+        if (imageWidth == 0f || imageHeight == 0f || min(imageView.width, imageView.height) <= 0) return
+        fitImage(imageView, imageWidth, imageHeight)
     }
 
     /**
-     * Lays the [imageWidth] x [imageHeight] drawable out in [iv] through the
+     * Lays the [imageWidth] x [imageHeight] drawable out in [imageView] through the
      * viewport, and carries the crop and holes over to the new bounds.
      */
-    private fun fitImage(iv: ImageView, imageWidth: Float, imageHeight: Float) {
-        viewport.layout(imageWidth, imageHeight, iv.width.toFloat(), iv.height.toFloat())
+    private fun fitImage(imageView: ImageView, imageWidth: Float, imageHeight: Float) {
+        viewport.layout(imageWidth, imageHeight, imageView.width.toFloat(), imageView.height.toFloat())
         viewport.bounds(nextBounds)
 
         // Remap live geometry when letterboxing changes (toolbar/IME resize) or
@@ -97,8 +97,8 @@ class StudioOverlayView @JvmOverloads constructor(
         // The ImageView draws through the same rect, so photo and overlay move together.
         drawableRect.set(0f, 0f, imageWidth, imageHeight)
         imageMatrix.setRectToRect(drawableRect, imageBounds, Matrix.ScaleToFit.FILL)
-        iv.scaleType = ImageView.ScaleType.MATRIX
-        iv.imageMatrix = imageMatrix
+        imageView.scaleType = ImageView.ScaleType.MATRIX
+        imageView.imageMatrix = imageMatrix
 
         if (liveRoi != null && liveRoi.width() > 0f && liveRoi.height() > 0f) {
             pendingRestoreRoi = liveRoi

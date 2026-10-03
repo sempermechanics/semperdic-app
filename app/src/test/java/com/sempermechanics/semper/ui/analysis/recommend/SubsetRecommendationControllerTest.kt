@@ -31,7 +31,7 @@ class SubsetRecommendationControllerTest {
     }
 
     private fun recommend(subset: Int, speckle: Double? = null, capped: Int = 0) {
-        bed.viewModel.subsetRecommendation = SubsetRecommender.Result(
+        bed.viewModel.subsetRecommendation = SubsetRecommender.Recommendation(
             subsetSize = subset,
             samples = 10,
             cappedSamples = capped,
@@ -51,7 +51,7 @@ class SubsetRecommendationControllerTest {
         recommend(25, speckle = 5.0)
         subsets.apply()
 
-        assertEquals(25, bed.settings.etSubsetSize.value.toInt())
+        assertEquals(25, bed.settings.sliderSubsetSize.value.toInt())
         assertEquals(listOf("commitParamFields", "onSweepInputsChanged"), bed.host.calls)
         assertTrue(bed.settings.tvSpeckleReadout.isVisible)
         assertFalse(bed.binding.speckleWarnRow.root.isVisible)
@@ -61,18 +61,18 @@ class SubsetRecommendationControllerTest {
     @Test
     fun `a size the user set is kept`() {
         bed.viewModel.subsetUserModified = true
-        bed.settings.etSubsetSize.value = 61f
+        bed.settings.sliderSubsetSize.value = 61f
         recommend(25)
         subsets.apply()
 
-        assertEquals(61, bed.settings.etSubsetSize.value.toInt())
+        assertEquals(61, bed.settings.sliderSubsetSize.value.toInt())
         assertEquals(listOf("onSweepInputsChanged"), bed.host.calls)
     }
 
     @Test
     fun `too fine a speckle shows the size chip, and it suppresses the span chip`() {
         bed.viewModel.subsetUserModified = true
-        bed.settings.etSubsetSize.value = 15f
+        bed.settings.sliderSubsetSize.value = 15f
         recommend(25, speckle = 1.5, capped = 10)
         subsets.apply()
 

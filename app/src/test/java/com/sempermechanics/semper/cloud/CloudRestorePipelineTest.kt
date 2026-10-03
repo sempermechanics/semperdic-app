@@ -28,7 +28,7 @@ import timber.log.Timber
 import java.io.File
 
 /**
- * [CloudRestore.restore] driven end to end through [RestoreFakeApi]: what lands on
+ * [CloudRestore.restore] driven end to end through [FakeRestoreApi]: what lands on
  * disk, and which broken backups it refuses as corrupt (terminal) rather than
  * failing in a way the worker would retry forever.
  */
@@ -36,7 +36,7 @@ import java.io.File
 class CloudRestorePipelineTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
-    private val api = RestoreFakeApi()
+    private val api = FakeRestoreApi()
     private val tokens = FakeTokens()
 
     @Before
@@ -54,9 +54,9 @@ class CloudRestorePipelineTest {
     }
 
     private fun bundle(vararg entries: Pair<String, ByteArray>) =
-        api.file("bundle-1", "bundle", RestoreFakeApi.zipOf(entries.toList()))
+        api.file("bundle-1", "bundle", FakeRestoreApi.zipOf(entries.toList()))
 
-    private fun metadata(bytes: ByteArray = RestoreFakeApi.metadataJson(), sha256: String? = null) =
+    private fun metadata(bytes: ByteArray = FakeRestoreApi.metadataJson(), sha256: String? = null) =
         if (sha256 == null) {
             api.file("meta-1", "metadata", bytes)
         } else {
@@ -76,7 +76,7 @@ class CloudRestorePipelineTest {
             bundle(
                 "raw/Reference.png" to byteArrayOf(1, 2, 3),
                 "raw/def.png" to byteArrayOf(4, 5),
-                "dat/frame_0001.dat" to RestoreFakeApi.onePointDat(),
+                "dat/frame_0001.dat" to FakeRestoreApi.onePointDat(),
             ),
         )
 
@@ -97,7 +97,7 @@ class CloudRestorePipelineTest {
             bundle(
                 "raw/Reference.png" to byteArrayOf(1, 2, 3),
                 "raw/reference.png" to byteArrayOf(4, 5),
-                "dat/frame_0001.dat" to RestoreFakeApi.onePointDat(),
+                "dat/frame_0001.dat" to FakeRestoreApi.onePointDat(),
             ),
         )
 
@@ -114,7 +114,7 @@ class CloudRestorePipelineTest {
             metadata(),
             api.file("Reference.png", "raw", byteArrayOf(1, 2, 3)),
             api.file("reference.png", "raw", byteArrayOf(4, 5)),
-            api.file("frame_0001.dat", "dat", RestoreFakeApi.onePointDat()),
+            api.file("frame_0001.dat", "dat", FakeRestoreApi.onePointDat()),
         )
         val dir = SessionStore.dirFor(context, LOCAL_ID)
         // The downloads run concurrently: finish the deformed image last, the order
@@ -143,7 +143,7 @@ class CloudRestorePipelineTest {
         val sibling = "${LOCAL_ID}X"
         api.files = listOf(
             metadata(),
-            bundle("dat/../$sibling/frame_0001.dat" to RestoreFakeApi.onePointDat()),
+            bundle("dat/../$sibling/frame_0001.dat" to FakeRestoreApi.onePointDat()),
         )
 
         assertThrows(CorruptTransferException::class.java) { restore() }
@@ -155,8 +155,8 @@ class CloudRestorePipelineTest {
     @Test
     fun `a metadata body that does not match its sha256 is refused before the bundle is fetched`() {
         api.files = listOf(
-            metadata(sha256 = RestoreFakeApi.sha256Of("something else".toByteArray())),
-            bundle("dat/frame_0001.dat" to RestoreFakeApi.onePointDat()),
+            metadata(sha256 = FakeRestoreApi.sha256Of("something else".toByteArray())),
+            bundle("dat/frame_0001.dat" to FakeRestoreApi.onePointDat()),
         )
 
         assertThrows(CorruptTransferException::class.java) { restore() }
@@ -167,7 +167,7 @@ class CloudRestorePipelineTest {
     fun `metadata that is not JSON is corrupt, not retryable`() {
         api.files = listOf(
             metadata("<html>gateway error</html>".toByteArray()),
-            bundle("dat/frame_0001.dat" to RestoreFakeApi.onePointDat()),
+            bundle("dat/frame_0001.dat" to FakeRestoreApi.onePointDat()),
         )
 
         assertThrows(CorruptTransferException::class.java) { restore() }
@@ -177,7 +177,7 @@ class CloudRestorePipelineTest {
     fun `metadata whose frame is not an object is corrupt before the bundle is fetched`() {
         api.files = listOf(
             metadata("""{"schema":"indic.session.metadata/3","frames":["def.png"]}""".toByteArray()),
-            bundle("dat/frame_0001.dat" to RestoreFakeApi.onePointDat()),
+            bundle("dat/frame_0001.dat" to FakeRestoreApi.onePointDat()),
         )
 
         val thrown = assertThrows(CorruptTransferException::class.java) { restore() }
@@ -190,7 +190,7 @@ class CloudRestorePipelineTest {
     fun `a sweep backed up before skip codes were kept restores`() {
         api.files = listOf(
             metadata(sweepMetadata(""""subsets":[41,51],"steps":[9,9],"strainWindows":[121,121]""")),
-            bundle("dat/frame_0001.dat" to RestoreFakeApi.onePointDat()),
+            bundle("dat/frame_0001.dat" to FakeRestoreApi.onePointDat()),
         )
 
         assertEquals(LOCAL_ID, restore())
@@ -204,7 +204,7 @@ class CloudRestorePipelineTest {
     fun `skip lists that disagree in length are corrupt before the bundle is fetched`() {
         api.files = listOf(
             metadata(sweepMetadata(""""subsets":[41,51],"steps":[9],"strainWindows":[121],"codes":[-12]""")),
-            bundle("dat/frame_0001.dat" to RestoreFakeApi.onePointDat()),
+            bundle("dat/frame_0001.dat" to FakeRestoreApi.onePointDat()),
         )
 
         val thrown = assertThrows(CorruptTransferException::class.java) { restore() }
@@ -216,8 +216,8 @@ class CloudRestorePipelineTest {
     @Test
     fun `metadata without a declared sha256 still restores`() {
         api.files = listOf(
-            api.file("meta-1", "metadata", RestoreFakeApi.metadataJson(), sha256 = null),
-            bundle("dat/frame_0001.dat" to RestoreFakeApi.onePointDat()),
+            api.file("meta-1", "metadata", FakeRestoreApi.metadataJson(), sha256 = null),
+            bundle("dat/frame_0001.dat" to FakeRestoreApi.onePointDat()),
         )
 
         assertEquals(LOCAL_ID, restore())
@@ -232,7 +232,7 @@ class CloudRestorePipelineTest {
                 assertFalse("a stale .part would be resumed into the new body", AtomicFiles.partOf(dest).exists())
             }
         }
-        api.files = listOf(metadata(), bundle("dat/frame_0001.dat" to RestoreFakeApi.onePointDat()))
+        api.files = listOf(metadata(), bundle("dat/frame_0001.dat" to FakeRestoreApi.onePointDat()))
 
         restore()
 
@@ -272,14 +272,14 @@ class CloudRestorePipelineTest {
     fun `a listing call cancelled under a still-waiting screen is a failed listing`() = runBlocking {
         val fake = FakeCloudApi().apply { onListSessions = { _, _ -> throw CancellationException("call cancelled") } }
 
-        assertTrue(CloudRestore.listCompleted(context, fake, tokens) is CloudRestore.ListResult.Failed)
+        assertTrue(CloudRestore.listCompleted(context, fake, tokens) is CloudRestore.ListOutcome.Failed)
     }
 
     @Test
     fun `a Save-to-Files download whose extras fail attestation leaves no archive behind`() {
-        val bundle = bundle("dat/frame_0001.dat" to RestoreFakeApi.onePointDat())
-        val extrasBytes = RestoreFakeApi.zipOf(listOf("csv/analysis_data.csv" to "a,b".toByteArray()))
-        val staleSha = RestoreFakeApi.sha256Of("an older extras body".toByteArray())
+        val bundle = bundle("dat/frame_0001.dat" to FakeRestoreApi.onePointDat())
+        val extrasBytes = FakeRestoreApi.zipOf(listOf("csv/analysis_data.csv" to "a,b".toByteArray()))
+        val staleSha = FakeRestoreApi.sha256Of("an older extras body".toByteArray())
         api.files = listOf(bundle, api.file("extras-1", "extras", extrasBytes, staleSha))
 
         assertThrows(CorruptTransferException::class.java) {
@@ -292,13 +292,13 @@ class CloudRestorePipelineTest {
 
     @Test
     fun `a failed download never deletes another backup's archive of the same name`() {
-        val bundle = bundle("dat/frame_0001.dat" to RestoreFakeApi.onePointDat())
+        val bundle = bundle("dat/frame_0001.dat" to FakeRestoreApi.onePointDat())
         api.files = listOf(bundle)
         val first = runBlocking {
             CloudRestore.downloadBundleZip(context, CLOUD_ID, "Specimen", api = api, tokens = tokens)
         }
-        val extrasBytes = RestoreFakeApi.zipOf(listOf("csv/analysis_data.csv" to "a,b".toByteArray()))
-        val staleSha = RestoreFakeApi.sha256Of("an older extras body".toByteArray())
+        val extrasBytes = FakeRestoreApi.zipOf(listOf("csv/analysis_data.csv" to "a,b".toByteArray()))
+        val staleSha = FakeRestoreApi.sha256Of("an older extras body".toByteArray())
         api.files = listOf(bundle, api.file("extras-1", "extras", extrasBytes, staleSha))
 
         assertThrows(CorruptTransferException::class.java) {

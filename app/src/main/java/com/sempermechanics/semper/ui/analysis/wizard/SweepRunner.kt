@@ -180,7 +180,7 @@ private fun sweepEvent(appContext: Context, event: String, vararg params: Pair<S
 }
 
 /** One [SkippedNode] per combination the engine could not solve, in plan order. */
-private fun VsgStudyRunner.Result.skippedNodes(): List<SkippedNode> =
+private fun VsgStudyRunner.SweepResult.skippedNodes(): List<SkippedNode> =
     skipped.mapIndexed { index, point -> point.toSkippedNode(skippedCodes[index]) }
 
 /** What a finished sweep's session is assembled from. */
@@ -188,7 +188,7 @@ internal class SweepSession(
     val localSessionId: String,
     val batchDir: File,
     val reference: ByteArray,
-    val result: VsgStudyRunner.Result,
+    val result: VsgStudyRunner.SweepResult,
     val spec: RunSpec,
     val executionTimeMs: Int,
 )
@@ -269,7 +269,7 @@ private class SweepSummary(
 private fun sweepSummary(
     appContext: Context,
     localSessionId: String,
-    result: VsgStudyRunner.Result,
+    result: VsgStudyRunner.SweepResult,
     sweep: RunSpec.Sweep,
     defDisplay: String,
 ): SweepSummary {

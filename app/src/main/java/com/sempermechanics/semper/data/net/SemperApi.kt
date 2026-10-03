@@ -18,7 +18,6 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.File
-import java.io.IOException
 
 /** Seat routes take no body; the backend reads the caller from the token. */
 private const val EMPTY_JSON = "{}"
@@ -77,69 +76,6 @@ class SemperApi @VisibleForTesting internal constructor(
         sign = { device.signMessage(it) },
     )
 
-    /**
-     * A non-2xx from the Semper backend.
-     *
-     * [requestId] is the response's `X-Request-Id` when the backend answered at
-     * all (absent for a gateway kill with no headers). It is carried into the
-     * message so every place that already shows or logs an exception message —
-     * the restore worker's failure output, Timber, Crashlytics — becomes
-     * joinable with the backend access log without touching those call sites.
-     */
-    class ApiException(
-        val code: Int,
-        val body: String,
-        val requestId: String? = null,
-    ) : IOException(SemperApiHttp.withRef("HTTP $code: $body", requestId)) {
-
-        val parsedDetail: String get() = ApiErrors.detailOf(body)
-    }
-
-    class NotApprovedException : IOException(ApiErrors.NOT_APPROVED)
-
-    /**
-     * No backend is configured (`SEMPER_API_BASE_URL` is empty). An [IOException],
-     * so every caller treats it like offline instead of crashing (TD-90).
-     */
-    class CloudNotConfiguredException : IOException("Cloud backend is not configured (SEMPER_API_BASE_URL).")
-
-    /** The Terms this build carries are older than the ones the server publishes (409). */
-    class TermsVersionMismatchException(val requestId: String? = null) : IOException(ApiErrors.TERMS_VERSION_MISMATCH)
-
-    /**
-     * This account is bound to a *different* device (registration refused).
-     * [requestId] is the backend's `X-Request-Id` when it answered — a device
-     * rebind is a support conversation, so the log line has to be findable.
-     */
-    class DeviceConflictException(val requestId: String? = null) : IOException(ApiErrors.DEVICE_CONFLICT)
-
-    /** This device is already bound to a different account (409 from `GET /v1/me`). */
-    class DeviceInUseException(val requestId: String? = null) : IOException(ApiErrors.DEVICE_IN_USE)
-
-    /**
-     * Every floating seat on the institution's license is in use right now.
-     *
-     * Not an account problem: the caller is still on the roster and still
-     * entitled to a seat as soon as one frees. Distinct from [ApiException] so
-     * callers cannot render it as a generic failure.
-     */
-    class NoSeatAvailableException : IOException(ApiErrors.NO_FLOATING_SEAT)
-
-    /**
-     * The backend has no ACTIVE device record for us — the record was revoked or
-     * deleted server-side while we still believed we were registered. Callers
-     * should re-register and retry rather than give up.
-     */
-    class DeviceNotActiveException(val requestId: String? = null) : IOException(ApiErrors.DEVICE_NOT_ACTIVE)
-
-    /**
-     * Drive no longer knows the resumable upload link (404, 410 or 499 on the
-     * status probe): the link expired, or the upload session was cancelled. Sending
-     * bytes to it cannot work, and neither can a retry with the same link; the
-     * cloud session has to be opened again.
-     */
-    class UploadLinkExpiredException(val code: Int) : IOException("Drive upload link expired (HTTP $code)")
-
     private inline fun <reified T> decode(resp: Response): T = json.decodeFromString(resp.body.string())
 
     private inline fun <reified T> jsonBody(value: T): RequestBody =
@@ -150,7 +86,7 @@ class SemperApi @VisibleForTesting internal constructor(
     // ---------------------------------------------------------------- identity
 
     /** GET /v1/me. Throws [NotApprovedException] for a PENDING/SUSPENDED user. */
-    override suspend fun me(idToken: String): MeResponse =
+    override suspend fun getMe(idToken: String): MeResponse =
         calls.bearer(idToken, { url(endpoint("/v1/me")) }, ApiAnswer::failMe) { decode(it) }
 
     /**
@@ -278,7 +214,7 @@ class SemperApi @VisibleForTesting internal constructor(
      */
     override suspend fun acceptTerms(idToken: String, version: String): Unit = calls.bearer(
         idToken,
-        route = { url(endpoint("/v1/me/terms")).post(jsonBody(TermsAcceptanceBody(version))) },
+        route = { url(endpoint("/v1/me/terms")).post(jsonBody(TermsAcceptRequest(version))) },
         orElse = { answer ->
             if (answer.code == HttpStatus.CONFLICT) throw TermsVersionMismatchException(answer.requestId)
             answer.fail()
@@ -287,7 +223,7 @@ class SemperApi @VisibleForTesting internal constructor(
 
     /** PUT /v1/me/consents — grant or withdraw the optional product-improvement consent. */
     override suspend fun setImprovementConsent(idToken: String, granted: Boolean): Unit =
-        calls.bearer(idToken, { url(endpoint("/v1/me/consents")).put(jsonBody(ConsentUpdateBody(granted))) }) {}
+        calls.bearer(idToken, { url(endpoint("/v1/me/consents")).put(jsonBody(ConsentUpdateRequest(granted))) }) {}
 
     // ----------------------------------------------------------- session/files
 
@@ -302,7 +238,7 @@ class SemperApi @VisibleForTesting internal constructor(
      * exist in Drive (catching artifacts deleted straight in Drive). It costs
      * Drive calls per page, so it's for explicit refreshes, not every resume.
      */
-    override suspend fun listSessions(idToken: String, verify: Boolean): ListSessionsResponse {
+    override suspend fun listSessions(idToken: String, verify: Boolean): SessionsResponse {
         val pages = fetchAllPages(
             fetch = { token ->
                 val query = buildString {
@@ -311,12 +247,12 @@ class SemperApi @VisibleForTesting internal constructor(
                     if (token != null) append('&').append(pageTokenParam(token))
                 }
                 calls.bearer(idToken, { url(endpoint("/v1/sessions?$query")) }, ApiAnswer::failApprovedOnly) {
-                    decode<ListSessionsResponse>(it)
+                    decode<SessionsResponse>(it)
                 }
             },
             pageOf = { it.page },
         )
-        return ListSessionsResponse(sessions = pages.flatMap { it.sessions }, quota = pages.last().quota)
+        return SessionsResponse(sessions = pages.flatMap { it.sessions }, quota = pages.last().quota)
     }
 
     /** POST /v1/sessions (device-signed). Initiates a session + one resumable target per file. */
@@ -337,7 +273,7 @@ class SemperApi @VisibleForTesting internal constructor(
      * reason it does on createSession — a stolen ID token must not be able to
      * recover them.
      */
-    override suspend fun sessionUploads(idToken: String, sessionId: String): SessionUploadsResponse =
+    override suspend fun listSessionUploads(idToken: String, sessionId: String): SessionUploadsResponse =
         fetchAllPages(
             fetch = { token ->
                 val path = "/v1/sessions/$sessionId/uploads" + pageTokenQuery(token)

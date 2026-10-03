@@ -236,10 +236,10 @@ object AppRemoteConfig {
         prefs(context)[RemoteConfig.LICENSE_KIND]
 
     /** Epoch millis of the last successful fetch, or 0 if there has never been one. */
-    fun fetchedAtMillis(context: Context): Long = prefs(context)[RemoteConfig.FETCHED_AT]
+    fun fetchedAtMs(context: Context): Long = prefs(context)[RemoteConfig.FETCHED_AT]
 
     /**
-     * Whether the cache is older than [maxAgeMillis].
+     * Whether the cache is older than [maxAgeMs].
      *
      * `now` is a parameter with a production default, as in
      * `WizardDraft.isLive` and `LicenseEntitlements.daysUntilExpiry` — the app
@@ -252,12 +252,12 @@ object AppRemoteConfig {
      */
     fun isStale(
         context: Context,
-        maxAgeMillis: Long,
+        maxAgeMs: Long,
         now: Long = System.currentTimeMillis(),
     ): Boolean {
-        val fetchedAt = fetchedAtMillis(context)
+        val fetchedAt = fetchedAtMs(context)
         if (fetchedAt <= 0L) return true
-        return (now - fetchedAt) !in 0 until maxAgeMillis
+        return (now - fetchedAt) !in 0 until maxAgeMs
     }
 
     /** `perpetual` or `timed`; perpetual until a response says otherwise. */
@@ -265,11 +265,11 @@ object AppRemoteConfig {
         prefs(context)[RemoteConfig.LICENSE_DURATION]
 
     /** Epoch millis the license expires, or [NO_INSTANT] when perpetual. */
-    fun licenseExpiresAtMillis(context: Context): Long =
+    fun licenseExpiresAtMs(context: Context): Long =
         prefs(context)[RemoteConfig.LICENSE_EXPIRES_AT]
 
     /** Past expiry but still fully entitled — warn, do not gate. */
-    fun inGrace(context: Context): Boolean = prefs(context)[RemoteConfig.IN_GRACE]
+    fun isInGrace(context: Context): Boolean = prefs(context)[RemoteConfig.IN_GRACE]
 
     /** `assigned` or `floating`; assigned until a response says otherwise. */
     fun licenseSeating(context: Context): String =

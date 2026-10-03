@@ -49,11 +49,11 @@ internal object SemperApiHttp {
      * [base] + [path] for a backend call. With no backend configured the URL
      * would be the bare [path], which OkHttp rejects with an unchecked
      * IllegalArgumentException that killed the process wherever a caller only
-     * expected [IOException]. [SemperApi.CloudNotConfiguredException] is an
+     * expected [IOException]. [CloudNotConfiguredException] is an
      * [IOException], so every caller treats it like offline (TD-90).
      */
     fun endpoint(base: String, path: String): String =
-        if (base.isBlank()) throw SemperApi.CloudNotConfiguredException() else base + path
+        if (base.isBlank()) throw CloudNotConfiguredException() else base + path
 
     fun bodyText(resp: Response): String = try {
         resp.body.string()
@@ -77,8 +77,8 @@ internal fun Request.Builder.bearer(idToken: String, deviceId: String): Request.
  */
 internal class ApiAnswer(val code: Int, val body: String, val requestId: String?) {
 
-    /** The generic failure: an [SemperApi.ApiException] carrying all three. */
-    fun exception(): SemperApi.ApiException = SemperApi.ApiException(code, body, requestId)
+    /** The generic failure: an [ApiException] carrying all three. */
+    fun exception(): ApiException = ApiException(code, body, requestId)
 
     fun fail(): Nothing = throw exception()
 

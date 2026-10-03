@@ -79,9 +79,9 @@ data class DicParams(val subset: Int, val step: Int, val strainWindow: Int) {
 /**
  * The strain methods the engine has. Only VSG exists. Records keep the method
  * as a free `String` (blank in rows that predate it), so this is the choice,
- * not the stored form: [wireName] is what gets written.
+ * not the stored form: [wire] is what gets written.
  */
-enum class StrainMethod(val wireName: String) {
+enum class StrainMethod(val wire: String) {
     /** Virtual strain gauge: a least-squares plane fit over the window. */
     VSG("VSG"),
     ;
@@ -91,6 +91,6 @@ enum class StrainMethod(val wireName: String) {
          * The stored method as shown and exported: blank reads as [VSG], any
          * other value is kept as is. `SessionUploadBundler`'s `ifBlank { "VSG" }`.
          */
-        fun displayName(stored: String?): String = stored?.ifBlank { null } ?: VSG.wireName
+        fun displayName(stored: String?): String = stored?.ifBlank { null } ?: VSG.wire
     }
 }

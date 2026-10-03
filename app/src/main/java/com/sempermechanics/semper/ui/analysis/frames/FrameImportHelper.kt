@@ -5,7 +5,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import com.sempermechanics.semper.SemperNativeLib
 import com.sempermechanics.semper.field.ImageSize
-import com.sempermechanics.semper.imaging.BitmapDecode
+import com.sempermechanics.semper.imaging.BitmapDecoder
 import com.sempermechanics.semper.imaging.ExifOrientedSize
 import com.sempermechanics.semper.util.forEachChunk
 import kotlinx.coroutines.currentCoroutineContext
@@ -96,7 +96,7 @@ object FrameImportHelper {
      */
     private fun importRawUri(context: Context, uri: Uri, dest: File): ImageSize? =
         context.contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapDecode.writeRgbaFromStream(stream, dest)?.let(ImageSize::of)
+            BitmapDecoder.writeRgbaFromStream(stream, dest)?.let(ImageSize::of)
         }
 
     /** Stream URI → file without holding a full ByteArray; probe dims afterwards. */

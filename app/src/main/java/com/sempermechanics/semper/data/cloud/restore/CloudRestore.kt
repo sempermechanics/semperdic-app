@@ -139,12 +139,12 @@ object CloudRestore {
      * Why a restorable-list query failed or is empty — never collapse auth/config
      * failures into a blank "no backups" list.
      */
-    sealed class ListResult {
-        data class Ready(val sessions: List<CloudSessionDto>) : ListResult()
-        data object Empty : ListResult()
-        data object NeedSignIn : ListResult()
-        data object ApiOff : ListResult()
-        data class Failed(val reason: String) : ListResult()
+    sealed class ListOutcome {
+        data class Ready(val sessions: List<CloudSessionDto>) : ListOutcome()
+        data object Empty : ListOutcome()
+        data object NeedSignIn : ListOutcome()
+        data object ApiOff : ListOutcome()
+        data class Failed(val reason: String) : ListOutcome()
     }
 
     /**
@@ -157,18 +157,18 @@ object CloudRestore {
         context: Context,
         api: CloudApi = SemperApi.get(context),
         tokens: TokenSource = TokenProvider,
-    ): ListResult = withContext(Dispatchers.IO) {
+    ): ListOutcome = withContext(Dispatchers.IO) {
         when (val listed = api.authed(tokens) { listSessions(it).sessions }) {
-            Authed.Disabled -> ListResult.ApiOff
-            Authed.NoToken -> ListResult.NeedSignIn
+            Authed.Disabled -> ListOutcome.ApiOff
+            Authed.NoToken -> ListOutcome.NeedSignIn
             is Authed.Failed -> {
                 val cause = listed.failure.cause
                 Timber.e(cause, "listCompleted sessions failed")
-                ListResult.Failed(cause.message ?: cause.toString())
+                ListOutcome.Failed(cause.message ?: cause.toString())
             }
             is Authed.Ok -> {
                 val sessions = listed.value.filter { it.status == UploadWorkOutcomes.STATUS_COMPLETED }
-                if (sessions.isEmpty()) ListResult.Empty else ListResult.Ready(sessions)
+                if (sessions.isEmpty()) ListOutcome.Empty else ListOutcome.Ready(sessions)
             }
         }
     }
@@ -269,7 +269,7 @@ object CloudRestore {
         val record = metadata.doc.toRecord(targetLocalId, sessionId, layout.dir, outcome.refPath, existing)
         // allowOverLimit: the analysis already counts against the cloud quota.
         val saved = SessionStore.save(appContext, record, allowOverLimit = true)
-        check(saved == SessionStore.UpsertResult.SAVED) { "Could not update the restored session index ($saved)" }
+        check(saved == SessionStore.UpsertOutcome.SAVED) { "Could not update the restored session index ($saved)" }
         logRestoreSaving(outcome, metaEntry.sizeBytes, files)
         targetLocalId
     }

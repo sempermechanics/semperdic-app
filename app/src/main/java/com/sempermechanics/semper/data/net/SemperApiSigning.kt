@@ -61,7 +61,7 @@ internal class SemperApiSigning(
      * so the re-send is safe.
      */
     fun execute(idToken: String, call: SignedCall): Response {
-        if (ClientNonce.usable()) {
+        if (ClientNonce.isUsable()) {
             val resp = send(idToken, call, ClientNonce.mint())
             if (!isClientNonceRefusal(resp)) return resp
             resp.close()
@@ -88,7 +88,7 @@ internal class SemperApiSigning(
 
     /** A client nonce when usable, else a fresh server challenge. */
     private fun nonceFor(idToken: String): String =
-        if (ClientNonce.usable()) ClientNonce.mint() else fetchChallenge(idToken)
+        if (ClientNonce.isUsable()) ClientNonce.mint() else fetchChallenge(idToken)
 
     /** POST /v1/challenge → single-use nonce bound to (uid, deviceId). */
     private fun fetchChallenge(idToken: String): String {
@@ -110,12 +110,12 @@ internal class SemperApiSigning(
      * signs a bare path and then fetches it with parameters is rejected.
      */
     private fun signedHeaders(idToken: String, call: SignedCall, nonce: String): Headers {
-        val msg = (nonce + call.method + call.path).toByteArray() + Digests.sha256(call.body)
+        val message = (nonce + call.method + call.path).toByteArray() + Digests.sha256(call.body)
         return Headers.Builder()
             .add(SemperApiHttp.AUTHORIZATION, "Bearer $idToken")
             .add(SemperApiHttp.DEVICE_ID, deviceId())
             .add(NONCE_HEADER, nonce)
-            .add(SIGNATURE_HEADER, sign(msg))
+            .add(SIGNATURE_HEADER, sign(message))
             .build()
     }
 }

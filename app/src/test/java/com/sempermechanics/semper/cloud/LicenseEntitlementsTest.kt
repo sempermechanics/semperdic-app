@@ -43,7 +43,7 @@ class LicenseEntitlementsTest {
     @After
     fun tearDown() {
         AppRemoteConfig.clear(ctx)
-        DicSettings.setSaveToCloud(ctx, true)
+        DicSettings.setSaveToCloudEnabled(ctx, true)
     }
 
     @Test
@@ -70,7 +70,7 @@ class LicenseEntitlementsTest {
         )
         val individualBackup = LicenseEntitlements.cloudBackupEnabled(ctx)
         val individualShare = LicenseEntitlements.shareEnabled(ctx)
-        val individualUnlimited = LicenseEntitlements.unlimitedAnalysis(ctx)
+        val individualUnlimited = LicenseEntitlements.hasUnlimitedAnalysis(ctx)
 
         AppRemoteConfig.apply(
             ctx,
@@ -84,7 +84,7 @@ class LicenseEntitlementsTest {
         )
         assertEquals(individualBackup, LicenseEntitlements.cloudBackupEnabled(ctx))
         assertEquals(individualShare, LicenseEntitlements.shareEnabled(ctx))
-        assertEquals(individualUnlimited, LicenseEntitlements.unlimitedAnalysis(ctx))
+        assertEquals(individualUnlimited, LicenseEntitlements.hasUnlimitedAnalysis(ctx))
         assertTrue(LicenseEntitlements.isLicensed(ctx))
         // licenseKind itself DOES differ — it's carried through for display only.
         assertEquals("institution", LicenseEntitlements.licenseKind(ctx))
@@ -110,14 +110,14 @@ class LicenseEntitlementsTest {
         // The server refuses the upload past maxSessions; the local gate has to
         // agree, or the run starts, bounces at 409, and "Re-check" says clear.
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "licensed", maxSessions = 40))
-        assertFalse(LicenseEntitlements.unlimitedAnalysis(ctx))
+        assertFalse(LicenseEntitlements.hasUnlimitedAnalysis(ctx))
         assertEquals(40, LicenseEntitlements.analysisCap(ctx))
     }
 
     @Test
     fun `a licensed account has no local cap before the ceiling is known`() {
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "licensed", maxSessions = 0))
-        assertTrue(LicenseEntitlements.unlimitedAnalysis(ctx))
+        assertTrue(LicenseEntitlements.hasUnlimitedAnalysis(ctx))
         assertEquals(Int.MAX_VALUE, LicenseEntitlements.analysisCap(ctx))
     }
 
@@ -256,7 +256,7 @@ class LicenseEntitlementsTest {
     fun `grace notices regardless of how far past expiry it is`() {
         val now = 1_000_000_000_000L
         applyLicensed(Instant.ofEpochMilli(now - 3 * day).toString(), inGrace = true, now = now)
-        assertTrue(LicenseEntitlements.inGrace(ctx))
+        assertTrue(LicenseEntitlements.isInGrace(ctx))
         // Still fully entitled — grace withdraws nothing.
         assertTrue(LicenseEntitlements.isLicensed(ctx))
         assertEquals(-3L, LicenseEntitlements.expiryNoticeDays(ctx, now))
@@ -355,7 +355,7 @@ class LicenseEntitlementsTest {
     fun `an assigned license never needs a seat`() {
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "licensed", licenseSeating = "assigned"))
         assertFalse(LicenseEntitlements.needsSeat(ctx))
-        assertFalse(LicenseEntitlements.seatRequiredToStart(ctx))
+        assertFalse(LicenseEntitlements.isSeatRequiredToStart(ctx))
     }
 
     @Test
@@ -364,14 +364,14 @@ class LicenseEntitlementsTest {
         // starting work against an older deploy.
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "licensed"))
         assertFalse(LicenseEntitlements.needsSeat(ctx))
-        assertFalse(LicenseEntitlements.seatRequiredToStart(ctx))
+        assertFalse(LicenseEntitlements.isSeatRequiredToStart(ctx))
     }
 
     @Test
     fun `a floating member holding a seat may start work`() {
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "licensed", licenseSeating = "floating"))
         assertTrue(LicenseEntitlements.needsSeat(ctx))
-        assertFalse(LicenseEntitlements.seatRequiredToStart(ctx))
+        assertFalse(LicenseEntitlements.isSeatRequiredToStart(ctx))
     }
 
     @Test
@@ -379,7 +379,7 @@ class LicenseEntitlementsTest {
         // demo + floating is the one combination meaning "eligible, but
         // somebody else has the seat".
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "demo", licenseSeating = "floating"))
-        assertTrue(LicenseEntitlements.seatRequiredToStart(ctx))
+        assertTrue(LicenseEntitlements.isSeatRequiredToStart(ctx))
     }
 
     @Test
@@ -387,7 +387,7 @@ class LicenseEntitlementsTest {
         // It has no institution license at all — the quota gate is what limits
         // it, and offering a seat it can never take would be nonsense.
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "demo"))
-        assertFalse(LicenseEntitlements.seatRequiredToStart(ctx))
+        assertFalse(LicenseEntitlements.isSeatRequiredToStart(ctx))
     }
 
     @Test
@@ -396,14 +396,14 @@ class LicenseEntitlementsTest {
         // member is held only to the licensed ceiling, so every existing quota
         // check waves them through regardless of whether they hold a seat.
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "demo", licenseSeating = "floating"))
-        assertTrue(LicenseEntitlements.seatRequiredToStart(ctx))
+        assertTrue(LicenseEntitlements.isSeatRequiredToStart(ctx))
 
         AppRemoteConfig.apply(
             ctx,
             AppConfigDto(mode = "licensed", licenseSeating = "floating", maxSessions = 999),
         )
         assertEquals(999, LicenseEntitlements.analysisCap(ctx))
-        assertFalse(LicenseEntitlements.seatRequiredToStart(ctx))
+        assertFalse(LicenseEntitlements.isSeatRequiredToStart(ctx))
     }
 
     @Test
@@ -438,7 +438,7 @@ class LicenseEntitlementsTest {
 
     @Test
     fun `demo always records, even with the save-to-cloud toggle off`() {
-        DicSettings.setSaveToCloud(ctx, false)
+        DicSettings.setSaveToCloudEnabled(ctx, false)
         assertFalse(LicenseEntitlements.cloudBackupEnabled(ctx))
         assertTrue(CloudSync.uploadsEnabled(ctx, backend))
     }
@@ -446,9 +446,9 @@ class LicenseEntitlementsTest {
     @Test
     fun `a licensed account records only when the toggle is on`() {
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "licensed", cloudBackupEnabled = true))
-        DicSettings.setSaveToCloud(ctx, true)
+        DicSettings.setSaveToCloudEnabled(ctx, true)
         assertTrue(CloudSync.uploadsEnabled(ctx, backend))
-        DicSettings.setSaveToCloud(ctx, false)
+        DicSettings.setSaveToCloudEnabled(ctx, false)
         assertFalse(CloudSync.uploadsEnabled(ctx, backend))
     }
 
@@ -457,14 +457,14 @@ class LicenseEntitlementsTest {
         val none = FakeCloudApi(enabled = false)
         assertFalse(CloudSync.uploadsEnabled(ctx, none))
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "licensed", cloudBackupEnabled = true))
-        DicSettings.setSaveToCloud(ctx, true)
+        DicSettings.setSaveToCloudEnabled(ctx, true)
         assertFalse(CloudSync.uploadsEnabled(ctx, none))
     }
 
     @Test
     fun `a downgrade to demo resumes recording regardless of the old toggle`() {
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "licensed", cloudBackupEnabled = true))
-        DicSettings.setSaveToCloud(ctx, false)
+        DicSettings.setSaveToCloudEnabled(ctx, false)
         assertFalse(CloudSync.uploadsEnabled(ctx, backend))
         AppRemoteConfig.apply(ctx, AppConfigDto(mode = "demo", cloudBackupEnabled = false))
         assertTrue(CloudSync.uploadsEnabled(ctx, backend))

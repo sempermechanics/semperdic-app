@@ -5,7 +5,7 @@ import androidx.core.content.edit
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.data.cloud.CloudSync
 import com.sempermechanics.semper.data.net.AppConfigDto
-import com.sempermechanics.semper.data.net.ListSessionsResponse
+import com.sempermechanics.semper.data.net.SessionsResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -42,7 +42,7 @@ class CloudSyncConcurrencyTest {
         api.onListSessions = { _, _ ->
             listed.incrementAndGet()
             delay(NETWORK_MS)
-            ListSessionsResponse()
+            SessionsResponse()
         }
     }
 

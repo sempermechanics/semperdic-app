@@ -88,7 +88,7 @@ class HomeFirstRunPromptsTest {
     fun `nothing is asked once both are answered`() {
         TokenStore.setBetaNoticeAcked(context)
         DicSettings.setDiagnosticsEnabled(context, false)
-        assertTrue("setting the choice records it as asked", DicSettings.diagnosticsAsked(context))
+        assertTrue("setting the choice records it as asked", DicSettings.wasDiagnosticsAsked(context))
 
         home()
 

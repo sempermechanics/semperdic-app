@@ -38,7 +38,7 @@ class AnalysisWizardSlots(
                 viewModel.realRefWidth,
                 viewModel.realRefHeight,
             )
-            preview?.let { binding.ivRefThumb.setImageBitmap(it) }
+            preview?.let { binding.imgRefThumb.setImageBitmap(it) }
         }
         updateFormatChip()
     }
@@ -53,7 +53,7 @@ class AnalysisWizardSlots(
             binding.tvDefMeta.text = deformedRangeLabel(viewModel.defFilePaths, viewModel.defOriginalNames)
             // Match the icon to what the user actually picked — the frames are
             // image files either way, so only the source tells them apart.
-            binding.ivDefIcon.setImageResource(
+            binding.imgDefIcon.setImageResource(
                 if (viewModel.defFromVideo) R.drawable.ic_video else R.drawable.ic_photos_share,
             )
             binding.rvFrameOrder.isVisible = true

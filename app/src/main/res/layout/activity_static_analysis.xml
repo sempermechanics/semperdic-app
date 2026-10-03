@@ -103,7 +103,7 @@
                             android:orientation="horizontal">
 
                             <ImageView
-                                android:id="@+id/ivRefThumb"
+                                android:id="@+id/imgRefThumb"
                                 android:layout_width="46dp"
                                 android:layout_height="46dp"
                                 android:background="@color/viewer_canvas"
@@ -207,7 +207,7 @@
                                 android:orientation="horizontal">
 
                                 <ImageView
-                                    android:id="@+id/ivDefIcon"
+                                    android:id="@+id/imgDefIcon"
                                     android:layout_width="46dp"
                                     android:layout_height="46dp"
                                     android:background="@color/viewer_canvas"
@@ -278,7 +278,7 @@
                 <!-- Inline lossy-format accuracy warning (non-blocking) -->
                 <include
                     android:id="@+id/formatWarnRow"
-                    layout="@layout/warn_chip_row"
+                    layout="@layout/view_warn_chip"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
@@ -288,7 +288,7 @@
                      not reach the accuracy target even at the largest subset. -->
                 <include
                     android:id="@+id/lowTextureWarnRow"
-                    layout="@layout/warn_chip_row"
+                    layout="@layout/view_warn_chip"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
@@ -302,7 +302,7 @@
                      the step 2 slider, lives on step 2 instead. -->
                 <include
                     android:id="@+id/speckleWarnRow"
-                    layout="@layout/warn_chip_row"
+                    layout="@layout/view_warn_chip"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"

@@ -11,8 +11,8 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.core.graphics.scale
 import com.sempermechanics.semper.field.ImageSize
-import com.sempermechanics.semper.imaging.BitmapDecode
-import com.sempermechanics.semper.imaging.ImageEncode
+import com.sempermechanics.semper.imaging.BitmapDecoder
+import com.sempermechanics.semper.imaging.ImageEncoder
 import com.sempermechanics.semper.ui.analysis.frames.FrameImportHelper
 import com.sempermechanics.semper.ui.analysis.frames.ImportedBatch
 import kotlinx.coroutines.CancellationException
@@ -70,7 +70,7 @@ data class VideoMeta(
  */
 object VideoFrameExtractor {
 
-    private val PREVIEW_MAX_EDGE = BitmapDecode.PREVIEW_MAX_EDGE
+    private val PREVIEW_MAX_EDGE = BitmapDecoder.PREVIEW_MAX_EDGE
 
     /** The frame rate assumed when the clip does not report its frame count. */
     private const val ASSUMED_FPS = 30.0
@@ -259,7 +259,7 @@ object VideoFrameExtractor {
                     } else {
                         val f = sink.deformedFile(i)
                         FileOutputStream(f).use { out ->
-                            frame.compress(Bitmap.CompressFormat.PNG, ImageEncode.PNG_QUALITY_MAX, out)
+                            frame.compress(Bitmap.CompressFormat.PNG, ImageEncoder.PNG_QUALITY_MAX, out)
                         }
                         defPaths.add(f.absolutePath)
                     }
@@ -295,7 +295,7 @@ object VideoFrameExtractor {
 
     private fun compressPngToBytes(frame: Bitmap): ByteArray =
         ByteArrayOutputStream().use { out ->
-            frame.compress(Bitmap.CompressFormat.PNG, ImageEncode.PNG_QUALITY_MAX, out)
+            frame.compress(Bitmap.CompressFormat.PNG, ImageEncoder.PNG_QUALITY_MAX, out)
             out.toByteArray()
         }
 

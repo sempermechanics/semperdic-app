@@ -18,7 +18,7 @@ import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.prefs.DicSettings
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
-import com.sempermechanics.semper.databinding.SettingsScrollContentBinding
+import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
 import com.sempermechanics.semper.ui.common.ByteSize
 import com.sempermechanics.semper.ui.common.ConflatedRefresh
 import com.sempermechanics.semper.ui.common.dialog.Feedback
@@ -39,7 +39,7 @@ import kotlinx.coroutines.withContext
  */
 internal class SettingsAnalysesSection(
     private val activity: SettingsActivity,
-    private val views: SettingsScrollContentBinding,
+    private val views: ViewSettingsScrollContentBinding,
 ) {
     private val analysesAdapter = AnalysisDataAdapter(
         stateLine = ::stateLine,
@@ -111,7 +111,7 @@ internal class SettingsAnalysesSection(
             views.tvAnalysesDataState.isVisible = true
             views.tvAnalysesDataState.text = it
         }
-        val cloud = (result as? CloudRestore.ListResult.Ready)?.sessions.orEmpty()
+        val cloud = (result as? CloudRestore.ListOutcome.Ready)?.sessions.orEmpty()
         val entries = withContext(Dispatchers.IO) {
             AnalysisEntries.merge(records, cloud).map { entry ->
                 val id = entry.record?.id ?: return@map entry
@@ -130,11 +130,11 @@ internal class SettingsAnalysesSection(
      * wrong here: without this line a backed-up analysis looks phone-only, and
      * the user would read that as "my backup is gone".
      */
-    private fun cloudStateMessage(result: CloudRestore.ListResult): String? = when (result) {
-        is CloudRestore.ListResult.Ready, CloudRestore.ListResult.Empty -> null
-        CloudRestore.ListResult.NeedSignIn -> activity.getString(R.string.restore_need_sign_in)
-        CloudRestore.ListResult.ApiOff -> activity.getString(R.string.restore_api_off)
-        is CloudRestore.ListResult.Failed -> activity.getString(R.string.restore_load_error, result.reason)
+    private fun cloudStateMessage(result: CloudRestore.ListOutcome): String? = when (result) {
+        is CloudRestore.ListOutcome.Ready, CloudRestore.ListOutcome.Empty -> null
+        CloudRestore.ListOutcome.NeedSignIn -> activity.getString(R.string.restore_need_sign_in)
+        CloudRestore.ListOutcome.ApiOff -> activity.getString(R.string.restore_api_off)
+        is CloudRestore.ListOutcome.Failed -> activity.getString(R.string.restore_load_error_fmt, result.reason)
     }
 
     // ── Transfers ────────────────────────────────────────────────────────
@@ -237,7 +237,7 @@ internal class SettingsAnalysesSection(
         return when (record.syncState) {
             SessionRecord.SyncState.FAILED, SessionRecord.SyncState.PENDING -> R.string.cloud_retry_backup
             SessionRecord.SyncState.LOCAL_ONLY ->
-                if (DicSettings.saveToCloud(activity)) R.string.cloud_backup_now else null
+                if (DicSettings.saveToCloudEnabled(activity)) R.string.cloud_backup_now else null
             // Backed up, but this run could not list the cloud: offer nothing
             // rather than a "back up" that would duplicate an existing copy.
             SessionRecord.SyncState.SYNCED -> null
@@ -254,7 +254,7 @@ internal class SettingsAnalysesSection(
         // Same ordering as Home's: the PENDING stamp before the worker, so a
         // fast upload cannot have its SYNCED stamp overwritten by this one.
         activity.lifecycleScope.launch {
-            SessionStore.setSyncStateAsync(activity, record.id, SessionRecord.SyncState.PENDING)
+            SessionStore.setSyncStateOnIo(activity, record.id, SessionRecord.SyncState.PENDING)
             CloudSync.enqueueUpload(activity, record.id)
             Feedback.toast(activity, label)
             refresh()

@@ -4,7 +4,6 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
-import com.google.android.material.button.MaterialButtonToggleGroup
 
 /** Hides the soft keyboard showing for this view's window. */
 fun View.hideKeyboard() {
@@ -37,11 +36,4 @@ fun EditText.commitOnDone(imeAction: Int = EditorInfo.IME_ACTION_DONE, onDone: (
 /** Shows [text], unless the user is typing in this field (it has focus). */
 fun EditText.showUnlessEditing(text: CharSequence) {
     if (!hasFocus()) setText(text)
-}
-
-/** Runs [onChecked] with the id of each button that becomes checked; unchecks are ignored. */
-fun MaterialButtonToggleGroup.onButtonChecked(onChecked: (checkedId: Int) -> Unit) {
-    addOnButtonCheckedListener { _, checkedId, isChecked ->
-        if (isChecked) onChecked(checkedId)
-    }
 }

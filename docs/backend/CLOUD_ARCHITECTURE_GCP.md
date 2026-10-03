@@ -2418,7 +2418,7 @@ that keep the phone from contradicting it.
 - **A seat check parallel to the quota check.** An institution member without
   a live lease is not over any quota — a licensed account never is — so
   `TokenStore.isSessionLimitReached` would let them through every existing
-  gate. `LicenseEntitlements.seatRequiredToStart` is a separate predicate. It
+  gate. `LicenseEntitlements.isSeatRequiredToStart` is a separate predicate. It
   gates the Home **+** before the source menu opens (`HomeActivity`) and both
   compute paths (`AnalysisNavHelper`), guarded by
   `AnalysisViewModel.wouldCreateNewSession()` so a run already in flight is

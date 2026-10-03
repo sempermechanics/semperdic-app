@@ -6,8 +6,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import com.sempermechanics.semper.SemperNativeLib
 import com.sempermechanics.semper.field.ImageSize
-import com.sempermechanics.semper.imaging.BitmapDecode
-import com.sempermechanics.semper.imaging.ImageEncode
+import com.sempermechanics.semper.imaging.BitmapDecoder
+import com.sempermechanics.semper.imaging.ImageEncoder
 import com.sempermechanics.semper.imaging.RawRgba
 import com.sempermechanics.semper.report.EngineStats
 import com.sempermechanics.semper.report.VisualizationEngine
@@ -43,17 +43,17 @@ class SessionRepository {
                 SemperNativeLib.getPreviewFromBytes(
                     refBytes,
                     VisualizationEngine.DISPLAY_MAX_EDGE,
-                ) ?: BitmapDecode.decodeByteArrayCapped(refBytes)
+                ) ?: BitmapDecoder.decodeByteArrayCapped(refBytes)
             }
             val bmp = refBmp
             if (bmp != null) {
                 refPngFile.outputStream().use { out ->
-                    bmp.compress(Bitmap.CompressFormat.PNG, ImageEncode.PNG_QUALITY_MAX, out)
+                    bmp.compress(Bitmap.CompressFormat.PNG, ImageEncoder.PNG_QUALITY_MAX, out)
                 }
             } else {
                 // Keep original bytes for restore/upload, but log when they are not
                 // a real PNG — Home thumbs sniff headers and skip BitmapFactory.
-                if (!BitmapDecode.looksLikePlatformRaster(refBytes)) {
+                if (!BitmapDecoder.looksLikePlatformRaster(refBytes)) {
                     Timber.w(
                         "Reference preview unavailable; storing non-PNG source bytes as %s",
                         refPngFile.name,

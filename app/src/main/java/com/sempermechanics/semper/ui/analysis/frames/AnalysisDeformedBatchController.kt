@@ -8,7 +8,7 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.prefs.DicSettings
 import com.sempermechanics.semper.ui.analysis.StaticAnalysisActivity
-import com.sempermechanics.semper.ui.analysis.run.ComputeOverlayHelper
+import com.sempermechanics.semper.ui.analysis.run.ComputeOverlayController
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.common.dialog.FaqRedirect
 import com.sempermechanics.semper.ui.common.dialog.Feedback
@@ -27,10 +27,10 @@ import timber.log.Timber
  * Caps to [DicSettings.maxFrames], caches via [FrameImportHelper] on [io],
  * then applies ViewModel state on the main thread.
  */
-class AnalysisDeformedBatchHelper(
+class AnalysisDeformedBatchController(
     private val activity: AppCompatActivity,
     private val viewModel: AnalysisViewModel,
-    private val overlayHelper: ComputeOverlayHelper,
+    private val overlayController: ComputeOverlayController,
     private val tvResult: TextView,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
@@ -80,13 +80,13 @@ class AnalysisDeformedBatchHelper(
                 withContext(Dispatchers.Main) {
                     FaqRedirect.snackbar(
                         activity,
-                        activity.getString(R.string.error_loading_images, e.message),
+                        activity.getString(R.string.error_loading_images_fmt, e.message),
                         R.string.url_faq_import_deformed,
                     )
                 }
             } finally {
                 withContext(NonCancellable + Dispatchers.Main) {
-                    overlayHelper.hide()
+                    overlayController.hide()
                     tvResult.text = ""
                     onFinished()
                 }
@@ -108,8 +108,8 @@ class AnalysisDeformedBatchHelper(
 
     private fun showImporting(count: Int) {
         tvResult.setText(R.string.analysis_caching_images)
-        overlayHelper.processingStartTime = System.currentTimeMillis()
-        overlayHelper.show(
+        overlayController.processingStartTime = System.currentTimeMillis()
+        overlayController.show(
             title = activity.getString(R.string.analysis_importing_title),
             status = activity.getString(R.string.analysis_caching_images),
             showRunTiles = false,
@@ -118,7 +118,7 @@ class AnalysisDeformedBatchHelper(
     }
 
     private fun showProgress(done: Int, total: Int) {
-        overlayHelper.update(
+        overlayController.update(
             percent = if (total > 0) (done * PERCENT / total) else 0f,
             status = activity.resources.getQuantityString(
                 R.plurals.analysis_importing_fmt,

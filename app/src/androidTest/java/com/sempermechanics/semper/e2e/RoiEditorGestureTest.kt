@@ -77,7 +77,7 @@ class RoiEditorGestureTest {
             val zoom = zoom(scenario)
             assertTrue("pinch-open did not zoom ($zoom)", zoom > 1.5f)
             assertRect(before, roi(scenario), ROI_TOLERANCE)
-            assertEquals(context.getString(R.string.roi_hud_zoom, zoom), hud(scenario))
+            assertEquals(context.getString(R.string.roi_hud_zoom_fmt, zoom), hud(scenario))
         }
     }
 

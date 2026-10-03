@@ -6,12 +6,12 @@ import com.sempermechanics.semper.data.net.FileCompleteRequest
 import com.sempermechanics.semper.data.net.FileSpecDto
 import com.sempermechanics.semper.data.net.LicenseActivateRequest
 import com.sempermechanics.semper.data.net.LicenseActivateResponse
-import com.sempermechanics.semper.data.net.ListSessionsResponse
 import com.sempermechanics.semper.data.net.MeResponse
 import com.sempermechanics.semper.data.net.SessionCreateRequest
 import com.sempermechanics.semper.data.net.SessionCreateResponse
 import com.sempermechanics.semper.data.net.SessionFilesResponse
 import com.sempermechanics.semper.data.net.SessionUploadsResponse
+import com.sempermechanics.semper.data.net.SessionsResponse
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -49,7 +49,7 @@ class ApiDtosContractTest {
 
     @Test
     fun `session list decodes sessions and quota`() {
-        val resp = json.decodeFromString<ListSessionsResponse>(
+        val resp = json.decodeFromString<SessionsResponse>(
             """
             {"sessions":[{"sessionId":"s1","localSessionId":"l1","specimen":"sp",
               "status":"COMPLETED","fileCount":2,"completedCount":2,

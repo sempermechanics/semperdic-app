@@ -1,6 +1,6 @@
 package com.sempermechanics.semper.ui.analysis.run
 
-import com.sempermechanics.semper.data.session.SessionStore.UpsertResult
+import com.sempermechanics.semper.data.session.SessionStore.UpsertOutcome
 import com.sempermechanics.semper.field.RunStop
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -19,7 +19,7 @@ class AfterSaveTest {
         stops.forEach { stop ->
             assertEquals(
                 AfterSave(stop, recordSaved = true, indexUnavailable = false),
-                afterSave(stop, UpsertResult.SAVED),
+                afterSave(stop, UpsertOutcome.SAVED),
             )
         }
     }
@@ -30,7 +30,7 @@ class AfterSaveTest {
             assertEquals(
                 "from $stop",
                 AfterSave(RunStop.SessionLimit, recordSaved = false, indexUnavailable = false),
-                afterSave(stop, UpsertResult.QUOTA_FULL),
+                afterSave(stop, UpsertOutcome.QUOTA_FULL),
             )
         }
     }
@@ -40,7 +40,7 @@ class AfterSaveTest {
         stops.forEach { stop ->
             assertEquals(
                 AfterSave(stop, recordSaved = false, indexUnavailable = true),
-                afterSave(stop, UpsertResult.INDEX_UNAVAILABLE),
+                afterSave(stop, UpsertOutcome.INDEX_UNAVAILABLE),
             )
         }
     }

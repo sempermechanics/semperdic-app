@@ -47,17 +47,17 @@ class AnalysisWizardSmokeTest {
     }
 
     @Test
-    fun analysisActivity_showsWizardNextWithoutCrashing() {
+    fun wizardShowsNextWithoutCrashing() {
         onView(withId(R.id.btnNext)).check(matches(isDisplayed()))
     }
 
     @Test
-    fun analysisActivity_showsToolbar() {
+    fun wizardShowsToolbar() {
         onView(withId(R.id.toolbar)).check(matches(isDisplayed()))
     }
 
     @Test
-    fun analysisActivity_keepsInstructionOnSettingsPage() {
+    fun wizardKeepsInstructionOnSettingsPage() {
         scenarioRule.scenario.onActivity { activity ->
             val instruction = activity.findViewById<TextView>(R.id.tvInstruction)
             assertNotNull(instruction)
@@ -67,7 +67,7 @@ class AnalysisWizardSmokeTest {
     }
 
     @Test
-    fun analysisActivity_hidesWizardBackOnFirstStep() {
+    fun wizardHidesBackOnFirstStep() {
         scenarioRule.scenario.onActivity { activity ->
             val back = activity.findViewById<View>(R.id.btnBack)
             assertNotNull(back)
@@ -76,7 +76,7 @@ class AnalysisWizardSmokeTest {
     }
 
     @Test
-    fun analysisActivity_hidesComputeOnFirstStep() {
+    fun wizardHidesComputeOnFirstStep() {
         scenarioRule.scenario.onActivity { activity ->
             val compute = activity.findViewById<View>(R.id.btnCalculateFullField)
             assertNotNull(compute)
@@ -85,10 +85,10 @@ class AnalysisWizardSmokeTest {
     }
 
     @Test
-    fun analysisActivity_step2SingleSweepAndStep3Summary() {
+    fun wizardShowsSingleAndSweepSettingsOnStep2AndSummaryOnStep3() {
         goToWizardStep(WizardStep.SETTINGS)
         onView(withId(R.id.rgAnalysisMode)).check(matches(isDisplayed()))
-        onView(withId(R.id.tvOverlapValue)).check(matches(isDisplayed()))
+        onView(withId(R.id.etOverlapValue)).check(matches(isDisplayed()))
         scenarioRule.scenario.onActivity { activity ->
             assertTrue(activity.findViewById<View>(R.id.advancedParamsCard).isVisible)
             assertFalse(activity.findViewById<View>(R.id.sweepSettingsCard).isVisible)

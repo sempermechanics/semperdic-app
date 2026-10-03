@@ -14,7 +14,7 @@ import com.sempermechanics.semper.R
  */
 class RunChrome(
     private val activity: AppCompatActivity,
-    val overlay: ComputeOverlayHelper,
+    val overlay: ComputeOverlayController,
     private val cancelButton: View,
 ) {
 

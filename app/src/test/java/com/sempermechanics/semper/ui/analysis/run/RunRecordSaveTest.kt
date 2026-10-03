@@ -55,25 +55,25 @@ class RunRecordSaveTest {
 
     @Test
     fun `a saved row queues its upload when uploads are on`() {
-        assertEquals(SessionStore.UpsertResult.SAVED, saveRunRecord(ctx, record("a"), cloudEnabled = true))
+        assertEquals(SessionStore.UpsertOutcome.SAVED, saveRunRecord(ctx, record("a"), cloudEnabled = true))
         assertEquals(1, uploadsQueuedFor("a"))
         assertTrue(SessionStore.get(ctx, "a") != null)
     }
 
     @Test
     fun `a saved row stays local when uploads are off`() {
-        assertEquals(SessionStore.UpsertResult.SAVED, saveRunRecord(ctx, record("a"), cloudEnabled = false))
+        assertEquals(SessionStore.UpsertOutcome.SAVED, saveRunRecord(ctx, record("a"), cloudEnabled = false))
         assertEquals(0, uploadsQueuedFor("a"))
     }
 
     @Test
     fun `an unreadable index is not reported as a full quota, and queues nothing`() {
-        assertEquals(SessionStore.UpsertResult.SAVED, saveRunRecord(ctx, record("a"), cloudEnabled = false))
+        assertEquals(SessionStore.UpsertOutcome.SAVED, saveRunRecord(ctx, record("a"), cloudEnabled = false))
         val sessions = File(ctx.filesDir, "sessions")
         File(sessions, "index.json").writeText("{truncated")
         File(sessions, "index.json.bak").writeText("{also-bad")
 
-        assertEquals(SessionStore.UpsertResult.INDEX_UNAVAILABLE, saveRunRecord(ctx, record("b"), cloudEnabled = true))
+        assertEquals(SessionStore.UpsertOutcome.INDEX_UNAVAILABLE, saveRunRecord(ctx, record("b"), cloudEnabled = true))
         assertEquals(0, uploadsQueuedFor("b"))
     }
 
@@ -81,7 +81,7 @@ class RunRecordSaveTest {
     fun `a quota that filled after the pre-check is a full quota, and queues nothing`() {
         TokenStore.setQuota(ctx, used = 2)
 
-        assertEquals(SessionStore.UpsertResult.QUOTA_FULL, saveRunRecord(ctx, record("b"), cloudEnabled = true))
+        assertEquals(SessionStore.UpsertOutcome.QUOTA_FULL, saveRunRecord(ctx, record("b"), cloudEnabled = true))
         assertEquals(0, uploadsQueuedFor("b"))
     }
 }

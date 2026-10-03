@@ -6,8 +6,8 @@ import com.sempermechanics.semper.data.cloud.CloudBackupListing
 import com.sempermechanics.semper.data.cloud.CloudSync
 import com.sempermechanics.semper.data.cloud.restore.RestoreStart
 import com.sempermechanics.semper.data.net.CloudSessionDto
-import com.sempermechanics.semper.data.net.ListSessionsResponse
 import com.sempermechanics.semper.data.net.QuotaDto
+import com.sempermechanics.semper.data.net.SessionsResponse
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.fixtures.sessionRecord
@@ -46,7 +46,7 @@ class CloudBackupListingTest {
 
         assertEquals(
             listOf(CloudBackupListing.Backup("c1", "s1", "Beam", 21L)),
-            CloudBackupListing.load(context),
+            CloudBackupListing.read(context),
         )
     }
 
@@ -108,12 +108,12 @@ class CloudBackupListingTest {
     fun `a successful reconcile saves the listing`() {
         api.onGetConfig = { throw IOException("config down") }
         api.onListSessions = { _, _ ->
-            ListSessionsResponse(sessions = listOf(dto("c1", "s1")), quota = QuotaDto(used = 1, max = 25))
+            SessionsResponse(sessions = listOf(dto("c1", "s1")), quota = QuotaDto(used = 1, max = 25))
         }
 
         runBlocking { CloudSync.reconcile(context, reupload = false, deep = true, api = api, tokens = tokens) }
 
-        assertEquals(listOf("c1"), CloudBackupListing.load(context).map { it.cloudId })
+        assertEquals(listOf("c1"), CloudBackupListing.read(context).map { it.cloudId })
     }
 
     @Test
@@ -124,7 +124,7 @@ class CloudBackupListingTest {
 
         runBlocking { CloudSync.reconcile(context, reupload = false, deep = true, api = api, tokens = tokens) }
 
-        assertEquals(listOf("c1"), CloudBackupListing.load(context).map { it.cloudId })
+        assertEquals(listOf("c1"), CloudBackupListing.read(context).map { it.cloudId })
     }
 
     @Test
@@ -134,7 +134,7 @@ class CloudBackupListingTest {
 
         CloudSync.eraseCloudBackup(context, "c1", "", api, tokens)
 
-        assertEquals(listOf("c2"), CloudBackupListing.load(context).map { it.cloudId })
+        assertEquals(listOf("c2"), CloudBackupListing.read(context).map { it.cloudId })
     }
 
     @Test
@@ -145,7 +145,7 @@ class CloudBackupListingTest {
 
         CloudSync.eraseEverywhere(context, "s1", api, tokens)
 
-        assertTrue(CloudBackupListing.load(context).isEmpty())
+        assertTrue(CloudBackupListing.read(context).isEmpty())
     }
 
     @Test
@@ -155,7 +155,7 @@ class CloudBackupListingTest {
 
         CloudSync.eraseCloudBackup(context, "c1", "", api, tokens)
 
-        assertEquals(listOf("c1"), CloudBackupListing.load(context).map { it.cloudId })
+        assertEquals(listOf("c1"), CloudBackupListing.read(context).map { it.cloudId })
     }
 
     @Test
@@ -165,7 +165,7 @@ class CloudBackupListingTest {
 
         CloudBackupListing.clear(context)
 
-        assertTrue(CloudBackupListing.load(context).isEmpty())
+        assertTrue(CloudBackupListing.read(context).isEmpty())
         CloudBackupListing.record(context, listOf(dto("c1", "s1")))
         // Nothing stays hidden either.
         assertEquals(listOf("c1"), CloudBackupListing.offered(context).map { it.cloudId })
@@ -176,7 +176,7 @@ class CloudBackupListingTest {
         context.getSharedPreferences("semper_cloud_listing", Context.MODE_PRIVATE)
             .edit().putString("backups", "{not json").commit()
 
-        assertTrue(CloudBackupListing.load(context).isEmpty())
+        assertTrue(CloudBackupListing.read(context).isEmpty())
     }
 
     // ── Queueing a batch ────────────────────────────────────────────────────

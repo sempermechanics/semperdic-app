@@ -177,7 +177,7 @@ class DicBundleDownloadWorker internal constructor(
     ): File = suspendRunCatching {
         source.download(applicationContext, cloudSessionId, displayName) { done, total -> publishProgress(done, total) }
     }.getOrElse { e ->
-        val packed = if (mayPackInstead(e)) packLocalFallback(localSessionId) else null
+        val packed = if (canPackInstead(e)) packLocalFallback(localSessionId) else null
         packed?.also { Timber.i(e, "Cloud zip unavailable; packed local session fallback") } ?: throw e
     }
 
@@ -186,7 +186,7 @@ class DicBundleDownloadWorker internal constructor(
      * for a backend answer (it says why) nor corrupt bytes (they are reported,
      * not hidden).
      */
-    private fun mayPackInstead(e: Throwable): Boolean =
+    private fun canPackInstead(e: Throwable): Boolean =
         e is Exception && e !is ApiException && !RestoreDownloadOutcomes.isTerminalCorruptFailure(e)
 
     private suspend fun packLocalFallback(localSessionId: String): File? {

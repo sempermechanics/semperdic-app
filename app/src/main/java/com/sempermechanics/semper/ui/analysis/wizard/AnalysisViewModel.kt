@@ -257,7 +257,7 @@ class AnalysisViewModel(private val saved: SavedStateHandle) : ViewModel() {
      * image + ROI, or null while it has not been computed. It seeds the subset
      * slider until [subsetUserModified] says the user has taken it over.
      */
-    var subsetRecommendation: SubsetRecommender.Result? = null
+    var subsetRecommendation: SubsetRecommender.Recommendation? = null
 
     /** Identifies the inputs [subsetRecommendation] was computed for. */
     var subsetRecommendationKey: String? = null

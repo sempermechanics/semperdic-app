@@ -181,17 +181,115 @@ parallel). Kotlin/docs-only PRs run ~10–15 min via path filters.
 | Legal pages / asset links | [firebase-hosting/README.md](firebase-hosting/README.md) |
 | CI / release | [docs/ops/CI.md](docs/ops/CI.md), [docs/ops/RELEASING.md](docs/ops/RELEASING.md) |
 
-Prefer extracting a `*Helper` / `*Runner` next to existing ones over growing a
-god Activity. Do not introduce a DI framework for tiny helpers — there is no
+Prefer extracting a part (a `*Controller`, `*Section` or `*Runner`, named by the
+rules below) next to existing ones over growing a god Activity. Do not
+introduce a DI framework for tiny helpers — there is no
 Hilt/Dagger in this app (removed as unused, zero `@Inject` sites); if a screen
 grows real injectable dependencies, propose the framework in its own PR rather
 than sneaking it into an unrelated one.
+
+## Code style
+
+Formatting is ktlint (Spotless) and detekt; see "Three gates" above. Packages
+and file size: [ADR-015](docs/adr/ADR-015-package-layout.md). Names follow the
+Kotlin coding conventions and Android resource naming, as this codebase applies
+them:
+
+**Files and types**
+
+1. A file holding one main type is named after it. A file of functions, or of
+   several related types, gets a noun phrase for its content (`RoiCodecs`,
+   `ToggleGroups`, `*Conversions`); never `Ext`, `Util` or `Helper`.
+2. Class names spell words out (`Reference`, `Deformed`, `Image`). Members may
+   use the domain abbreviations (`ref`, `def`, `roi`, `vsg`, `img`, `px`).
+   Acronyms are one capital (`Dic`, `Roi`, `Vsg`, `Dat`, `Ui`).
+3. Codecs end in `Encoder` / `Decoder`; every `Throwable` subclass ends in
+   `Exception`.
+
+**Role suffixes, one meaning each**
+
+4. `*Controller`: built with a host Activity or binding, it owns a screen
+   region's views and behaviour. A part may instead be named for the region it
+   is: `*Section`, `*Card`, `*Sheet`, `*Chrome`, `*Slots`, `*Banner`.
+5. `*Helper`: a stateless `object` of functions only, never a class with state.
+6. `*Store` owns persisted state; `*Loader` loads data into memory for display;
+   `*Runner` executes a planned computation; `*Run` is one execution's state or a
+   process-scoped operation ([ADR-016](docs/adr/ADR-016-work-that-outlives-the-activity.md));
+   `*Gate` decides whether something may proceed; `*Builder` assembles one artifact.
+7. A closed set of "how it ended" values (sealed type or enum) is an `*Outcome`
+   ([ADR-018](docs/adr/ADR-018-error-convention.md)). No type is named bare
+   `Result`: it hides `kotlin.Result` and `ListenableWorker.Result`.
+
+**Functions**
+
+8. A function with side effects starts with a verb. A pure function that returns
+   a value may be a noun phrase (`sessionDir(id)`).
+9. Data access: `fetch*` is a network round trip; `read*` a synchronous local read
+   (file, prefs, Intent); `load*` an asynchronous load into memory or the UI, or
+   a `*Loader`'s entry point; `get*` a cheap in-memory lookup, or an Intent /
+   Bundle extension mirroring Android's names. `CloudApi` keeps REST verbs
+   (`get`, `list`, `create`, `complete`, `replace`, `delete`).
+10. A Boolean predicate reads as a yes/no question: `is` / `has` / `can` /
+    `should` / `was` / `are`, a third-person verb (`fits`, `swapsAxes`), or
+    `<feature>Enabled` for a settings switch, paired with `set<Feature>Enabled`.
+11. A suspend function never ends in `Async` (that means "returns `Deferred`").
+    A suspend twin of a blocking function is `<name>OnIo` (or `<name>OnMain`).
+12. Factories: `of(parts)`; `from<Source>()` for a conversion; `create()` for
+    fallible construction of a resource-owning object; `new<Thing>()` for a fresh
+    instance, id or dir; `build<Thing>()` for multi-step assembly. A wire value is
+    `wire` (String) or `wireCode` (Int), with `fromWire` / `fromWireCode` back.
+13. Extension functions follow 8–10; on an Android type they mirror its naming
+    (`Bundle.putRoi` / `getRoi`).
+14. Tests: JVM tests are backtick sentences. Instrumented tests are camelCase
+    sentences (minSdk 24's DEX rejects spaces in method names). Benchmarks keep
+    their names: scripts and result history compare them by name. Test doubles
+    are `Fake<Thing>`; a device-only test class ends in `DeviceTest`.
+
+**Variables and properties**
+
+15. Boolean properties may be adjectives or participles (`enabled`,
+    `stoppedEarly`); many are persisted `SessionRecord` fields.
+16. No generic abbreviations (`ctx`, `vm`, `msg`, `err`, `iv`, `cb`, `cnt`); a
+    screen's ViewModel property is `viewModel`. Math and loop locals (`i`, `w`,
+    `h`, `idx`, `tmp`) are fine.
+17. Reach a view through `binding.<id>`; an unavoidable alias uses the id's exact
+    name. No `m` prefix. A backing property is `_name` beside `name`.
+18. Units go in a suffix: `Ms`, `Us`, `Seconds` / `SECONDS`, `Minutes`, `Bytes`,
+    `Px`, `Dp`, `Pt`.
+19. One constant name per concept (`MS_PER_SECOND`, `PERCENT`).
+
+**Resources**
+
+20. A layout is `<kind>_<owner>`, the kind being how it is inflated: `activity`,
+    `dialog` (AlertDialog), `sheet` (BottomSheetDialog), `item`, `popup`,
+    `toast`, `view` (an `<include>`, `<merge>` or custom-view layout) or `menu`.
+    The wizard's ViewStub pages keep `wizard_step_*`.
+21. A drawable is `ic_` (icon) or `bg_` (background); brand art and
+    illustrations are exempt.
+22. A view id is camelCase. A leaf widget's prefix names its actual widget:
+    `tv`, `btn` (any clickable action, a Chip included), `et`, `rb`, `rg` (also a
+    `MaterialButtonToggleGroup`), `cb`, `til`, `img`, `rv`, `switch`, `slider`,
+    `spinner`, `progress`, `scroll`, `stub`. Containers and custom views get a
+    semantic name; cards end in `Card`.
+23. A string key is snake_case `<screen>_<purpose>`, ending in `_fmt` when it has
+    placeholders. Button verbs are `action_*`, links `url_*`, errors `error_*`. A
+    key is never named after its own text.
+24. No company name in identifiers or resource names.
+
+**Never renamed:** persisted values keep their exact strings (prefs files and
+keys, intent extras, Bundle / SavedState keys, WorkManager names, tags and Data
+keys, `index.json` / metadata fields, analytics events, the Keystore alias); a
+Kotlin rename may keep the value. The six Workers, `SemperNativeLib`,
+`ProgressCallback` and the Activities keep their names
+([ADR-015](docs/adr/ADR-015-package-layout.md)). A rename of a shared API gets a
+row in [FORK_SYNC](docs/ops/FORK_SYNC.md).
 
 ## Pull requests
 
 - Target **`main`**. Keep PRs focused (one concern: dead-code cleanup, one helper
   extract, one feature).
-- Match existing naming and package layout.
+- Follow the naming rules in [Code style](#code-style) and the package layout
+  ([ADR-015](docs/adr/ADR-015-package-layout.md)).
 - Run the relevant tests above before asking for review.
 - Link issues when applicable; `good first issue` tags are scoped for newcomers.
 - If you change auth, quotas, deploy env vars, or CI modes, update the matching

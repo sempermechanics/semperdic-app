@@ -6,7 +6,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.session.SkippedNode
 import com.sempermechanics.semper.field.RunStop
-import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupHelper
+import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupController
 import com.sempermechanics.semper.ui.analysis.sweep.VsgStudyRunner
 import com.sempermechanics.semper.ui.analysis.sweep.toSkippedNode
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisNavHelper
@@ -25,7 +25,7 @@ class WizardRunOutcomes(
     private val viewModel: AnalysisViewModel,
     private val chrome: RunChrome,
     private val status: RunStatusLine,
-    private val sweep: SweepSetupHelper,
+    private val sweep: SweepSetupController,
     private val recheck: () -> Unit,
 ) : BatchRunController.Host {
 
@@ -166,7 +166,7 @@ class WizardRunOutcomes(
 private fun openResults(
     activity: AppCompatActivity,
     viewModel: AnalysisViewModel,
-    setup: SweepSetupHelper,
+    setup: SweepSetupController,
     sweep: Boolean,
 ) {
     val frameNames = if (sweep) {

@@ -151,7 +151,7 @@ class RoiDrawActivity : AppCompatActivity() {
                 R.id.rbSquare -> StudioOverlayView.RoiMode.SQUARE
                 else -> StudioOverlayView.RoiMode.RECTANGLE
             }
-            binding.tvHud.text = getString(R.string.roi_hud_mode_switched, binding.overlayRoi.currentMode)
+            binding.tvHud.text = getString(R.string.roi_hud_mode_switched_fmt, binding.overlayRoi.currentMode)
         }
     }
 
@@ -170,7 +170,7 @@ class RoiDrawActivity : AppCompatActivity() {
     private fun wireOverlay() {
         binding.overlayRoi.onZoomChangedListener = { zoom ->
             binding.tvHud.text = if (zoom > 1f) {
-                getString(R.string.roi_hud_zoom, zoom)
+                getString(R.string.roi_hud_zoom_fmt, zoom)
             } else {
                 getString(R.string.roi_hud_zoom_fit)
             }
@@ -201,7 +201,7 @@ class RoiDrawActivity : AppCompatActivity() {
         val shown = if (erasing) binding.overlayRoi.lastHoleRelative() else roi
         if (shown.width() > 0 && shown.height() > 0) {
             binding.tvHud.text = getString(
-                R.string.roi_hud_dimensions,
+                R.string.roi_hud_dimensions_fmt,
                 shown.width().roundToInt(),
                 shown.height().roundToInt(),
                 shown.left.roundToInt(),

@@ -97,7 +97,7 @@ internal object UploadErrors {
 
     /**
      * Session-dir file counting the sessions rebuilt because Drive no longer
-     * knew an upload link (`SemperApi.UploadLinkExpiredException`) since the last
+     * knew an upload link (`UploadLinkExpiredException`) since the last
      * successful upload. Beside [INTEGRITY_REBUILDS_MARKER], for the same reason.
      */
     const val LINK_EXPIRED_REBUILDS_MARKER = "link_expired_rebuilds"

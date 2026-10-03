@@ -4,7 +4,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.sempermechanics.semper.BuildConfig
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.account.AuthRepository
-import com.sempermechanics.semper.databinding.SettingsScrollContentBinding
+import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
 import com.sempermechanics.semper.ui.common.auth.AuthRoute
 import com.sempermechanics.semper.ui.common.auth.ExternalLinks
 import com.sempermechanics.semper.ui.common.auth.SignOutRun
@@ -13,7 +13,7 @@ import com.sempermechanics.semper.ui.common.auth.confirm
 /** The foot of Settings: About (version, privacy, terms) and Sign out. */
 internal class SettingsFooterSection(
     private val activity: SettingsActivity,
-    private val views: SettingsScrollContentBinding,
+    private val views: ViewSettingsScrollContentBinding,
 ) {
 
     fun wire() {
@@ -22,7 +22,7 @@ internal class SettingsFooterSection(
                 .setTitle(R.string.about_title)
                 .setMessage(
                     activity.getString(
-                        R.string.about_message,
+                        R.string.about_message_fmt,
                         BuildConfig.VERSION_NAME,
                         BuildConfig.VERSION_CODE,
                     ),

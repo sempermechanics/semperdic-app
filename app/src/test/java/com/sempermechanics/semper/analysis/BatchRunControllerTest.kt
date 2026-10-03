@@ -10,7 +10,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.field.RunStop
 import com.sempermechanics.semper.ui.analysis.run.BatchRunController
-import com.sempermechanics.semper.ui.analysis.run.ComputeOverlayHelper
+import com.sempermechanics.semper.ui.analysis.run.ComputeOverlayController
 import com.sempermechanics.semper.ui.analysis.run.EngineFailure
 import com.sempermechanics.semper.ui.analysis.run.RunChrome
 import com.sempermechanics.semper.ui.analysis.run.RunSpec
@@ -66,7 +66,7 @@ class BatchRunControllerTest {
             .also { it.get().setTheme(R.style.Theme_Semper) }
             .setup()
             .get()
-        val overlay = ComputeOverlayHelper(
+        val overlay = ComputeOverlayController(
             overlay = View(activity),
             title = TextView(activity),
             progress = ProgressBar(activity),

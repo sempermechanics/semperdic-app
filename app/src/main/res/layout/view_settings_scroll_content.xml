@@ -7,7 +7,7 @@
             <!-- 1. Account -->
             <include
                 android:id="@+id/headerAccount"
-                layout="@layout/settings_section_header"
+                layout="@layout/view_settings_section_header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp" />
@@ -64,7 +64,7 @@
             <!-- 2. Cloud backup -->
             <include
                 android:id="@+id/headerCloud"
-                layout="@layout/settings_section_header" />
+                layout="@layout/view_settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyCloud"
@@ -92,7 +92,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/setting_save_cloud"
+                                android:text="@string/settings_save_cloud"
                                 android:textColor="@color/text_primary"
                                 android:textSize="14sp"
                                 android:textStyle="bold" />
@@ -101,7 +101,7 @@
                                 android:id="@+id/tvSaveCloudSub"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/setting_save_cloud_sub"
+                                android:text="@string/settings_save_cloud_sub"
                                 android:textColor="@color/text_secondary"
                                 android:textSize="12sp" />
                         </LinearLayout>
@@ -129,7 +129,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/setting_wifi_only"
+                                android:text="@string/settings_wifi_only"
                                 android:textColor="@color/text_primary"
                                 android:textSize="14sp"
                                 android:textStyle="bold" />
@@ -137,7 +137,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="@string/setting_wifi_only_sub"
+                                android:text="@string/settings_wifi_only_sub"
                                 android:textColor="@color/text_secondary"
                                 android:textSize="12sp" />
                         </LinearLayout>
@@ -160,7 +160,7 @@
             <!-- 3. Analyses data management: one row per analysis, phone + cloud -->
             <include
                 android:id="@+id/headerAnalysesData"
-                layout="@layout/settings_section_header" />
+                layout="@layout/view_settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyAnalysesData"
@@ -211,7 +211,7 @@
             <!-- 3b. Storage: what this phone holds, and how to get it back -->
             <include
                 android:id="@+id/headerStorage"
-                layout="@layout/settings_section_header" />
+                layout="@layout/view_settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyStorage"
@@ -361,7 +361,7 @@
             <!-- 4. Your data -->
             <include
                 android:id="@+id/headerYourData"
-                layout="@layout/settings_section_header" />
+                layout="@layout/view_settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyYourData"
@@ -411,7 +411,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/setting_diagnostics"
+                            android:text="@string/settings_diagnostics"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:textStyle="bold" />
@@ -419,7 +419,7 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="@string/setting_diagnostics_sub"
+                            android:text="@string/settings_diagnostics_sub"
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -508,7 +508,7 @@
             <!-- 5. Analysis preferences -->
             <include
                 android:id="@+id/headerAnalysisPrefs"
-                layout="@layout/settings_section_header" />
+                layout="@layout/view_settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyAnalysisPrefs"
@@ -529,7 +529,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/setting_max_frames"
+                            android:text="@string/settings_max_frames"
                             android:textColor="@color/text_primary"
                             android:textSize="14sp"
                             android:textStyle="bold" />
@@ -573,7 +573,7 @@
             <!-- 6. Help & support -->
             <include
                 android:id="@+id/headerHelpSupport"
-                layout="@layout/settings_section_header" />
+                layout="@layout/view_settings_section_header" />
 
             <LinearLayout
                 android:id="@+id/bodyHelpSupport"

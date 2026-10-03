@@ -7,8 +7,11 @@ import androidx.work.workDataOf
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.cloud.UploadErrors
 import com.sempermechanics.semper.data.net.ApiErrors
-import com.sempermechanics.semper.data.net.SemperApi
+import com.sempermechanics.semper.data.net.ApiException
+import com.sempermechanics.semper.data.net.DeviceConflictException
+import com.sempermechanics.semper.data.net.DeviceNotActiveException
 import com.sempermechanics.semper.data.net.TokenStore
+import com.sempermechanics.semper.data.net.UploadLinkExpiredException
 import com.sempermechanics.semper.navigation.AppIntents
 import com.sempermechanics.semper.navigation.DicKeys
 import com.sempermechanics.semper.util.suspendRunCatching
@@ -43,7 +46,7 @@ internal class UploadFailures(private val run: UploadRun, private val stagingDir
      * local "registered" flag said otherwise. Re-register and retry instead of
      * stalling forever. Keep staging for the retry.
      */
-    suspend fun deviceNotActive(e: SemperApi.DeviceNotActiveException): ListenableWorker.Result {
+    suspend fun deviceNotActive(e: DeviceNotActiveException): ListenableWorker.Result {
         TokenStore.setDeviceRegistered(context, false)
         suspendRunCatching { run.api.registerDevice(run.idToken) }
             .onSuccess { TokenStore.setDeviceRegistered(context, true) }
@@ -51,7 +54,7 @@ internal class UploadFailures(private val run: UploadRun, private val stagingDir
         return UploadLog.retry("device not active — re-registered, retry upload", e.requestId)
     }
 
-    fun deviceConflict(e: SemperApi.DeviceConflictException): ListenableWorker.Result {
+    fun deviceConflict(e: DeviceConflictException): ListenableWorker.Result {
         Timber.e("This account is bound to a different device — cannot upload")
         run.abandon(stagingDir, analyticsReason = ApiErrors.DEVICE_CONFLICT)
         return run.failure(context.getString(R.string.cloud_backup_failed_device), e.requestId)
@@ -65,7 +68,7 @@ internal class UploadFailures(private val run: UploadRun, private val stagingDir
     }
 
     /** An HTTP error that ended the run, by what it means for the backup ([UploadErrors.classify]). */
-    suspend fun refused(e: SemperApi.ApiException): ListenableWorker.Result =
+    suspend fun refused(e: ApiException): ListenableWorker.Result =
         when (UploadErrors.classify(e.code, e.body)) {
             UploadErrors.Kind.QUOTA -> quotaFull(e)
             // Too many files for one analysis — retrying won't help; tell the user.
@@ -104,7 +107,7 @@ internal class UploadFailures(private val run: UploadRun, private val stagingDir
      * fresh session is not going to stop, so after
      * [UploadErrors.MAX_LINK_EXPIRED_REBUILDS] the backup fails instead.
      */
-    suspend fun linkExpired(e: SemperApi.UploadLinkExpiredException): ListenableWorker.Result {
+    suspend fun linkExpired(e: UploadLinkExpiredException): ListenableWorker.Result {
         Timber.e("Drive upload link expired (HTTP %d) — discarding the session, keeping staging", e.code)
         return when {
             // The pointer stays until the delete goes through; resuming it
@@ -144,7 +147,7 @@ internal class UploadFailures(private val run: UploadRun, private val stagingDir
     }
 
     /** Quota full has its own persistent "email support" screen, and no reason text. */
-    private fun quotaFull(e: SemperApi.ApiException): ListenableWorker.Result {
+    private fun quotaFull(e: ApiException): ListenableWorker.Result {
         Timber.e("Upload rejected (%d): %s", e.code, e.parsedDetail)
         run.abandon(stagingDir, analyticsReason = "quota")
         TokenStore.setSessionLimitReached(context, true)
@@ -168,7 +171,7 @@ internal class UploadFailures(private val run: UploadRun, private val stagingDir
      * so start over — new session, freshly staged files — a bounded number of
      * times.
      */
-    private suspend fun integrityMismatch(e: SemperApi.ApiException): ListenableWorker.Result {
+    private suspend fun integrityMismatch(e: ApiException): ListenableWorker.Result {
         Timber.e("Upload %d (%s) — Drive bytes differ from the staged file", e.code, e.parsedDetail)
         return when {
             // The session is still ours to resume, so its staging must stay as
@@ -188,7 +191,7 @@ internal class UploadFailures(private val run: UploadRun, private val stagingDir
 
     /** A refusal retrying will not fix: fail the backup with [reason] for the user. */
     private fun giveUp(
-        e: SemperApi.ApiException,
+        e: ApiException,
         analyticsReason: String,
         @StringRes reason: Int,
     ): ListenableWorker.Result {

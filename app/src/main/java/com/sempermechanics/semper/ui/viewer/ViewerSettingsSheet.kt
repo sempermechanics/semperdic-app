@@ -44,12 +44,12 @@ object ViewerSettingsSheet {
         val planned = host.args.plannedFrames
         return buildList {
             add(
-                host.getString(R.string.setting_stopped_early) to
+                host.getString(R.string.settings_used_stopped_early) to
                     EngineFailure.shortReason(host, stopCode),
             )
             if (planned > 0) {
                 add(
-                    host.getString(R.string.setting_frames_solved) to
+                    host.getString(R.string.settings_used_frames_solved) to
                         host.resources.getQuantityString(
                             R.plurals.session_frames_of_fmt,
                             planned,
@@ -74,23 +74,23 @@ object ViewerSettingsSheet {
         val subset = params.subset
         val strainWin = params.strainWindow
         return buildList {
-            add(host.getString(R.string.setting_subset) to host.getString(R.string.setting_px_fmt, subset))
-            add(host.getString(R.string.setting_step) to host.getString(R.string.setting_px_fmt, host.step))
+            add(host.getString(R.string.settings_used_subset) to host.getString(R.string.settings_used_px_fmt, subset))
+            add(host.getString(R.string.settings_used_step) to host.getString(R.string.settings_used_px_fmt, host.step))
             // Stored as the VSG in px; shown with its window in points when it has one.
-            add(host.getString(R.string.setting_strain_window) to StrainWindowText.of(host, strainWin, host.step))
+            add(host.getString(R.string.settings_used_strain_window) to StrainWindowText.of(host, strainWin, host.step))
             add(
-                host.getString(R.string.setting_strain_method) to
+                host.getString(R.string.settings_used_strain_method) to
                     args.strainMethod,
             )
             addAll(stopRows(host))
             // ROI is only meaningful when one was actually recorded.
             if (roi.w > 0 && roi.h > 0) {
-                val roiText = host.getString(R.string.setting_roi_fmt, roi.w, roi.h, roi.x, roi.y)
-                add(host.getString(R.string.setting_roi) to roiText)
+                val roiText = host.getString(R.string.settings_used_roi_fmt, roi.w, roi.h, roi.x, roi.y)
+                add(host.getString(R.string.settings_used_roi) to roiText)
             }
             add(
-                host.getString(R.string.setting_image_size) to host.getString(
-                    R.string.setting_size_fmt,
+                host.getString(R.string.settings_used_image_size) to host.getString(
+                    R.string.settings_used_size_fmt,
                     args.imgW,
                     args.imgH,
                 ),

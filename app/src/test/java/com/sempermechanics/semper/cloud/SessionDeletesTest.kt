@@ -3,13 +3,13 @@ package com.sempermechanics.semper.cloud
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.data.cloud.CloudSync
-import com.sempermechanics.semper.data.cloud.CloudSync.EraseResult
+import com.sempermechanics.semper.data.cloud.CloudSync.EraseOutcome
 import com.sempermechanics.semper.data.cloud.SessionDeletes
 import com.sempermechanics.semper.data.cloud.SessionDeletes.Item
 import com.sempermechanics.semper.data.cloud.SessionDeletes.Mode
+import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.CloudSessionDto
-import com.sempermechanics.semper.data.net.ListSessionsResponse
-import com.sempermechanics.semper.data.net.SemperApi
+import com.sempermechanics.semper.data.net.SessionsResponse
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.fixtures.sessionRecord
@@ -50,12 +50,12 @@ class SessionDeletesTest {
         store(record("s1", SessionRecord.SyncState.SYNCED, cloudId = "c1"))
         api.onDeleteSession = { _, _ -> }
 
-        assertEquals(EraseResult.ERASED_EVERYWHERE, CloudSync.eraseCloudBackup(context, "c1", "s1", api, tokens))
+        assertEquals(EraseOutcome.ERASED_EVERYWHERE, CloudSync.eraseCloudBackup(context, "c1", "s1", api, tokens))
         val kept = SessionStore.get(context, "s1")!!
         assertEquals(SessionRecord.SyncState.LOCAL_ONLY, kept.syncState)
         assertEquals("", kept.cloudSessionId)
 
-        assertEquals(EraseResult.ERASED_EVERYWHERE, CloudSync.eraseEverywhere(context, "s1", api, tokens))
+        assertEquals(EraseOutcome.ERASED_EVERYWHERE, CloudSync.eraseEverywhere(context, "s1", api, tokens))
         assertEquals(1, deletes())
         assertNull(SessionStore.get(context, "s1"))
     }
@@ -68,7 +68,7 @@ class SessionDeletesTest {
         api.onDeleteSession = { _, _ ->
             sent++
             // Three refusals in a row on two rows, as when two deletes race for the bucket.
-            if (sent in 4..6 || sent in 9..11) throw SemperApi.ApiException(429, """{"detail":"rate_limited"}""")
+            if (sent in 4..6 || sent in 9..11) throw ApiException(429, """{"detail":"rate_limited"}""")
         }
         val progress = mutableListOf<Pair<Int, Int>>()
 
@@ -86,7 +86,7 @@ class SessionDeletesTest {
     @Test
     fun `a limit that never lifts gives up on that row after six tries`() = runBlocking {
         store(record("s1", SessionRecord.SyncState.SYNCED, cloudId = "c1"))
-        api.onDeleteSession = { _, _ -> throw SemperApi.ApiException(429, "") }
+        api.onDeleteSession = { _, _ -> throw ApiException(429, "") }
 
         val report = run(listOf(Item("s1", "c1", Mode.EVERYWHERE)))
 
@@ -100,7 +100,7 @@ class SessionDeletesTest {
         val ids = (1..10).map { "s$it" }
         ids.forEach { store(record(it, SessionRecord.SyncState.SYNCED)) }
         api.onListSessions = { _, _ ->
-            ListSessionsResponse(sessions = ids.map { CloudSessionDto(sessionId = "c-$it", localSessionId = it) })
+            SessionsResponse(sessions = ids.map { CloudSessionDto(sessionId = "c-$it", localSessionId = it) })
         }
         val deleted = mutableListOf<String>()
         api.onDeleteSession = { _, sid -> deleted += sid }
@@ -115,7 +115,7 @@ class SessionDeletesTest {
     @Test
     fun `a row the listing does not know is only unlinked, not deleted`() = runBlocking {
         store(record("s1", SessionRecord.SyncState.SYNCED))
-        api.onListSessions = { _, _ -> ListSessionsResponse(sessions = emptyList()) }
+        api.onListSessions = { _, _ -> SessionsResponse(sessions = emptyList()) }
 
         val report = run(listOf(Item("s1", "", Mode.CLOUD)))
 

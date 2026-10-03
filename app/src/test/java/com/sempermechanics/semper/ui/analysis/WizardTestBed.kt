@@ -12,7 +12,7 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.databinding.ActivityStaticAnalysisBinding
 import com.sempermechanics.semper.databinding.WizardStepSettingsBinding
 import com.sempermechanics.semper.databinding.WizardStepSettingsContentBinding
-import com.sempermechanics.semper.ui.analysis.run.ComputeOverlayHelper
+import com.sempermechanics.semper.ui.analysis.run.ComputeOverlayController
 import com.sempermechanics.semper.ui.analysis.run.RunChrome
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisWizardHost
@@ -46,7 +46,7 @@ internal class WizardTestBed(resumed: Boolean = true) {
 
     /** A run chrome over throwaway views. */
     fun chrome(): RunChrome {
-        val overlay = ComputeOverlayHelper(
+        val overlay = ComputeOverlayController(
             overlay = View(activity),
             title = TextView(activity),
             progress = ProgressBar(activity),
@@ -100,10 +100,10 @@ internal class FakeWizardHost : AnalysisWizardHost {
     override fun commitParamFields() {
         calls += "commitParamFields"
         settings?.run {
-            tvSubsetValue.clearFocus()
-            tvStepValue.clearFocus()
-            tvOverlapValue.clearFocus()
-            tvStrainValue.clearFocus()
+            etSubsetValue.clearFocus()
+            etStepValue.clearFocus()
+            etOverlapValue.clearFocus()
+            etStrainValue.clearFocus()
         }
     }
 

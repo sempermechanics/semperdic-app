@@ -74,7 +74,7 @@ class RigidBodyFitTest {
         assertEquals(0.0, fit.vPx, TOLERANCE)
         assertEquals(0.0, fit.rotationDeg, TOLERANCE)
         assertTrue("residual was ${fit.residualPx}", fit.residualPx > 0.1)
-        assertFalse(fit.notable())
+        assertFalse(fit.isNotable())
     }
 
     @Test
@@ -85,14 +85,14 @@ class RigidBodyFitTest {
         assertEquals(2.0, fit.uPx, TOLERANCE)
         assertEquals(0.5, fit.vPx, TOLERANCE)
         assertTrue(fit.residualPx > 0.1)
-        assertTrue(fit.notable())
+        assertTrue(fit.isNotable())
     }
 
     @Test
     fun `a shift below a pixel is not worth a sentence`() {
         val fit = requireNotNull(RigidBodyFit.fit(field { _, _ -> 0.3f to 0.4f }))
         assertEquals(0.5, fit.shiftPx(), TOLERANCE)
-        assertFalse(fit.notable())
+        assertFalse(fit.isNotable())
     }
 
     @Test

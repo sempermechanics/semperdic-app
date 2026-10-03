@@ -15,7 +15,7 @@ private const val APP_CHECK_HEADER = "X-Firebase-AppCheck"
  * Integrity and can take seconds; every later call is served from the SDK's
  * cache. Past this the request goes out bare rather than stalling behind it.
  */
-private const val TOKEN_TIMEOUT_S = 10L
+private const val TOKEN_TIMEOUT_SECONDS = 10L
 
 /**
  * The SDK's cached token, refreshed by it when close to expiry. Blocking is
@@ -26,7 +26,7 @@ private fun currentAppCheckToken(): String? =
     runCatching {
         Tasks.await(
             FirebaseAppCheck.getInstance().getAppCheckToken(false),
-            TOKEN_TIMEOUT_S,
+            TOKEN_TIMEOUT_SECONDS,
             TimeUnit.SECONDS,
         ).token
     }.onFailure { e ->

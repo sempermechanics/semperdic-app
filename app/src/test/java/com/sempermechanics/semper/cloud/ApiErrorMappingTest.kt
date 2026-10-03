@@ -2,8 +2,11 @@ package com.sempermechanics.semper.cloud
 
 import com.sempermechanics.semper.data.net.ApiAnswer
 import com.sempermechanics.semper.data.net.ApiErrors
+import com.sempermechanics.semper.data.net.ApiException
+import com.sempermechanics.semper.data.net.CloudNotConfiguredException
+import com.sempermechanics.semper.data.net.DeviceConflictException
+import com.sempermechanics.semper.data.net.DeviceInUseException
 import com.sempermechanics.semper.data.net.HttpStatus
-import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.net.SemperApiHttp
 import com.sempermechanics.semper.data.net.failMe
 import okhttp3.Protocol
@@ -87,13 +90,13 @@ class ApiErrorMappingTest {
         val conflictBody = """{"detail":"device_conflict"}"""
         val quotaBody = """{"detail":"session_quota_exceeded: 5/5"}"""
 
-        assertThrows(SemperApi.DeviceInUseException::class.java) {
+        assertThrows(DeviceInUseException::class.java) {
             ApiAnswer(HttpStatus.CONFLICT, inUseBody, "req-1").failMe()
         }
-        assertThrows(SemperApi.DeviceConflictException::class.java) {
+        assertThrows(DeviceConflictException::class.java) {
             ApiAnswer(HttpStatus.CONFLICT, conflictBody, "req-2").failMe()
         }
-        val quota = assertThrows(SemperApi.ApiException::class.java) {
+        val quota = assertThrows(ApiException::class.java) {
             ApiAnswer(HttpStatus.CONFLICT, quotaBody, "req-3").failMe()
         }
         assertEquals(HttpStatus.CONFLICT, quota.code)
@@ -101,7 +104,7 @@ class ApiErrorMappingTest {
 
     @Test
     fun `ApiException parsedDetail reads the envelope detail`() {
-        val ex = SemperApi.ApiException(
+        val ex = ApiException(
             HttpStatus.CONFLICT,
             """{"detail":"session_quota_exceeded: 5/5"}""",
             "req-9",
@@ -114,11 +117,11 @@ class ApiErrorMappingTest {
     fun `no backend configured is an IOException, not a bare path`() {
         // OkHttp throws IllegalArgumentException on "/v1/me"; callers only
         // expect IOException, so a blank base must never reach it (TD-90).
-        val ex = assertThrows(SemperApi.CloudNotConfiguredException::class.java) {
+        val ex = assertThrows(CloudNotConfiguredException::class.java) {
             SemperApiHttp.endpoint("", "/v1/me")
         }
         assertTrue("callers catch IOException", java.io.IOException::class.java.isInstance(ex))
-        assertThrows(SemperApi.CloudNotConfiguredException::class.java) { SemperApiHttp.endpoint("  ", "") }
+        assertThrows(CloudNotConfiguredException::class.java) { SemperApiHttp.endpoint("  ", "") }
     }
 
     @Test

@@ -40,7 +40,7 @@ import java.io.File
  * The heavy lifting is [SummaryAnimation]'s; this owns the screen: which field
  * is showing, the progress line while a field is still rendering, and playback.
  */
-class ViewerSummaryHelper(private val host: ResultViewerActivity) {
+class ViewerSummaryController(private val host: ResultViewerActivity) {
 
     private val layer: View = host.binding.summaryLayer
     private val image: ImageView = host.binding.imgSummary

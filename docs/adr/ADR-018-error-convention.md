@@ -25,13 +25,13 @@ the user is told and to whether to retry, in one `when`.
 
 | Domain | Type | Where | User message | Retry |
 |---|---|---|---|---|
-| A backend call | `Authed<T>`: `Ok`, `Disabled` (no backend), `NoToken`, `Failed(HttpFailure)` | `data/net/Authed.kt:9`, made by `CloudApi.authed` (`:37`) | The caller maps the outcome, e.g. an erase to `EraseResult` (`data/cloud/CloudErase.kt:101-112`), a status check to an access status (`data/account/AccessStatusResolver.kt:82-95`) | Per caller; `HttpFailure.isRetryable` (429, 5xx, no answer) is only the generic rule (`data/net/HttpFailure.kt:92`) |
+| A backend call | `Authed<T>`: `Ok`, `Disabled` (no backend), `NoToken`, `Failed(HttpFailure)` | `data/net/Authed.kt:9`, made by `CloudApi.authed` (`:37`) | The caller maps the outcome, e.g. an erase to `EraseOutcome` (`data/cloud/CloudErase.kt:101-112`), a status check to an access status (`data/account/AccessStatusResolver.kt:82-95`) | Per caller; `HttpFailure.isRetryable` (429, 5xx, no answer) is only the generic rule (`data/net/HttpFailure.kt:92`) |
 | What a thrown call means | `HttpFailure(kind, cause)`, `HttpFailure.classify(e)` | `data/net/HttpFailure.kt:17`, `:98` | From `kind`; the backend's `detail` code is in `body`, its request id in `requestId` for the "(ref: …)" suffix | `isRetryable`; `isGoneOrNotOurs` (404/403) means give up |
 | A non-200 backend answer, inside the client | `ApiAnswer(code, body, requestId)` with per-route mappers (`failSigned`, `failMe`, `failApprovedOnly`) | `data/net/SemperApiHttp.kt:78`, `data/net/SemperApiCalls.kt:61-93` | Becomes the specific exception (`DeviceConflictException`, `NotApprovedException`, …) or an `ApiException` that `HttpFailure` classifies | — |
 | Why a run stopped | `RunStop` (sealed; `wireCode` is the stored `Int`, `fromWireCode` maps any `Int` back) | `field/RunStop.kt` | `EngineFailure.reasonRes` / `shortReason` (`ui/analysis/run/EngineFailure.kt:46`, `:72`); an unknown code is shown with its number, never as a known cause | A run is not retried; Compute is re-enabled after every outcome (`BatchRunController.kt:116`) |
 | A restore or Save-to-Files download | `DownloadFailure`: `Rejected` (404/403), `Unusable` (corrupt or incomplete backup), `Transient` | `data/cloud/restore/DownloadFailure.kt` | `Rejected`: the backend's licence message (`LicenseErrors.restoreMessage`); `Unusable`: "restore failed", the reason code only logged (`data/DicRestoreWorker.kt:94-114`) | `Transient` → `Result.retry()`; the other two end the work |
 | A backup upload | `UploadFailures`: one method per thrown failure, catch order in `DicUploadWorker` (`data/DicUploadWorker.kt:137-155`); HTTP refusals by `UploadErrors.classify` → `Kind` (`data/cloud/UploadErrors.kt:50`) | `data/UploadFailures.kt` | `run.failure(<string>)` writes the reason Home shows; quota opens the limit screen instead | `UploadLog.retry` keeps staging; a stale session or expired link is discarded and recreated, at most a bounded number of times; terminal paths go through one `abandon` |
-| A session index write | `SessionStore.UpsertResult`: `SAVED`, `QUOTA_FULL`, `INDEX_UNAVAILABLE` | `data/session/SessionStore.kt:91` | `afterSave` (`ui/analysis/run/DicBatchRunner.kt:415-420`): quota → the session-limit screen; unavailable index → "Analysis not saved". Sweeps go the same way: `finishSolvedSweep` (`ui/analysis/wizard/SweepRunner.kt:141`) saves through `persistSweepSession`, which returns `afterSave`'s reading (`:259`) | Not retried |
+| A session index write | `SessionStore.UpsertOutcome`: `SAVED`, `QUOTA_FULL`, `INDEX_UNAVAILABLE` | `data/session/SessionStore.kt:91` | `afterSave` (`ui/analysis/run/DicBatchRunner.kt:415-420`): quota → the session-limit screen; unavailable index → "Analysis not saved". Sweeps go the same way: `finishSolvedSweep` (`ui/analysis/wizard/SweepRunner.kt:141`) saves through `persistSweepSession`, which returns `afterSave`'s reading (`:259`) | Not retried |
 
 **Cancellation.**
 
@@ -48,7 +48,7 @@ the user is told and to whether to retry, in one `when`.
   for every backend call (`data/net/Authed.kt:47-52`).
 - **`NonCancellable` only for cleanup that must finish**, such as the
   erase → wipe → sign-out sequence (`data/cloud/CloudErase.kt:47`) or putting
-  the UI back after a cancelled import (`ui/analysis/frames/AnalysisVideoExtractHelper.kt:69`,
+  the UI back after a cancelled import (`ui/analysis/frames/AnalysisVideoExtractController.kt:69`,
   `:99`). Never to make a cancellation disappear. See
   [ADR-016](ADR-016-work-that-outlives-the-activity.md) for long work.
 - **Classify after cancellation is dealt with.** `HttpFailure.classify` and
@@ -104,7 +104,7 @@ and the tests pin them (`HttpFailureTest`, `AuthedTest`, `AfterSaveTest`,
 
 1. [x] `Authed`, `HttpFailure`, `ApiAnswer` (#321, #324) and their adoption
    (#323, #326, #327).
-2. [x] `RunStop` (#318) and its adoption (#325, #330); `UpsertResult` (#326,
+2. [x] `RunStop` (#318) and its adoption (#325, #330); `UpsertOutcome` (#326,
    #330, #331); `DownloadFailure` (#326); `UploadFailures` (#327).
 3. [ ] TD-171: run detekt with type resolution and enable
    `SuspendFunSwallowedCancellation`.

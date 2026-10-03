@@ -2,19 +2,19 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <group android:checkableBehavior="single">
         <item
-            android:id="@+id/menu_frame_order_name_asc"
+            android:id="@+id/menuFrameOrderNameAsc"
             android:title="@string/frame_order_name_asc" />
         <item
-            android:id="@+id/menu_frame_order_name_desc"
+            android:id="@+id/menuFrameOrderNameDesc"
             android:title="@string/frame_order_name_desc" />
         <item
-            android:id="@+id/menu_frame_order_date_asc"
+            android:id="@+id/menuFrameOrderDateAsc"
             android:title="@string/frame_order_date_asc" />
         <item
-            android:id="@+id/menu_frame_order_date_desc"
+            android:id="@+id/menuFrameOrderDateDesc"
             android:title="@string/frame_order_date_desc" />
         <item
-            android:id="@+id/menu_frame_order_manual"
+            android:id="@+id/menuFrameOrderManual"
             android:title="@string/frame_order_manual" />
     </group>
 </menu>

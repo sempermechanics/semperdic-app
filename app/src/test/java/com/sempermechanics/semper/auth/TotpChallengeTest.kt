@@ -44,8 +44,8 @@ class TotpChallengeTest {
         val activity = Robolectric.buildActivity(AuthActivity::class.java).setup().get()
         activity.enterTotpChallengeUi()
 
-        assertEquals(View.GONE, activity.findViewById<View>(R.id.cardCredentials).visibility)
-        assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.cardTotp).visibility)
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.credentialsCard).visibility)
+        assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.totpCard).visibility)
         assertEquals(
             activity.getString(R.string.auth_totp_subtitle),
             activity.findViewById<TextView>(R.id.tvSubtitle).text.toString(),
@@ -65,6 +65,6 @@ class TotpChallengeTest {
         activity.findViewById<Button>(R.id.btnMainAction).performClick()
 
         assertTrue("wrong or empty code must not finish the activity", !activity.isFinishing)
-        assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.cardTotp).visibility)
+        assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.totpCard).visibility)
     }
 }

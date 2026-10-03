@@ -28,7 +28,7 @@ import java.io.File
  * covers that the tag is read at all and that the two answers now match.
  */
 @RunWith(AndroidJUnit4::class)
-class ExifOrientedSizeInstrumentedTest {
+class ExifOrientedSizeDeviceTest {
 
     private lateinit var dir: File
 
@@ -67,7 +67,7 @@ class ExifOrientedSizeInstrumentedTest {
     }
 
     @Test
-    fun a_quarter_turn_tag_is_read_and_transposes_the_reported_size() {
+    fun aQuarterTurnTagIsReadAndTransposesTheReportedSize() {
         val file = jpeg("exif_rot90.jpg", 640, 480, ExifInterface.ORIENTATION_ROTATE_90)
 
         // The raster on disk is untouched — only the tag says to turn it.
@@ -76,7 +76,7 @@ class ExifOrientedSizeInstrumentedTest {
     }
 
     @Test
-    fun the_corrected_size_matches_what_the_engine_decodes() {
+    fun theCorrectedSizeMatchesWhatTheEngineDecodes() {
         // The regression itself: these two numbers disagreed, and the import
         // check compared one against the other.
         val file = jpeg("exif_rot90_engine.jpg", 640, 480, ExifInterface.ORIENTATION_ROTATE_90)
@@ -88,7 +88,7 @@ class ExifOrientedSizeInstrumentedTest {
     }
 
     @Test
-    fun an_upright_frame_is_left_exactly_as_it_was() {
+    fun anUprightFrameIsLeftExactlyAsItWas() {
         // Capture normalises its own JPEGs to ORIENTATION_NORMAL, so this is
         // the path every recorded run takes: the correction must be a no-op.
         val file = jpeg("exif_normal.jpg", 640, 480, ExifInterface.ORIENTATION_NORMAL)

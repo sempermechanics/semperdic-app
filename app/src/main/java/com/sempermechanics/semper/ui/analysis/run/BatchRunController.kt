@@ -56,7 +56,7 @@ class BatchRunController(
         fun onSweepFinished(outcome: BatchAnalysisOutcome?)
     }
 
-    private val overlayHelper get() = chrome.overlay
+    private val overlayController get() = chrome.overlay
 
     fun observe() {
         activity.lifecycleScope.launch {
@@ -64,7 +64,7 @@ class BatchRunController(
                 launch {
                     viewModel.progress.collect { progress ->
                         if (progress == null) return@collect
-                        overlayHelper.update(
+                        overlayController.update(
                             percent = progress.percent,
                             status = progress.status,
                             title = progress.status,
@@ -174,7 +174,7 @@ class BatchRunController(
         // because of that first frame, so it is the one to explain.
         val zeroPoints = outcome.engineErrorCode == 0 ||
             (outcome.firstFrameValidPoints <= 0 && outcome.failedFrameIndex > 0)
-        val errorMsg = if (zeroPoints) {
+        val errorMessage = if (zeroPoints) {
             EngineFailure.zeroPointsMessage(
                 activity,
                 outcome.firstFrameCorrelatedPoints,
@@ -188,7 +188,7 @@ class BatchRunController(
         } else {
             EngineFailure.faqUrlRes(outcome.engineErrorCode)
         }
-        tvResult.text = "❌ Error: $errorMsg"
-        host.showEngineFailureDialog(errorMsg, R.string.analysis_failed_title, faqRes)
+        tvResult.text = "❌ Error: $errorMessage"
+        host.showEngineFailureDialog(errorMessage, R.string.analysis_failed_title, faqRes)
     }
 }

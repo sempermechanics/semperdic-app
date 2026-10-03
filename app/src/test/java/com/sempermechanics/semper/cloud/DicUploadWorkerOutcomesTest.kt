@@ -133,23 +133,23 @@ class DicUploadWorkerOutcomesTest {
     fun `staging is reusable only with verified Session zip sidecar and artifacts`() {
         val dir = createTempDirectory(prefix = "upload-staging-").toFile()
         try {
-            assertFalse(UploadWorkOutcomes.stagingReusable(dir))
+            assertFalse(UploadWorkOutcomes.isStagingReusable(dir))
             File(dir, ".bundles_done").createNewFile()
-            assertFalse(UploadWorkOutcomes.stagingReusable(dir))
+            assertFalse(UploadWorkOutcomes.isStagingReusable(dir))
             File(dir, "Session.zip").writeText("zip-bytes")
             // Marker + zip alone used to count as done — that froze incomplete
             // uploads that skipped reports/csv/processed.
-            assertFalse(UploadWorkOutcomes.stagingReusable(dir))
-            assertFalse(UploadWorkOutcomes.bundleArtifactsReady(dir))
+            assertFalse(UploadWorkOutcomes.isStagingReusable(dir))
+            assertFalse(UploadWorkOutcomes.areBundleArtifactsReady(dir))
 
             File(dir, "analysis_data.csv").writeText("image,x,y\n")
             File(dir, "reports").mkdirs()
             File(dir, "reports/Master_Report_Frame_1.pdf").writeText("%PDF")
             File(dir, "processed/Frame_1").mkdirs()
             File(dir, "processed/Frame_1/exx.png").writeText("png")
-            assertTrue(UploadWorkOutcomes.bundleArtifactsReady(dir))
+            assertTrue(UploadWorkOutcomes.areBundleArtifactsReady(dir))
             // Artifacts ready is not enough — need a real zip + matching sidecar.
-            assertFalse(UploadWorkOutcomes.stagingReusable(dir))
+            assertFalse(UploadWorkOutcomes.isStagingReusable(dir))
 
             val zip = File(dir, "Session.zip")
             java.util.zip.ZipOutputStream(zip.outputStream()).use { zos ->
@@ -159,35 +159,35 @@ class DicUploadWorkerOutcomesTest {
             }
             val hex = Digests.sha256Hex(zip)
             File(dir, "Session.zip.sha256").writeText(hex)
-            assertTrue(UploadWorkOutcomes.stagingReusable(dir))
+            assertTrue(UploadWorkOutcomes.isStagingReusable(dir))
             assertEquals(hex, UploadWorkOutcomes.verifiedBundleSha256(zip, File(dir, "Session.zip.sha256")))
 
             File(dir, "Session.zip.sha256").writeText("0".repeat(64))
-            assertFalse(UploadWorkOutcomes.stagingReusable(dir))
+            assertFalse(UploadWorkOutcomes.isStagingReusable(dir))
 
             File(dir, "Session.zip").writeText("")
             File(dir, "Session.zip.sha256").writeText(hex)
-            assertFalse(UploadWorkOutcomes.stagingReusable(dir))
+            assertFalse(UploadWorkOutcomes.isStagingReusable(dir))
         } finally {
             dir.deleteRecursively()
         }
     }
 
     @Test
-    fun `bundleArtifactsReady rejects missing csv reports or processed`() {
+    fun `areBundleArtifactsReady rejects missing csv reports or processed`() {
         val dir = createTempDirectory(prefix = "upload-staging-").toFile()
         try {
             File(dir, "analysis_data.csv").writeText("image\n")
             File(dir, "reports").mkdirs()
             File(dir, "reports/Master_Report_Frame_1.pdf").writeText("%PDF")
-            assertFalse(UploadWorkOutcomes.bundleArtifactsReady(dir))
+            assertFalse(UploadWorkOutcomes.areBundleArtifactsReady(dir))
 
             File(dir, "processed/Frame_1").mkdirs()
             File(dir, "processed/Frame_1/exx.png").writeText("png")
-            assertTrue(UploadWorkOutcomes.bundleArtifactsReady(dir))
+            assertTrue(UploadWorkOutcomes.areBundleArtifactsReady(dir))
 
             File(dir, "reports/Master_Report_Frame_1.pdf").delete()
-            assertFalse(UploadWorkOutcomes.bundleArtifactsReady(dir))
+            assertFalse(UploadWorkOutcomes.areBundleArtifactsReady(dir))
         } finally {
             dir.deleteRecursively()
         }
@@ -260,18 +260,18 @@ class DicUploadWorkerOutcomesTest {
         val dir = createTempDirectory(prefix = "upload-session-").toFile()
         try {
             val ref = File(dir, "Reference.png")
-            assertFalse(UploadWorkOutcomes.stagingInputsOnDisk(dir, frameCount = 3, refFile = ref))
+            assertFalse(UploadWorkOutcomes.areStagingInputsOnDisk(dir, frameCount = 3, refFile = ref))
 
             ref.writeBytes(byteArrayOf(1, 2, 3))
-            assertFalse(UploadWorkOutcomes.stagingInputsOnDisk(dir, frameCount = 3, refFile = ref))
+            assertFalse(UploadWorkOutcomes.areStagingInputsOnDisk(dir, frameCount = 3, refFile = ref))
 
             SessionPaths.frameDat(dir, 2).writeBytes(byteArrayOf(0))
-            assertTrue(UploadWorkOutcomes.stagingInputsOnDisk(dir, frameCount = 3, refFile = ref))
+            assertTrue(UploadWorkOutcomes.areStagingInputsOnDisk(dir, frameCount = 3, refFile = ref))
             // A .dat past the recorded frame count is not one of this session's frames.
-            assertFalse(UploadWorkOutcomes.stagingInputsOnDisk(dir, frameCount = 2, refFile = ref))
+            assertFalse(UploadWorkOutcomes.areStagingInputsOnDisk(dir, frameCount = 2, refFile = ref))
 
             ref.delete()
-            assertFalse(UploadWorkOutcomes.stagingInputsOnDisk(dir, frameCount = 3, refFile = ref))
+            assertFalse(UploadWorkOutcomes.areStagingInputsOnDisk(dir, frameCount = 3, refFile = ref))
         } finally {
             dir.deleteRecursively()
         }

@@ -55,7 +55,7 @@ object DicSettings {
      * Defaults to **off**, and stays off until [setDiagnosticsEnabled] is called
      * — Crashlytics and Analytics used to collect from first launch with no
      * notice and no way to decline, which is not a defensible position for EU
-     * users. [diagnosticsAsked] records that the first-run notice was shown, so
+     * users. [wasDiagnosticsAsked] records that the first-run notice was shown, so
      * it is not shown again after a considered "no".
      */
     fun diagnosticsEnabled(context: Context): Boolean =
@@ -68,22 +68,22 @@ object DicSettings {
         }
 
     /** True once the first-run diagnostics choice has been made either way. */
-    fun diagnosticsAsked(context: Context): Boolean =
+    fun wasDiagnosticsAsked(context: Context): Boolean =
         prefs(context)[Settings.DIAGNOSTICS_ASKED]
 
     /** Master switch for the upload worker; off = sessions stay "local only". */
-    fun saveToCloud(context: Context): Boolean = prefs(context)[Settings.SAVE_TO_CLOUD]
+    fun saveToCloudEnabled(context: Context): Boolean = prefs(context)[Settings.SAVE_TO_CLOUD]
 
-    fun setSaveToCloud(context: Context, value: Boolean) =
+    fun setSaveToCloudEnabled(context: Context, value: Boolean) =
         prefs(context).edit { put(Settings.SAVE_TO_CLOUD, value) }
 
     /**
      * When true, uploads (post-analysis and reconcile repair) wait for unmetered
      * Wi‑Fi. Default false = any connected network.
      */
-    fun uploadWifiOnly(context: Context): Boolean = prefs(context)[Settings.UPLOAD_WIFI_ONLY]
+    fun wifiOnlyUploadEnabled(context: Context): Boolean = prefs(context)[Settings.UPLOAD_WIFI_ONLY]
 
-    fun setUploadWifiOnly(context: Context, value: Boolean) =
+    fun setWifiOnlyUploadEnabled(context: Context, value: Boolean) =
         prefs(context).edit { put(Settings.UPLOAD_WIFI_ONLY, value) }
 
     /**

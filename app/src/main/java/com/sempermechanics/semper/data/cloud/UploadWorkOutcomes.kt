@@ -84,9 +84,9 @@ internal object UploadWorkOutcomes {
     /**
      * CSV + at least one PDF report + at least one processed heatmap/GIF.
      * A prepare pass that only logged "skipping reports" must not count as done —
-     * otherwise [stagingReusable] freezes an incomplete Session.zip forever.
+     * otherwise [isStagingReusable] freezes an incomplete Session.zip forever.
      */
-    fun bundleArtifactsReady(stagingDir: File): Boolean {
+    fun areBundleArtifactsReady(stagingDir: File): Boolean {
         val layout = StagingLayout(stagingDir)
         val csv = layout.analysisCsv
         val csvOk = csv.isFile && csv.length() > 0L
@@ -129,7 +129,7 @@ internal object UploadWorkOutcomes {
      * least one frame's `.dat` — are on disk. The uploader never regenerates
      * them, so their absence cannot fix itself by waiting.
      */
-    fun stagingInputsOnDisk(sessionDir: File, frameCount: Int, refFile: File): Boolean =
+    fun areStagingInputsOnDisk(sessionDir: File, frameCount: Int, refFile: File): Boolean =
         refFile.isFile &&
             refFile.length() > 0L &&
             (0 until frameCount).any { SessionPaths.frameDat(sessionDir, it).isFile }
@@ -191,10 +191,10 @@ internal object UploadWorkOutcomes {
      * hashing that truncate and uploading it produced Drive objects that restore
      * as `ZipException: invalid distance too far back` while size/sha256 "matched".
      */
-    fun stagingReusable(stagingDir: File): Boolean {
+    fun isStagingReusable(stagingDir: File): Boolean {
         val layout = StagingLayout(stagingDir)
         return layout.bundlesDone.isFile &&
-            bundleArtifactsReady(stagingDir) &&
+            areBundleArtifactsReady(stagingDir) &&
             verifiedBundleSha256(layout.sessionZip, layout.sha256Sidecar(StagingLayout.SESSION_ZIP)) != null
     }
 

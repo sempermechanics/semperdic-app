@@ -123,12 +123,12 @@ object SessionDeletes {
         items.forEachIndexed { index, item ->
             var result = eraseOne(appContext, item, api, tokens)
             var tries = 1
-            while (result == CloudSync.EraseResult.RATE_LIMITED && tries < RATE_LIMIT_TRIES) {
+            while (result == CloudSync.EraseOutcome.RATE_LIMITED && tries < RATE_LIMIT_TRIES) {
                 pause(RATE_LIMIT_WAIT_MS)
                 result = eraseOne(appContext, item, api, tokens)
                 tries++
             }
-            if (result != CloudSync.EraseResult.ERASED_EVERYWHERE) stillInCloud += item
+            if (result != CloudSync.EraseOutcome.ERASED_EVERYWHERE) stillInCloud += item
             onProgress(index + 1, items.size)
         }
         val done = items.size - stillInCloud.size
@@ -141,7 +141,7 @@ object SessionDeletes {
         item: Item,
         api: CloudApi,
         tokens: TokenSource,
-    ): CloudSync.EraseResult = when (item.mode) {
+    ): CloudSync.EraseOutcome = when (item.mode) {
         Mode.EVERYWHERE -> CloudSync.eraseEverywhere(appContext, item.localId, api, tokens)
         Mode.CLOUD -> {
             val cloudId = item.cloudId.ifBlank {
@@ -150,7 +150,7 @@ object SessionDeletes {
             if (cloudId.isBlank()) {
                 // The batch lookup found no backup: nothing to erase, only the badge to correct.
                 CloudErase.forgetCloudCopy(appContext, item.localId)
-                CloudSync.EraseResult.ERASED_EVERYWHERE
+                CloudSync.EraseOutcome.ERASED_EVERYWHERE
             } else {
                 CloudSync.eraseCloudBackup(appContext, cloudId, item.localId, api, tokens)
             }

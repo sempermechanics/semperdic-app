@@ -22,7 +22,7 @@ import java.util.UUID
  */
 object RestoreStart {
 
-    enum class Result { STARTED, ALREADY_RUNNING, FAILED }
+    enum class Outcome { STARTED, ALREADY_RUNNING, FAILED }
 
     /** One backup to restore into the row [targetLocalId]. */
     data class Target(val cloudSessionId: String, val targetLocalId: String, val name: String)
@@ -35,8 +35,8 @@ object RestoreStart {
     fun startAll(context: Context, targets: List<Target>): Counts {
         val results = targets.map { start(context, it.cloudSessionId, it.targetLocalId, it.name) }
         return Counts(
-            started = results.count { it == Result.STARTED },
-            alreadyRunning = results.count { it == Result.ALREADY_RUNNING },
+            started = results.count { it == Outcome.STARTED },
+            alreadyRunning = results.count { it == Outcome.ALREADY_RUNNING },
         )
     }
 
@@ -49,14 +49,14 @@ object RestoreStart {
      * the link behind. Writes the index, so call it off the main thread.
      */
     @WorkerThread
-    fun start(context: Context, cloudSessionId: String, targetLocalId: String, name: String): Result = when {
-        cloudSessionId.isBlank() -> Result.FAILED
-        isRunning(context, cloudSessionId) -> Result.ALREADY_RUNNING
+    fun start(context: Context, cloudSessionId: String, targetLocalId: String, name: String): Outcome = when {
+        cloudSessionId.isBlank() -> Outcome.FAILED
+        isRunning(context, cloudSessionId) -> Outcome.ALREADY_RUNNING
         else -> {
             val existing = SessionStore.get(context, targetLocalId)
             // Restore is only offered when the phone has no frames for this row.
             if (existing?.hasLocalData() == true) {
-                Result.FAILED
+                Outcome.FAILED
             } else {
                 writeRowAndEnqueue(context, Target(cloudSessionId, targetLocalId, name), existing)
             }
@@ -64,15 +64,15 @@ object RestoreStart {
     }
 
     /** [start]'s row write and queueing; the row is put back as it was if the queueing fails. */
-    private fun writeRowAndEnqueue(context: Context, target: Target, existing: SessionRecord?): Result {
+    private fun writeRowAndEnqueue(context: Context, target: Target, existing: SessionRecord?): Outcome {
         val (cloudSessionId, targetLocalId, name) = target
         val now = System.currentTimeMillis()
         val row = existing?.let { restoredRow(it, cloudSessionId, name, now) }
             ?: newRow(context, cloudSessionId, targetLocalId, name, now)
-        if (!SessionStore.upsert(context, row, allowOverLimit = true)) return Result.FAILED
+        if (!SessionStore.upsert(context, row, allowOverLimit = true)) return Outcome.FAILED
         return try {
             CloudRestore.enqueueRestore(context, cloudSessionId, targetLocalId)
-            Result.STARTED
+            Outcome.STARTED
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             Timber.e(e, "Could not enqueue restore")
             if (existing == null) {
@@ -80,7 +80,7 @@ object RestoreStart {
             } else {
                 SessionStore.upsert(context, existing, allowOverLimit = true)
             }
-            Result.FAILED
+            Outcome.FAILED
         }
     }
 

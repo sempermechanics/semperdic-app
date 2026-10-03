@@ -2,7 +2,9 @@ package com.sempermechanics.semper.cloud
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.SemperApi
+import com.sempermechanics.semper.data.net.UploadLinkExpiredException
 import com.sempermechanics.semper.util.Digests
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -157,7 +159,7 @@ class UploadResumableTest {
         // Before: the probe read 404 as "start at zero" and PUT the whole file.
         enqueue(200, body = """{"id":"never"}""")
 
-        val e = assertThrows(SemperApi.UploadLinkExpiredException::class.java) {
+        val e = assertThrows(UploadLinkExpiredException::class.java) {
             runBlocking { api.uploadResumable(server.url("/u").toString(), file, chunk256k) }
         }
 
@@ -170,7 +172,7 @@ class UploadResumableTest {
         writeBytes(1000)
         enqueue(410)
 
-        val e = assertThrows(SemperApi.UploadLinkExpiredException::class.java) {
+        val e = assertThrows(UploadLinkExpiredException::class.java) {
             runBlocking { api.uploadResumable(server.url("/u").toString(), file, chunk256k) }
         }
 
@@ -183,7 +185,7 @@ class UploadResumableTest {
         writeBytes(1000)
         enqueue(499)
 
-        val e = assertThrows(SemperApi.UploadLinkExpiredException::class.java) {
+        val e = assertThrows(UploadLinkExpiredException::class.java) {
             runBlocking { api.uploadResumable(server.url("/u").toString(), file, chunk256k) }
         }
 
@@ -197,7 +199,7 @@ class UploadResumableTest {
         enqueue(500, body = "backend error")
         enqueue(200, body = """{"id":"never"}""")
 
-        val e = assertThrows(SemperApi.ApiException::class.java) {
+        val e = assertThrows(ApiException::class.java) {
             runBlocking { api.uploadResumable(server.url("/u").toString(), file, chunk256k) }
         }
 

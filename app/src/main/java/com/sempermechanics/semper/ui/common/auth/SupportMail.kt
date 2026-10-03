@@ -38,7 +38,7 @@ object SupportMail {
             context.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
             Timber.w(e, "No email app for %s", purpose)
-            Feedback.toast(context, context.getString(R.string.request_access_none, support), long = true)
+            Feedback.toast(context, context.getString(R.string.request_access_none_fmt, support), long = true)
         }
     }
 }

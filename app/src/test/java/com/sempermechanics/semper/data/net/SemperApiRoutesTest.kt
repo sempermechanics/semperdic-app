@@ -65,22 +65,22 @@ class SemperApiRoutesTest {
     @Test
     fun `me maps 403 to not approved and a 409 to the binding it names`() {
         answer(403, "not_approved")
-        fails<SemperApi.NotApprovedException> { api.me("tok") }
+        fails<NotApprovedException> { api.getMe("tok") }
 
         answer(409, "device_in_use")
-        assertEquals("ref1", fails<SemperApi.DeviceInUseException> { api.me("tok") }.requestId)
+        assertEquals("ref1", fails<DeviceInUseException> { api.getMe("tok") }.requestId)
 
         answer(409, "device_conflict")
-        fails<SemperApi.DeviceConflictException> { api.me("tok") }
+        fails<DeviceConflictException> { api.getMe("tok") }
     }
 
     @Test
     fun `a full seat pool is its own exception, another seat 409 is not`() {
         answer(409, "no_floating_seat")
-        fails<SemperApi.NoSeatAvailableException> { api.checkoutLease("tok") }
+        fails<NoSeatAvailableException> { api.checkoutLease("tok") }
 
         answer(409, "license_revoked")
-        assertEquals(409, fails<SemperApi.ApiException> { api.releaseLease("tok") }.code)
+        assertEquals(409, fails<ApiException> { api.releaseLease("tok") }.code)
         assertEquals("/v1/licenses/checkout", server.takeRequest().target)
         assertEquals("/v1/licenses/release", server.takeRequest().target)
     }
@@ -88,13 +88,13 @@ class SemperApiRoutesTest {
     @Test
     fun `a terms 409 is a version mismatch with its request id`() {
         answer(409, "terms_version_mismatch")
-        assertEquals("ref1", fails<SemperApi.TermsVersionMismatchException> { api.acceptTerms("tok", "v2") }.requestId)
+        assertEquals("ref1", fails<TermsVersionMismatchException> { api.acceptTerms("tok", "v2") }.requestId)
     }
 
     @Test
     fun `listUsers turns a 403 into not_admin`() {
         answer(403, "anything")
-        val e = fails<SemperApi.ApiException> { api.listUsers("tok", "PENDING") }
+        val e = fails<ApiException> { api.listUsers("tok", "PENDING") }
         assertEquals(403, e.code)
         assertEquals(ApiErrors.NOT_ADMIN, e.body)
         assertEquals("/v1/admin/users?status=PENDING", server.takeRequest().target)
@@ -106,17 +106,17 @@ class SemperApiRoutesTest {
         runBlocking { api.deleteSession("tok", "s1") }
 
         answer(404, body = "Not Found")
-        assertEquals(404, fails<SemperApi.ApiException> { api.deleteSession("tok", "s1") }.code)
+        assertEquals(404, fails<ApiException> { api.deleteSession("tok", "s1") }.code)
         assertEquals("DELETE", server.takeRequest().method)
     }
 
     @Test
     fun `a signed route maps device codes, but setUserStatus keeps a plain ApiException`() {
         answer(409, "device_not_active")
-        fails<SemperApi.DeviceNotActiveException> { api.completeFile("tok", "f1", FileCompleteRequest("s1", "d1", 1L)) }
+        fails<DeviceNotActiveException> { api.completeFile("tok", "f1", FileCompleteRequest("s1", "d1", 1L)) }
 
         answer(409, "device_not_active")
-        val e = fails<SemperApi.ApiException> { api.setUserStatus("tok", "u1", "approve") }
+        val e = fails<ApiException> { api.setUserStatus("tok", "u1", "approve") }
         assertEquals(409, e.code)
     }
 
@@ -138,7 +138,7 @@ class SemperApiRoutesTest {
     }
 
     @Test
-    fun `sessionUploads walks every page and signs each page's query`() {
+    fun `listSessionUploads walks every page and signs each page's query`() {
         answer(
             200,
             body = """{"sessionId":"s1","status":"UPLOADING",""" +
@@ -146,7 +146,7 @@ class SemperApiRoutesTest {
         )
         answer(200, body = """{"sessionId":"s1","uploads":[{"fileId":"b","uploadUrl":"u"}]}""")
 
-        val plan = runBlocking { api.sessionUploads("tok", "s1") }
+        val plan = runBlocking { api.listSessionUploads("tok", "s1") }
 
         assertEquals(listOf("a", "b"), plan.uploads.map { it.fileId })
         assertEquals("/v1/sessions/s1/uploads", server.takeRequest().target)
@@ -165,7 +165,7 @@ class SemperApiRoutesTest {
         answer(200, body = page)
         answer(200, body = page)
 
-        fails<IOException> { api.sessionUploads("tok", "s1") }
+        fails<IOException> { api.listSessionUploads("tok", "s1") }
         assertEquals(2, server.requestCount)
     }
 }

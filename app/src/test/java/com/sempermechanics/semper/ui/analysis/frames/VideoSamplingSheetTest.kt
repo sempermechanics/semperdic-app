@@ -68,7 +68,7 @@ class VideoSamplingSheetTest {
         val segment = "${VideoFrameExtractor.formatClock(0)} – ${VideoFrameExtractor.formatClock(4_000L)}"
         assertEquals(segment, sheet.findViewById<TextView>(R.id.tvSegmentValue)!!.text.toString())
 
-        sheet.findViewById<MaterialButtonToggleGroup>(R.id.toggleExtractMode)!!.check(R.id.btnModeUniform)
+        sheet.findViewById<MaterialButtonToggleGroup>(R.id.rgExtractMode)!!.check(R.id.btnModeUniform)
         val estimate = sheet.findViewById<TextView>(R.id.tvEstimate)!!.text.toString()
         assertTrue(estimate, estimate.startsWith("≈ 40 frames: 1 reference + 39 deformed"))
 

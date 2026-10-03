@@ -150,16 +150,16 @@ class CoachMarkController(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply { bottomMargin = dp(10) }
         }
-        val msg = TextView(activity).apply {
+        val message = TextView(activity).apply {
             setTextColor(ContextCompat.getColor(activity, R.color.text_primary))
             textSize = 15f
         }
         bubbleLayout.addView(illustration)
-        bubbleLayout.addView(msg)
+        bubbleLayout.addView(message)
         bubbleLayout.addView(buildBubbleActions())
 
         illustrationView = illustration
-        messageView = msg
+        messageView = message
         return bubbleLayout
     }
 

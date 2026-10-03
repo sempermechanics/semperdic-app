@@ -3,7 +3,7 @@ package com.sempermechanics.semper.imaging.video
 import android.content.Context
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.field.ImageSize
-import com.sempermechanics.semper.imaging.BitmapDecode
+import com.sempermechanics.semper.imaging.BitmapDecoder
 import com.sempermechanics.semper.imaging.GrayPngEncoder
 import com.sempermechanics.semper.ui.analysis.frames.DeformedFrame
 import com.sempermechanics.semper.ui.analysis.frames.FrameImportHelper
@@ -65,7 +65,7 @@ internal class FrameSink(
                 reference = ReferenceFrame(
                     png = png,
                     size = ImageSize(luma.outWidth, luma.outHeight),
-                    preview = BitmapDecode.decodeByteArrayCapped(png, BitmapDecode.PREVIEW_MAX_EDGE),
+                    preview = BitmapDecoder.decodeByteArrayCapped(png, BitmapDecoder.PREVIEW_MAX_EDGE),
                 )
             } else {
                 val f = deformedFile(i)

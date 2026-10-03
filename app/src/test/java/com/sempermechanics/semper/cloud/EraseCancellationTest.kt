@@ -4,7 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.data.cloud.CloudSync
-import com.sempermechanics.semper.data.cloud.CloudSync.EraseResult
+import com.sempermechanics.semper.data.cloud.CloudSync.EraseOutcome
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import kotlinx.coroutines.CancellationException
@@ -55,7 +55,7 @@ class EraseCancellationTest {
     }
 
     /** Runs [erase] with the delete call suspended, cancels the caller, and waits it out. */
-    private fun cancelCallerDuring(erase: suspend () -> EraseResult) = runBlocking {
+    private fun cancelCallerDuring(erase: suspend () -> EraseOutcome) = runBlocking {
         val inFlight = CompletableDeferred<Unit>()
         api.onDeleteSession = { _, _ ->
             inFlight.complete(Unit)
@@ -93,8 +93,8 @@ class EraseCancellationTest {
         val everywhere = CloudSync.eraseEverywhere(context, "s1", api, tokens)
         val backupOnly = CloudSync.eraseCloudBackup(context, "c1", "s1", api, tokens)
 
-        assertEquals(EraseResult.LOCAL_ONLY_CLOUD_UNREACHABLE, everywhere)
-        assertEquals(EraseResult.LOCAL_ONLY_CLOUD_UNREACHABLE, backupOnly)
+        assertEquals(EraseOutcome.LOCAL_ONLY_CLOUD_UNREACHABLE, everywhere)
+        assertEquals(EraseOutcome.LOCAL_ONLY_CLOUD_UNREACHABLE, backupOnly)
         assertNotNull(SessionStore.get(context, "s1"))
     }
 

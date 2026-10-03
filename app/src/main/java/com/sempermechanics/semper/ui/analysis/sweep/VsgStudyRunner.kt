@@ -78,7 +78,7 @@ object VsgStudyRunner {
      *   negative code from the last attempt. Low convergence is not an error
      *   here — see [run].
      */
-    data class Result(
+    data class SweepResult(
         val runs: List<RunOutcome>,
         val firstMetrics: FloatArray?,
         val engineErrorCode: Int,
@@ -126,7 +126,7 @@ object VsgStudyRunner {
         refHeight: Int,
         params: Params,
         onProgress: (Progress) -> Unit,
-    ): Result {
+    ): SweepResult {
         cancelRequested = false
         params.outputDir.mkdirs()
         EngineDebug.attach(params.debugDir)
@@ -195,7 +195,7 @@ object VsgStudyRunner {
         } else if (runs.isEmpty() && skipped.isNotEmpty()) {
             errorCode = lastEngineError
         }
-        return Result(runs, firstMetrics, errorCode, skipped, skippedCodes)
+        return SweepResult(runs, firstMetrics, errorCode, skipped, skippedCodes)
     }
 
     /**

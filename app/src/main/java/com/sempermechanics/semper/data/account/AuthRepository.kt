@@ -18,6 +18,7 @@ import com.sempermechanics.semper.data.LicenseConfigWorker
 import com.sempermechanics.semper.data.cloud.CloudBackupListing
 import com.sempermechanics.semper.data.net.CloudApi
 import com.sempermechanics.semper.data.net.SemperApi
+import com.sempermechanics.semper.data.net.TermsVersionMismatchException
 import com.sempermechanics.semper.data.net.TokenProvider
 import com.sempermechanics.semper.data.net.TokenSource
 import com.sempermechanics.semper.data.net.TokenStore
@@ -289,7 +290,7 @@ class AuthRepository(
      * reached right now; an unsynced acceptance is re-sent by the next status
      * check ([refreshStatus]).
      *
-     * Fails only for [SemperApi.TermsVersionMismatchException]: agreeing to
+     * Fails only for [TermsVersionMismatchException]: agreeing to
      * terms the server no longer serves must not open the gate.
      */
     suspend fun acceptTerms(version: String, improvementConsent: Boolean): Result<Unit> =
@@ -303,7 +304,7 @@ class AuthRepository(
             try {
                 api.acceptTerms(token, version)
                 TokenStore.setTermsAccepted(appContext, version, synced = true)
-            } catch (e: SemperApi.TermsVersionMismatchException) {
+            } catch (e: TermsVersionMismatchException) {
                 Timber.w(e, "Server requires a newer Terms version than this build carries")
                 return@withContext Result.failure(e)
             } catch (e: IOException) {

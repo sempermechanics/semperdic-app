@@ -17,7 +17,7 @@ import kotlin.math.max
  * Shared BitmapFactory helpers for display-sized decodes and RAW→RGBA import.
  * Lives outside `ui` so data/report layers can decode without reverse UI deps.
  */
-object BitmapDecode {
+object BitmapDecoder {
 
     /** Preview / wizard long-edge budget (matches historical wizard previews). */
     const val PREVIEW_MAX_EDGE = 1000

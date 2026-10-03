@@ -19,7 +19,7 @@ import kotlin.math.roundToLong
 internal object VideoKeyframeHelper {
 
     private const val MICROS_PER_MILLI = 1000L
-    private const val MILLIS_PER_SECOND = 1000.0
+    private const val MS_PER_SECOND = 1000.0
     private const val SECONDS_PER_MINUTE = 60
 
     data class ExtractionPlan(
@@ -31,9 +31,9 @@ internal object VideoKeyframeHelper {
      * Formats milliseconds into a clock display string (M:SS).
      */
     fun formatClock(ms: Long): String {
-        val totalSec = (ms / MICROS_PER_MILLI).toInt()
-        val minutes = totalSec / SECONDS_PER_MINUTE
-        val seconds = totalSec % SECONDS_PER_MINUTE
+        val totalSeconds = (ms / MS_PER_SECOND).toInt()
+        val minutes = totalSeconds / SECONDS_PER_MINUTE
+        val seconds = totalSeconds % SECONDS_PER_MINUTE
         return String.format(Locale.US, "%d:%02d", minutes, seconds)
     }
 
@@ -112,7 +112,7 @@ internal object VideoKeyframeHelper {
      * delivered. Without a known rate, one millisecond short of the end.
      */
     fun lastFrameStartMs(durationMs: Long, fps: Double, fpsKnown: Boolean): Long {
-        val frameMs = if (fpsKnown && fps > 0.0) (MILLIS_PER_SECOND / fps).roundToLong() else 1L
+        val frameMs = if (fpsKnown && fps > 0.0) (MS_PER_SECOND / fps).roundToLong() else 1L
         return (durationMs - frameMs).coerceAtLeast(0L)
     }
 
@@ -128,7 +128,7 @@ internal object VideoKeyframeHelper {
         maxFrames: Int,
     ): List<Long> {
         val safeFps = fpsExtract.coerceAtLeast(0.1)
-        val stepMs = MILLIS_PER_SECOND / safeFps
+        val stepMs = MS_PER_SECOND / safeFps
         val spanMs = (endMs - startMs).coerceAtLeast(0L)
         val count = ((spanMs / stepMs).toInt() + 1).coerceIn(2, maxFrames)
         val timesUs = mutableListOf<Long>()

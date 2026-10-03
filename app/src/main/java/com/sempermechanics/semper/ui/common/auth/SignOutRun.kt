@@ -54,9 +54,9 @@ object SignOutRun {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val mutableState = MutableStateFlow<State>(State.Idle)
+    private val _state = MutableStateFlow<State>(State.Idle)
 
-    val state: StateFlow<State> = mutableState.asStateFlow()
+    val state: StateFlow<State> = _state.asStateFlow()
 
     /** The application, once any screen has observed; what routes when no screen can. */
     private var app: Application? = null
@@ -71,8 +71,8 @@ object SignOutRun {
      * closed before it finished) does not block a new one.
      */
     fun start(owner: Class<*>, signOut: suspend () -> Unit): Boolean {
-        val current = mutableState.value
-        if (current == State.Running || !mutableState.compareAndSet(current, State.Running)) return false
+        val current = _state.value
+        if (current == State.Running || !_state.compareAndSet(current, State.Running)) return false
         scope.launch {
             // The user asked to leave, so the local exit happens whatever this
             // throws. [scope] is never cancelled, so nothing caught here is a
@@ -92,14 +92,14 @@ object SignOutRun {
      * same main-thread step that destroyed the old one.
      */
     private fun finish(owner: Class<*>) {
-        mutableState.value = State.Done(owner)
+        _state.value = State.Done(owner)
         if (owner !in liveScreens) routeFromApp()
     }
 
     /** No screen is left to read the outcome: route from the application and leave it [State.Unclaimed]. */
     private fun routeFromApp() {
         val app = app ?: return
-        mutableState.value = State.Unclaimed
+        _state.value = State.Unclaimed
         app.startActivity(AuthRoute.signInIntent(app))
     }
 
@@ -108,12 +108,12 @@ object SignOutRun {
      * was one. The sign-in screen calls this when it opens, which means the
      * route went through; any other screen that takes it routes itself.
      */
-    fun claimUnclaimed(): Boolean = mutableState.compareAndSet(State.Unclaimed, State.Idle)
+    fun claimUnclaimed(): Boolean = _state.compareAndSet(State.Unclaimed, State.Idle)
 
     /** True once per sign-out finished for [owner]; the next reader sees [State.Idle]. */
     fun consume(owner: Class<*>): Boolean {
-        val done = mutableState.value as? State.Done ?: return false
-        return done.owner == owner && mutableState.compareAndSet(done, State.Idle)
+        val done = _state.value as? State.Done ?: return false
+        return done.owner == owner && _state.compareAndSet(done, State.Idle)
     }
 
     /**
@@ -134,7 +134,7 @@ object SignOutRun {
                     // closing for good: no one of its class will read it.
                     val orphaned = left <= 0 &&
                         !activity.isChangingConfigurations &&
-                        mutableState.value == State.Done(screen)
+                        _state.value == State.Done(screen)
                     if (orphaned) routeFromApp()
                 }
             },
@@ -154,7 +154,7 @@ object SignOutRun {
     }
 
     internal fun resetForTest() {
-        mutableState.value = State.Idle
+        _state.value = State.Idle
         app = null
         liveScreens.clear()
     }

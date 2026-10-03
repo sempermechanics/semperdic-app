@@ -6,7 +6,7 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.account.DeviceKeyManager
 import com.sempermechanics.semper.data.account.LicenseEntitlements
 import com.sempermechanics.semper.data.net.TokenStore
-import com.sempermechanics.semper.databinding.SettingsScrollContentBinding
+import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
 import com.sempermechanics.semper.ui.admin.AdminActivity
 
 /**
@@ -15,7 +15,7 @@ import com.sempermechanics.semper.ui.admin.AdminActivity
  */
 class SettingsAccountSection(
     private val activity: SettingsActivity,
-    private val views: SettingsScrollContentBinding,
+    private val views: ViewSettingsScrollContentBinding,
 ) {
     fun wire() {
         views.tvAccountEmail.text = TokenStore.cachedEmail(activity).orEmpty()

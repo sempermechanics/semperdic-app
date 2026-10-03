@@ -66,7 +66,7 @@ class WizardRestorePreviewTest {
 
         // A new Activity and view model, built from the saved state alone.
         val after = Robolectric.buildActivity(StaticAnalysisActivity::class.java).setup(state).get()
-        val thumb = after.findViewById<ImageView>(R.id.ivRefThumb)
+        val thumb = after.findViewById<ImageView>(R.id.imgRefThumb)
         await("the reference thumbnail") { thumb.drawable != null }
 
         assertNotNull(thumb.drawable)

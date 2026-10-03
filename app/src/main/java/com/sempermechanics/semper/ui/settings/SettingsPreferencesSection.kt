@@ -3,7 +3,7 @@ package com.sempermechanics.semper.ui.settings
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.prefs.DicSettings
-import com.sempermechanics.semper.databinding.SettingsScrollContentBinding
+import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
 import com.sempermechanics.semper.ui.common.dialog.bindInfo
 import java.util.Locale
 
@@ -12,7 +12,7 @@ import java.util.Locale
  */
 class SettingsPreferencesSection(
     private val activity: SettingsActivity,
-    private val views: SettingsScrollContentBinding,
+    private val views: ViewSettingsScrollContentBinding,
 ) {
     fun wire() {
         val valueLabel = views.tvMaxFramesValue
@@ -28,7 +28,7 @@ class SettingsPreferencesSection(
                 DicSettings.setMaxFrames(activity, v.toInt(), remoteMaxFrames)
             }
         }
-        views.btnMaxFramesInfo.bindInfo(activity, R.string.setting_max_frames, R.string.setting_max_frames_info)
+        views.btnMaxFramesInfo.bindInfo(activity, R.string.settings_max_frames, R.string.settings_max_frames_info)
     }
 
     private fun frameCountText(value: Int): String = String.format(Locale.US, "%d", value)

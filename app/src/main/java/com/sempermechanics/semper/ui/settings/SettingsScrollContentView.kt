@@ -4,7 +4,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.LinearLayout
-import com.sempermechanics.semper.databinding.SettingsScrollContentBinding
+import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
 
 /**
  * Inflates the settings scroll sections at runtime so [activity_settings] stays
@@ -16,10 +16,10 @@ class SettingsScrollContentView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
 ) : LinearLayout(context, attrs) {
 
-    val sections: SettingsScrollContentBinding
+    val sections: ViewSettingsScrollContentBinding
 
     init {
         orientation = VERTICAL
-        sections = SettingsScrollContentBinding.inflate(LayoutInflater.from(context), this)
+        sections = ViewSettingsScrollContentBinding.inflate(LayoutInflater.from(context), this)
     }
 }

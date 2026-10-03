@@ -57,7 +57,7 @@ object AnalysisNavHelper {
         viewModel: AnalysisViewModel,
     ): Boolean {
         if (!viewModel.wouldCreateNewSession()) return true
-        if (!LicenseEntitlements.seatRequiredToStart(host)) return true
+        if (!LicenseEntitlements.isSeatRequiredToStart(host)) return true
         openSeatRequired(host)
         return false
     }

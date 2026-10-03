@@ -19,7 +19,7 @@ import org.robolectric.annotation.Config
 /** The typed views over a [SessionRecord] read exactly the fields the code reads today. */
 @RunWith(RobolectricTestRunner::class) // org.json for the metadata comparison
 @Config(application = Application::class)
-class SessionRecordExtTest {
+class SessionRecordFieldsTest {
 
     private val sweep = sessionRecord(
         subset = 41,

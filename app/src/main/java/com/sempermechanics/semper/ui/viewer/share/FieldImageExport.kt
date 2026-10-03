@@ -10,8 +10,8 @@ import android.graphics.Rect
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import com.sempermechanics.semper.field.DicResult
-import com.sempermechanics.semper.imaging.BitmapDecode
-import com.sempermechanics.semper.imaging.ImageEncode
+import com.sempermechanics.semper.imaging.BitmapDecoder
+import com.sempermechanics.semper.imaging.ImageEncoder
 import com.sempermechanics.semper.report.ReportBuilder
 import com.sempermechanics.semper.report.VisualizationEngine
 import com.sempermechanics.semper.ui.viewer.share.ShareExportBuilder.Companion.FIELDS
@@ -112,7 +112,7 @@ internal class FieldImageExport(
         val key = renderW to renderH
         cache?.get(key)?.let { return it }
         s.refImagePath?.let { path ->
-            BitmapDecode.decodeFileForView(
+            BitmapDecoder.decodeFileForView(
                 path,
                 renderW,
                 renderH,
@@ -145,7 +145,7 @@ internal class FieldImageExport(
     private fun writePng(bmp: Bitmap, name: String): File {
         try {
             val f = File(outDir, name)
-            f.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, ImageEncode.PNG_QUALITY_MAX, it) }
+            f.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, ImageEncoder.PNG_QUALITY_MAX, it) }
             return f
         } finally {
             bmp.recycle()

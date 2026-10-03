@@ -57,9 +57,9 @@ object AccountDeletionRun {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val mutableState = MutableStateFlow<State>(State.Idle)
+    private val _state = MutableStateFlow<State>(State.Idle)
 
-    val state: StateFlow<State> = mutableState.asStateFlow()
+    val state: StateFlow<State> = _state.asStateFlow()
 
     /** Seam for tests: the JVM has no Firebase or backend to delete from. */
     @VisibleForTesting
@@ -76,7 +76,7 @@ object AccountDeletionRun {
 
     /** Starts the deletion; false (and nothing started) when one is already running or unread. */
     fun start(context: Context): Boolean {
-        if (!mutableState.compareAndSet(State.Idle, State.Running)) return false
+        if (!_state.compareAndSet(State.Idle, State.Running)) return false
         val app = context.applicationContext
         val api = ErasureWatch(cloudApi(app))
         scope.launch {
@@ -91,15 +91,15 @@ object AccountDeletionRun {
             // A wipe that threw skipped the sign-out after it, and the account
             // is gone: do not leave Firebase and the token store signed in.
             if (outcome == Outcome.PHONE_NOT_CLEARED) signOutAfterErase(app)
-            mutableState.value = State.Done(outcome)
+            _state.value = State.Done(outcome)
         }
         return true
     }
 
     /** The finished outcome, handed out once; the next reader sees [State.Idle]. */
     fun consume(): Outcome? {
-        val done = mutableState.value as? State.Done ?: return null
-        return if (mutableState.compareAndSet(done, State.Idle)) done.outcome else null
+        val done = _state.value as? State.Done ?: return null
+        return if (_state.compareAndSet(done, State.Idle)) done.outcome else null
     }
 
     /** Best effort: a failure here is logged, and the outcome stays what it was. */
@@ -133,7 +133,7 @@ object AccountDeletionRun {
 
     @VisibleForTesting
     internal fun resetForTest() {
-        mutableState.value = State.Idle
+        _state.value = State.Idle
         delete = { context, api -> CloudSync.deleteAccount(context, api) }
         cloudApi = { SemperApi.get(it) }
         signOut = { AuthRepository(it).signOut() }

@@ -127,7 +127,9 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   app and its `google-services.json` (the committed one carries a stand-in client), the
   Play listing, the `SEMPER_API_BASE_URL` var, a backend and Hosting deploy; the engine
   PR merged first. material_testing moves to `com.sempermechanics.materialtesting` in
-  the same merge that takes this code.
+  the same merge that takes this code. Stacked on it: the naming-scheme renames
+  (branch `naming/scheme`; rules in CONTRIBUTING "Code style", every rename in
+  [FORK_SYNC](docs/ops/FORK_SYNC.md)).
 - **Deployed.** Cloud Run `semper-api` (image `semper-api-36844645753-1` from `9230f444`,
   2026-10-01; scales to zero) behind API Gateway `semper-gw` (config `v202610010948-83`,
   deployed by CI, ADR-006); staging `semper-api-staging` behind `semper-gw-staging` (CI
@@ -174,5 +176,5 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 - Viewer screens read `ViewerArgs.from(intent, …)`, never `intent.get…Extra(DicKeys…)`; a new viewer field goes in `ViewerArgs`, its default and its `SessionRecord` mapping — [ADR-003](docs/adr/ADR-003-viewerargs-read-side.md).
 - A new wizard input must survive a kill: scalars go in `WizardState`'s Bundle, bytes and lists in `WizardDraft`; and `cacheDir/temp_deformed` is only safe from the janitor while the draft is live — [ADR-005](docs/adr/ADR-005-wizard-process-death.md).
 - After Compute, read the run's `RunSpec` / `RunResult` (`spec`, `settings`), never the wizard's sliders or ROI vars: they stay editable and drift — [ADR-004](docs/adr/ADR-004-runspec.md).
-- Since engine 0.2.3 two runs of one build give bit-identical `.dat` whatever the thread count (TD-65), so a `.dat` hash can prove "engine unchanged" again and any run-to-run difference is a defect — `EnginePipelineSmokeTest.repeatSolve_bitIdentical`, `engine/tests/integration/test_full_field_determinism.cpp`.
+- Since engine 0.2.3 two runs of one build give bit-identical `.dat` whatever the thread count (TD-65), so a `.dat` hash can prove "engine unchanged" again and any run-to-run difference is a defect — `EnginePipelineSmokeTest.repeatSolveIsBitIdentical`, `engine/tests/integration/test_full_field_determinism.cpp`.
 - `ConvergenceGate` is batch-only; a sweep runs its whole plan, smallest subset first — [ConvergenceGate.kt](app/src/main/java/com/sempermechanics/semper/ui/analysis/run/ConvergenceGate.kt).

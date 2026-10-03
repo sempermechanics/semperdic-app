@@ -20,7 +20,7 @@ class SweepModeToggleTest {
         bed.binding.stubStepSweep.inflate()
         bed.viewModel.sweepMode = true
         bed.viewModel.step = on
-        SweepSetupHelper(bed.activity, bed.viewModel, bed.host).setup()
+        SweepSetupController(bed.activity, bed.viewModel, bed.host).setup()
 
         bed.activity.findViewById<MaterialButtonToggleGroup>(R.id.rgAnalysisMode).check(R.id.rbModeSingle)
         bed.idle()

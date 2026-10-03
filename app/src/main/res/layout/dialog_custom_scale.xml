@@ -11,7 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
-        android:hint="@string/scale_max_value">
+        android:hint="@string/scale_max_value_fmt">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etScaleMax"
@@ -25,7 +25,7 @@
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="@string/scale_min_value">
+        android:hint="@string/scale_min_value_fmt">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etScaleMin"

@@ -8,7 +8,9 @@ import androidx.lifecycle.lifecycleScope
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.LicenseConfigWorker
 import com.sempermechanics.semper.data.net.ApiErrors
+import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.AppRemoteConfig
+import com.sempermechanics.semper.data.net.NoSeatAvailableException
 import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.net.TokenProvider
 import com.sempermechanics.semper.databinding.ActivitySeatRequiredBinding
@@ -76,7 +78,7 @@ class SeatRequiredActivity : AppCompatActivity() {
                     // A full pool is the expected answer, not a fault: say so
                     // plainly and leave the screen up to try again.
                     val message = when {
-                        error is SemperApi.NoSeatAvailableException -> R.string.seat_still_full
+                        error is NoSeatAvailableException -> R.string.seat_still_full
                         // Past RetryOnTransient's three attempts, so this is a
                         // sustained throttle, not a blip — blaming the
                         // connection would send the user to their wifi settings
@@ -96,7 +98,7 @@ class SeatRequiredActivity : AppCompatActivity() {
 
     /** True when this failure is the backend answering with [code]. */
     private fun Throwable.hasApiCode(code: String): Boolean =
-        this is SemperApi.ApiException && ApiErrors.isCode(parsedDetail, code)
+        this is ApiException && ApiErrors.isCode(parsedDetail, code)
 
     /** INVISIBLE, not GONE, so the layout does not jump while it spins. */
     private fun setLoading(loading: Boolean) {

@@ -6,7 +6,7 @@ package com.sempermechanics.semper.ui.viewer.share
 
 import android.graphics.Bitmap
 import com.sempermechanics.semper.field.DicResult
-import com.sempermechanics.semper.imaging.ImageEncode
+import com.sempermechanics.semper.imaging.ImageEncoder
 import com.sempermechanics.semper.ui.viewer.share.ShareExportBuilder.Companion.FIELDS
 import com.sempermechanics.semper.util.Zips
 import timber.log.Timber
@@ -77,7 +77,7 @@ internal class BundleExport(
             // composite).
             s.baseImage?.let { base ->
                 zip.putNextEntry(ZipEntry("$dir/reference.png"))
-                base.compress(Bitmap.CompressFormat.PNG, ImageEncode.PNG_QUALITY_MAX, zip)
+                base.compress(Bitmap.CompressFormat.PNG, ImageEncoder.PNG_QUALITY_MAX, zip)
                 zip.closeEntry()
             }
         }
@@ -126,7 +126,7 @@ internal class BundleExport(
             try {
                 bmp = images.renderAnnotated(data, idx, label, index, baseCache)
                 zip.putNextEntry(ZipEntry("$folder/$label.png"))
-                bmp.compress(Bitmap.CompressFormat.PNG, ImageEncode.PNG_QUALITY_MAX, zip)
+                bmp.compress(Bitmap.CompressFormat.PNG, ImageEncoder.PNG_QUALITY_MAX, zip)
                 zip.closeEntry()
             } catch (e: Exception) {
                 // One unrenderable field shouldn't abort the whole export.

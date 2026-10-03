@@ -127,12 +127,12 @@ class PrefKeyTest {
         val p = prefs(s.NAME)
         assertEquals("dic_settings", s.NAME)
         // Defaults agree with the owner's on an empty file.
-        assertEquals(DicSettings.saveToCloud(context), p[s.SAVE_TO_CLOUD])
-        assertEquals(DicSettings.uploadWifiOnly(context), p[s.UPLOAD_WIFI_ONLY])
+        assertEquals(DicSettings.saveToCloudEnabled(context), p[s.SAVE_TO_CLOUD])
+        assertEquals(DicSettings.wifiOnlyUploadEnabled(context), p[s.UPLOAD_WIFI_ONLY])
         assertEquals(DicSettings.maxFrames(context, 0), p[s.MAX_FRAMES])
         assertEquals(DicSettings.autoFreeBudgetGb(context), p[s.AUTO_FREE_GB])
         assertEquals(DicSettings.diagnosticsEnabled(context), p[s.DIAGNOSTICS_ENABLED])
-        assertEquals(DicSettings.diagnosticsAsked(context), p[s.DIAGNOSTICS_ASKED])
+        assertEquals(DicSettings.wasDiagnosticsAsked(context), p[s.DIAGNOSTICS_ASKED])
 
         // Written through the key, read by the owner.
         p.edit(commit = true) {
@@ -141,8 +141,8 @@ class PrefKeyTest {
             put(s.MAX_FRAMES, 77)
             put(s.AUTO_FREE_GB, 5)
         }
-        assertFalse(DicSettings.saveToCloud(context))
-        assertTrue(DicSettings.uploadWifiOnly(context))
+        assertFalse(DicSettings.saveToCloudEnabled(context))
+        assertTrue(DicSettings.wifiOnlyUploadEnabled(context))
         assertEquals(77, DicSettings.maxFrames(context, 0))
         assertEquals(5, DicSettings.autoFreeBudgetGb(context))
         assertFalse(p.getBoolean("save_to_cloud", true))
@@ -327,9 +327,9 @@ class PrefKeyTest {
         assertEquals("UNI", p[r.LICENSE_PREFIX])
         assertEquals(AppRemoteConfig.licenseKind(context), p[r.LICENSE_KIND])
         assertEquals(AppRemoteConfig.licenseDuration(context), p[r.LICENSE_DURATION])
-        assertEquals(AppRemoteConfig.licenseExpiresAtMillis(context), p[r.LICENSE_EXPIRES_AT])
+        assertEquals(AppRemoteConfig.licenseExpiresAtMs(context), p[r.LICENSE_EXPIRES_AT])
         assertTrue(p[r.LICENSE_EXPIRES_AT] > 0L)
-        assertEquals(AppRemoteConfig.inGrace(context), p[r.IN_GRACE])
+        assertEquals(AppRemoteConfig.isInGrace(context), p[r.IN_GRACE])
         assertEquals("floating", p[r.SEATING])
         assertEquals(15, p[r.HEARTBEAT_MINUTES])
         assertEquals(1234L, p[r.FETCHED_AT])
@@ -363,7 +363,7 @@ class PrefKeyTest {
         p.edit(commit = true) { put(r.MODE, "demo") }
         assertEquals("demo", AppRemoteConfig.mode(context))
         p.edit(commit = true) { put(r.IN_GRACE, true) }
-        assertTrue(AppRemoteConfig.inGrace(context))
+        assertTrue(AppRemoteConfig.isInGrace(context))
         AppRemoteConfig.clear(context)
     }
 

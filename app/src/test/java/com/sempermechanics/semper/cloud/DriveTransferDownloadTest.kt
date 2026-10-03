@@ -1,8 +1,8 @@
 package com.sempermechanics.semper.cloud
 
 import com.sempermechanics.semper.data.LogCapture
+import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.HttpStatus
-import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.net.drive.DriveTransfer
 import com.sempermechanics.semper.util.AtomicFiles
 import kotlinx.coroutines.runBlocking
@@ -157,7 +157,7 @@ class DriveTransferDownloadTest {
     fun `persistent 5xx fails without leaving a destination file behind`() {
         repeat(8) { server.enqueue(MockResponse(code = HttpStatus.SERVICE_UNAVAILABLE, body = "")) }
 
-        val failure = assertThrows(SemperApi.ApiException::class.java) {
+        val failure = assertThrows(ApiException::class.java) {
             download(expectedBytes = 1000L)
         }
 

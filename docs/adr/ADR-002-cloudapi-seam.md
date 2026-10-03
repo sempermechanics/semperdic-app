@@ -27,13 +27,15 @@ removed).
 ## Decision
 
 Extract an interface `CloudApi` in `data/net/` with the 23 public members of
-`SemperApi` (`enabled`, `me`, `getConfig`, `exportAccount`, `registerDevice`,
+`SemperApi` (`enabled`, `getMe`, `getConfig`, `exportAccount`, `registerDevice`,
 `activateLicense`, `checkoutLease`, `releaseLease`, `acceptTerms`,
-`setImprovementConsent`, `listSessions`, `createSession`, `sessionUploads`,
+`setImprovementConsent`, `listSessions`, `createSession`, `listSessionUploads`,
 `completeFile`, `listSessionFiles`, `downloadRange`, `downloadFile`,
 `listUsers`, `setUserStatus`, `deleteAccount`, `deleteSession`,
 `uploadResumable`). `SemperApi` implements it; its nested exception types stay
-where they are, so no `catch` site changes.
+where they are, so no `catch` site changes. (They later moved top-level into
+`data/net/ApiExceptions.kt`, in the naming cleanup that also renamed `me` and
+`sessionUploads`.)
 
 Inject it through **defaulted constructor or function parameters** only where
 there is logic worth testing:

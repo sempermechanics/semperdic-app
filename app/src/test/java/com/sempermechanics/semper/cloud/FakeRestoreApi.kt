@@ -17,7 +17,7 @@ import java.util.zip.ZipOutputStream
  * the bytes behind each file id. Kept beside [FakeCloudApi] rather than in it so
  * the restore tests own their scripting. Any other call is still unscripted.
  */
-class RestoreFakeApi(private val base: FakeCloudApi = FakeCloudApi()) : CloudApi by base {
+class FakeRestoreApi(private val base: FakeCloudApi = FakeCloudApi()) : CloudApi by base {
 
     /** Restore-side calls, in order: `listSessionFiles`, `downloadFile:<fileId>`. */
     val calls = mutableListOf<String>()

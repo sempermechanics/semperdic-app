@@ -28,11 +28,11 @@ internal object RestoreZipVerifier {
      * readable entry. The first failure is thrown.
      */
     fun verifySessionZip(file: File, expectedSize: Long, sha256: String?, requireEntries: Boolean = false) {
-        val err = checkZipSize(file, expectedSize)
+        val error = checkZipSize(file, expectedSize)
             ?: checkZipSha256(file, sha256)
             ?: checkZipMagic(file)
             ?: if (requireEntries) checkZipEntries(file) else null
-        if (err != null) throw err
+        if (error != null) throw error
     }
 
     /** `Extras.zip`'s declared sha256 is required; a mismatch reports the bundle's code, as it always has. */

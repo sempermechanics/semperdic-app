@@ -28,7 +28,7 @@ import com.sempermechanics.semper.R
  */
 object GoogleSignInHelper {
 
-    class NotConfigured :
+    class NotConfiguredException :
         Exception(
             "Google sign-in isn't configured: add your app's SHA-1 to the Firebase project " +
                 "and re-download google-services.json.",
@@ -47,11 +47,11 @@ object GoogleSignInHelper {
 
     /**
      * Launches the credential sheet and returns the Google ID token.
-     * Throws [NotConfigured] if Google isn't set up, or a `GetCredentialException`
+     * Throws [NotConfiguredException] if Google isn't set up, or a `GetCredentialException`
      * if the user cancels / no credential is available.
      */
-    suspend fun getIdToken(activity: Activity): String {
-        val webClientId = webClientId(activity) ?: throw NotConfigured()
+    suspend fun requestIdToken(activity: Activity): String {
+        val webClientId = webClientId(activity) ?: throw NotConfiguredException()
 
         val option = GetSignInWithGoogleOption.Builder(webClientId).build()
         val request = GetCredentialRequest.Builder().addCredentialOption(option).build()

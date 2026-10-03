@@ -46,18 +46,18 @@ on 2026-10-03.
 | `ui/analysis/` | 3 | The three analysis Activities only: `StaticAnalysisActivity` (the wizard), `RoiDrawActivity`, `VsgLatticeActivity` |
 | `ui/analysis/wizard/` | 22 | `AnalysisViewModel` with `RunChannels` (launch batch and sweep) and `SweepRunner`; `WizardStep`, `AnalysisWizardChrome.applyStep`, `AnalysisWizardHost`; `WizardState` / `WizardDraftBinding` (process death, [ADR-005](../adr/ADR-005-wizard-process-death.md)); slots, coach, nav, ready / cancel / leave gates; parameter fields and sliders; settings sheet |
 | `ui/analysis/run/` | 16 | `DicBatchRunner.kt` (`runBatchAnalysisBody`, the one JNI loop, and `afterSave`) + `DicFieldIo`; `RunRecordSave` (`saveRunRecord`); `BatchRunController`, `WizardRunLauncher`, `WizardRunOutcomes`, `RunStatusLine`, `RunChrome`; `RunSpec` ([ADR-004](../adr/ADR-004-runspec.md)); `EngineFailure`, `ConvergenceGate`, `UnsavedRerun`, `SemperEngine` |
-| `ui/analysis/frames/` | 12 | Reference and frame import (`ReferenceImportController`, `FrameImportController`, `WizardMediaPickers`), ordering (`FrameOrderController`, adapter, menu), deformed batch, video (`VideoSamplingSheet`, extract helper) |
+| `ui/analysis/frames/` | 12 | Reference and frame import (`ReferenceImportController`, `FrameImportController`, `WizardMediaPickers`), ordering (`FrameOrderController`, adapter, menu), deformed batch, video (`VideoSamplingSheet`, extract controller) |
 | `ui/analysis/roi/` | 7 | ROI studio: `StudioOverlayView` with its geometry, viewport and mask encoder; `RoiViewport`, `RoiResolveHelper`, `RoiStudioLauncher` |
 | `ui/analysis/recommend/` | 9 | `SubsetRecommender` and `SubsetRecommendationController`, speckle scale, noise floor, good-practice and strain-window copy, EXIF patch map |
-| `ui/analysis/sweep/` | 17 | VSG sweep: `SweepSetupHelper` with `SweepRangeFields` / `SweepFramePicker`, `VsgStudy` / `VsgStudyRunner`, the lattice (`LatticeControls`, `LatticeProfiles`, `LatticeGraphExport`) and plot views (`VsgPlotView` with viewport, axes, palette; `PlotStyle`), line-cut preview |
+| `ui/analysis/sweep/` | 17 | VSG sweep: `SweepSetupController` with `SweepRangeFields` / `SweepFramePicker`, `VsgStudy` / `VsgStudyRunner`, the lattice (`LatticeControls`, `LatticeProfiles`, `LatticeGraphExport`) and plot views (`VsgPlotView` with viewport, axes, palette; `PlotStyle`), line-cut preview |
 | `ui/viewer/` | 19 | `ResultViewerActivity` and its controllers (`ViewerChromeController`, `ViewerImageLoader`, `ViewerFrameLoader`, `ViewerScaleController`, `FrameJumpController`, `ViewerCaptions`, `ViewerShareController`, `FieldPopup`), `SaveExportActivity`, their ViewModels, `ViewerArgs` ([ADR-003](../adr/ADR-003-viewerargs-read-side.md)), scrub cache, `ViewerFieldPills`, the ⓘ details sheet; heatmaps draw each frame on its own photo at the displaced positions ([ADR-011](../adr/ADR-011-viewer-deformed-frame.md)) |
 | `ui/viewer/share/` | 11 | `ShareCenter` → `ShareExportJobs` (held by `ResultViewerViewModel`) → `ShareExportBuilder` (`FieldImageExport`, `BundleExport`, `DataExport`); `ShareExportUi`, `ShareKind`, `SendToSheet`, `ViewerReportFactory` |
-| `ui/viewer/summary/` | 3 | Summary GIF (`SummaryAnimation`), caption, summary helper |
+| `ui/viewer/summary/` | 3 | Summary GIF (`SummaryAnimation`), caption, `ViewerSummaryController` |
 | `ui/viewer/inspect/` | 5 | Tap-to-probe: `InspectOverlayView`, `PointSpatialIndex`, `TouchImageView`, field histogram view |
 | `ui/settings/` | 15 | `SettingsActivity` (restore, download, delete) and its sections: account, cloud, analyses, storage, preferences, your data, help, footer; `AccountDeletionRun`, `BusyTransfers`; scroll body via `SettingsScrollContentView` |
 | `ui/admin/` | 1 | Admin screen — approve/revoke users via `/v1/admin/*` |
 | `ui/limit/` | 2 | Session-quota and seat-required screens |
-| `ui/common/` | 12 | Cross-screen basics: insets, motion, keyboard (`KeyboardExt`, `ImeReveal`), `SerialJob`, `ConflatedRefresh`, `Busy` (`setBusy`), `ViewportMath`, `ByteSize`, coach marks, the settings section header |
+| `ui/common/` | 13 | Cross-screen basics: insets, motion, keyboard (`Keyboard`, `ImeReveal`), toggle groups, `dp`, `SerialJob`, `ConflatedRefresh`, `Busy` (`setBusy`), `ViewportMath`, `ByteSize`, coach marks, the settings section header |
 | `ui/common/dialog/` | 8 | `Feedback.toast`, `CrispToast`, `Dialogs` (info, confirm, i-buttons), `Sheet` (`inflateSheet`), `WarnChip`, `FaqRedirect`, delete-choice and progress dialogs |
 | `ui/common/auth/` | 6 | `AuthRoute` (re-authentication), sign-out confirm and run, `ExternalLinks`, `SupportMail` |
 | `ui/common/media/` | 6 | `MediaPickerSheet` (Home **+** and the wizard dropzones), `MediaStoreBrowser`, `MediaSourceChooser`, `ThumbnailLoader` |
@@ -69,9 +69,9 @@ on 2026-10-03.
 | `data/account/` | 15 | `AuthRepository` with `AuthLinks`, `AccessStatusResolver`, `FirebaseOp`, `ReauthCredentials`; device key and env, licence entitlements / errors, seat lease and heartbeat, legal terms, TOTP |
 | `data/prefs/` | 6 | `DicSettings`, `CoachPrefs`, `ParamClipboard`, `WizardDraft`, `PrefKey` / `PrefFiles` |
 | `data/net/` | 23 | `SemperApi` with `SemperApiCalls`, `SemperApiSigning`, `SemperApiClients` (the shared OkHttp clients), `Paging`, `ApiHost`; the interceptors; `Authed` / `HttpFailure`; token store/provider; remote config |
-| `data/net/drive/` | 4 | `DriveTransfer` over `DriveUploader` and `DriveDownloader` — bytes straight to and from Drive |
+| `data/net/drive/` | 5 | `DriveTransfer` over `DriveUploader` and `DriveDownloader` (one `DriveDownload` per call) — bytes straight to and from Drive |
 | `report/` | 22 | PDF (`ReportBuilder` with extrema, annotations, colour bar; `PdfReportGenerator`), CSV, GIF, heatmaps (`VisualizationEngine` over `HeatmapColorScale`, `HeatmapRenderer`, `DeformedHeatmap`) |
-| `imaging/` | 9 | `BitmapDecode`, `ImageEncode`, AVI reader, PNG encoder — decode/encode away from the UI classes |
+| `imaging/` | 9 | `BitmapDecoder`, `ImageEncoder`, AVI reader, PNG encoder — decode/encode away from the UI classes |
 | `imaging/video/` | 7 | Video frame extraction: hardware / AVI decoders, keyframes, `FrameSink`, `ImageLuma` |
 | `field/` | 12 | `DicResult`, `DatDecoder`, `FieldHistogram`, and the small value types: `ImageSize`, `Roi`, `RunStop`, `DicParams` / `FrameParams`, `ValueRange`, `FieldStats` |
 | `diagnostics/` | 4 | `Diagnostics`, `CrashReportingTree`, `EngineDebug`, `SemperAnalytics` (consent-gated Firebase Analytics events) |
@@ -79,8 +79,11 @@ on 2026-10-03.
 | `util/` | 12 | `AtomicFiles` / `AtomicWrites`, `Streams`, `Zips`, `Digests`, `Mime`, `suspendRunCatching` and caller cancellation, `BrandAssets`, `OverlayFormats` |
 | *(root)* | 2 | `SemperApp`, `SemperNativeLib` / `ProgressCallback` (JNI symbol names; never move) |
 
-Style for shared UI logic: plain `object` / small classes — `*Helper`,
-`*Controller`, `*Section` — that take the Activity and the binding they draw on.
+Style for shared UI logic: plain `object` / small classes. A part that owns a
+screen region's views and behaviour is a `*Controller` (or is named for the region
+it is: `*Section`, `*Card`, `*Sheet`) and takes the Activity and the binding it
+draws on; a `*Helper` is a stateless `object` of functions only. The full naming
+rules are in [CONTRIBUTING](../../CONTRIBUTING.md#code-style).
 Prefer extracting a part over growing an Activity further. Activity Result
 launchers are registered before the Activity starts, either as an Activity
 property or by a part built in `onCreate` (`WizardMediaPickers`,
@@ -244,7 +247,7 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
   every frame load, so peak memory scaled with *how fast the user scrubbed* rather than
   with any bound.
 - **Whole-batch passes are started on demand, never on open.** The summary's colour-scale
-  scan (`ViewerSummaryHelper.start`) decodes **every frame in the batch**, so it runs from
+  scan (`ViewerSummaryController.start`) decodes **every frame in the batch**, so it runs from
   `show()` rather than from viewer startup — opening straight onto a frame must not pay
   for an N-frame decode the user may never look at. The inspect-mode spatial index
   follows the same rule (built lazily on first tap, invalidated on frame load).
@@ -276,9 +279,9 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
 | Change Home list / settings | `ui/home/HomeActivity.kt` + `Session*`, `HomeQuotaCard`, `HomeTransferWatch` / `ui/settings/SettingsActivity` + `Settings*Section` |
 | Change import / video extraction | `FrameImportController` / `ReferenceImportController` → `FrameImportHelper`, `VideoSamplingSheet`, `VideoFrameExtractor` (three rungs: `AviVideoDecoder` → `HardwareVideoDecoder` → `MediaMetadataRetriever`; all write through `FrameSink`). Fixed-interval instants are `VideoKeyframeHelper.uniformTimestampsUs` for the sheet's estimate and every rung, over a segment the sheet caps at `lastFrameStartMs` |
 | Change AVI support | `imaging/AviReader` (demuxer), `imaging/AviLuma` (uncompressed layouts), `imaging/MjpegHuffman` (table repair), `AviCodecDecoder` (`MediaCodec` for Xvid/H.264) |
-| Change parameter-sweep setup UI | `SweepSetupHelper` + `SweepRangeFields` / `SweepFramePicker`; the run is `SweepRunner.runVsgSweep` → `VsgStudyRunner` |
+| Change parameter-sweep setup UI | `SweepSetupController` + `SweepRangeFields` / `SweepFramePicker`; the run is `SweepRunner.runVsgSweep` → `VsgStudyRunner` |
 | Change the sweep result lattice | `ui/analysis/VsgLatticeActivity.kt` + `LatticeControls` / `LatticeProfiles` / `LatticeGraphExport`, `VsgLatticeView`, `VsgPlotView` |
-| Change heatmap / probe | `ui/viewer/ViewerScaleController.kt` (heatmap, colour scale), `ViewerImageLoader.kt` (photo under the map), `inspect/ViewerInspectHelper.kt` (probe); wired in `ResultViewerActivity.kt` |
+| Change heatmap / probe | `ui/viewer/ViewerScaleController.kt` (heatmap, colour scale), `ViewerImageLoader.kt` (photo under the map), `inspect/ViewerInspectController.kt` (probe); wired in `ResultViewerActivity.kt` |
 | Change how exports are handed off | `ui/viewer/share/ShareCenter.kt` → `ShareExportJobs.kt` → `ShareExportBuilder.kt`, `SendToSheet.kt`, `SaveExportActivity.kt` |
 | Change transfer progress UI | `ui/common/transfer/TransferBannerController.kt` (Settings + viewer), `data/cloud/TransferNotifications.kt` (the one channel) |
 | Change the new-analysis media sheet | `ui/common/media/MediaPickerSheet.kt` / `MediaSourceChooser.kt` — shared by the Home **+** and both wizard dropzones |

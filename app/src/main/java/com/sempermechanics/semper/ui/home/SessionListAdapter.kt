@@ -14,7 +14,7 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.cloud.TransferPhase
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.databinding.ItemSessionBinding
-import com.sempermechanics.semper.imaging.BitmapDecode
+import com.sempermechanics.semper.imaging.BitmapDecoder
 import com.sempermechanics.semper.ui.analysis.run.EngineFailure
 import com.sempermechanics.semper.ui.common.media.ThumbnailLoader
 import com.sempermechanics.semper.ui.common.transfer.TransferWorkObserver
@@ -115,14 +115,14 @@ class SessionListAdapter(
      * A run cut short reads as "39 of 50 frames" rather than "39 frames": the
      * count alone cannot distinguish a short run from a shorter test.
      */
-    private fun subtitleFor(ctx: android.content.Context, r: SessionRecord): String = buildString {
+    private fun subtitleFor(context: android.content.Context, r: SessionRecord): String = buildString {
         append(dateFmt.format(Date(r.createdAt)))
         append(" · ")
         if (r.isSweep) {
-            append(ctx.getString(R.string.session_sweep_kind))
+            append(context.getString(R.string.session_sweep_kind))
         } else if (r.stoppedEarly && r.plannedFrameCount > r.frameCount) {
             append(
-                ctx.resources.getQuantityString(
+                context.resources.getQuantityString(
                     R.plurals.session_frames_of_fmt,
                     r.plannedFrameCount,
                     r.frameCount,
@@ -130,7 +130,7 @@ class SessionListAdapter(
                 ),
             )
         } else {
-            append(ctx.resources.getQuantityString(R.plurals.session_frames_fmt, r.frameCount, r.frameCount))
+            append(context.resources.getQuantityString(R.plurals.session_frames_fmt, r.frameCount, r.frameCount))
         }
         if (r.headline.isNotBlank()) {
             append(" · ")
@@ -138,16 +138,16 @@ class SessionListAdapter(
         }
         if (r.stoppedEarly) {
             append(" · ")
-            append(EngineFailure.shortReason(ctx, r.stopCode))
+            append(EngineFailure.shortReason(context, r.stopCode))
         }
     }
 
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val r = items[position]
         val row = holder.row
-        val ctx = holder.itemView.context
+        val context = holder.itemView.context
         row.sessionTitle.text = r.name
-        row.sessionSubtitle.text = subtitleFor(ctx, r)
+        row.sessionSubtitle.text = subtitleFor(context, r)
 
         bindSyncBadge(holder, r)
         thumbs.bind(row.sessionThumb, r.refPath.takeIf { it.isNotBlank() }?.let { Thumb(it, r.imgW, r.imgH) })
@@ -155,10 +155,10 @@ class SessionListAdapter(
         val selected = isSelected(r.id)
         row.sessionCheck.isVisible = selected
         row.sessionCard.setCardBackgroundColor(
-            ctx.getColor(if (selected) R.color.sky_container else R.color.surface_muted),
+            context.getColor(if (selected) R.color.sky_container else R.color.surface_muted),
         )
         row.sessionCard.strokeColor =
-            ctx.getColor(if (selected) R.color.sky_primary else R.color.surface_outline)
+            context.getColor(if (selected) R.color.sky_primary else R.color.surface_outline)
 
         // Outside selection mode a tap opens the analysis and a long-press
         // starts selecting; inside it, every tap just toggles a row. That
@@ -176,7 +176,7 @@ class SessionListAdapter(
      * normal sync-state badge. Hidden entirely when [syncVisible] is false.
      */
     private fun bindSyncBadge(holder: Holder, r: SessionRecord) {
-        val ctx = holder.itemView.context
+        val context = holder.itemView.context
         val badge = holder.row.sessionBadge
         val progressBar = holder.row.sessionProgress
         val prog = progress[r.id]
@@ -192,9 +192,9 @@ class SessionListAdapter(
             val indeterminate = prog.phase == TransferPhase.DOWNLOAD && prog.percent <= 0
             progressBar.isIndeterminate = indeterminate
             if (!indeterminate) {
-                progressBar.setProgressCompat(prog.percent.coerceIn(0, PERCENT_MAX), true)
+                progressBar.setProgressCompat(prog.percent.coerceIn(0, PERCENT), true)
             }
-            badge.text = ctx.getString(
+            badge.text = context.getString(
                 when (prog.phase) {
                     TransferPhase.PREPARE -> R.string.badge_preparing_fmt
                     TransferPhase.DOWNLOAD -> R.string.badge_downloading_fmt
@@ -202,16 +202,16 @@ class SessionListAdapter(
                 },
                 prog.percent.coerceAtLeast(0),
             )
-            badge.setTextColor(ctx.getColor(R.color.sky_on_container))
+            badge.setTextColor(context.getColor(R.color.sky_on_container))
         } else {
             progressBar.isIndeterminate = false
             progressBar.isVisible = false
             badge.setText(syncStateLabel(r))
             badge.setTextColor(
                 if (r.syncState == SessionRecord.SyncState.FAILED) {
-                    ctx.getColor(R.color.semantic_danger)
+                    context.getColor(R.color.semantic_danger)
                 } else {
-                    ctx.getColor(R.color.sky_on_container)
+                    context.getColor(R.color.sky_on_container)
                 },
             )
         }
@@ -244,19 +244,19 @@ class SessionListAdapter(
 
         private const val THUMB_CACHE_MAX = 24
         private const val THUMB_EDGE = 256
-        private const val PERCENT_MAX = 100
+        private const val PERCENT = 100
         private val thumbExecutor = Executors.newSingleThreadExecutor()
 
         /**
          * Runs on the decode thread. The existence check is file I/O, so it
          * runs here rather than on every bind. A missing reference is not a
          * miss: a restore can still bring it back. Sniff-first via
-         * [BitmapDecode] — never hand TIFF/RAW to BitmapFactory (Skia
+         * [BitmapDecoder] — never hand TIFF/RAW to BitmapFactory (Skia
          * "invalid input" spam on Home rebind).
          */
         private fun decodeThumb(thumb: Thumb): ThumbnailLoader.Decoded {
             if (!File(thumb.path).exists()) return ThumbnailLoader.Decoded.Missing
-            val bitmap = BitmapDecode.decodeFileForView(
+            val bitmap = BitmapDecoder.decodeFileForView(
                 thumb.path,
                 THUMB_EDGE,
                 THUMB_EDGE,

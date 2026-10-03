@@ -5,11 +5,11 @@ import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.data.cloud.CloudSync
 import com.sempermechanics.semper.data.cloud.SessionMetadataSync
 import com.sempermechanics.semper.data.cloud.SessionMetadataSync.Outcome
+import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.net.CloudSessionDto
-import com.sempermechanics.semper.data.net.ListSessionsResponse
 import com.sempermechanics.semper.data.net.QuotaDto
-import com.sempermechanics.semper.data.net.SemperApi
+import com.sempermechanics.semper.data.net.SessionsResponse
 import com.sempermechanics.semper.data.session.SessionRecord.SyncState
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.fixtures.sessionRecord
@@ -157,10 +157,10 @@ class SessionMetadataSyncTest {
         store("s1", SyncState.SYNCED, cloudId = "c1", stale = true)
 
         assertEquals(Outcome.RETRY, sendFailing(IOException("offline")))
-        assertEquals(Outcome.RETRY, sendFailing(SemperApi.ApiException(503, "{}")))
+        assertEquals(Outcome.RETRY, sendFailing(ApiException(503, "{}")))
         assertEquals(
             Outcome.WAIT,
-            sendFailing(SemperApi.ApiException(409, """{"detail":"session_not_complete"}""")),
+            sendFailing(ApiException(409, """{"detail":"session_not_complete"}""")),
         )
 
         assertTrue(SessionStore.get(context, "s1")!!.metadataStale)
@@ -179,7 +179,7 @@ class SessionMetadataSyncTest {
     @Test
     fun `a backend without the route leaves the row for the next reconcile`() {
         store("s1", SyncState.SYNCED, cloudId = "c1", stale = true)
-        api.onReplaceSessionMetadata = { _, _, _ -> throw SemperApi.ApiException(404, "") }
+        api.onReplaceSessionMetadata = { _, _, _ -> throw ApiException(404, "") }
 
         assertEquals(Outcome.LATER, send("s1"))
 
@@ -194,7 +194,7 @@ class SessionMetadataSyncTest {
         store("s2", SyncState.SYNCED, cloudId = "c2")
         api.onGetConfig = { throw IOException("config down") }
         api.onListSessions = { _, _ ->
-            ListSessionsResponse(
+            SessionsResponse(
                 sessions = listOf(
                     CloudSessionDto(sessionId = "c1", localSessionId = "s1", status = "COMPLETED"),
                     CloudSessionDto(sessionId = "c2", localSessionId = "s2", status = "COMPLETED"),

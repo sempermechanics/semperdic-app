@@ -25,8 +25,8 @@ import com.sempermechanics.semper.data.cloud.restore.RestoreStart
 import com.sempermechanics.semper.data.net.CloudSessionDto
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.databinding.ActivitySettingsBinding
-import com.sempermechanics.semper.databinding.SettingsScrollContentBinding
-import com.sempermechanics.semper.databinding.SettingsSectionHeaderBinding
+import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
+import com.sempermechanics.semper.databinding.ViewSettingsSectionHeaderBinding
 import com.sempermechanics.semper.ui.auth.AuthActivity
 import com.sempermechanics.semper.ui.common.Insets
 import com.sempermechanics.semper.ui.common.Motion
@@ -79,7 +79,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
 
     /** The scroll content's sections ([SettingsScrollContentView.sections]). */
-    private lateinit var views: SettingsScrollContentBinding
+    private lateinit var views: ViewSettingsScrollContentBinding
     private lateinit var analyses: SettingsAnalysesSection
 
     internal lateinit var transferBanner: TransferBannerController
@@ -141,9 +141,9 @@ class SettingsActivity : AppCompatActivity() {
      * Titles [header] and makes it open and close [body], starting closed.
      * The chevron is the header's own, never one looked up across the screen.
      */
-    private fun wireCollapsible(header: SettingsSectionHeaderBinding, @StringRes title: Int, body: View) {
+    private fun wireCollapsible(header: ViewSettingsSectionHeaderBinding, @StringRes title: Int, body: View) {
         SettingsSectionHeader.bind(header, title)
-        val chevron = header.ivSectionChevron
+        val chevron = header.imgSectionChevron
         fun apply(expanded: Boolean) {
             body.isVisible = expanded
             chevron.rotation = if (expanded) CHEVRON_EXPANDED_DEG else 0f
@@ -288,11 +288,11 @@ class SettingsActivity : AppCompatActivity() {
             val started = withContext(Dispatchers.IO) {
                 RestoreStart.start(this@SettingsActivity, cloud.sessionId, targetLocalId, entry.name)
             }
-            if (started == RestoreStart.Result.ALREADY_RUNNING) {
+            if (started == RestoreStart.Outcome.ALREADY_RUNNING) {
                 Feedback.toast(this@SettingsActivity, R.string.download_analysis_already)
                 return@launch
             }
-            if (started != RestoreStart.Result.STARTED) {
+            if (started != RestoreStart.Outcome.STARTED) {
                 analyses.unmarkBusy(key)
                 Feedback.toast(this@SettingsActivity, R.string.restore_failed_generic, long = true)
                 return@launch
@@ -329,7 +329,7 @@ class SettingsActivity : AppCompatActivity() {
         Dialogs.confirm(
             this,
             getText(R.string.cloud_delete_forever_title),
-            getString(R.string.cloud_delete_forever_body, entry.name),
+            getString(R.string.cloud_delete_forever_body_fmt, entry.name),
             R.string.cloud_delete_forever_confirm,
         ) { scheduleDelete(entry, session.localSessionId, session.sessionId, SessionDeletes.Mode.CLOUD) }
     }
@@ -415,6 +415,6 @@ class SettingsActivity : AppCompatActivity() {
         const val CHEVRON_EXPANDED_DEG = 180f
         const val ZIP_MIME = "application/zip"
         const val JSON_MIME = "application/json"
-        const val PERCENT_MAX = 100
+        const val PERCENT = 100
     }
 }

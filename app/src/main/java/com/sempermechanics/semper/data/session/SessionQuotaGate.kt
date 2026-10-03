@@ -27,7 +27,7 @@ object SessionQuotaGate {
      * @return false if the insert must be refused.
      */
     fun allowNewSession(context: Context, existingCount: Int): Boolean {
-        if (!SemperApi.get(context).enabled || LicenseEntitlements.unlimitedAnalysis(context)) return true
+        if (!SemperApi.get(context).enabled || LicenseEntitlements.hasUnlimitedAnalysis(context)) return true
         val max = LicenseEntitlements.analysisCap(context)
         val used = maxOf(TokenStore.quotaUsed(context), existingCount)
         val full = used >= max

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A collapsible Settings section's header row: title and chevron. The same
-     attributes as each copy in settings_scroll_content.xml (Cloud backup,
+     attributes as each copy in view_settings_scroll_content.xml (Cloud backup,
      Analyses, Storage, Your data, Analysis preferences, Help & support; the
      Account copy differs only in an 8dp top margin, which its <include> sets).
      An <include> applies android:layout_marginTop (or any layout_* attribute)
@@ -28,7 +28,7 @@
 
     <!-- Described at runtime with the section's title (SettingsSectionHeader.bind). -->
     <ImageView
-        android:id="@+id/ivSectionChevron"
+        android:id="@+id/imgSectionChevron"
         android:layout_width="24dp"
         android:layout_height="24dp"
         android:src="@drawable/ic_expand_more"

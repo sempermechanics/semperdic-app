@@ -49,7 +49,7 @@ class RestoreWorkersTest {
     val tmp = TemporaryFolder()
 
     private val context: Context = ApplicationProvider.getApplicationContext()
-    private val api = RestoreFakeApi()
+    private val api = FakeRestoreApi()
     private val tokens = FakeTokens()
 
     @Before
@@ -97,7 +97,7 @@ class RestoreWorkersTest {
 
     @Test
     fun `a backup without metadata fails instead of retrying`() {
-        api.files = listOf(api.file("bundle-1", "bundle", RestoreFakeApi.zipOf(emptyList())))
+        api.files = listOf(api.file("bundle-1", "bundle", FakeRestoreApi.zipOf(emptyList())))
 
         val result = runRestore(cloudRestorer)
 
@@ -114,11 +114,11 @@ class RestoreWorkersTest {
     @Test
     fun `a sibling-escaping archive fails instead of retrying`() {
         api.files = listOf(
-            api.file("meta-1", "metadata", RestoreFakeApi.metadataJson()),
+            api.file("meta-1", "metadata", FakeRestoreApi.metadataJson()),
             api.file(
                 "bundle-1",
                 "bundle",
-                RestoreFakeApi.zipOf(listOf("dat/../local-1X/frame_0001.dat" to RestoreFakeApi.onePointDat())),
+                FakeRestoreApi.zipOf(listOf("dat/../local-1X/frame_0001.dat" to FakeRestoreApi.onePointDat())),
             ),
         )
 
@@ -131,7 +131,7 @@ class RestoreWorkersTest {
             {"schema":"indic.session.metadata/3","frames":[{"image":"def.png"}],
              "engine":{"sweep":{"subsets":[21],"skipped":{"subsets":[41,51],"steps":[9],"strainWindows":[121]}}}}
         """.trimIndent().toByteArray()
-        val bundle = RestoreFakeApi.zipOf(listOf("dat/frame_0001.dat" to RestoreFakeApi.onePointDat()))
+        val bundle = FakeRestoreApi.zipOf(listOf("dat/frame_0001.dat" to FakeRestoreApi.onePointDat()))
         api.files = listOf(api.file("meta-1", "metadata", meta), api.file("bundle-1", "bundle", bundle))
 
         val result = runRestore(cloudRestorer)
@@ -194,7 +194,7 @@ class RestoreWorkersTest {
 
     @Test
     fun `a backup without a Session zip and no copy on this phone fails instead of retrying`() {
-        api.files = listOf(api.file("meta-1", "metadata", RestoreFakeApi.metadataJson()))
+        api.files = listOf(api.file("meta-1", "metadata", FakeRestoreApi.metadataJson()))
 
         val reason = failureReason(runDownload(cloudSource))
 
@@ -205,7 +205,7 @@ class RestoreWorkersTest {
     @Test
     fun `a backup without a Session zip still falls back to the copy on this phone`() {
         seedLocalSession("local-1")
-        api.files = listOf(api.file("meta-1", "metadata", RestoreFakeApi.metadataJson()))
+        api.files = listOf(api.file("meta-1", "metadata", FakeRestoreApi.metadataJson()))
         val dest = tmp.newFile("fallback.zip")
 
         val result = runDownload(cloudSource, localSessionId = "local-1", dest = dest)
@@ -238,9 +238,9 @@ class RestoreWorkersTest {
                 d.writeByte(1)
             }
         }.toByteArray()
-        val extras = RestoreFakeApi.zipOf(listOf("csv/analysis_data.csv" to "a,b".toByteArray()))
+        val extras = FakeRestoreApi.zipOf(listOf("csv/analysis_data.csv" to "a,b".toByteArray()))
         api.files = listOf(
-            api.file("bundle-1", "bundle", RestoreFakeApi.zipOf(listOf("dat/frame_0000.dat" to hostileDat))),
+            api.file("bundle-1", "bundle", FakeRestoreApi.zipOf(listOf("dat/frame_0000.dat" to hostileDat))),
             api.file("extras-1", "extras", extras),
         )
 

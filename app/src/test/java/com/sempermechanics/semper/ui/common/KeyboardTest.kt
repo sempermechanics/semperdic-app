@@ -23,7 +23,7 @@ import org.robolectric.annotation.Config
 /** The numeric-field and toggle-group helpers on real, attached widgets. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
-class KeyboardExtTest {
+class KeyboardTest {
 
     private lateinit var activity: AppCompatActivity
     private lateinit var field: EditText

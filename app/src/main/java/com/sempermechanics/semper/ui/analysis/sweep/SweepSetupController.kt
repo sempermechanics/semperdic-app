@@ -27,7 +27,7 @@ import com.sempermechanics.semper.ui.common.onButtonChecked
  * [SweepFramePicker].
  */
 @Suppress("TooManyFunctions") // the wizard-facing API StaticAnalysisActivity calls, and its Callbacks
-class SweepSetupHelper(
+class SweepSetupController(
     private val activity: AppCompatActivity,
     private val viewModel: AnalysisViewModel,
     private val callbacks: Callbacks,

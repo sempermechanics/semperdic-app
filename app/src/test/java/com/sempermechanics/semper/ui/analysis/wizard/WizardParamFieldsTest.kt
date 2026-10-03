@@ -37,9 +37,9 @@ class WizardParamFieldsTest {
 
     @Test
     fun `a run takes the window as a VSG in px at the slider's step`() {
-        bed.settings.etSubsetSize.value = 31f
-        bed.settings.etStepSize.value = 4f
-        bed.settings.etStrainWindow.value = 7f
+        bed.settings.sliderSubsetSize.value = 31f
+        bed.settings.sliderStepSize.value = 4f
+        bed.settings.sliderStrainWindow.value = 7f
 
         assertEquals(DicParams(31, 4, VsgStudy.vsgFor(7, 4)), fields.dicParams())
         assertEquals(31, fields.subsetSize())
@@ -47,7 +47,7 @@ class WizardParamFieldsTest {
 
     @Test
     fun `a typed value snaps into range and onto the odd grid`() {
-        val subset = bed.settings.etSubsetSize
+        val subset = bed.settings.sliderSubsetSize
         assertEquals(41, snapToSlider(subset, 40))
         assertEquals(subset.valueFrom.toInt(), snapToSlider(subset, -3))
         assertEquals(subset.valueTo.toInt(), snapToSlider(subset, 10_000))
@@ -55,38 +55,39 @@ class WizardParamFieldsTest {
 
     @Test
     fun `typing a subset moves the slider and counts as the user's own`() {
-        bed.settings.tvSubsetValue.setText("52")
-        bed.settings.tvSubsetValue.onEditorAction(android.view.inputmethod.EditorInfo.IME_ACTION_DONE)
+        bed.settings.etSubsetValue.setText("52")
+        bed.settings.etSubsetValue.onEditorAction(android.view.inputmethod.EditorInfo.IME_ACTION_DONE)
 
-        assertEquals(snapToSlider(bed.settings.etSubsetSize, 52), bed.settings.etSubsetSize.value.toInt())
+        assertEquals(snapToSlider(bed.settings.sliderSubsetSize, 52), bed.settings.sliderSubsetSize.value.toInt())
         assertTrue(bed.viewModel.subsetUserModified)
         assertTrue(bed.host.count("clearRunStatus") > 0)
     }
 
     @Test
     fun `Reset goes back to the recommendation and the default step, window and interpolator`() {
-        bed.viewModel.subsetRecommendation = SubsetRecommender.Result(subsetSize = 25, samples = 10, cappedSamples = 0)
+        bed.viewModel.subsetRecommendation =
+            SubsetRecommender.Recommendation(subsetSize = 25, samples = 10, cappedSamples = 0)
         bed.viewModel.subsetUserModified = true
-        bed.settings.etSubsetSize.value = 61f
-        bed.settings.etStepSize.value = 9f
-        bed.settings.etStrainWindow.value = 11f
+        bed.settings.sliderSubsetSize.value = 61f
+        bed.settings.sliderStepSize.value = 9f
+        bed.settings.sliderStrainWindow.value = 11f
         bed.settings.rgInterpolator.check(R.id.rbKeys)
         bed.host.calls.clear()
 
         fields.reset()
 
-        assertEquals(25, bed.settings.etSubsetSize.value.toInt())
-        assertEquals(DicParams.DEFAULT_STEP, bed.settings.etStepSize.value.toInt())
-        assertEquals(VsgStudy.DEFAULT_WINDOW_POINTS, bed.settings.etStrainWindow.value.toInt())
-        assertFalse(fields.useKeysInterpolator())
+        assertEquals(25, bed.settings.sliderSubsetSize.value.toInt())
+        assertEquals(DicParams.DEFAULT_STEP, bed.settings.sliderStepSize.value.toInt())
+        assertEquals(VsgStudy.DEFAULT_WINDOW_POINTS, bed.settings.sliderStrainWindow.value.toInt())
+        assertFalse(fields.isKeysInterpolatorSelected())
         assertFalse(bed.viewModel.subsetUserModified)
         assertEquals(listOf("commitParamFields", "resetSweepInputs", "clearRunStatus"), bed.host.calls)
     }
 
     @Test
     fun `Reset with nothing measured shows the historical subset`() {
-        bed.settings.etSubsetSize.value = 61f
+        bed.settings.sliderSubsetSize.value = 61f
         fields.reset()
-        assertEquals(DicParams.DEFAULT_SUBSET, bed.settings.etSubsetSize.value.toInt())
+        assertEquals(DicParams.DEFAULT_SUBSET, bed.settings.sliderSubsetSize.value.toInt())
     }
 }

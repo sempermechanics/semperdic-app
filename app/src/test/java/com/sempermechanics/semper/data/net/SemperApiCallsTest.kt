@@ -97,7 +97,7 @@ class SemperApiCallsTest {
     fun `the default for a bearer call is a plain ApiException`() {
         server.enqueue(MockResponse(code = 409, body = """{"detail":"device_not_active"}"""))
 
-        val e = assertThrows(SemperApi.ApiException::class.java) {
+        val e = assertThrows(ApiException::class.java) {
             runBlocking { calls.bearer("tok", { url(endpoint("/v1/config")) }) {} }
         }
         assertEquals(409, e.code)
@@ -105,7 +105,7 @@ class SemperApiCallsTest {
 
     @Test
     fun `with no backend the route fails before the device key is touched`() {
-        assertThrows(SemperApi.CloudNotConfiguredException::class.java) {
+        assertThrows(CloudNotConfiguredException::class.java) {
             runBlocking { calls.bearer("tok", { url(SemperApiHttp.endpoint("", "/v1/me")) }) {} }
         }
         assertFalse(deviceAsked)
@@ -118,22 +118,22 @@ class SemperApiCallsTest {
             runCatching { ApiAnswer(code, """{"detail":"$detail"}""", "r1").failSigned() }.exceptionOrNull()!!
 
         val notActive = failed(409, "device_not_active")
-        assertTrue(notActive is SemperApi.DeviceNotActiveException)
-        assertEquals("r1", (notActive as SemperApi.DeviceNotActiveException).requestId)
-        assertTrue(failed(409, "device_in_use") is SemperApi.DeviceInUseException)
-        assertTrue(failed(409, "device_conflict") is SemperApi.DeviceConflictException)
+        assertTrue(notActive is DeviceNotActiveException)
+        assertEquals("r1", (notActive as DeviceNotActiveException).requestId)
+        assertTrue(failed(409, "device_in_use") is DeviceInUseException)
+        assertTrue(failed(409, "device_conflict") is DeviceConflictException)
 
         val otherConflict = failed(409, "size_or_state_mismatch")
-        assertEquals(409, (otherConflict as SemperApi.ApiException).code)
+        assertEquals(409, (otherConflict as ApiException).code)
         // Only a 409 is read for a device code.
         val notFound = failed(404, "device_not_active")
-        assertEquals(404, (notFound as SemperApi.ApiException).code)
+        assertEquals(404, (notFound as ApiException).code)
     }
 
     @Test
     fun `only a 403 is not-approved for the approved-only routes`() {
-        assertThrows(SemperApi.NotApprovedException::class.java) { ApiAnswer(403, "", null).failApprovedOnly() }
-        val e = assertThrows(SemperApi.ApiException::class.java) { ApiAnswer(500, "", null).failApprovedOnly() }
+        assertThrows(NotApprovedException::class.java) { ApiAnswer(403, "", null).failApprovedOnly() }
+        val e = assertThrows(ApiException::class.java) { ApiAnswer(500, "", null).failApprovedOnly() }
         assertEquals(500, e.code)
         assertNull(e.requestId)
     }

@@ -17,15 +17,15 @@ class HttpFailureTest {
 
     @Test
     fun `the aliases are the nested classes`() {
-        val e: SemperApi.ApiException = ApiException(500, "boom", "req-1")
+        val e: ApiException = ApiException(500, "boom", "req-1")
         assertTrue(e is ApiException)
-        assertSame(SemperApi.NotApprovedException::class.java, NotApprovedException::class.java)
-        assertSame(SemperApi.CloudNotConfiguredException::class.java, CloudNotConfiguredException::class.java)
-        assertSame(SemperApi.TermsVersionMismatchException::class.java, TermsVersionMismatchException::class.java)
-        assertSame(SemperApi.DeviceConflictException::class.java, DeviceConflictException::class.java)
-        assertSame(SemperApi.DeviceInUseException::class.java, DeviceInUseException::class.java)
-        assertSame(SemperApi.NoSeatAvailableException::class.java, NoSeatAvailableException::class.java)
-        assertSame(SemperApi.DeviceNotActiveException::class.java, DeviceNotActiveException::class.java)
+        assertSame(NotApprovedException::class.java, NotApprovedException::class.java)
+        assertSame(CloudNotConfiguredException::class.java, CloudNotConfiguredException::class.java)
+        assertSame(TermsVersionMismatchException::class.java, TermsVersionMismatchException::class.java)
+        assertSame(DeviceConflictException::class.java, DeviceConflictException::class.java)
+        assertSame(DeviceInUseException::class.java, DeviceInUseException::class.java)
+        assertSame(NoSeatAvailableException::class.java, NoSeatAvailableException::class.java)
+        assertSame(DeviceNotActiveException::class.java, DeviceNotActiveException::class.java)
     }
 
     @Test

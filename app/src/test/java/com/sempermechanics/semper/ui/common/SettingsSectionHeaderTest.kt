@@ -7,7 +7,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.sempermechanics.semper.R
-import com.sempermechanics.semper.databinding.SettingsSectionHeaderBinding
+import com.sempermechanics.semper.databinding.ViewSettingsSectionHeaderBinding
 import com.sempermechanics.semper.ui.settings.SettingsActivity
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -21,7 +21,7 @@ import org.robolectric.android.controller.ActivityController
 
 /**
  * Settings' seven section headers are `<include>`s of
- * `settings_section_header.xml`, titled by [SettingsSectionHeader.bind]. Each
+ * `view_settings_section_header.xml`, titled by [SettingsSectionHeader.bind]. Each
  * one on the real screen must look exactly like the hand-copied header it
  * replaced — the same views, attributes and text, with the chevron described
  * by the title — and open its own section from its own chevron.
@@ -90,7 +90,7 @@ class SettingsSectionHeaderTest {
     /** The shared header, inflated through its generated binding into a vertical list, and bound. */
     private fun shared(title: Int): View {
         val list = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
-        val binding = SettingsSectionHeaderBinding.inflate(LayoutInflater.from(activity), list, false)
+        val binding = ViewSettingsSectionHeaderBinding.inflate(LayoutInflater.from(activity), list, false)
         SettingsSectionHeader.bind(binding, title)
         return binding.root
     }
@@ -127,7 +127,7 @@ class SettingsSectionHeaderTest {
     fun `each header opens and closes its own section, turning its own chevron`() {
         for ((id, section) in sections + (R.id.headerAccount to (R.string.account_section to R.id.bodyAccount))) {
             val header = activity.findViewById<View>(id)
-            val chevron = header.findViewById<ImageView>(R.id.ivSectionChevron)
+            val chevron = header.findViewById<ImageView>(R.id.imgSectionChevron)
             val body = activity.findViewById<View>(section.second)
             val name = activity.getString(section.first)
             assertFalse("$name starts closed", body.isShown)
@@ -145,11 +145,11 @@ class SettingsSectionHeaderTest {
 
     @Test
     fun `bind titles a header and describes its chevron`() {
-        val header = SettingsSectionHeaderBinding.inflate(LayoutInflater.from(activity), null, false)
+        val header = ViewSettingsSectionHeaderBinding.inflate(LayoutInflater.from(activity), null, false)
         SettingsSectionHeader.bind(header, R.string.storage_section)
 
         val title = activity.getString(R.string.storage_section)
         assertEquals(title, header.tvSectionTitle.text.toString())
-        assertEquals(title, header.ivSectionChevron.contentDescription)
+        assertEquals(title, header.imgSectionChevron.contentDescription)
     }
 }

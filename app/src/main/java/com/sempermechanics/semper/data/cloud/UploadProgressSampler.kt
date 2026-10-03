@@ -65,10 +65,10 @@ internal class UploadProgressSampler(
 
     internal fun percent(): Int {
         val t = total.get()
-        return if (t > 0) (done.get() * PERCENT_MAX / t).toInt().coerceIn(0, PERCENT_MAX) else 0
+        return if (t > 0) (done.get() * PERCENT / t).toInt().coerceIn(0, PERCENT) else 0
     }
 
     private companion object {
-        const val PERCENT_MAX = 100
+        const val PERCENT = 100
     }
 }

@@ -2,7 +2,6 @@ package com.sempermechanics.semper.data.net.drive
 
 import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.HttpStatus
-import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.net.SemperApiHttp
 import com.sempermechanics.semper.data.net.UploadLinkExpiredException
 import com.sempermechanics.semper.util.Digests
@@ -99,7 +98,7 @@ internal class DriveUploader(private val client: OkHttpClient, private val octet
                         }
                         // Drive's resumable endpoint, not the Semper backend, so
                         // there is no X-Request-Id to correlate with.
-                        else -> throw SemperApi.ApiException(resp.code, SemperApiHttp.bodyText(resp))
+                        else -> throw ApiException(resp.code, SemperApiHttp.bodyText(resp))
                     }
                 }
             }
@@ -155,9 +154,9 @@ internal class DriveUploader(private val client: OkHttpClient, private val octet
                 // Already complete — the body is the Drive file resource.
                 HttpStatus.OK, HttpStatus.CREATED -> UploadProbe(total, SemperApiHttp.driveFileIdOf(resp.body.string()))
                 HttpStatus.NOT_FOUND, HttpStatus.GONE, HttpStatus.CLIENT_CLOSED ->
-                    throw SemperApi.UploadLinkExpiredException(resp.code)
+                    throw UploadLinkExpiredException(resp.code)
                 // Drive's resumable endpoint, not the Semper backend: no X-Request-Id.
-                else -> throw SemperApi.ApiException(resp.code, SemperApiHttp.bodyText(resp))
+                else -> throw ApiException(resp.code, SemperApiHttp.bodyText(resp))
             }
         }
     }

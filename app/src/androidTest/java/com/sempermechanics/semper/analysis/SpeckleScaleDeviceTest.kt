@@ -32,17 +32,17 @@ import kotlin.random.Random
  * is what the chip tells them to go and change.
  */
 @RunWith(AndroidJUnit4::class)
-class SpeckleScaleInstrumentedTest {
+class SpeckleScaleDeviceTest {
 
     @Test
-    fun a_two_pixel_speckle_reads_as_under_resolved() {
+    fun aTwoPixelSpeckleReadsAsUnderResolved() {
         val measured = measure(dotDiameter = 2)
         assertTrue("measured $measured", measured < DicGoodPractice.MIN_SPECKLE_PX)
         assertEquals(DicGoodPractice.Verdict.UNDER_RESOLVED, DicGoodPractice.verdictFor(measured))
     }
 
     @Test
-    fun a_five_pixel_speckle_reads_as_usable() {
+    fun aFivePixelSpeckleReadsAsUsable() {
         val measured = measure(dotDiameter = 5)
         assertEquals(
             "measured $measured",
@@ -52,14 +52,14 @@ class SpeckleScaleInstrumentedTest {
     }
 
     @Test
-    fun a_fourteen_pixel_speckle_reads_as_over_resolved() {
+    fun aFourteenPixelSpeckleReadsAsOverResolved() {
         val measured = measure(dotDiameter = 14)
         assertTrue("measured $measured", measured > DicGoodPractice.MAX_SPECKLE_PX)
         assertEquals(DicGoodPractice.Verdict.OVER_RESOLVED, DicGoodPractice.verdictFor(measured))
     }
 
     @Test
-    fun the_measurement_orders_the_three_patterns_the_way_they_were_drawn() {
+    fun theMeasurementOrdersTheThreePatternsTheWayTheyWereDrawn() {
         // The ordering is the property the chip rests on, and it has to hold
         // through the encode/decode round trip, not only in the pure math.
         val fine = measure(2)
@@ -70,7 +70,7 @@ class SpeckleScaleInstrumentedTest {
     }
 
     @Test
-    fun an_unpatterned_frame_yields_no_speckle_rather_than_a_number() {
+    fun anUnpatternedFrameYieldsNoSpeckleRatherThanANumber() {
         // A blank card is the case where inventing a diameter would be worst:
         // it would put a confident readout under the slider for a specimen
         // that cannot be correlated at all.
@@ -82,7 +82,7 @@ class SpeckleScaleInstrumentedTest {
     }
 
     @Test
-    fun a_coarse_pattern_asks_for_more_subset_than_SSSIG_alone() {
+    fun aCoarsePatternAsksForMoreSubsetThanSssigAlone() {
         // The cross-check, end to end: 14 px dots need a subset spanning three
         // of them, and SSSIG on a high-contrast pattern settles well below it.
         val rec = recommend(encode(speckleField(dotDiameter = 14, seed = 11)))!!

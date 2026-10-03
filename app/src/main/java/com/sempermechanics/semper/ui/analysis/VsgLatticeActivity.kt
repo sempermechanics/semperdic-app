@@ -25,7 +25,7 @@ import com.sempermechanics.semper.ui.analysis.sweep.VsgStudy
 import com.sempermechanics.semper.ui.analysis.sweep.animateCopyConfirmation
 import com.sempermechanics.semper.ui.analysis.sweep.bindCopyGestures
 import com.sempermechanics.semper.ui.analysis.sweep.latticeSummary
-import com.sempermechanics.semper.ui.analysis.sweep.loadSweepFrameProfiles
+import com.sempermechanics.semper.ui.analysis.sweep.readSweepFrameProfiles
 import com.sempermechanics.semper.ui.analysis.sweep.scrubReadout
 import com.sempermechanics.semper.ui.analysis.sweep.skippedLatticeNodes
 import com.sempermechanics.semper.ui.analysis.sweep.solvedLatticeNodes
@@ -168,11 +168,11 @@ class VsgLatticeActivity : AppCompatActivity() {
     private fun bindStrainControls() {
         binding.plotLatticeStrain.zoomEnabled = true
         binding.plotLatticeStrain.compactAxes = true
-        binding.togglePlotModeClip.clipToOutline = true
+        binding.plotModeClip.clipToOutline = true
 
         binding.btnPrevNode.setOnClickListener { stepFocus(-1) }
         binding.btnNextNode.setOnClickListener { stepFocus(1) }
-        binding.togglePlotMode.onButtonChecked { redrawStrainPlot() }
+        binding.rgPlotMode.onButtonChecked { redrawStrainPlot() }
         binding.btnView.setOnClickListener { if (focusedFrameIndex >= 0) openViewer(focusedFrameIndex) }
         binding.btnSaveGraph.setOnClickListener { saveGraph() }
 
@@ -268,7 +268,7 @@ class VsgLatticeActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             val loaded = withContext(Dispatchers.IO) {
-                loadSweepFrameProfiles(File(batchDirPath), steps, baseStep, components, line)
+                readSweepFrameProfiles(File(batchDirPath), steps, baseStep, components, line)
             }
             if (loaded.isEmpty()) return@launch
             frameProfiles = loaded
@@ -278,9 +278,9 @@ class VsgLatticeActivity : AppCompatActivity() {
 
     /** The ROI centre line every profile is cut along — fixed for the activity's lifetime. */
     private fun centreLine(): VsgStudy.StudyLine =
-        VsgStudy.centreLine(Roi(args.roiX, args.roiY, args.roiW, args.roiH), lineCutHorizontal())
+        VsgStudy.centreLine(Roi(args.roiX, args.roiY, args.roiW, args.roiH), isLineCutHorizontal())
 
-    private fun lineCutHorizontal(): Boolean = args.sweep?.lineCutHorizontal ?: true
+    private fun isLineCutHorizontal(): Boolean = args.sweep?.lineCutHorizontal ?: true
 
     /**
      * Rebuilds the line-cut plot for Highlight or Isolate mode: hidden with
@@ -307,8 +307,8 @@ class VsgLatticeActivity : AppCompatActivity() {
 
     /** Draws [seriesByFrame], the focused curve in colour and on top; Isolate drops the rest. */
     private fun showStrainPlot(seriesByFrame: List<FrameSeries>, preserveViewport: Boolean) {
-        val horizontal = lineCutHorizontal()
-        val isolate = binding.togglePlotMode.checkedButtonId == R.id.btnPlotIsolate
+        val horizontal = isLineCutHorizontal()
+        val isolate = binding.rgPlotMode.checkedButtonId == R.id.btnPlotIsolate
         val toShow = if (isolate) {
             seriesByFrame.filter { it.frameIndex == focusedFrameIndex }
                 .map { it.series.copy(muted = false) }
@@ -443,12 +443,12 @@ class VsgLatticeActivity : AppCompatActivity() {
     /** Study type, image names, and settings for the export header. */
     private fun exportHeaderLines(series: List<VsgPlotView.Series>): List<String> {
         val lines = mutableListOf<String>()
-        val horizontal = lineCutHorizontal()
+        val horizontal = isLineCutHorizontal()
         val axis = getString(if (horizontal) R.string.axis_x else R.string.axis_y)
         val index = binding.spinnerStrainComponent.selectedItemPosition.coerceIn(0, STRAIN_OPTIONS.lastIndex)
         lines += getString(
             R.string.vsg_export_title_fmt,
-            getString(R.string.setting_vsg),
+            getString(R.string.settings_used_vsg),
             getString(STRAIN_OPTIONS[index].first),
             axis,
         )
@@ -468,7 +468,7 @@ class VsgLatticeActivity : AppCompatActivity() {
         if (node != null) {
             lines += getString(R.string.vsg_lattice_param_labeled_fmt, node.subset, node.step, windowText(node))
         }
-        val isolate = binding.togglePlotMode.checkedButtonId == R.id.btnPlotIsolate
+        val isolate = binding.rgPlotMode.checkedButtonId == R.id.btnPlotIsolate
         if (!isolate) {
             lines += resources.getQuantityString(R.plurals.vsg_export_combos_fmt, series.size, series.size)
         }

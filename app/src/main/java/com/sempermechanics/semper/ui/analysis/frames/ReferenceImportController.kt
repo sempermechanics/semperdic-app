@@ -10,7 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.field.ImageSize
-import com.sempermechanics.semper.imaging.BitmapDecode
+import com.sempermechanics.semper.imaging.BitmapDecoder
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.ReferencePreviewLoader
 import com.sempermechanics.semper.ui.common.SerialJob
@@ -80,14 +80,14 @@ class ReferenceImportController(
     @WorkerThread
     private suspend fun decode(stream: InputStream, isRaw: Boolean): LoadedReference? {
         if (isRaw) {
-            return BitmapDecode.rgbaAndPreviewFromStream(stream)?.let { decoded ->
+            return BitmapDecoder.rgbaAndPreviewFromStream(stream)?.let { decoded ->
                 LoadedReference(decoded.rgba, ImageSize(decoded.width, decoded.height), decoded.preview)
             }
         }
         val bytes = stream.readBytes()
         // Sizes from the native decoder, which applies EXIF as the engine does.
         val loaded = ReferencePreviewLoader.load(
-            ReferencePreviewLoader.Request(bytes, 0, 0, BitmapDecode.PREVIEW_MAX_EDGE),
+            ReferencePreviewLoader.Request(bytes, 0, 0, BitmapDecoder.PREVIEW_MAX_EDGE),
         )
         return LoadedReference(bytes, ImageSize(loaded.width, loaded.height), loaded.bitmap)
             .takeIf { loaded.width > 0 && loaded.height > 0 }

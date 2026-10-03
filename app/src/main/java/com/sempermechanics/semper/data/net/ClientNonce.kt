@@ -39,7 +39,7 @@ object ClientNonce {
 
     private val random = SecureRandom()
 
-    fun usable(): Boolean = offsetMs != null && !refused
+    fun isUsable(): Boolean = offsetMs != null && !refused
 
     fun mint(nowMs: Long = System.currentTimeMillis()): String {
         val seconds = (nowMs + (offsetMs ?: 0L)) / MS_PER_SECOND

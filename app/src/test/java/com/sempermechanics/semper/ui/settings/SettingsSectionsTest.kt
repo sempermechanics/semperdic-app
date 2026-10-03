@@ -74,22 +74,22 @@ class SettingsSectionsTest {
 
     @Test
     fun `the cloud switches show and store the backup preferences`() {
-        DicSettings.setSaveToCloud(context, false)
+        DicSettings.setSaveToCloudEnabled(context, false)
         open()
         val save = settings.findViewById<CompoundButton>(R.id.switchSaveCloud)
         val wifi = settings.findViewById<CompoundButton>(R.id.switchWifiOnly)
         val sub = settings.findViewById<TextView>(R.id.tvSaveCloudSub)
         assertFalse(save.isChecked)
-        assertEquals(settings.getString(R.string.setting_save_cloud_sub_off), sub.text)
+        assertEquals(settings.getString(R.string.settings_save_cloud_sub_off), sub.text)
 
         save.isChecked = true
         idle()
-        assertTrue(DicSettings.saveToCloud(context))
-        assertEquals(settings.getString(R.string.setting_save_cloud_sub), sub.text)
+        assertTrue(DicSettings.saveToCloudEnabled(context))
+        assertEquals(settings.getString(R.string.settings_save_cloud_sub), sub.text)
 
-        val wifiBefore = DicSettings.uploadWifiOnly(context)
+        val wifiBefore = DicSettings.wifiOnlyUploadEnabled(context)
         wifi.isChecked = !wifi.isChecked
-        assertEquals(!wifiBefore, DicSettings.uploadWifiOnly(context))
+        assertEquals(!wifiBefore, DicSettings.wifiOnlyUploadEnabled(context))
     }
 
     // ── SettingsFooterSection ────────────────────────────────────────────

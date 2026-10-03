@@ -7,7 +7,7 @@ import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.prefs.DicSettings
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
-import com.sempermechanics.semper.databinding.SettingsScrollContentBinding
+import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
 import com.sempermechanics.semper.ui.common.dialog.Dialogs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -20,7 +20,7 @@ import kotlinx.coroutines.withContext
  */
 internal class SettingsCloudSection(
     private val activity: SettingsActivity,
-    private val views: SettingsScrollContentBinding,
+    private val views: ViewSettingsScrollContentBinding,
 ) {
 
     fun wire() {
@@ -29,16 +29,18 @@ internal class SettingsCloudSection(
         val sub = views.tvSaveCloudSub
         val status = views.tvCloudSyncStatus
 
-        switchSave.isChecked = DicSettings.saveToCloud(activity)
-        switchWifi.isChecked = DicSettings.uploadWifiOnly(activity)
-        sub.setText(if (switchSave.isChecked) R.string.setting_save_cloud_sub else R.string.setting_save_cloud_sub_off)
+        switchSave.isChecked = DicSettings.saveToCloudEnabled(activity)
+        switchWifi.isChecked = DicSettings.wifiOnlyUploadEnabled(activity)
+        sub.setText(
+            if (switchSave.isChecked) R.string.settings_save_cloud_sub else R.string.settings_save_cloud_sub_off,
+        )
 
         switchSave.setOnCheckedChangeListener { _, checked ->
-            DicSettings.setSaveToCloud(activity, checked)
-            sub.setText(if (checked) R.string.setting_save_cloud_sub else R.string.setting_save_cloud_sub_off)
+            DicSettings.setSaveToCloudEnabled(activity, checked)
+            sub.setText(if (checked) R.string.settings_save_cloud_sub else R.string.settings_save_cloud_sub_off)
             if (checked) maybeOfferBackfill()
         }
-        switchWifi.setOnCheckedChangeListener { _, checked -> DicSettings.setUploadWifiOnly(activity, checked) }
+        switchWifi.setOnCheckedChangeListener { _, checked -> DicSettings.setWifiOnlyUploadEnabled(activity, checked) }
 
         activity.lifecycleScope.launch {
             val states = withContext(Dispatchers.IO) {

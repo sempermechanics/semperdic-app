@@ -116,8 +116,8 @@ class DicParamsTest {
 
     @Test
     fun `strain method display name`() {
-        assertEquals("VSG", StrainMethod.VSG.wireName)
-        assertEquals(ViewerArgs.STRAIN_METHOD_VSG, StrainMethod.VSG.wireName)
+        assertEquals("VSG", StrainMethod.VSG.wire)
+        assertEquals(ViewerArgs.STRAIN_METHOD_VSG, StrainMethod.VSG.wire)
         assertEquals("VSG", StrainMethod.displayName(""))
         assertEquals("VSG", StrainMethod.displayName(null))
         assertEquals("VSG", StrainMethod.displayName("VSG"))

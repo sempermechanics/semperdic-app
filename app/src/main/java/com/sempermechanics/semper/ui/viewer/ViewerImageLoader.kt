@@ -4,7 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.lifecycle.lifecycleScope
 import com.sempermechanics.semper.field.DicResult
-import com.sempermechanics.semper.imaging.BitmapDecode
+import com.sempermechanics.semper.imaging.BitmapDecoder
 import com.sempermechanics.semper.report.VisualizationEngine
 import com.sempermechanics.semper.ui.common.SerialJob
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +65,7 @@ internal class ViewerImageLoader(private val host: ResultViewerActivity) {
             val reqW = viewW.coerceAtMost(VisualizationEngine.DISPLAY_MAX_EDGE)
             val reqH = viewH.coerceAtMost(VisualizationEngine.DISPLAY_MAX_EDGE)
             refDecodeJob.launch(host.lifecycleScope, Dispatchers.IO) {
-                val bmp = BitmapDecode.decodeFileForView(
+                val bmp = BitmapDecoder.decodeFileForView(
                     refPath,
                     reqW,
                     reqH,
@@ -151,7 +151,7 @@ internal class ViewerImageLoader(private val host: ResultViewerActivity) {
             ?: VisualizationEngine.DISPLAY_MAX_EDGE
         framePhotoJob.launch(host.lifecycleScope) {
             val bmp = withContext(Dispatchers.IO) {
-                BitmapDecode.decodeFileForView(
+                BitmapDecoder.decodeFileForView(
                     path,
                     reqW,
                     reqH,

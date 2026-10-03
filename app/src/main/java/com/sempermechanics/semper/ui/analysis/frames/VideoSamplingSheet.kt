@@ -8,7 +8,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.prefs.DicSettings
-import com.sempermechanics.semper.databinding.DialogVideoSamplingBinding
+import com.sempermechanics.semper.databinding.SheetVideoSamplingBinding
 import com.sempermechanics.semper.imaging.video.ExtractionRequest
 import com.sempermechanics.semper.imaging.video.VideoFrameExtractor
 import com.sempermechanics.semper.imaging.video.VideoKeyframeHelper
@@ -44,7 +44,7 @@ class VideoSamplingSheet(
             when {
                 unsupported != null -> FaqRedirect.snackbar(
                     activity,
-                    activity.getString(R.string.video_codec_unsupported, unsupported.trim()),
+                    activity.getString(R.string.video_codec_unsupported_fmt, unsupported.trim()),
                     R.string.url_faq_video_read,
                 )
                 meta.durationMs <= 0L ->
@@ -56,7 +56,7 @@ class VideoSamplingSheet(
 
     /** Sampling by extraction frame rate + time segment, with a metadata summary. */
     internal fun show(uri: Uri, meta: VideoMeta): BottomSheetDialog {
-        val form = DialogVideoSamplingBinding.inflate(activity.layoutInflater)
+        val form = SheetVideoSamplingBinding.inflate(activity.layoutInflater)
         val sampling = VideoSampling(meta, DicSettings.maxFrames(activity, AppRemoteConfig.maxFrames(activity)))
         form.tvVideoInfo.text = infoLine(meta)
 
@@ -67,13 +67,13 @@ class VideoSamplingSheet(
         form.tvFpsValue.text = fpsLabel(form.sliderFps.value.toInt())
 
         // --- Time-segment selector (seconds) ---
-        val durationSec = (meta.durationMs / MS_PER_SECOND).toFloat().coerceAtLeast(MIN_SEGMENT_SEC)
+        val durationSeconds = (meta.durationMs / MS_PER_SECOND).toFloat().coerceAtLeast(MIN_SEGMENT_SECONDS)
         form.rangeSegment.valueFrom = 0f
-        form.rangeSegment.valueTo = durationSec
-        form.rangeSegment.values = listOf(0f, durationSec)
+        form.rangeSegment.valueTo = durationSeconds
+        form.rangeSegment.values = listOf(0f, durationSeconds)
         form.tvSegmentValue.text = segmentLabel(0, meta.durationMs)
 
-        form.toggleExtractMode.onButtonChecked { checkedId ->
+        form.rgExtractMode.onButtonChecked { checkedId ->
             form.layoutFps.isVisible = checkedId != R.id.btnModeKeyframes
             refreshEstimate(form, sampling)
         }
@@ -102,7 +102,7 @@ class VideoSamplingSheet(
                     startMs = startMs,
                     endMs = endMs,
                     maxFrames = sampling.maxFrames,
-                    preferKeyframes = form.toggleExtractMode.checkedButtonId == R.id.btnModeKeyframes,
+                    preferKeyframes = form.rgExtractMode.checkedButtonId == R.id.btnModeKeyframes,
                     rotationDegrees = meta.rotationDegrees,
                 ),
             )
@@ -130,8 +130,8 @@ class VideoSamplingSheet(
         VideoFrameExtractor.formatClock(endMs),
     )
 
-    private fun refreshEstimate(form: DialogVideoSamplingBinding, sampling: VideoSampling) {
-        if (form.toggleExtractMode.checkedButtonId == R.id.btnModeKeyframes) {
+    private fun refreshEstimate(form: SheetVideoSamplingBinding, sampling: VideoSampling) {
+        if (form.rgExtractMode.checkedButtonId == R.id.btnModeKeyframes) {
             form.tvEstimate.text = activity.getString(R.string.video_keyframes_estimate_note)
             form.btnExtractFrames.setText(R.string.extract_frames_title)
         } else {
@@ -148,7 +148,7 @@ class VideoSamplingSheet(
         const val DEFAULT_FPS = 10
         const val MS_PER_SECOND = 1000.0
         const val MS_PER_SECOND_F = 1000f
-        const val MIN_SEGMENT_SEC = 0.1f
+        const val MIN_SEGMENT_SECONDS = 0.1f
         const val MIN_EXTRACT_FPS = 0.1
     }
 }

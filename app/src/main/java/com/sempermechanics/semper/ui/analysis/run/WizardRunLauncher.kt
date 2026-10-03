@@ -6,7 +6,7 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.diagnostics.EngineDebug
 import com.sempermechanics.semper.field.DicParams
 import com.sempermechanics.semper.field.Roi
-import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupHelper
+import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupController
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisNavHelper
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.launchBatchAnalysis
@@ -24,7 +24,7 @@ class WizardRunLauncher(
     private val activity: AppCompatActivity,
     private val viewModel: AnalysisViewModel,
     private val chrome: RunChrome,
-    private val sweep: SweepSetupHelper,
+    private val sweep: SweepSetupController,
     private val checkReady: () -> Unit,
 ) {
     /** One solve per deformed frame with [params]; [use6x6] picks the Keys interpolator. */

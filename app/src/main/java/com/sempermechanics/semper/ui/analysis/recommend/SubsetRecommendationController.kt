@@ -59,7 +59,7 @@ class SubsetRecommendationController(
         // Read off the slider here: the measurement runs on the native thread,
         // which must not touch views.
         val tuning = SubsetRecommender.Tuning(
-            sizes = settings.etSubsetSize.valueFrom.toInt()..settings.etSubsetSize.valueTo.toInt(),
+            sizes = settings.sliderSubsetSize.valueFrom.toInt()..settings.sliderSubsetSize.valueTo.toInt(),
         )
 
         activity.lifecycleScope.launch(SemperNativeLib.nativeDispatcher) {
@@ -88,7 +88,7 @@ class SubsetRecommendationController(
      */
     fun defaultSubsetSize(): Int {
         val rec = viewModel.subsetRecommendation ?: return DicParams.DEFAULT_SUBSET
-        return snapToSlider(settings.etSubsetSize, rec.subsetSize)
+        return snapToSlider(settings.sliderSubsetSize, rec.subsetSize)
     }
 
     /** Seeds the slider with the recommendation, until the user overrides it. */
@@ -102,12 +102,12 @@ class SubsetRecommendationController(
         }
         // The one thing the measurement knows that the slider cannot show: even
         // the largest allowed subset misses the accuracy target on this pattern.
-        lowTextureChip.showOrHide(activity.getString(R.string.subset_low_texture_fmt).takeIf { rec.lowTexture })
+        lowTextureChip.showOrHide(activity.getString(R.string.subset_low_texture).takeIf { rec.lowTexture })
         if (!viewModel.subsetUserModified) {
-            val snapped = snapToSlider(settings.etSubsetSize, rec.subsetSize)
-            if (settings.etSubsetSize.value.toInt() != snapped) {
+            val snapped = snapToSlider(settings.sliderSubsetSize, rec.subsetSize)
+            if (settings.sliderSubsetSize.value.toInt() != snapped) {
                 host.commitParamFields()
-                settings.etSubsetSize.value = snapped.toFloat()
+                settings.sliderSubsetSize.value = snapped.toFloat()
             }
         }
         // A new recommendation re-seeds the sweep's suggested inputs (unless the
@@ -184,7 +184,7 @@ class SubsetRecommendationController(
     }
 
     private fun spanMessage(): String? {
-        val inUse = settings.etSubsetSize.value.toInt()
+        val inUse = settings.sliderSubsetSize.value.toInt()
         val wanted = viewModel.subsetRecommendation?.subsetSpanningSpeckles
         return if (wanted != null && wanted > inUse) {
             activity.getString(R.string.speckle_subset_span_fmt, inUse, wanted)

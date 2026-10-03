@@ -59,7 +59,7 @@ object RigidBodyFit {
          * bulk movement is the rig, not the camera, and no further capture
          * setting will improve it.
          */
-        fun notable(): Boolean = shiftPx() >= NOTABLE_SHIFT_PX
+        fun isNotable(): Boolean = shiftPx() >= NOTABLE_SHIFT_PX
     }
 
     /** Shift, in pixels, at or above which the fit is worth telling the user about. */

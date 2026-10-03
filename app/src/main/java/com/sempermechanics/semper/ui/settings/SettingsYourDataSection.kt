@@ -17,7 +17,7 @@ import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.net.TokenStore
 import com.sempermechanics.semper.data.prefs.DicSettings
 import com.sempermechanics.semper.data.session.SessionEverythingExporter
-import com.sempermechanics.semper.databinding.SettingsScrollContentBinding
+import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
 import com.sempermechanics.semper.diagnostics.Diagnostics
 import com.sempermechanics.semper.diagnostics.SemperAnalytics
 import com.sempermechanics.semper.ui.common.auth.AuthRoute
@@ -36,7 +36,7 @@ import timber.log.Timber
  */
 class SettingsYourDataSection(
     private val activity: SettingsActivity,
-    private val views: SettingsScrollContentBinding,
+    private val views: ViewSettingsScrollContentBinding,
 ) {
     /** The progress dialog this screen shows while [AccountDeletionRun] runs. */
     private var deletionProgress: AlertDialog? = null
@@ -150,7 +150,7 @@ class SettingsYourDataSection(
         job = activity.lifecycleScope.launch {
             try {
                 val produced = produce { done, total ->
-                    val pct = if (total > 0) done * SettingsActivity.PERCENT_MAX / total else 0
+                    val pct = if (total > 0) done * SettingsActivity.PERCENT / total else 0
                     activity.runOnUiThread {
                         activity.transferBanner.updateProgress(
                             kind.key,

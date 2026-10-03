@@ -91,7 +91,7 @@ class MediaPickerSheet private constructor(
         )
         list.layoutManager = GridLayoutManager(activity, GRID_COLUMNS)
         list.adapter = adapter
-        views.toggleMediaSource.onButtonChecked { checkedId ->
+        views.rgMediaSource.onButtonChecked { checkedId ->
             if (checkedId == R.id.btnMediaFiles) {
                 sheet.dismiss()
                 onBrowseSaf()
@@ -280,7 +280,7 @@ class MediaPickerSheet private constructor(
     }
 
     private fun showToast(durationMs: Long?) {
-        val msg = when (mode) {
+        val message = when (mode) {
             MediaSourceChooser.Mode.DEFORMED -> activity.getString(R.string.picker_select_deformed)
             else -> activity.getString(R.string.picker_select_reference_toast)
         }
@@ -288,13 +288,13 @@ class MediaPickerSheet private constructor(
         // tips stay a compact top toast on the sheet chrome.
         if (durationMs != null) {
             val overlay = pickScrim.parent as? ViewGroup
-            if (overlay != null) CrispToast.showProminent(activity, msg, overlay, durationMs)
+            if (overlay != null) CrispToast.showProminent(activity, message, overlay, durationMs)
         } else {
             val overlay = sheet.window?.decorView as? ViewGroup
             if (overlay != null) {
                 CrispToast.show(
                     activity,
-                    msg,
+                    message,
                     overlayRoot = overlay,
                     fromTop = true,
                     durationMs = 2000L,

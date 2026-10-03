@@ -3,13 +3,15 @@ package com.sempermechanics.semper.cloud
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.data.cloud.CloudSync
-import com.sempermechanics.semper.data.cloud.CloudSync.EraseResult
+import com.sempermechanics.semper.data.cloud.CloudSync.EraseOutcome
 import com.sempermechanics.semper.data.cloud.SessionDeletes
+import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.AppConfigDto
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.net.CloudSessionDto
-import com.sempermechanics.semper.data.net.ListSessionsResponse
-import com.sempermechanics.semper.data.net.SemperApi
+import com.sempermechanics.semper.data.net.DeviceConflictException
+import com.sempermechanics.semper.data.net.NotApprovedException
+import com.sempermechanics.semper.data.net.SessionsResponse
 import com.sempermechanics.semper.data.prefs.PrefFiles
 import com.sempermechanics.semper.data.prefs.get
 import com.sempermechanics.semper.data.prefs.privatePrefs
@@ -57,7 +59,7 @@ class CloudSyncFailureMappingTest {
     @Test
     fun `an unapproved account is told so in words`() {
         configDown()
-        api.onListSessions = { _, _ -> throw SemperApi.NotApprovedException() }
+        api.onListSessions = { _, _ -> throw NotApprovedException() }
 
         assertEquals(CloudSync.Outcome.Failed("your account isn't approved for cloud backup"), reconcile())
     }
@@ -65,7 +67,7 @@ class CloudSyncFailureMappingTest {
     @Test
     fun `a backend error names its status`() {
         configDown()
-        api.onListSessions = { _, _ -> throw SemperApi.ApiException(503, "{}") }
+        api.onListSessions = { _, _ -> throw ApiException(503, "{}") }
 
         assertEquals(CloudSync.Outcome.Failed("server returned HTTP 503"), reconcile())
     }
@@ -73,7 +75,7 @@ class CloudSyncFailureMappingTest {
     @Test
     fun `a device failure without a status reads as offline, like any other IOException`() {
         configDown()
-        api.onListSessions = { _, _ -> throw SemperApi.DeviceConflictException("r1") }
+        api.onListSessions = { _, _ -> throw DeviceConflictException("r1") }
 
         assertEquals(CloudSync.Outcome.Offline, reconcile())
     }
@@ -98,7 +100,7 @@ class CloudSyncFailureMappingTest {
     @Test
     fun `a config fetch that fails is counted, one that answers is stored`() {
         configDown()
-        api.onListSessions = { _, _ -> ListSessionsResponse() }
+        api.onListSessions = { _, _ -> SessionsResponse() }
         reconcile()
         assertEquals(1, failStreak())
 
@@ -111,7 +113,7 @@ class CloudSyncFailureMappingTest {
     @Test
     fun `a throttled check skips the listing, and the config once it is known`() {
         api.onGetConfig = { AppConfigDto(mode = "demo", maxSessions = 12) }
-        api.onListSessions = { _, _ -> ListSessionsResponse() }
+        api.onListSessions = { _, _ -> SessionsResponse() }
         assertTrue(reconcile(deep = false) is CloudSync.Outcome.Ok)
         api.calls.clear()
 
@@ -125,17 +127,17 @@ class CloudSyncFailureMappingTest {
     fun `a cloud backup delete reads 429 as rate limited and anything else as unreachable`() = runBlocking {
         store(sessionRecord(id = "s1", syncState = SessionRecord.SyncState.SYNCED, cloudSessionId = "c1"))
 
-        api.onDeleteSession = { _, _ -> throw SemperApi.ApiException(429, "") }
-        assertEquals(EraseResult.RATE_LIMITED, CloudSync.eraseCloudBackup(context, "c1", "s1", api, tokens))
+        api.onDeleteSession = { _, _ -> throw ApiException(429, "") }
+        assertEquals(EraseOutcome.RATE_LIMITED, CloudSync.eraseCloudBackup(context, "c1", "s1", api, tokens))
 
-        api.onDeleteSession = { _, _ -> throw SemperApi.ApiException(503, "") }
+        api.onDeleteSession = { _, _ -> throw ApiException(503, "") }
         assertEquals(
-            EraseResult.LOCAL_ONLY_CLOUD_UNREACHABLE,
+            EraseOutcome.LOCAL_ONLY_CLOUD_UNREACHABLE,
             CloudSync.eraseCloudBackup(context, "c1", "s1", api, tokens),
         )
 
         api.onDeleteSession = { _, _ -> throw IOException("offline") }
-        assertEquals(EraseResult.LOCAL_ONLY_CLOUD_UNREACHABLE, CloudSync.eraseEverywhere(context, "s1", api, tokens))
+        assertEquals(EraseOutcome.LOCAL_ONLY_CLOUD_UNREACHABLE, CloudSync.eraseEverywhere(context, "s1", api, tokens))
         assertNotNull(SessionStore.get(context, "s1"))
     }
 
@@ -143,13 +145,13 @@ class CloudSyncFailureMappingTest {
     fun `a cloud backup delete with no backend or no token sends nothing`() = runBlocking {
         tokens.token = null
         assertEquals(
-            EraseResult.LOCAL_ONLY_CLOUD_UNREACHABLE,
+            EraseOutcome.LOCAL_ONLY_CLOUD_UNREACHABLE,
             CloudSync.eraseCloudBackup(context, "c1", "s1", api, tokens),
         )
         tokens.token = "tok"
         api.enabled = false
         assertEquals(
-            EraseResult.LOCAL_ONLY_CLOUD_UNREACHABLE,
+            EraseOutcome.LOCAL_ONLY_CLOUD_UNREACHABLE,
             CloudSync.eraseCloudBackup(context, "c1", "s1", api, tokens),
         )
         assertTrue(api.calls.isEmpty())
@@ -185,7 +187,7 @@ class CloudSyncFailureMappingTest {
         assertTrue(api.calls.isEmpty())
 
         api.onListSessions = { _, _ ->
-            ListSessionsResponse(sessions = listOf(CloudSessionDto(sessionId = "c8", localSessionId = "s1")))
+            SessionsResponse(sessions = listOf(CloudSessionDto(sessionId = "c8", localSessionId = "s1")))
         }
         assertEquals("c8", CloudSync.resolveCloudIdFor(context, sessionRecord(id = "s1"), api, tokens))
         tokens.token = null

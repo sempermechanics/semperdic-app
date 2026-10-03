@@ -165,7 +165,7 @@ class EnginePipelineSmokeTest {
     // ── Scenarios ─────────────────────────────────────────────────────────
 
     @Test
-    fun translation_recovered() {
+    fun translationIsRecovered() {
         val ref = makeReference()
         val m = Matrix().apply { setTranslate(3f, 2f) }
         val res = solve(ref.toPngBytes(), warp(ref, m).toPngBytes())
@@ -180,7 +180,7 @@ class EnginePipelineSmokeTest {
     }
 
     @Test
-    fun rotation_recovered() {
+    fun rotationIsRecovered() {
         // 1° about the image center: corner displacement ≈ 4 px, spatially
         // varying U/V — exercises the full 6-DOF shape function per subset.
         val ref = makeReference()
@@ -190,7 +190,7 @@ class EnginePipelineSmokeTest {
     }
 
     @Test
-    fun skew_recovered() {
+    fun skewIsRecovered() {
         // Horizontal shear x' = x + 0.01·(y − cy): a pure uy gradient field.
         val ref = makeReference()
         val m = Matrix().apply { setSkew(0.01f, 0f, CX, CY) }
@@ -199,7 +199,7 @@ class EnginePipelineSmokeTest {
     }
 
     @Test
-    fun contrastChange_translationStillRecovered() {
+    fun translationIsStillRecoveredAfterAContrastChange() {
         // Deformed image at 70% gain + 30 offset: ZNSSD normalization must
         // make the solve invariant to lighting drift between frames.
         val ref = makeReference()
@@ -219,7 +219,7 @@ class EnginePipelineSmokeTest {
     }
 
     @Test
-    fun blurredDeformed_translationStillRecovered() {
+    fun translationIsStillRecoveredFromABlurredDeformedFrame() {
         // Mild defocus on the deformed frame only (half-res round trip).
         // Blur flattens speckle gradients, so accept looser error and
         // sparser coverage — the engine must degrade gracefully, not fail.
@@ -230,7 +230,7 @@ class EnginePipelineSmokeTest {
     }
 
     @Test
-    fun repeatSolve_bitIdentical() {
+    fun repeatSolveIsBitIdentical() {
         // TD-65: the same inputs solved again on the same device must give the
         // same bytes. A rotation leaves the border cells outside the AKAZE
         // mesh to the threaded Path B flood fill, which used to pick each
@@ -277,7 +277,7 @@ class EnginePipelineSmokeTest {
     }
 
     @Test
-    fun degenerateRoi_returnsRoiError() {
+    fun degenerateRoiReturnsRoiError() {
         // rectW < step ⇒ gridW == 0 ⇒ documented ROI error (-2), not a crash.
         val ref = makeReference().toPngBytes()
         val def = warp(makeReference(), Matrix().apply { setTranslate(3f, 2f) }).toPngBytes()
@@ -285,7 +285,7 @@ class EnginePipelineSmokeTest {
     }
 
     @Test
-    fun emptyDeformed_returnsInitError() {
+    fun emptyDeformedReturnsInitError() {
         // A def image the codec cannot decode ⇒ init/decode error (-3).
         val ref = makeReference().toPngBytes()
         assertTrue("expected -3 for undecodable deformed", compute(ref, ByteArray(0)) == -3)
@@ -304,7 +304,7 @@ class EnginePipelineSmokeTest {
     }
 
     @Test
-    fun undersizedBuffer_truncatesWithoutOverflow() {
+    fun undersizedBufferTruncatesWithoutOverflow() {
         // 0.1: an output buffer far smaller than gridW*gridH must not overflow;
         // the solver caps the write and returns a bounded count (no crash).
         val ref = makeReference().toPngBytes()

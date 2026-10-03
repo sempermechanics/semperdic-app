@@ -68,11 +68,11 @@ class RestoreDestForTest {
     fun `a legacy prefix's deformed image named reference_png is not taken for the reference`() {
         val prefix = File(tmp.root, "prefix.zip").apply {
             writeBytes(
-                RestoreFakeApi.zipOf(
+                FakeRestoreApi.zipOf(
                     listOf(
                         "raw/Reference.png" to byteArrayOf(1, 2, 3),
                         "raw/reference.png" to byteArrayOf(4, 5),
-                        "dat/frame_0001.dat" to RestoreFakeApi.onePointDat(),
+                        "dat/frame_0001.dat" to FakeRestoreApi.onePointDat(),
                     ),
                 ),
             )

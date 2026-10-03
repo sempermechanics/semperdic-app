@@ -12,7 +12,7 @@ import com.sempermechanics.semper.ui.viewer.ResultViewerActivity
  * Tap-to-probe overlay: nearest correlated point, one crosshair, one readout.
  * Frame data and field index stay on [ResultViewerActivity].
  */
-class ViewerInspectHelper(private val host: ResultViewerActivity) {
+class ViewerInspectController(private val host: ResultViewerActivity) {
 
     private val imgMain: TouchImageView get() = host.binding.imgBaseResult
     private val glassShield: InspectOverlayView get() = host.binding.glassShield

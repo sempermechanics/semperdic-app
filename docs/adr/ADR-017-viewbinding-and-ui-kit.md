@@ -72,7 +72,7 @@ Conventions:
   (`ui/analysis/wizard/RunChannels.kt:52-53`): they run on the native
   dispatcher, and `SerialJob` is main-thread only.
 - **46 `findViewById` calls remain.** 23 are the sweep page
-  (`SweepSetupHelper`, `SweepRangeFields`), which still finds its views on the
+  (`SweepSetupController`, `SweepRangeFields`), which still finds its views on the
   page instead of taking its binding. 7 are `TransferBannerController`, which
   wraps a strip included in two hosts. Most of the rest are kit pieces that
   work on any host's view (a row by id, `android.R.id.content`, Material's
@@ -128,7 +128,7 @@ spinner visibility, the thumbnail tag bug).
 
 1. [x] `viewBinding = true` (#310); the kit (#319); adoption per screen
    (#323–#330); the kit sorted into subpackages (#331).
-2. [ ] Pass the sweep page's binding into `SweepSetupHelper` and
+2. [ ] Pass the sweep page's binding into `SweepSetupController` and
    `SweepRangeFields` and drop their 23 lookups.
 3. [ ] Update the `viewBinding` comment in `app/build.gradle.kts:158-159`,
    which still says screens are moving one per PR.

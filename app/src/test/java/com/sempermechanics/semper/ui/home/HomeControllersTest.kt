@@ -177,7 +177,7 @@ class HomeControllersTest {
 
     @Test
     fun `a synced row, or a phone-only one with backup off, goes to Settings`() {
-        DicSettings.setSaveToCloud(context, false)
+        DicSettings.setSaveToCloudEnabled(context, false)
 
         badge.retryOrBackup(record(SessionRecord.SyncState.SYNCED))
         badge.retryOrBackup(record(SessionRecord.SyncState.LOCAL_ONLY))

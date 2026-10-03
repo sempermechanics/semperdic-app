@@ -11,7 +11,7 @@ import java.io.File
  * and the cloud export — can take a fake in a JVM test. Each takes it as a
  * defaulted parameter, `api: CloudApi = SemperApi.get(context)`, so production
  * call sites do not change. The failures stay nested in [SemperApi]
- * ([SemperApi.ApiException], [SemperApi.NotApprovedException], …), so no `catch`
+ * ([ApiException], [NotApprovedException], …), so no `catch`
  * moves.
  *
  * Every call runs off the main thread on its own; the defaults below are the
@@ -22,7 +22,7 @@ interface CloudApi {
     /** A backend is configured and the debug sign-in bypass is off. */
     val enabled: Boolean
 
-    suspend fun me(idToken: String): MeResponse
+    suspend fun getMe(idToken: String): MeResponse
 
     suspend fun getConfig(idToken: String): AppConfigDto
 
@@ -40,11 +40,11 @@ interface CloudApi {
 
     suspend fun setImprovementConsent(idToken: String, granted: Boolean)
 
-    suspend fun listSessions(idToken: String, verify: Boolean = false): ListSessionsResponse
+    suspend fun listSessions(idToken: String, verify: Boolean = false): SessionsResponse
 
     suspend fun createSession(idToken: String, request: SessionCreateRequest): SessionCreateResponse
 
-    suspend fun sessionUploads(idToken: String, sessionId: String): SessionUploadsResponse
+    suspend fun listSessionUploads(idToken: String, sessionId: String): SessionUploadsResponse
 
     suspend fun completeFile(idToken: String, fileId: String, request: FileCompleteRequest)
 

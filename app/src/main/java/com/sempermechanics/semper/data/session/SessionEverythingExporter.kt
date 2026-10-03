@@ -25,7 +25,7 @@ import java.util.zip.ZipOutputStream
  */
 object SessionEverythingExporter {
 
-    data class Result(val file: File, val sessionCount: Int)
+    data class Export(val file: File, val sessionCount: Int)
 
     /**
      * Packages every local session that still has on-device frame data.
@@ -38,7 +38,7 @@ object SessionEverythingExporter {
     suspend fun exportMasterZip(
         context: Context,
         onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
-    ): Result? = withContext(Dispatchers.IO) {
+    ): Export? = withContext(Dispatchers.IO) {
         val app = context.applicationContext
         val sessions = SessionStore.list(app).filter { it.hasLocalData() }
         if (sessions.isEmpty()) return@withContext null
@@ -71,7 +71,7 @@ object SessionEverythingExporter {
                 master.delete()
                 return@withContext null
             }
-            Result(master, sessions.size)
+            Export(master, sessions.size)
         } catch (e: CancellationException) {
             master.delete()
             throw e

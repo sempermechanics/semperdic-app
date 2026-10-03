@@ -17,7 +17,7 @@ class AuthedTest {
 
     private val api = FakeCloudApi()
     private val tokens = FakeTokens()
-    private val listing = ListSessionsResponse(sessions = emptyList(), quota = QuotaDto(used = 2, max = 25))
+    private val listing = SessionsResponse(sessions = emptyList(), quota = QuotaDto(used = 2, max = 25))
 
     @Test
     fun `a disabled backend asks for no token and makes no call`() = runBlocking {

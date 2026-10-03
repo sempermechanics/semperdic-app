@@ -2,7 +2,7 @@ package com.sempermechanics.semper.data.cloud
 
 import android.content.Context
 import com.sempermechanics.semper.data.cloud.CloudSync.AccountDeletion
-import com.sempermechanics.semper.data.cloud.CloudSync.EraseResult
+import com.sempermechanics.semper.data.cloud.CloudSync.EraseOutcome
 import com.sempermechanics.semper.data.net.Authed
 import com.sempermechanics.semper.data.net.CloudApi
 import com.sempermechanics.semper.data.net.HttpFailure
@@ -98,17 +98,17 @@ internal object CloudErase {
      * [logFailure]; a 429 is worth waiting out, and anything else that did not
      * go through leaves the cloud copy.
      */
-    inline fun Authed<Unit>.toEraseResult(logFailure: (Throwable) -> Unit): EraseResult = when (this) {
-        is Authed.Ok -> EraseResult.ERASED_EVERYWHERE
+    inline fun Authed<Unit>.toEraseResult(logFailure: (Throwable) -> Unit): EraseOutcome = when (this) {
+        is Authed.Ok -> EraseOutcome.ERASED_EVERYWHERE
         is Authed.Failed -> {
             logFailure(failure.cause)
             if (failure.kind == HttpFailure.Kind.RATE_LIMITED) {
-                EraseResult.RATE_LIMITED
+                EraseOutcome.RATE_LIMITED
             } else {
-                EraseResult.LOCAL_ONLY_CLOUD_UNREACHABLE
+                EraseOutcome.LOCAL_ONLY_CLOUD_UNREACHABLE
             }
         }
-        Authed.Disabled, Authed.NoToken -> EraseResult.LOCAL_ONLY_CLOUD_UNREACHABLE
+        Authed.Disabled, Authed.NoToken -> EraseOutcome.LOCAL_ONLY_CLOUD_UNREACHABLE
     }
 
     /**

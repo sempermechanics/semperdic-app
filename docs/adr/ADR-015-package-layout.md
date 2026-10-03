@@ -49,28 +49,28 @@ File counts are main sources only; the first move's table is in this file's hist
 | `diagnostics/` | 4 | `Diagnostics`, `CrashReportingTree`, `EngineDebug`, `SemperAnalytics` (the old `analytics/` package) |
 | `navigation/` | 2 | `AppIntents`, `DicKeys` |
 | `data/` | 11 | The six workers (pinned): `BackupDeleteWorker`, `DicBundleDownloadWorker`, `DicRestoreWorker`, `DicUploadWorker`, `LicenseConfigWorker`, `SessionMetadataWorker`. Beside `DicUploadWorker`, the steps it was split into: `UploadStaging`, `UploadSessionPlanner`, `UploadRun`, `UploadFailures`, `UploadTuning` |
-| `data/session/` | 17 | Local sessions: `SessionStore`, `SessionRecord` (+ `SessionRecordExt`), `SessionPaths`, `SessionLayout`, `SessionNaming`, `SessionRepository`, `SessionHeadline`, `SessionQuotaGate`, `SessionZip`, `ZipDirectory`, `DatCodec`, `LocalArtifacts`, `SkippedNode`, `StorageBudget`, `CacheJanitor`, `SessionEverythingExporter` |
+| `data/session/` | 17 | Local sessions: `SessionStore`, `SessionRecord` (+ `SessionRecordFields`), `SessionPaths`, `SessionLayout`, `SessionNaming`, `SessionRepository`, `SessionHeadline`, `SessionQuotaGate`, `SessionZip`, `ZipDirectory`, `DatCodec`, `LocalArtifacts`, `SkippedNode`, `StorageBudget`, `CacheJanitor`, `SessionEverythingExporter` |
 | `data/cloud/` | 18 | Backup and sync: `CloudSync`, `CloudErase`, `CloudReconcile`, `CloudBackupListing`, `CloudAccountExport`, `SessionDeletes`, `SessionMetadataSync`, `SessionMetadataDoc`, `SessionUploadBundler`, `SessionUploadMetadata`, `UploadWorkOutcomes`, `UploadProgressSampler`, `UploadErrors`, `TransferWork`, `WorkTags`, `TransferLog`, `TransferNotifications`, `CorruptTransferException` |
 | `data/cloud/restore/` | 10 | `CloudRestore`, `RestoreBundleFetcher`, `RestoreUnpacker`, `RestoreZipVerifier`, `RestoreStart` (+ `RestoreFailureLedger`), `RestoreDownloadOutcomes`, `DownloadFailure`, `DownloadProgress`, `SafDestination`, `UnrestorableBackupException` |
 | `data/account/` | 15 | `AuthRepository`, `AuthLinks`, `AccessStatus`, `AccessStatusResolver`, `FirebaseOp`, `ReauthCredentials`, `DevAuth`, `DeviceEnv`, `DeviceKeyManager`, `LicenseEntitlements`, `LicenseErrors`, `SeatLease`, `SeatHeartbeat`, `LegalTerms`, `TotpMfa` |
 | `data/prefs/` | 6 | `DicSettings`, `CoachPrefs`, `ParamClipboard`, `WizardDraft`, `PrefKey`, `PrefFiles` |
 | `data/net/` | 23 | The backend client: `SemperApi` (+ `SemperApiCalls`, `SemperApiClients`, `SemperApiHttp`, `SemperApiSigning`, `Paging`, `ApiHost`), `CloudApi`, `Authed`, `HttpFailure`, `HttpStatus`, `ApiDtos`, `ApiErrors`, `ApiExceptions`, the interceptors (`RetryOnTransient`, `AppCheckHeader`, `AppIdHeader`, `ClientNonce`), `AppRemoteConfig`, `ArtifactRoles`, `SingleFlight`, `TokenProvider`, `TokenStore` |
-| `data/net/drive/` | 4 | Drive's resumable transfers: `DriveTransfer`, `DriveUploader`, `DriveDownloader`, `DriveUpload` |
-| `imaging/` | 9 | Decoders and encoders (`BitmapDecode`, `ImageEncode`, `AviReader`, `AviLuma`, `MjpegHuffman`, `LumaRange`, …) |
+| `data/net/drive/` | 5 | Drive's resumable transfers: `DriveTransfer`, `DriveUploader`, `DriveDownloader`, `DriveDownload`, `DriveUpload` |
+| `imaging/` | 9 | Decoders and encoders (`BitmapDecoder`, `ImageEncoder`, `AviReader`, `AviLuma`, `MjpegHuffman`, `LumaRange`, …) |
 | `imaging/video/` | 7 | `VideoFrameExtractor`, `FrameSink` (was `VideoFrameBatchWriter`), `VideoKeyframeHelper`, `HardwareVideoDecoder`, `AviCodecDecoder`, `AviVideoDecoder`, `ImageLuma` |
 | `report/` | 22 | PDF, CSV, GIF and heatmaps; `VisualizationEngine` is a facade over `HeatmapColorScale`, `HeatmapRenderer` and `DeformedHeatmap` |
 | `ui/analysis/` | 3 | The three Activities only (pinned): `StaticAnalysisActivity`, `RoiDrawActivity`, `VsgLatticeActivity` |
 | `ui/analysis/wizard/` | 22 | `AnalysisViewModel` (+ `AnalysisModels`, `RunChannels`, `SweepRunner`, `WizardDraftBinding`), `WizardState`, `WizardStep`, the host interface `AnalysisWizardHost`, chrome / slots / coach, nav, ready and cancel gates, the settings sheet, `WizardParamFields` (+ `ParamSliders`), `AnalysisLeaveController`, `WizardStepSettingsContentView` |
-| `ui/analysis/run/` | 16 | `DicBatchRunner` (+ `BatchRun`, `UnsavedRerun`, `RunRecordSave`), `DicFieldIo`, `SemperEngine`, `BatchRunController`, `RunChrome`, `ComputeOverlayHelper`, `ConvergenceGate`, `EngineFailure`, `RunSpec`, `RunSummaryText`, `RunStatusLine`, `WizardRunLauncher`, `WizardRunOutcomes` |
-| `ui/analysis/frames/` | 12 | Frame and reference import (`ReferenceImportController`, `FrameImportController`, `FrameImportHelper`, `WizardMediaPickers`), ordering (`FrameOrderController`, `FrameOrderAdapter`, `FrameOrderHelper`, `AnalysisFrameOrderMenuHelper`), `DeformedFrame`, the deformed-batch and video-extract helpers, `VideoSamplingSheet` |
+| `ui/analysis/run/` | 16 | `DicBatchRunner` (+ `BatchRun`, `UnsavedRerun`, `RunRecordSave`), `DicFieldIo`, `SemperEngine`, `BatchRunController`, `RunChrome`, `ComputeOverlayController`, `ConvergenceGate`, `EngineFailure`, `RunSpec`, `RunSummaryText`, `RunStatusLine`, `WizardRunLauncher`, `WizardRunOutcomes` |
+| `ui/analysis/frames/` | 12 | Frame and reference import (`ReferenceImportController`, `FrameImportController`, `FrameImportHelper`, `WizardMediaPickers`), ordering (`FrameOrderController`, `FrameOrderAdapter`, `FrameOrderHelper`, `AnalysisFrameOrderMenuHelper`), `DeformedFrame`, the deformed-batch and video-extract controllers, `VideoSamplingSheet` |
 | `ui/analysis/roi/` | 7 | `StudioOverlayView` (+ `StudioOverlayGeometry`, `StudioOverlayViewport`), `StudioOverlayMaskEncoder`, `RoiViewport`, `RoiResolveHelper`, `RoiStudioLauncher` |
 | `ui/analysis/recommend/` | 9 | `SubsetRecommender`, `SubsetRecommendationController`, `SpeckleScale`, `DicGoodPractice`, `StrainWindowText`, `NoiseFloorPixels`, `NoiseFloorProbe`, `NoiseFloorStats`, `ExifPatchMap` |
-| `ui/analysis/sweep/` | 17 | Setup (`SweepSetupHelper`, `SweepRangeFields`, `SweepFramePicker`, `SweepRanges`), `VsgStudy` / `VsgStudyRunner`, the lattice (`VsgLatticeView`, `LatticeControls`, `LatticeProfiles`, `LatticeGraphExport`), the plot (`VsgPlotView`, `VsgPlotAxes`, `VsgPlotViewport`, `VsgPlotPalette`, `PlotStyle`), `LineCutPreviewView`, `SweepPointConversions` |
+| `ui/analysis/sweep/` | 17 | Setup (`SweepSetupController`, `SweepRangeFields`, `SweepFramePicker`, `SweepRanges`), `VsgStudy` / `VsgStudyRunner`, the lattice (`VsgLatticeView`, `LatticeControls`, `LatticeProfiles`, `LatticeGraphExport`), the plot (`VsgPlotView`, `VsgPlotAxes`, `VsgPlotViewport`, `VsgPlotPalette`, `PlotStyle`), `LineCutPreviewView`, `SweepPointConversions` |
 | `ui/viewer/` | 19 | `ResultViewerActivity` and its controllers (`ViewerFrameLoader`, `ViewerScaleController`, `ViewerImageLoader`, `FrameJumpController`, `ViewerShareController`, `ViewerChromeController`, `ViewerCaptions`, `FieldPopup`), `SaveExportActivity`, both ViewModels, `ViewerArgs`, `ScrubFrameCache`, `ViewerFieldPills`, `ViewerSettingsSheet`, `ColorScaleBar`, `CustomScalePrefill`, `HeatmapFit` |
 | `ui/viewer/share/` | 11 | `ShareCenter`, `ShareKind`, `ShareExportBuilder` (+ `FieldImageExport`, `BundleExport`, `DataExport`), `ShareExportJobs`, `ShareExportUi`, `SendToSheet`, `ViewerReportFactory`, `ViewerReportSource` |
-| `ui/viewer/summary/` | 3 | `SummaryAnimation`, `SummaryCaption`, `ViewerSummaryHelper` |
-| `ui/viewer/inspect/` | 5 | `InspectOverlayView`, `ViewerInspectHelper`, `PointSpatialIndex`, `FieldHistogramView`, `TouchImageView` |
-| `ui/common/` | 12 | Small helpers with no better home: `SerialJob`, `ConflatedRefresh`, `Busy`, `Insets`, `ImeReveal`, `KeyboardExt`, `Motion`, `ViewExt`, `ViewportMath`, `SettingsSectionHeader`, `CoachMarkController`, `ByteSize` |
+| `ui/viewer/summary/` | 3 | `SummaryAnimation`, `SummaryCaption`, `ViewerSummaryController` |
+| `ui/viewer/inspect/` | 5 | `InspectOverlayView`, `ViewerInspectController`, `PointSpatialIndex`, `FieldHistogramView`, `TouchImageView` |
+| `ui/common/` | 13 | Small helpers with no better home: `SerialJob`, `ConflatedRefresh`, `Busy`, `Insets`, `ImeReveal`, `Keyboard`, `ToggleGroups`, `Motion`, `Dp`, `ViewportMath`, `SettingsSectionHeader`, `CoachMarkController`, `ByteSize` |
 | `ui/common/dialog/` | 8 | `Dialogs`, `Feedback`, `CrispToast`, `WarnChip`, `Sheet`, `FaqRedirect`, `DeleteChoiceDialog`, `DeterminateProgressDialog` |
 | `ui/common/auth/` | 6 | `AuthRoute`, `SignOutRun`, `SignOutConfirm`, `SupportMail`, `SupportMailContext`, `ExternalLinks` |
 | `ui/common/media/` | 6 | `MediaPickerSheet`, `MediaGridAdapter`, `MediaSourceChooser`, `MediaStoreBrowser`, `ThumbnailLoader`, `SquareFrameLayout` |
@@ -202,3 +202,9 @@ imports by hand. `scripts/move_kotlin_packages.py` makes that repeatable.
 - **Added: the file-size target and the split rule** (Decision), which those
   PRs followed but this record did not state.
 - **Added: the merge-commit rule** (Consequences).
+
+**2026-10-03, naming scheme.** The table uses the names after the naming
+cleanup (the rules are in CONTRIBUTING's "Code style"): the stateful
+`*Helper` classes are `*Controller`s, the `*Ext.kt` files are named for
+their content, and `DriveDownload` has its own file. Renames are not moves,
+so no mapping replays them; [FORK_SYNC](../ops/FORK_SYNC.md) lists each one.

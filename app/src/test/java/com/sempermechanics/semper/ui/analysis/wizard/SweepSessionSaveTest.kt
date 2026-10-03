@@ -39,7 +39,7 @@ import java.io.File
  * `persistSweepSession` → `saveRunRecord` → [SessionStore]), and its outcome
  * says what that save did, in its outcome and its analytics event. Only the
  * engine's solve is skipped: the sweep is handed a finished
- * [VsgStudyRunner.Result]. Uploads are on, so a refused save that still
+ * [VsgStudyRunner.SweepResult]. Uploads are on, so a refused save that still
  * queued one would show. The sweep used to ignore its save, so a full quota or
  * an unreadable index ended as a completed sweep with nothing on Home.
  */
@@ -92,7 +92,7 @@ class SweepSessionSaveTest {
             use6x6 = false,
             debugDir = null,
         )
-        val result = VsgStudyRunner.Result(
+        val result = VsgStudyRunner.SweepResult(
             runs = plan.mapIndexed { i, p -> VsgStudyRunner.RunOutcome(p, File(batchDir, "frame_000$i.dat"), 400) },
             firstMetrics = null,
             engineErrorCode = 0,

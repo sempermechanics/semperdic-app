@@ -73,8 +73,8 @@ internal class AuthTotpUi(
      * supplies the resolver before submit can succeed.
      */
     fun enterChallengeUi() {
-        binding.cardCredentials.isVisible = false
-        binding.cardTotp.isVisible = true
+        binding.credentialsCard.isVisible = false
+        binding.totpCard.isVisible = true
         binding.btnGoogleSignIn.isVisible = false
         binding.googleOrDivider.isVisible = false
         binding.tvToggleMode.isVisible = false

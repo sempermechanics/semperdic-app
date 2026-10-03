@@ -3,7 +3,7 @@ package com.sempermechanics.semper.results
 import com.sempermechanics.semper.field.DicResult
 import com.sempermechanics.semper.report.VisualizationEngine
 import com.sempermechanics.semper.ui.viewer.inspect.PointSpatialIndex
-import com.sempermechanics.semper.ui.viewer.inspect.ViewerInspectHelper
+import com.sempermechanics.semper.ui.viewer.inspect.ViewerInspectController
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -172,7 +172,7 @@ class DeformedHeatmapTest {
     @Test
     fun `a tap on the deformed frame finds the point that moved there`() {
         val data = field(u = 10f, v = 0f)
-        val index = PointSpatialIndex.build(ViewerInspectHelper.displacedPositions(data), step)
+        val index = PointSpatialIndex.build(ViewerInspectController.displacedPositions(data), step)
 
         // The point that started at (20, 12) now sits at (30, 12).
         val found = index.nearest(30f, 12f, step * 1.5f)

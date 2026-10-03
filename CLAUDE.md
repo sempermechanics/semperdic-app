@@ -36,7 +36,7 @@ Engine tests are **not** this CI. From the submodule: see [docs/engine/TESTING.m
 | Cloud backup (upload) | `DicUploadWorker.backUp`: `UploadStaging` → `UploadSessionPlanner.ensureSession` → `uploadFiles` → `complete`; every failure goes through `UploadFailures` |
 | Work that must outlive a screen | [ADR-016](docs/adr/ADR-016-work-that-outlives-the-activity.md): ViewModel, an app-lifetime run, or WorkManager |
 | A toast, dialog, sheet, thumbnail or latest-wins job | The `ui/common` kit ([ADR-017](docs/adr/ADR-017-viewbinding-and-ui-kit.md)); views through ViewBinding |
-| A failure result or a catch | [ADR-018](docs/adr/ADR-018-error-convention.md): `Authed` / `HttpFailure`, `RunStop`, `DownloadFailure`, `UploadFailures`, `UpsertResult`; rethrow cancellation |
+| A failure result or a catch | [ADR-018](docs/adr/ADR-018-error-convention.md): `Authed` / `HttpFailure`, `RunStop`, `DownloadFailure`, `UploadFailures`, `UpsertOutcome`; rethrow cancellation |
 | Session paths | `SessionPaths` only |
 | Backend routes | `backend/app/routers/`; app/middleware in `main.py` |
 | Firestore access | `backend/app/repo/<aggregate>.py`; routers call it through `firestore_repo` ([ADR-001](docs/adr/ADR-001-firestore-repo-package.md)) |

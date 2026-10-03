@@ -35,7 +35,7 @@
 
     <!-- Extraction mode toggle (Keyframes vs Uniform interval) -->
     <com.google.android.material.button.MaterialButtonToggleGroup
-        android:id="@+id/toggleExtractMode"
+        android:id="@+id/rgExtractMode"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"

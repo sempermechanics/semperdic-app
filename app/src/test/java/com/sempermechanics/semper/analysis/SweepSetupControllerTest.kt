@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
 import com.sempermechanics.semper.ui.analysis.frames.DeformedFrame
-import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupHelper
+import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupController
 import com.sempermechanics.semper.ui.analysis.sweep.VsgStudy
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.WizardStep
@@ -17,16 +17,16 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * The two decisions [SweepSetupHelper] makes without its views: which frame a
+ * The two decisions [SweepSetupController] makes without its views: which frame a
  * sweep solves, and which grid it plans once the ROI caps the subset. Both
  * feed the run directly, so a wrong answer here is a wrong sweep, not a
  * cosmetic slip.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
-class SweepSetupHelperTest {
+class SweepSetupControllerTest {
 
-    private class FakeCallbacks(var maxSubset: Int) : SweepSetupHelper.Callbacks {
+    private class FakeCallbacks(var maxSubset: Int) : SweepSetupController.Callbacks {
         override fun goToStep(step: WizardStep, animate: Boolean) = Unit
         override fun updateWizardChrome() = Unit
         override fun checkReady() = Unit
@@ -43,7 +43,7 @@ class SweepSetupHelperTest {
     private val callbacks = FakeCallbacks(maxSubset = 101)
 
     // Neither method touches the views, so the helper is never set up.
-    private val helper = SweepSetupHelper(AppCompatActivity(), vm, callbacks)
+    private val helper = SweepSetupController(AppCompatActivity(), vm, callbacks)
 
     private fun frames(n: Int) {
         vm.deformedFrames = (1..n).map { DeformedFrame("/frames/f$it.png", "") }

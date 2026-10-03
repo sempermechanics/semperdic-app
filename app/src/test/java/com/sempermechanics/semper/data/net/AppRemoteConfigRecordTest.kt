@@ -32,6 +32,6 @@ class AppRemoteConfigRecordTest {
         assertEquals(25, AppRemoteConfig.maxSessions(context))
         assertTrue(AppRemoteConfig.isKnown(context))
         assertFalse(AppRemoteConfig.shouldHintSyncBlocked(context))
-        assertTrue(AppRemoteConfig.fetchedAtMillis(context) > 0L)
+        assertTrue(AppRemoteConfig.fetchedAtMs(context) > 0L)
     }
 }

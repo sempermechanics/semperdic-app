@@ -125,7 +125,7 @@ object TokenStore {
      * Before that, demo uses the 25-run ceiling and licensed has none.
      */
     fun isSessionLimitReached(context: Context): Boolean = when {
-        LicenseEntitlements.unlimitedAnalysis(context) -> false
+        LicenseEntitlements.hasUnlimitedAnalysis(context) -> false
         prefs(context)[Session.LIMIT_FORCED] -> true
         else -> quotaUsed(context) >= LicenseEntitlements.analysisCap(context)
     }

@@ -2,7 +2,7 @@
 <!-- Transparent stadium shape used only for its geometry: a ViewGroup with
      this as its background and android:clipToOutline="true" clips every
      child's own drawing (including each child's own square background
-     fill) to this outline. That's what makes togglePlotMode's two flat
+     fill) to this outline. That's what makes rgPlotMode's two flat
      buttons read as one seamless pill regardless of what
      MaterialButtonToggleGroup's own per-child corner logic does or does
      not do to them. -->

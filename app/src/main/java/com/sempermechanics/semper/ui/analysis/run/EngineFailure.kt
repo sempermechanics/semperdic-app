@@ -49,7 +49,7 @@ object EngineFailure {
         Cause.INIT -> R.string.sweep_fail_init
         Cause.CONVERGENCE -> R.string.error_low_convergence
         Cause.CANCELLED -> R.string.run_fail_cancelled
-        Cause.UNKNOWN -> R.string.sweep_fail_unknown
+        Cause.UNKNOWN -> R.string.sweep_fail_unknown_fmt
         Cause.VSG -> R.string.sweep_reason_vsg
     }
 
@@ -64,7 +64,7 @@ object EngineFailure {
         Cause.INIT -> R.string.sweep_reason_decode
         Cause.CONVERGENCE -> R.string.sweep_reason_low_convergence
         Cause.CANCELLED -> R.string.run_reason_cancelled
-        Cause.UNKNOWN -> R.string.sweep_reason_unknown
+        Cause.UNKNOWN -> R.string.sweep_reason_unknown_fmt
         Cause.VSG -> R.string.sweep_reason_vsg
     }
 

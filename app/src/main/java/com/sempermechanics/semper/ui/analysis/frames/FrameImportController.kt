@@ -34,7 +34,7 @@ class FrameImportController(
             return
         }
         if (chrome.isBusy) return
-        val job = AnalysisDeformedBatchHelper(activity, viewModel, chrome.overlay, tvResult).handle(
+        val job = AnalysisDeformedBatchController(activity, viewModel, chrome.overlay, tvResult).handle(
             rawUris = uris,
             displayName = { displayNameOf(activity.contentResolver, it) },
             onApplied = onApplied,
@@ -44,9 +44,9 @@ class FrameImportController(
     }
 
     /** Extracts the frames [request] samples. [onApplied] once the view model holds them. */
-    fun extractVideo(request: ExtractionRequest, onApplied: (AnalysisVideoExtractHelper.AppliedResult) -> Unit) {
+    fun extractVideo(request: ExtractionRequest, onApplied: (AnalysisVideoExtractController.AppliedResult) -> Unit) {
         if (chrome.isBusy) return
-        val job = AnalysisVideoExtractHelper(activity, viewModel, chrome.overlay, tvResult).extract(
+        val job = AnalysisVideoExtractController(activity, viewModel, chrome.overlay, tvResult).extract(
             request = request,
             onApplied = onApplied,
             onFinished = ::finish,

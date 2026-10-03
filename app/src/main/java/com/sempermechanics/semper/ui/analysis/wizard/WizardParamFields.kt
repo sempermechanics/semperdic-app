@@ -22,10 +22,10 @@ class WizardParamFields(
     private val subsets: SubsetRecommendationController,
     private val host: AnalysisWizardHost,
 ) {
-    private val sheet = AnalysisSettingsSheetHelper(
+    private val sheet = AnalysisSettingsSheetController(
         activity,
         settings,
-        object : AnalysisSettingsSheetHelper.Listener {
+        object : AnalysisSettingsSheetController.Listener {
             override fun onSubsetUserModified() {
                 viewModel.subsetUserModified = true
                 subsets.showSpeckleFeedback()
@@ -44,24 +44,24 @@ class WizardParamFields(
     /** Wires the sliders, their fields and the advanced card's buttons. */
     fun bind() = sheet.bind()
 
-    fun subsetSize(): Int = settings.etSubsetSize.value.toInt()
+    fun subsetSize(): Int = settings.sliderSubsetSize.value.toInt()
 
-    private fun stepSize(): Int = settings.etStepSize.value.toInt()
+    private fun stepSize(): Int = settings.sliderStepSize.value.toInt()
 
     /** The settings a run uses; the strain window in px, as the engine takes it. */
     fun dicParams(): DicParams = DicParams(subsetSize(), stepSize(), strainWindow())
 
     /** The VSG in px handed to the engine: the slider's window is in data points. */
-    private fun strainWindow(): Int = VsgStudy.vsgFor(settings.etStrainWindow.value.toInt(), stepSize())
+    private fun strainWindow(): Int = VsgStudy.vsgFor(settings.sliderStrainWindow.value.toInt(), stepSize())
 
-    fun useKeysInterpolator(): Boolean = settings.rgInterpolator.checkedButtonId == R.id.rbKeys
+    fun isKeysInterpolatorSelected(): Boolean = settings.rgInterpolator.checkedButtonId == R.id.rbKeys
 
     /** Flushes any in-progress typing into the sliders (focus loss commits). */
     fun commit() {
-        settings.tvSubsetValue.clearFocus()
-        settings.tvStepValue.clearFocus()
-        settings.tvOverlapValue.clearFocus()
-        settings.tvStrainValue.clearFocus()
+        settings.etSubsetValue.clearFocus()
+        settings.etStepValue.clearFocus()
+        settings.etOverlapValue.clearFocus()
+        settings.etStrainValue.clearFocus()
     }
 
     /** Show Paste only when the sweep clipboard has values. */
@@ -71,9 +71,9 @@ class WizardParamFields(
     internal fun reset() {
         host.commitParamFields()
         viewModel.subsetUserModified = false
-        settings.etSubsetSize.value = subsets.defaultSubsetSize().toFloat()
-        settings.etStepSize.value = DicParams.DEFAULT_STEP.toFloat()
-        settings.etStrainWindow.value = VsgStudy.DEFAULT_WINDOW_POINTS.toFloat()
+        settings.sliderSubsetSize.value = subsets.defaultSubsetSize().toFloat()
+        settings.sliderStepSize.value = DicParams.DEFAULT_STEP.toFloat()
+        settings.sliderStrainWindow.value = VsgStudy.DEFAULT_WINDOW_POINTS.toFloat()
         settings.rgInterpolator.check(R.id.rbBicubic)
         sheet.syncFromStep()
         subsets.showSpeckleFeedback()
@@ -86,10 +86,10 @@ class WizardParamFields(
         val params = ParamClipboard.peek(activity) ?: return
         host.commitParamFields()
         viewModel.subsetUserModified = true
-        settings.etSubsetSize.value = snapToSlider(settings.etSubsetSize, params.subset).toFloat()
-        settings.etStepSize.value = snapToSlider(settings.etStepSize, params.step).toFloat()
+        settings.sliderSubsetSize.value = snapToSlider(settings.sliderSubsetSize, params.subset).toFloat()
+        settings.sliderStepSize.value = snapToSlider(settings.sliderStepSize, params.step).toFloat()
         // The clipboard holds a VSG in px; the slider takes points at the pasted step.
-        settings.etStrainWindow.value = VsgStudy.nearestWindowPoints(params.vsg, stepSize()).toFloat()
+        settings.sliderStrainWindow.value = VsgStudy.nearestWindowPoints(params.vsg, stepSize()).toFloat()
         sheet.syncFromStep()
         subsets.showSpeckleFeedback()
         host.onSweepInputsChanged()

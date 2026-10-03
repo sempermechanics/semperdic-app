@@ -166,7 +166,7 @@ class RoiDrawActivityTest {
         activity.type("100", "200", "300", "150")
         activity.click(R.id.btnApplyManualRoi)
 
-        assertEquals(activity.getString(R.string.roi_hud_dimensions, 300, 150, 100, 200), activity.hud())
+        assertEquals(activity.getString(R.string.roi_hud_dimensions_fmt, 300, 150, 100, 200), activity.hud())
         activity.click(R.id.btnSaveRoi)
         awaitFinish(activity)
         assertEquals(listOf(100, 200, 300, 150), activity.resultRect())
@@ -231,7 +231,7 @@ class RoiDrawActivityTest {
         val overlay = activity.findViewById<StudioOverlayView>(R.id.overlayRoi)
         assertEquals(1, overlay.holes.size)
         assertFalse(overlay.hasValidRoi)
-        assertEquals(activity.getString(R.string.roi_hud_dimensions, 70, 80, 50, 60), activity.hud())
+        assertEquals(activity.getString(R.string.roi_hud_dimensions_fmt, 70, 80, 50, 60), activity.hud())
     }
 
     @Test

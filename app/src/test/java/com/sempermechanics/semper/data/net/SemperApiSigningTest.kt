@@ -105,7 +105,7 @@ class SemperApiSigningTest {
         assertTrue(first.headers["X-Nonce"].orEmpty().startsWith("t1."))
         assertEquals("/v1/challenge", server.takeRequest().url.encodedPath)
         assertEquals("n3", server.takeRequest().headers["X-Nonce"])
-        assertFalse("the process falls back to challenges", ClientNonce.usable())
+        assertFalse("the process falls back to challenges", ClientNonce.isUsable())
     }
 
     @Test

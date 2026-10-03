@@ -13,7 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.account.AuthRepository
 import com.sempermechanics.semper.data.account.LegalTerms
-import com.sempermechanics.semper.data.net.SemperApi
+import com.sempermechanics.semper.data.net.TermsVersionMismatchException
 import com.sempermechanics.semper.databinding.ActivityTermsBinding
 import com.sempermechanics.semper.ui.common.Insets
 import com.sempermechanics.semper.ui.common.auth.AuthRoute
@@ -89,7 +89,7 @@ class TermsActivity : AppCompatActivity() {
             result.fold(
                 onSuccess = { continueToDestination() },
                 onFailure = { error ->
-                    val message = if (error is SemperApi.TermsVersionMismatchException) {
+                    val message = if (error is TermsVersionMismatchException) {
                         getString(R.string.terms_error_update_app)
                     } else {
                         error.message ?: getString(R.string.terms_error_generic)

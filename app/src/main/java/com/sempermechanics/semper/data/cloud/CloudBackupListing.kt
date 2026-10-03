@@ -49,12 +49,12 @@ object CloudBackupListing {
         }
     }
 
-    fun load(context: Context): List<Backup> = decode(prefs(context)[CloudListing.BACKUPS])
+    fun read(context: Context): List<Backup> = decode(prefs(context)[CloudListing.BACKUPS])
 
     /** This backup was deleted: stop offering it before the next reconcile says so. */
     fun forget(context: Context, cloudId: String) {
         if (cloudId.isBlank()) return
-        val left = load(context).filterNot { it.cloudId == cloudId }
+        val left = read(context).filterNot { it.cloudId == cloudId }
         prefs(context).edit { put(CloudListing.BACKUPS, encode(left)) }
     }
 
@@ -78,7 +78,7 @@ object CloudBackupListing {
     @WorkerThread
     fun offered(context: Context): List<Backup> {
         val hidden = hiddenIds(context)
-        return notOnPhone(load(context), SessionStore.list(context)).filterNot { it.cloudId in hidden }
+        return notOnPhone(read(context), SessionStore.list(context)).filterNot { it.cloudId in hidden }
     }
 
     /** Stop offering these on Home. A backup added later is offered again. */

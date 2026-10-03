@@ -110,12 +110,12 @@ class DialogsTest {
     @Test
     fun `an info button opens its dialog on each tap`() {
         val button = View(activity)
-        button.bindInfo(activity, R.string.setting_max_frames, R.string.setting_max_frames_info)
+        button.bindInfo(activity, R.string.settings_max_frames, R.string.settings_max_frames_info)
 
         button.performClick()
         val first = ShadowDialog.getLatestDialog() as AlertDialog
-        assertEquals(activity.getString(R.string.setting_max_frames), first.title())
-        assertEquals(activity.getString(R.string.setting_max_frames_info), first.body())
+        assertEquals(activity.getString(R.string.settings_max_frames), first.title())
+        assertEquals(activity.getString(R.string.settings_max_frames_info), first.body())
 
         first.dismiss()
         button.performClick()

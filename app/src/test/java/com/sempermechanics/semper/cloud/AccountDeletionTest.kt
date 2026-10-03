@@ -2,9 +2,9 @@ package com.sempermechanics.semper.cloud
 
 import com.sempermechanics.semper.data.cloud.CloudErase
 import com.sempermechanics.semper.data.cloud.CloudSync
+import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.Authed
 import com.sempermechanics.semper.data.net.HttpFailure
-import com.sempermechanics.semper.data.net.SemperApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -207,8 +207,8 @@ class AccountDeletionTest {
     @Test
     fun `a refused token, a server error and no answer each keep their kind`() = with(CloudErase) {
         val cases = listOf(
-            SemperApi.ApiException(401, "") to HttpFailure.Kind.UNAUTHORIZED,
-            SemperApi.ApiException(503, "") to HttpFailure.Kind.SERVER,
+            ApiException(401, "") to HttpFailure.Kind.UNAUTHORIZED,
+            ApiException(503, "") to HttpFailure.Kind.SERVER,
             IOException("no route") to HttpFailure.Kind.OFFLINE,
         )
         for ((error, kind) in cases) {

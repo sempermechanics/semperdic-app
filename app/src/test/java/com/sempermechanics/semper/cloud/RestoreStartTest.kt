@@ -62,7 +62,7 @@ class RestoreStartTest {
 
     @Test
     fun `no cloud id means nothing to restore and nothing written`() {
-        assertEquals(RestoreStart.Result.FAILED, RestoreStart.start(context, "", "s1", "Beam test"))
+        assertEquals(RestoreStart.Outcome.FAILED, RestoreStart.start(context, "", "s1", "Beam test"))
         assertNull(SessionStore.get(context, "s1"))
     }
 
@@ -72,7 +72,7 @@ class RestoreStartTest {
         File(row.sessionDir, "frame_0000.dat").writeBytes(ByteArray(8))
         store(row)
 
-        assertEquals(RestoreStart.Result.FAILED, RestoreStart.start(context, "c1", "s1", "Beam test"))
+        assertEquals(RestoreStart.Outcome.FAILED, RestoreStart.start(context, "c1", "s1", "Beam test"))
         assertEquals("", SessionStore.get(context, "s1")!!.cloudSessionId)
     }
 
@@ -81,7 +81,7 @@ class RestoreStartTest {
         // No WorkManager in this harness, so the enqueue throws after the row is written.
         store(record("s1", name = "Beam test", cloudId = ""))
 
-        assertEquals(RestoreStart.Result.FAILED, RestoreStart.start(context, "c1", "s1", "cloud name"))
+        assertEquals(RestoreStart.Outcome.FAILED, RestoreStart.start(context, "c1", "s1", "cloud name"))
 
         val kept = SessionStore.get(context, "s1")!!
         assertEquals("", kept.cloudSessionId)
@@ -90,7 +90,7 @@ class RestoreStartTest {
 
     @Test
     fun `a new row that cannot be queued is removed again`() {
-        assertEquals(RestoreStart.Result.FAILED, RestoreStart.start(context, "c1", "restored-c1", "Beam test"))
+        assertEquals(RestoreStart.Outcome.FAILED, RestoreStart.start(context, "c1", "restored-c1", "Beam test"))
         assertNull(SessionStore.get(context, "restored-c1"))
     }
 

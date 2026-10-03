@@ -15,8 +15,8 @@ class EngineFailureTest {
     fun `zero lands on strain window reason positive unknown on unknown code`() {
         assertEquals(R.string.sweep_reason_vsg, EngineFailure.reasonRes(0))
         assertEquals(R.string.sweep_reason_vsg, EngineFailure.shortReasonRes(0))
-        assertEquals(R.string.sweep_fail_unknown, EngineFailure.reasonRes(42))
-        assertEquals(R.string.sweep_reason_unknown, EngineFailure.shortReasonRes(42))
+        assertEquals(R.string.sweep_fail_unknown_fmt, EngineFailure.reasonRes(42))
+        assertEquals(R.string.sweep_reason_unknown_fmt, EngineFailure.shortReasonRes(42))
     }
 
     @Test

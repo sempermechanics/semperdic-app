@@ -80,7 +80,7 @@ object LicenseEntitlements {
      * moment a seat lapses — so trusting a local timestamp instead would just
      * be a second, staler opinion of the same thing.
      */
-    fun seatRequiredToStart(context: Context): Boolean =
+    fun isSeatRequiredToStart(context: Context): Boolean =
         needsSeat(context) && !isLicensed(context)
 
     /** How often to renew a held seat while work is in progress, in minutes. */
@@ -94,7 +94,7 @@ object LicenseEntitlements {
      * then telling the user on "Re-check" that the limit had cleared — was
      * the app contradicting itself.
      */
-    fun unlimitedAnalysis(context: Context): Boolean =
+    fun hasUnlimitedAnalysis(context: Context): Boolean =
         isLicensed(context) && !AppRemoteConfig.isKnown(context)
 
     /**
@@ -102,7 +102,7 @@ object LicenseEntitlements {
      * overdue. Nothing is withdrawn during grace; the backend decides when
      * entitlement actually ends and says so by flipping [mode].
      */
-    fun inGrace(context: Context): Boolean = isLicensed(context) && AppRemoteConfig.inGrace(context)
+    fun isInGrace(context: Context): Boolean = isLicensed(context) && AppRemoteConfig.isInGrace(context)
 
     /**
      * Calendar days until the license's last day, in UTC, or null when there
@@ -119,7 +119,7 @@ object LicenseEntitlements {
      * left read "expires tomorrow" and 25 hours "in 2 days".
      */
     fun daysUntilExpiry(context: Context, now: Long = System.currentTimeMillis()): Long? {
-        val expiresAt = AppRemoteConfig.licenseExpiresAtMillis(context)
+        val expiresAt = AppRemoteConfig.licenseExpiresAtMs(context)
         val worthWarningAbout = isLicensed(context) &&
             expiresAt != AppRemoteConfig.NO_INSTANT &&
             !AppRemoteConfig.isStale(context, STALE_CACHE_MS, now)
@@ -142,7 +142,7 @@ object LicenseEntitlements {
         return when {
             // In grace the expiry has passed, so a stale cache — which makes
             // `days` null — still warrants the overdue notice.
-            inGrace(context) -> days ?: 0L
+            isInGrace(context) -> days ?: 0L
             days == null -> null
             days <= EXPIRY_WARN_DAYS -> days
             else -> null
@@ -154,7 +154,7 @@ object LicenseEntitlements {
      * demo is 25 and a licensed account is uncapped.
      */
     fun analysisCap(context: Context): Int {
-        if (unlimitedAnalysis(context)) return Int.MAX_VALUE
+        if (hasUnlimitedAnalysis(context)) return Int.MAX_VALUE
         val remote = AppRemoteConfig.maxSessions(context)
         return if (remote > 0) remote else DEMO_MAX_ANALYSES
     }

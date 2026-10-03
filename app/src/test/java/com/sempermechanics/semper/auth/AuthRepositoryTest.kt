@@ -6,12 +6,18 @@ import com.sempermechanics.semper.cloud.FakeCloudApi
 import com.sempermechanics.semper.cloud.FakeTokens
 import com.sempermechanics.semper.data.account.AccessStatus
 import com.sempermechanics.semper.data.account.AuthRepository
+import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.AppConfigDto
 import com.sempermechanics.semper.data.net.AppRemoteConfig
+import com.sempermechanics.semper.data.net.DeviceConflictException
+import com.sempermechanics.semper.data.net.DeviceInUseException
+import com.sempermechanics.semper.data.net.DeviceNotActiveException
 import com.sempermechanics.semper.data.net.MeLicenseDto
 import com.sempermechanics.semper.data.net.MeResponse
-import com.sempermechanics.semper.data.net.SemperApi
+import com.sempermechanics.semper.data.net.NoSeatAvailableException
+import com.sempermechanics.semper.data.net.NotApprovedException
 import com.sempermechanics.semper.data.net.TermsDto
+import com.sempermechanics.semper.data.net.TermsVersionMismatchException
 import com.sempermechanics.semper.data.net.TokenStore
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -105,7 +111,7 @@ class AuthRepositoryTest {
 
     @Test
     fun `an unapproved account waits on the pending screen`() = runBlocking {
-        api.onMe = { throw SemperApi.NotApprovedException() }
+        api.onMe = { throw NotApprovedException() }
         api.onGetConfig = { throw IOException("config down") }
 
         assertEquals(AccessStatus.PENDING, repo.refreshStatus().getOrThrow())
@@ -114,7 +120,7 @@ class AuthRepositoryTest {
 
     @Test
     fun `a device bound elsewhere loses access`() = runBlocking {
-        api.onMe = { throw SemperApi.DeviceInUseException() }
+        api.onMe = { throw DeviceInUseException() }
         api.onGetConfig = { throw IOException("config down") }
 
         val error = repo.refreshStatus().exceptionOrNull()
@@ -123,7 +129,7 @@ class AuthRepositoryTest {
 
     @Test
     fun `a 401 loses access and carries the server's hint`() = runBlocking {
-        api.onMe = { throw SemperApi.ApiException(401, """{"detail":"bad audience"}""") }
+        api.onMe = { throw ApiException(401, """{"detail":"bad audience"}""") }
         api.onGetConfig = { throw IOException("config down") }
 
         val error = repo.refreshStatus().exceptionOrNull()
@@ -133,7 +139,7 @@ class AuthRepositoryTest {
 
     @Test
     fun `a server fault is an error, not a lost session`() = runBlocking {
-        api.onMe = { throw SemperApi.ApiException(500, "") }
+        api.onMe = { throw ApiException(500, "") }
         api.onGetConfig = { throw IOException("config down") }
 
         val error = repo.refreshStatus().exceptionOrNull()
@@ -143,7 +149,7 @@ class AuthRepositoryTest {
     @Test
     fun `other refusals from the server are a server error with their status`() = runBlocking {
         for (code in listOf(403, 404, 429)) {
-            api.onMe = { throw SemperApi.ApiException(code, "") }
+            api.onMe = { throw ApiException(code, "") }
             api.onGetConfig = { throw IOException("config down") }
 
             val error = repo.refreshStatus().exceptionOrNull()
@@ -155,7 +161,7 @@ class AuthRepositoryTest {
 
     @Test
     fun `a device bound to another account loses access`() = runBlocking {
-        api.onMe = { throw SemperApi.DeviceConflictException() }
+        api.onMe = { throw DeviceConflictException() }
         api.onGetConfig = { throw IOException("config down") }
 
         assertTrue(repo.refreshStatus().exceptionOrNull() is AuthRepository.AccessLostException)
@@ -164,9 +170,9 @@ class AuthRepositoryTest {
     @Test
     fun `failures that say nothing about the account fall back to the cached status`() = runBlocking {
         val notAnAnswer = listOf<() -> Nothing>(
-            { throw SemperApi.DeviceNotActiveException() },
-            { throw SemperApi.NoSeatAvailableException() },
-            { throw SemperApi.TermsVersionMismatchException() },
+            { throw DeviceNotActiveException() },
+            { throw NoSeatAvailableException() },
+            { throw TermsVersionMismatchException() },
         )
         for (failure in notAnAnswer) {
             api.onMe = { failure() }
@@ -236,11 +242,11 @@ class AuthRepositoryTest {
 
     @Test
     fun `terms the server no longer serves do not open the gate`() = runBlocking {
-        api.onAcceptTerms = { _, _ -> throw SemperApi.TermsVersionMismatchException() }
+        api.onAcceptTerms = { _, _ -> throw TermsVersionMismatchException() }
 
         val result = repo.acceptTerms("2025-01", improvementConsent = true)
 
-        assertTrue(result.exceptionOrNull() is SemperApi.TermsVersionMismatchException)
+        assertTrue(result.exceptionOrNull() is TermsVersionMismatchException)
         assertNull(TokenStore.termsAcceptedVersion(context))
         assertFalse("consent is not sent for refused terms", "setImprovementConsent" in api.calls)
     }

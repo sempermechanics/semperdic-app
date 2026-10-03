@@ -36,7 +36,7 @@ frame's own photo:
   decode, falls back to the reference and the reference-position map, so the
   photo and the map always match.
 - Tap-to-probe looks up the nearest **moved** point
-  (`ViewerInspectHelper.displacedPositions` into the unchanged
+  (`ViewerInspectController.displacedPositions` into the unchanged
   `PointSpatialIndex.build`), and the crosshair sits there. The readout still
   gives the point's reference (x, y), which is how the CSV names it.
 - The rest-fit box also covers where the points moved to.

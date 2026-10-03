@@ -57,15 +57,15 @@
     <string name="save_roi">Save ROI</string>
     <string name="roi_decode_failed">Failed to decode image.</string>
     <string name="roi_image_not_found">Image file not found.</string>
-    <string name="roi_hud_mode_switched">Switched to %1$s mode</string>
+    <string name="roi_hud_mode_switched_fmt">Switched to %1$s mode</string>
     <string name="roi_hud_mode_erase">Mode: Erase</string>
     <string name="roi_hud_mode_crop">Mode: Crop</string>
     <string name="roi_hud_mode_manual">Mode: Manual entry</string>
     <string name="roi_hud_canvas_cleared">Canvas cleared</string>
     <string name="roi_hud_zoom_hint">Mode: Crop · pinch or double-tap to zoom</string>
-    <string name="roi_hud_zoom">Zoom %1$.1f× · two fingers pan · double-tap to fit</string>
+    <string name="roi_hud_zoom_fmt">Zoom %1$.1f× · two fingers pan · double-tap to fit</string>
     <string name="roi_hud_zoom_fit">Zoom: fit</string>
-    <string name="roi_hud_dimensions">ROI: %1$d × %2$d px  |  Pos: (%3$d, %4$d)</string>
+    <string name="roi_hud_dimensions_fmt">ROI: %1$d × %2$d px  |  Pos: (%3$d, %4$d)</string>
     <string name="roi_full_image_selected">Full image selected</string>
     <string name="roi_invalid_size">Invalid ROI size</string>
 
@@ -91,17 +91,17 @@
 A large region at a small step can exhaust memory — try a coarser step or a smaller ROI. If it repeats on the same images, send them to support.</string>
     <string name="video_read_failed">Could not read this video.</string>
     <string name="video_extract_insufficient">Could not extract enough frames from this segment.</string>
-    <string name="video_read_error">Failed to read video: %1$s</string>
-    <string name="video_codec_unsupported">This AVI holds %1$s video, which this device has no decoder for. Re-save it as MP4 (H.264), or export the frames as PNG and import them as images.</string>
-    <string name="error_loading_images">Error loading images: %1$s</string>
+    <string name="video_read_error_fmt">Failed to read video: %1$s</string>
+    <string name="video_codec_unsupported_fmt">This AVI holds %1$s video, which this device has no decoder for. Re-save it as MP4 (H.264), or export the frames as PNG and import them as images.</string>
+    <string name="error_loading_images_fmt">Error loading images: %1$s</string>
     
 
     <!-- Result viewer -->
     <string name="no_batch_data">No valid batch data found.</string>
     <string name="viewer_frame_oom">Not enough memory to open this frame. Try closing other apps, or view a smaller analysis.</string>
-    <string name="scale_dialog_title">Custom scale: %1$s</string>
-    <string name="scale_max_value">Maximum value (%1$s)</string>
-    <string name="scale_min_value">Minimum value (%1$s)</string>
+    <string name="scale_dialog_title_fmt">Custom scale: %1$s</string>
+    <string name="scale_max_value_fmt">Maximum value (%1$s)</string>
+    <string name="scale_min_value_fmt">Minimum value (%1$s)</string>
     <string name="scale_unit_px">px</string>
     <string name="scale_unit_strain">mε</string>
     <string name="invalid_scale_inputs">Invalid scale inputs.</string>
@@ -113,8 +113,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="auth_toggle_to_register">Need an account? Create one</string>
     <string name="auth_toggle_to_login">Have an account? Sign in</string>
     <string name="auth_email_link">Email me a sign-in link (no password)</string>
-    <string name="auth_link_sent">Sign-in link sent to %1$s. Open it on this device to finish.</string>
-    <string name="auth_reset_sent">If an account exists for %1$s, a password-reset link is on its way.</string>
+    <string name="auth_link_sent_fmt">Sign-in link sent to %1$s. Open it on this device to finish.</string>
+    <string name="auth_reset_sent_fmt">If an account exists for %1$s, a password-reset link is on its way.</string>
     <string name="auth_reset_failed">Could not send the reset email.</string>
     <string name="auth_reset_body">Choose a new password for your account.</string>
     <string name="auth_reset_password">Reset password</string>
@@ -245,18 +245,18 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="viewer_details_title">Details</string>
     <string name="viewer_edge_title_fmt">%1$s · %2$s</string>
     <string name="settings_used_title">Settings used</string>
-    <string name="setting_subset">Subset size</string>
-    <string name="setting_step">Step size</string>
-    <string name="setting_strain_window">Strain window</string>
-    <string name="setting_strain_method">Strain method</string>
-    <string name="setting_stopped_early">Stopped early</string>
-    <string name="setting_frames_solved">Frames solved</string>
-    <string name="setting_roi">Region of interest</string>
-    <string name="setting_image_size">Image size</string>
-    <string name="setting_px_fmt">%1$d px</string>
+    <string name="settings_used_subset">Subset size</string>
+    <string name="settings_used_step">Step size</string>
+    <string name="settings_used_strain_window">Strain window</string>
+    <string name="settings_used_strain_method">Strain method</string>
+    <string name="settings_used_stopped_early">Stopped early</string>
+    <string name="settings_used_frames_solved">Frames solved</string>
+    <string name="settings_used_roi">Region of interest</string>
+    <string name="settings_used_image_size">Image size</string>
+    <string name="settings_used_px_fmt">%1$d px</string>
     
-    <string name="setting_roi_fmt">%1$d × %2$d at (%3$d, %4$d)</string>
-    <string name="setting_size_fmt">%1$d × %2$d px</string>
+    <string name="settings_used_roi_fmt">%1$d × %2$d at (%3$d, %4$d)</string>
+    <string name="settings_used_size_fmt">%1$d × %2$d px</string>
     <string name="export_data">Export my data</string>
     <string name="export_progress_fmt">Exporting session %1$d of %2$d</string>
     <string name="export_data_failed">Couldn\'t prepare the export. Free up some storage and try again.</string>
@@ -266,8 +266,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="export_cloud_data_failed">Couldn\'t download your account data. Check your connection and try again.</string>
     <string name="export_cloud_data_offline">Cloud sync isn\'t set up on this build, so there\'s no cloud data to download.</string>
     <!-- Diagnostics consent -->
-    <string name="setting_diagnostics">Send crash reports and usage data</string>
-    <string name="setting_diagnostics_sub">Share anonymous crash diagnostics and coarse usage events — which features ran, and whether they succeeded — so we can fix problems. Off by default; your images, results, specimen names, file paths and analysis data are never sent.</string>
+    <string name="settings_diagnostics">Send crash reports and usage data</string>
+    <string name="settings_diagnostics_sub">Share anonymous crash diagnostics and coarse usage events — which features ran, and whether they succeeded — so we can fix problems. Off by default; your images, results, specimen names, file paths and analysis data are never sent.</string>
     <string name="diagnostics_prompt_title">Help improve Semper?</string>
     <string name="diagnostics_prompt_body">Semper can send anonymous crash reports when something goes wrong, and coarse usage events such as whether an analysis started, finished or failed.\n\nThis never includes your images, results, specimen names, file paths or analysis data. You can change this at any time in Settings.</string>
     <string name="diagnostics_prompt_accept">Send reports</string>
@@ -286,21 +286,21 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="action_cancel">Cancel</string>
     <string name="transfer_banner_prev">Previous transfer</string>
     <string name="transfer_banner_next">Next transfer</string>
-    <string name="transfer_banner_page">%1$d / %2$d</string>
+    <string name="transfer_banner_page_fmt">%1$d / %2$d</string>
     <string name="transfer_banner_working">Working…</string>
-    <string name="transfer_banner_percent">%1$d%%</string>
+    <string name="transfer_banner_percent_fmt">%1$d%%</string>
     <string name="transfer_banner_export_local">Export my data</string>
     <string name="transfer_banner_export_cloud">Cloud account export</string>
     <string name="transfer_banner_download">Downloading…</string>
     <string name="transfer_banner_restore">Restoring…</string>
     <string name="help_support_feedback_action">Send feedback</string>
-    <string name="help_support_feedback_subject">Semper feedback (v%1$s / %2$d)</string>
-    <string name="help_support_feedback_body">Describe your feedback below.\n\n---\nApp: %1$s (%2$d)\nDevice: %3$s\nAndroid: %4$d\nBuild: %5$s\n</string>
-    <string name="setting_save_cloud">Save to cloud</string>
-    <string name="setting_save_cloud_sub">New analyses upload when a network is available</string>
-    <string name="setting_save_cloud_sub_off">New analyses stay on this phone. Existing cloud copies remain until you delete them</string>
-    <string name="setting_wifi_only">Wi‑Fi only</string>
-    <string name="setting_wifi_only_sub">Wait for unmetered Wi‑Fi before uploading</string>
+    <string name="help_support_feedback_subject_fmt">Semper feedback (v%1$s / %2$d)</string>
+    <string name="help_support_feedback_body_fmt">Describe your feedback below.\n\n---\nApp: %1$s (%2$d)\nDevice: %3$s\nAndroid: %4$d\nBuild: %5$s\n</string>
+    <string name="settings_save_cloud">Save to cloud</string>
+    <string name="settings_save_cloud_sub">New analyses upload when a network is available</string>
+    <string name="settings_save_cloud_sub_off">New analyses stay on this phone. Existing cloud copies remain until you delete them</string>
+    <string name="settings_wifi_only">Wi‑Fi only</string>
+    <string name="settings_wifi_only_sub">Wait for unmetered Wi‑Fi before uploading</string>
     <string name="account_section">Account</string>
     <string name="account_device_id_fmt">Device ID · %1$s</string>
     <!-- The key prefix, never the key. It is what support asks for on the
@@ -323,7 +323,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="storage_free_up_sub_fmt">%1$s can be released from backed-up analyses</string>
     <string name="storage_free_up_none">Nothing to release — no analysis is backed up yet</string>
     <string name="storage_free_up_title">Free up space?</string>
-    <string name="storage_free_up_body">This removes the local images and results for every analysis that is already backed up, freeing about %1$s.\n\nNothing is deleted from the cloud. Opening one of these analyses downloads it again.</string>
+    <string name="storage_free_up_body_fmt">This removes the local images and results for every analysis that is already backed up, freeing about %1$s.\n\nNothing is deleted from the cloud. Opening one of these analyses downloads it again.</string>
     <string name="storage_free_up_confirm">Free up space</string>
     <plurals name="storage_freed_fmt">
         <item quantity="one">Freed %1$s from %2$d analysis.</item>
@@ -354,7 +354,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="cloud_backup_failed_missing_files">This analysis\'s results are no longer on this device, so it can\'t be backed up.</string>
     <string name="cloud_delete_backup">Delete from backup</string>
     <string name="cloud_delete_forever_title">Delete this backup forever?</string>
-    <string name="cloud_delete_forever_body">This permanently erases the cloud copy of \"%1$s\" — raw images, results and report. It cannot be undone, and it can never be restored to this or any other device.\n\nAnalyses still on this phone are not touched.</string>
+    <string name="cloud_delete_forever_body_fmt">This permanently erases the cloud copy of \"%1$s\" — raw images, results and report. It cannot be undone, and it can never be restored to this or any other device.\n\nAnalyses still on this phone are not touched.</string>
     <string name="cloud_delete_forever_confirm">Delete forever</string>
     
     <string name="cloud_backfill_title">Back up local analyses?</string>
@@ -373,12 +373,12 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="share_licensed_only">Sharing exports needs an active licence.</string>
     <string name="sync_status_up_to_date">Cloud backups up to date</string>
     <string name="home_empty_start">Start analysis</string>
-    <string name="setting_max_frames">Max frames</string>
-    <string name="setting_max_frames_info">A ceiling, not a target: it can only reduce a run, never add frames. It caps imported frames and frames sampled from a video. More frames = longer analysis and more memory.</string>
+    <string name="settings_max_frames">Max frames</string>
+    <string name="settings_max_frames_info">A ceiling, not a target: it can only reduce a run, never add frames. It caps imported frames and frames sampled from a video. More frames = longer analysis and more memory.</string>
     <string name="info">Info</string>
     <string name="action_sign_out">Sign out</string>
     <string name="about_title">About</string>
-    <string name="about_message">Semper v%1$s (%2$d)\n\nPrivacy Policy and Terms of Service are available from the links below.</string>
+    <string name="about_message_fmt">Semper v%1$s (%2$d)\n\nPrivacy Policy and Terms of Service are available from the links below.</string>
     <string name="legal_privacy">Privacy Policy</string>
     <string name="legal_terms">Terms of Service</string>
     <!-- Public legal pages on the product site. -->
@@ -458,7 +458,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="sweep_fail_features">The engine couldn\'t match the two images (AKAZE feature extraction failed). \n\nThe image pair:During the test, specimen might have moved or too much deformation could have decorrelated with the reference.</string>
     <string name="sweep_fail_roi">The region of interest contains no valid points. Redraw it over the speckled area or use a different image.</string>
     <string name="sweep_fail_init">The engine couldn\'t start — an image failed to decode. Re-import them as PNG or TIFF.</string>
-    <string name="sweep_fail_unknown">The engine returned error %1$d.</string>
+    <string name="sweep_fail_unknown_fmt">The engine returned error %1$d.</string>
     <string name="run_stopped_early_title">Stopped early</string>
     <string name="run_stopped_early_fmt">⚠️ Stopped at frame %1$d of %2$d</string>
     <plurals name="run_stopped_early_body">
@@ -483,7 +483,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="other">%1$d points correlated, but none had enough solved neighbours to fill the strain window (VSG %2$d px at step %3$d px), so no strain could be fitted. Use a smaller strain window, a smaller step, or a larger region of interest.</item>
     </plurals>
     <string name="run_fail_no_correlation">No point in the first frame correlated with the reference. Check that both images show the same speckled area, then try a larger subset or a different region of interest.</string>
-    <string name="sweep_reason_unknown">Unknown engine error (code %1$d)</string>
+    <string name="sweep_reason_unknown_fmt">Unknown engine error (code %1$d)</string>
     <string name="sweep_node_title_fmt">S%1$d · St%2$d · %3$s</string>
     <string name="sweep_node_skipped">This combination was skipped</string>
     <!-- Which frame a failure happened on; prefixes the reason above. -->
@@ -536,7 +536,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     </plurals>
     <string name="action_paste_params">Paste params</string>
 
-    <string name="setting_vsg">Virtual strain gauge</string>
+    <string name="settings_used_vsg">Virtual strain gauge</string>
     <string name="line_cut_title">Strain along the centre line cut</string>
     <string name="line_cut_title_axis_fmt">Strain along %1$s axis</string>
     <string name="line_cut_legend_prefix_fmt">Cut along %1$s through the ROI centre at %2$.0f px.</string>
@@ -566,7 +566,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="use_full_image">Use full image</string>
     <string name="region_of_interest">Region of interest</string>
     <string name="lossy_format_warning_fmt">%1$s detected, use lossless formats (eg. PNG, TIFF) to improve accuracy</string>
-    <string name="subset_low_texture_fmt">Speckle contrast is low, consider using a large subset or selecting a small RoI</string>
+    <string name="subset_low_texture">Speckle contrast is low, consider using a large subset or selecting a small RoI</string>
 
     <!-- Speckle-size feedback, from the iDICs Good Practices Guide's 3-9 px
          band. Measured on the reference frame; see SpeckleScale. -->
@@ -696,7 +696,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="cloud_check_failed_fmt">Couldn\'t check your cloud backups (%1$s). Backup status shown may be out of date.</string>
     <string name="badge_not_backed_up">Not backed up</string>
     <string name="restore_action">Restore</string>
-    <string name="restore_load_error">Couldn\'t load backups: %1$s</string>
+    <string name="restore_load_error_fmt">Couldn\'t load backups: %1$s</string>
     <string name="restore_background_note">Restore continues even if you leave this screen.</string>
     <string name="download_background_note">Download continues even if you leave this screen.</string>
     <string name="admin_pending_requests">Pending access requests</string>
@@ -704,10 +704,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="admin_approve">Approve</string>
     <string name="admin_deny">Deny</string>
     <string name="admin_empty">No pending requests.</string>
-    <string name="admin_load_error">Couldn\'t load requests: %1$s</string>
-    <string name="admin_approved_toast">Approved %1$s</string>
-    <string name="admin_denied_toast">Denied %1$s</string>
-    <string name="admin_action_error">Action failed: %1$s</string>
+    <string name="admin_load_error_fmt">Couldn\'t load requests: %1$s</string>
+    <string name="admin_approved_toast_fmt">Approved %1$s</string>
+    <string name="admin_denied_toast_fmt">Denied %1$s</string>
+    <string name="admin_action_error_fmt">Action failed: %1$s</string>
     <string name="support_email">support@sempermechanics.com</string>
     <string name="request_access_subject">Semper access request</string>
 
@@ -749,7 +749,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
 
     <!-- Session/analysis quota limit screen -->
     <string name="limit_title">Analysis limit reached</string>
-    <string name="limit_body">You\'ve reached the maximum number of saved analyses on your account. New cloud analyses are blocked until the limit is raised.\n\nPlease email %1$s to request a higher limit. You can also delete an existing analysis, then tap Re-check limit.</string>
+    <string name="limit_body_fmt">You\'ve reached the maximum number of saved analyses on your account. New cloud analyses are blocked until the limit is raised.\n\nPlease email %1$s to request a higher limit. You can also delete an existing analysis, then tap Re-check limit.</string>
     
     <string name="limit_email_support">Email support@sempermechanics.com</string>
     <string name="limit_recheck">Re-check limit</string>
@@ -779,10 +779,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
 
     <!-- License expiry notice on Home. Advisory only — nothing is withdrawn
          while the renewal is outstanding. -->
-    <string name="license_expiring_today">License expires today — email %1$s to renew</string>
-    <string name="license_expired">License expired — email %1$s to renew</string>
-    <string name="license_grace">License expired — still working, email %1$s to renew</string>
-    <string name="request_access_none">No email app found. Please email %1$s to request access.</string>
+    <string name="license_expiring_today_fmt">License expires today — email %1$s to renew</string>
+    <string name="license_expired_fmt">License expired — email %1$s to renew</string>
+    <string name="license_grace_fmt">License expired — still working, email %1$s to renew</string>
+    <string name="request_access_none_fmt">No email app found. Please email %1$s to request access.</string>
     <string name="dot_separator">" · "</string>
     <string name="error_email_invalid">That does not look like an email address</string>
     <string name="error_password_short">Password needs at least 6 characters</string>

@@ -14,7 +14,7 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.SemperNativeLib
 import com.sempermechanics.semper.data.session.originalNameOr
 import com.sempermechanics.semper.databinding.DialogSweepFramePickBinding
-import com.sempermechanics.semper.imaging.BitmapDecode
+import com.sempermechanics.semper.imaging.BitmapDecoder
 import com.sempermechanics.semper.imaging.RawRgba
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.common.SerialJob
@@ -89,7 +89,7 @@ internal class SweepFramePicker(
      * after [selected] has moved on is dropped.
      */
     private fun bindPreview(content: DialogSweepFramePickBinding, index: Int, selected: () -> Int) {
-        val preview = content.ivSweepFrameDialogPreview
+        val preview = content.imgSweepFramePreview
         val progress = content.progressSweepFramePreview
         val path = viewModel.defFilePaths.getOrNull(index)
         framePreview.cancel()
@@ -179,7 +179,7 @@ internal class SweepFramePicker(
     @Suppress("ReturnCount") // a ladder of decoders; each rung returns what it managed
     private suspend fun decodeFramePreview(path: String, size: Pair<Int, Int>?): Bitmap? {
         withContext(Dispatchers.IO) {
-            BitmapDecode.decodeFileForView(path, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE)
+            BitmapDecoder.decodeFileForView(path, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE)
         }?.let { return it }
 
         val bytes = withContext(Dispatchers.IO) {

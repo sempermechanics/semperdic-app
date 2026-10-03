@@ -17,7 +17,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** A real `warn_chip_row`: its text, its FAQ button and whether it shows. */
+/** A real `view_warn_chip`: its text, its FAQ button and whether it shows. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class WarnChipTest {
@@ -31,7 +31,7 @@ class WarnChipTest {
         val built = Robolectric.buildActivity(AppCompatActivity::class.java)
         built.get().setTheme(R.style.Theme_Semper)
         val activity = built.setup().get()
-        row = LayoutInflater.from(activity).inflate(R.layout.warn_chip_row, FrameLayout(activity), false)
+        row = LayoutInflater.from(activity).inflate(R.layout.view_warn_chip, FrameLayout(activity), false)
         row.visibility = View.GONE
         chip = WarnChip(row) { opened += it }
     }

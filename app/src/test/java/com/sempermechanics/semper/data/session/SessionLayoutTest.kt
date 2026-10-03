@@ -113,15 +113,15 @@ class SessionLayoutTest {
     fun `a staging filled through the layout is one the upload reuses`() {
         val s = layout.staging
         s.dir.mkdirs()
-        assertFalse(UploadWorkOutcomes.bundleArtifactsReady(s.dir))
+        assertFalse(UploadWorkOutcomes.areBundleArtifactsReady(s.dir))
 
         s.analysisCsv.writeText("x,y\n1,2\n")
         s.reportsDir.mkdirs()
         File(s.reportsDir, "Master_Report_Frame_1.pdf").writeText("%PDF")
         File(s.processedDir, "Frame_1").mkdirs()
         File(s.processedDir, "Frame_1/u.png").writeText("png")
-        assertTrue(UploadWorkOutcomes.bundleArtifactsReady(s.dir))
-        assertFalse(UploadWorkOutcomes.stagingReusable(s.dir))
+        assertTrue(UploadWorkOutcomes.areBundleArtifactsReady(s.dir))
+        assertFalse(UploadWorkOutcomes.isStagingReusable(s.dir))
 
         ZipOutputStream(s.sessionZip.outputStream()).use { zip ->
             zip.putNextEntry(ZipEntry("raw/Reference.png"))
@@ -130,6 +130,6 @@ class SessionLayoutTest {
         }
         s.sha256Sidecar(StagingLayout.SESSION_ZIP).writeText(Digests.sha256Hex(s.sessionZip))
         s.bundlesDone.createNewFile()
-        assertTrue(UploadWorkOutcomes.stagingReusable(s.dir))
+        assertTrue(UploadWorkOutcomes.isStagingReusable(s.dir))
     }
 }

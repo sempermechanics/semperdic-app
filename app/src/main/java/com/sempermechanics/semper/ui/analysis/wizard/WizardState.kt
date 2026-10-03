@@ -76,56 +76,56 @@ internal object WizardState {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** The scalars of [vm], with the fingerprint of [framesJson], the list queued for the draft. */
-    fun save(vm: AnalysisViewModel, framesJson: String): Bundle = Bundle().apply {
-        putInt(STEP, vm.wizardStep)
-        putBoolean(SETTINGS_REVIEWED, vm.settingsReviewed)
-        putBoolean(SUBSET_USER_MODIFIED, vm.subsetUserModified)
-        putInt(REF_W, vm.refSize.width)
-        putInt(REF_H, vm.refSize.height)
-        putString(REF_NAME, vm.refName)
-        putBoolean(HAS_REFERENCE, vm.refBytes != null)
-        putBoolean(HAS_MASK, vm.roiMaskBytes != null)
-        putBoolean(HAS_CUSTOM_ROI, vm.hasCustomRoi)
-        putRoi(ROI, vm.roi)
-        putInt(FRAME_COUNT, vm.deformedFrames.size)
-        putString(ORDER_MODE, vm.defOrderMode.name)
-        putString(ORDER_DIRECTION, vm.defOrderDirection.name)
-        putString(FRAME_SIZE_ERROR, vm.frameSizeError)
-        putBoolean(FROM_VIDEO, vm.defFromVideo)
-        putBoolean(SWEEP_MODE, vm.sweepMode)
-        putIntArray(SWEEP_RANGES, vm.sweepRanges.toIntArray())
-        putDouble(SUBSET_OVERLAP, vm.subsetOverlap)
-        putBoolean(LINE_CUT_HORIZONTAL, vm.lineCutHorizontal)
-        putInt(VSG_FRAME_INDEX, vm.vsgFrameIndex)
-        putString(WORKING_LOCAL_ID, vm.workingLocalId)
+    /** The scalars of [viewModel], with the fingerprint of [framesJson], the list queued for the draft. */
+    fun save(viewModel: AnalysisViewModel, framesJson: String): Bundle = Bundle().apply {
+        putInt(STEP, viewModel.wizardStep)
+        putBoolean(SETTINGS_REVIEWED, viewModel.settingsReviewed)
+        putBoolean(SUBSET_USER_MODIFIED, viewModel.subsetUserModified)
+        putInt(REF_W, viewModel.refSize.width)
+        putInt(REF_H, viewModel.refSize.height)
+        putString(REF_NAME, viewModel.refName)
+        putBoolean(HAS_REFERENCE, viewModel.refBytes != null)
+        putBoolean(HAS_MASK, viewModel.roiMaskBytes != null)
+        putBoolean(HAS_CUSTOM_ROI, viewModel.hasCustomRoi)
+        putRoi(ROI, viewModel.roi)
+        putInt(FRAME_COUNT, viewModel.deformedFrames.size)
+        putString(ORDER_MODE, viewModel.defOrderMode.name)
+        putString(ORDER_DIRECTION, viewModel.defOrderDirection.name)
+        putString(FRAME_SIZE_ERROR, viewModel.frameSizeError)
+        putBoolean(FROM_VIDEO, viewModel.defFromVideo)
+        putBoolean(SWEEP_MODE, viewModel.sweepMode)
+        putIntArray(SWEEP_RANGES, viewModel.sweepRanges.toIntArray())
+        putDouble(SUBSET_OVERLAP, viewModel.subsetOverlap)
+        putBoolean(LINE_CUT_HORIZONTAL, viewModel.lineCutHorizontal)
+        putInt(VSG_FRAME_INDEX, viewModel.vsgFrameIndex)
+        putString(WORKING_LOCAL_ID, viewModel.workingLocalId)
         putString(FRAMES_FINGERPRINT, fingerprint(framesJson))
     }
 
     /** The scalars of a [save]d Bundle; the draft's parts follow through [readInputs]. */
-    fun restoreScalars(vm: AnalysisViewModel, b: Bundle) {
-        vm.wizardStep = b.getInt(STEP, 1)
-        vm.settingsReviewed = b.getBoolean(SETTINGS_REVIEWED)
-        vm.subsetUserModified = b.getBoolean(SUBSET_USER_MODIFIED)
-        vm.refSize = ImageSize(b.getInt(REF_W), b.getInt(REF_H))
-        b.getString(REF_NAME)?.let { vm.refName = it }
-        vm.hasCustomRoi = b.getBoolean(HAS_CUSTOM_ROI)
-        b.getRoi(ROI)?.let { vm.roi = it }
+    fun restoreScalars(viewModel: AnalysisViewModel, b: Bundle) {
+        viewModel.wizardStep = b.getInt(STEP, 1)
+        viewModel.settingsReviewed = b.getBoolean(SETTINGS_REVIEWED)
+        viewModel.subsetUserModified = b.getBoolean(SUBSET_USER_MODIFIED)
+        viewModel.refSize = ImageSize(b.getInt(REF_W), b.getInt(REF_H))
+        b.getString(REF_NAME)?.let { viewModel.refName = it }
+        viewModel.hasCustomRoi = b.getBoolean(HAS_CUSTOM_ROI)
+        b.getRoi(ROI)?.let { viewModel.roi = it }
         b.getString(ORDER_MODE)?.let { name -> FrameOrderMode.entries.find { it.name == name } }
-            ?.let { vm.defOrderMode = it }
+            ?.let { viewModel.defOrderMode = it }
         b.getString(ORDER_DIRECTION)?.let { name -> FrameOrderDirection.entries.find { it.name == name } }
-            ?.let { vm.defOrderDirection = it }
-        vm.frameSizeError = b.getString(FRAME_SIZE_ERROR)
-        vm.defFromVideo = b.getBoolean(FROM_VIDEO)
-        vm.sweepMode = b.getBoolean(SWEEP_MODE)
-        SweepRanges.fromIntArray(b.getIntArray(SWEEP_RANGES))?.let { vm.sweepRanges = it }
-        vm.subsetOverlap = b.getDouble(SUBSET_OVERLAP, vm.subsetOverlap)
-        vm.lineCutHorizontal = b.getBoolean(LINE_CUT_HORIZONTAL, true)
-        vm.vsgFrameIndex = b.getInt(VSG_FRAME_INDEX, -1)
-        vm.workingLocalId = b.getString(WORKING_LOCAL_ID)
+            ?.let { viewModel.defOrderDirection = it }
+        viewModel.frameSizeError = b.getString(FRAME_SIZE_ERROR)
+        viewModel.defFromVideo = b.getBoolean(FROM_VIDEO)
+        viewModel.sweepMode = b.getBoolean(SWEEP_MODE)
+        SweepRanges.fromIntArray(b.getIntArray(SWEEP_RANGES))?.let { viewModel.sweepRanges = it }
+        viewModel.subsetOverlap = b.getDouble(SUBSET_OVERLAP, viewModel.subsetOverlap)
+        viewModel.lineCutHorizontal = b.getBoolean(LINE_CUT_HORIZONTAL, true)
+        viewModel.vsgFrameIndex = b.getInt(VSG_FRAME_INDEX, -1)
+        viewModel.workingLocalId = b.getString(WORKING_LOCAL_ID)
     }
 
-    fun frames(vm: AnalysisViewModel): Frames = wizardFramesOf(vm.deformedFrames)
+    fun frames(viewModel: AnalysisViewModel): Frames = wizardFramesOf(viewModel.deformedFrames)
 
     fun encodeFrames(frames: Frames): String = json.encodeToString(Frames.serializer(), frames)
 

@@ -23,7 +23,7 @@ import java.io.File
 @MainThread
 class SaveExportActivity : AppCompatActivity() {
 
-    private val copier: SaveExportViewModel by viewModels()
+    private val viewModel: SaveExportViewModel by viewModels()
 
     private var pendingFile: File? = null
 
@@ -99,7 +99,7 @@ class SaveExportActivity : AppCompatActivity() {
      * the same one rather than starting another into the same document.
      */
     private fun copyInto(uri: Uri, file: File) {
-        val copy = copier.copyOnce(uri, file)
+        val copy = viewModel.copyOnce(uri, file)
         lifecycleScope.launch {
             val ok = copy.await()
             val message = if (ok) R.string.save_success else R.string.save_failed

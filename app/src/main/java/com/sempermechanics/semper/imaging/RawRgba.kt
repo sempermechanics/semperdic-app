@@ -5,7 +5,7 @@ import androidx.core.graphics.createBitmap
 
 /**
  * RAW/DNG references are stored as a headerless, full-resolution RGBA blob
- * ([BitmapDecode.writeRgbaFromStream]) rather than as encoded file bytes, so no
+ * ([BitmapDecoder.writeRgbaFromStream]) rather than as encoded file bytes, so no
  * decoder — OpenCV `imdecode` or `BitmapFactory` — can read them. Every consumer
  * has to recognise the blob by its size and address the bytes directly; this is
  * the one place that knows how.

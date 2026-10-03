@@ -5,7 +5,7 @@ import androidx.core.view.isVisible
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.field.RunStop
 import com.sempermechanics.semper.ui.analysis.WizardTestBed
-import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupHelper
+import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupController
 import com.sempermechanics.semper.ui.analysis.wizard.BatchAnalysisOutcome
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -39,7 +39,7 @@ class WizardRunOutcomesTest {
         bed = WizardTestBed()
         chrome = bed.chrome()
         status = RunStatusLine(bed.activity, chrome, bed.settings.tvStaticResult, bed.settings.btnEngineFailFaq)
-        val sweep = SweepSetupHelper(bed.activity, bed.viewModel, bed.host)
+        val sweep = SweepSetupController(bed.activity, bed.viewModel, bed.host)
         outcomes = WizardRunOutcomes(bed.activity, bed.viewModel, chrome, status, sweep) { checks++ }
     }
 

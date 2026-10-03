@@ -4,7 +4,7 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.databinding.ActivityStaticAnalysisBinding
 import com.sempermechanics.semper.databinding.WizardStepSettingsContentBinding
 import com.sempermechanics.semper.ui.analysis.StaticAnalysisActivity
-import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupHelper
+import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupController
 import com.sempermechanics.semper.ui.common.dialog.WarnChip
 
 /**
@@ -18,7 +18,7 @@ class AnalysisReadyGate(
     private val frameSizeChip: WarnChip,
 ) {
 
-    fun apply(isProcessing: Boolean, sweepHelper: SweepSetupHelper?) {
+    fun apply(isProcessing: Boolean, sweepController: SweepSetupController?) {
         val ready = viewModel.isReadyToCompute()
 
         binding.btnNext.isEnabled = ready && !isProcessing
@@ -37,7 +37,7 @@ class AnalysisReadyGate(
             !isProcessing &&
             sizeError == null
         binding.btnCalculateFullField.isEnabled = canRun && !viewModel.sweepMode
-        sweepHelper?.setRunSweepEnabled(canRun && viewModel.sweepMode && sweepHelper.currentPlan().isNotEmpty())
+        sweepController?.setRunSweepEnabled(canRun && viewModel.sweepMode && sweepController.currentPlan().isNotEmpty())
 
         settings.btnDefineRoi.isEnabled = (viewModel.refBytes != null) && !isProcessing
         binding.btnBack.isEnabled = !isProcessing

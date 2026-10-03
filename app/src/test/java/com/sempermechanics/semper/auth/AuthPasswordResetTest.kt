@@ -52,6 +52,6 @@ class AuthPasswordResetTest {
             activity.getString(R.string.auth_sign_in),
             activity.findViewById<Button>(R.id.btnMainAction).text.toString(),
         )
-        assertEquals(View.GONE, activity.findViewById<View>(R.id.layoutConfirmPassword).visibility)
+        assertEquals(View.GONE, activity.findViewById<View>(R.id.tilConfirmPassword).visibility)
     }
 }

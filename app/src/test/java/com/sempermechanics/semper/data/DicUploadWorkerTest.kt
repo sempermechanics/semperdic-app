@@ -9,7 +9,10 @@ import com.sempermechanics.semper.cloud.FakeCloudApi
 import com.sempermechanics.semper.cloud.FakeTokens
 import com.sempermechanics.semper.data.cloud.SessionUploadBundlerTest
 import com.sempermechanics.semper.data.cloud.UploadErrors
+import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.CloudApi
+import com.sempermechanics.semper.data.net.DeviceConflictException
+import com.sempermechanics.semper.data.net.DeviceNotActiveException
 import com.sempermechanics.semper.data.net.FileCompleteRequest
 import com.sempermechanics.semper.data.net.PendingUploadDto
 import com.sempermechanics.semper.data.net.SemperApi
@@ -19,6 +22,7 @@ import com.sempermechanics.semper.data.net.SessionUploadsResponse
 import com.sempermechanics.semper.data.net.TokenProvider
 import com.sempermechanics.semper.data.net.TokenSource
 import com.sempermechanics.semper.data.net.TokenStore
+import com.sempermechanics.semper.data.net.UploadLinkExpiredException
 import com.sempermechanics.semper.data.session.SessionPaths
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
@@ -96,7 +100,7 @@ class DicUploadWorkerTest {
             throw AssertionError("unexpected CloudApi.createSession call")
         }
         var onSessionUploads: suspend (String) -> SessionUploadsResponse = {
-            throw AssertionError("unexpected CloudApi.sessionUploads call")
+            throw AssertionError("unexpected CloudApi.listSessionUploads call")
         }
         var onUpload: suspend (File) -> Pair<String, String> = { it.name to Digests.md5Hex(it) }
         var onComplete: suspend (String, FileCompleteRequest) -> Unit = { _, req -> completed += req }
@@ -111,8 +115,8 @@ class DicUploadWorkerTest {
             return onCreateSession(request)
         }
 
-        override suspend fun sessionUploads(idToken: String, sessionId: String): SessionUploadsResponse {
-            calls += "sessionUploads"
+        override suspend fun listSessionUploads(idToken: String, sessionId: String): SessionUploadsResponse {
+            calls += "listSessionUploads"
             return onSessionUploads(sessionId)
         }
 
@@ -215,7 +219,7 @@ class DicUploadWorkerTest {
     private fun row(): SessionRecord = SessionStore.get(context, ID)!!
 
     private fun apiError(code: Int, detail: String) =
-        SemperApi.ApiException(code, """{"detail":"$detail"}""", "req-1")
+        ApiException(code, """{"detail":"$detail"}""", "req-1")
 
     // ── tests ────────────────────────────────────────────────────────────────
 
@@ -249,7 +253,7 @@ class DicUploadWorkerTest {
     fun `a bare 404 while resuming is not proof the session is gone`() {
         seed(cloudSessionId = "cs1")
         // No `detail`: the route was not reachable (gateway), not "no such session".
-        api.onSessionUploads = { throw SemperApi.ApiException(404, "Not Found") }
+        api.onSessionUploads = { throw ApiException(404, "Not Found") }
 
         assertEquals(ListenableWorker.Result.retry(), run())
 
@@ -585,7 +589,7 @@ class DicUploadWorkerTest {
     fun `a device the server no longer knows is registered again and retried`() {
         seed(cloudSessionId = "cs1")
         api.onSessionUploads = { uploading(it) }
-        api.onComplete = { _, _ -> throw SemperApi.DeviceNotActiveException("r1") }
+        api.onComplete = { _, _ -> throw DeviceNotActiveException("r1") }
         api.base.onRegisterDevice = { }
 
         assertEquals(ListenableWorker.Result.retry(), run())
@@ -599,7 +603,7 @@ class DicUploadWorkerTest {
     fun `an account bound to another phone fails the backup and drops the staging`() {
         seed(cloudSessionId = "cs1")
         api.onSessionUploads = { uploading(it) }
-        api.onComplete = { _, _ -> throw SemperApi.DeviceConflictException("r1") }
+        api.onComplete = { _, _ -> throw DeviceConflictException("r1") }
 
         val result = run()
 
@@ -677,7 +681,7 @@ class DicUploadWorkerTest {
     fun `an expired upload link discards the session so the next run recreates it`() {
         seed(cloudSessionId = "cs1")
         api.onSessionUploads = { uploading(it) }
-        api.onUpload = { throw SemperApi.UploadLinkExpiredException(410) }
+        api.onUpload = { throw UploadLinkExpiredException(410) }
 
         assertEquals(ListenableWorker.Result.retry(), run())
 
@@ -692,7 +696,7 @@ class DicUploadWorkerTest {
     fun `an expired upload link whose session delete fails keeps the pointer`() {
         seed(cloudSessionId = "cs1")
         api.onSessionUploads = { uploading(it) }
-        api.onUpload = { throw SemperApi.UploadLinkExpiredException(404) }
+        api.onUpload = { throw UploadLinkExpiredException(404) }
         api.base.onDeleteSession = { _, _ -> throw apiError(503, "firestore_unreachable") }
 
         assertEquals(ListenableWorker.Result.retry(), run())
@@ -708,7 +712,7 @@ class DicUploadWorkerTest {
     @Test
     fun `an upload link that keeps expiring fails the backup after a bounded number of recreates`() {
         api.onSessionUploads = { uploading(it) }
-        api.onUpload = { throw SemperApi.UploadLinkExpiredException(410) }
+        api.onUpload = { throw UploadLinkExpiredException(410) }
 
         repeat(UploadErrors.MAX_LINK_EXPIRED_REBUILDS) {
             seed(cloudSessionId = "cs$it")

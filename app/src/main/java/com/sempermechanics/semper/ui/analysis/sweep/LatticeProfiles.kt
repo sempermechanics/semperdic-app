@@ -55,7 +55,7 @@ internal fun skippedLatticeNodes(sweep: ViewerSweepArgs?, reason: (code: Int) ->
  * when the directory is gone or cannot be listed. Blocking file IO.
  */
 @WorkerThread
-internal fun loadSweepFrameProfiles(
+internal fun readSweepFrameProfiles(
     batchDir: File,
     steps: List<Int>,
     baseStep: Int,

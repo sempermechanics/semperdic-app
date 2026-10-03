@@ -9,7 +9,7 @@ import com.sempermechanics.semper.field.Roi
 import com.sempermechanics.semper.field.getRoi
 import com.sempermechanics.semper.ui.analysis.frames.DeformedFrame
 import com.sempermechanics.semper.ui.analysis.sweep.SweepRanges
-import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupHelper
+import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupController
 import com.sempermechanics.semper.ui.analysis.sweep.VsgStudy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -93,8 +93,8 @@ class WizardValueTypesTest {
         assertEquals(SweepRanges.UNSEEDED, AnalysisViewModel().sweepFields())
     }
 
-    /** Only [SweepSetupHelper.Callbacks.maxSubsetForRoi] matters to `currentPlan`. */
-    private class Ceiling(var max: Int) : SweepSetupHelper.Callbacks {
+    /** Only [SweepSetupController.Callbacks.maxSubsetForRoi] matters to `currentPlan`. */
+    private class Ceiling(var max: Int) : SweepSetupController.Callbacks {
         override fun goToStep(step: WizardStep, animate: Boolean) = Unit
         override fun updateWizardChrome() = Unit
         override fun checkReady() = Unit
@@ -108,7 +108,7 @@ class WizardValueTypesTest {
     }
 
     /**
-     * `SweepSetupHelper.currentPlan` as it was before it called [SweepRanges.plan]:
+     * `SweepSetupController.currentPlan` as it was before it called [SweepRanges.plan]:
      * the body verbatim, its ceiling passed in rather than read from the callbacks.
      */
     private fun legacyCurrentPlan(viewModel: AnalysisViewModel, ceiling: Int): List<VsgStudy.Point> {
@@ -129,7 +129,7 @@ class WizardValueTypesTest {
         val vm = wizard()
         val ceiling = Ceiling(0)
         // currentPlan never touches the views, so the helper is never set up.
-        val helper = SweepSetupHelper(AppCompatActivity(), vm, ceiling)
+        val helper = SweepSetupController(AppCompatActivity(), vm, ceiling)
         for (max in listOf(1, 20, 21, 22, 41, 60, 61, 62, 101, 301)) {
             ceiling.max = max
             val expected = legacyCurrentPlan(vm, max)

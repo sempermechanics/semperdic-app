@@ -26,7 +26,7 @@ internal class SemperApiCalls(
      * A token-authenticated call: the ID token and this device's id, then
      * [route]'s URL, method and body. [read] takes a 200; any other answer goes
      * to [orElse], which throws the route's most specific exception (a plain
-     * [SemperApi.ApiException] unless it says otherwise) or accepts the answer.
+     * [ApiException] unless it says otherwise) or accepts the answer.
      */
     suspend fun <T> bearer(
         idToken: String,
@@ -70,26 +70,26 @@ internal fun ApiAnswer.failSigned(): Nothing {
     val detail = if (code == HttpStatus.CONFLICT) ApiErrors.detailOf(body) else null
     throw when {
         detail == null -> exception()
-        ApiErrors.isCode(detail, ApiErrors.DEVICE_NOT_ACTIVE) -> SemperApi.DeviceNotActiveException(requestId)
-        ApiErrors.isCode(detail, ApiErrors.DEVICE_IN_USE) -> SemperApi.DeviceInUseException(requestId)
-        ApiErrors.isCode(detail, ApiErrors.DEVICE_CONFLICT) -> SemperApi.DeviceConflictException(requestId)
+        ApiErrors.isCode(detail, ApiErrors.DEVICE_NOT_ACTIVE) -> DeviceNotActiveException(requestId)
+        ApiErrors.isCode(detail, ApiErrors.DEVICE_IN_USE) -> DeviceInUseException(requestId)
+        ApiErrors.isCode(detail, ApiErrors.DEVICE_CONFLICT) -> DeviceConflictException(requestId)
         else -> exception()
     }
 }
 
 /** The 403 mapping of the token-authenticated routes only an approved account reaches. */
 internal fun ApiAnswer.failApprovedOnly(): Nothing =
-    if (code == HttpStatus.FORBIDDEN) throw SemperApi.NotApprovedException() else fail()
+    if (code == HttpStatus.FORBIDDEN) throw NotApprovedException() else fail()
 
 /**
  * `GET /v1/me`'s mapping: 403 is an account not yet approved, and a 409 names
  * which device binding is in the way.
  */
 internal fun ApiAnswer.failMe(): Nothing = when (code) {
-    HttpStatus.FORBIDDEN -> throw SemperApi.NotApprovedException()
+    HttpStatus.FORBIDDEN -> throw NotApprovedException()
     HttpStatus.CONFLICT -> throw when {
-        hasCode(ApiErrors.DEVICE_IN_USE) -> SemperApi.DeviceInUseException(requestId)
-        hasCode(ApiErrors.DEVICE_CONFLICT) -> SemperApi.DeviceConflictException(requestId)
+        hasCode(ApiErrors.DEVICE_IN_USE) -> DeviceInUseException(requestId)
+        hasCode(ApiErrors.DEVICE_CONFLICT) -> DeviceConflictException(requestId)
         else -> exception()
     }
     else -> fail()

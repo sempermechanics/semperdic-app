@@ -74,10 +74,10 @@ internal class ShareExportJobs(
         data class Cancelled(override val id: String) : Outcome
     }
 
-    private val runningState = MutableStateFlow<Map<String, Running>>(emptyMap())
+    private val _running = MutableStateFlow<Map<String, Running>>(emptyMap())
 
     /** Every running job by id, in start order. Written from any thread. */
-    val running: StateFlow<Map<String, Running>> = runningState.asStateFlow()
+    val running: StateFlow<Map<String, Running>> = _running.asStateFlow()
 
     private val outcomeChannel = Channel<Outcome>(Channel.UNLIMITED)
 
@@ -105,7 +105,7 @@ internal class ShareExportJobs(
         direct: Boolean,
         produce: suspend (report: (Int, String) -> Unit) -> Pair<File, String>,
     ) {
-        runningState.update { it + (id to Running(id, title)) }
+        _running.update { it + (id to Running(id, title)) }
         val job = scope.launch {
             val outcome = try {
                 val (file, mime) = withContext(Dispatchers.Default) {
@@ -137,21 +137,21 @@ internal class ShareExportJobs(
      * the generator winds down; its [Outcome.Cancelled] follows.
      */
     fun cancel(id: String) {
-        runningState.update { it - id }
+        _running.update { it - id }
         jobs[id]?.cancel()
     }
 
     /** The user sent job [id] to the background: show it in the banner, not the dialog. */
     fun sendToBackground(id: String) {
-        runningState.update { all -> all[id]?.let { all + (id to it.copy(background = true)) } ?: all }
+        _running.update { all -> all[id]?.let { all + (id to it.copy(background = true)) } ?: all }
     }
 
     private fun progress(id: String, percent: Int, status: String) {
-        runningState.update { all -> all[id]?.let { all + (id to it.copy(percent = percent, status = status)) } ?: all }
+        _running.update { all -> all[id]?.let { all + (id to it.copy(percent = percent, status = status)) } ?: all }
     }
 
     private fun finish(outcome: Outcome) {
-        runningState.update { it - outcome.id }
+        _running.update { it - outcome.id }
         outcomeChannel.trySend(outcome)
     }
 

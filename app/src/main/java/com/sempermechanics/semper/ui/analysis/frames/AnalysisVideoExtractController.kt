@@ -8,7 +8,7 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.imaging.video.ExtractionRequest
 import com.sempermechanics.semper.imaging.video.VideoFrameExtractor
 import com.sempermechanics.semper.ui.analysis.StaticAnalysisActivity
-import com.sempermechanics.semper.ui.analysis.run.ComputeOverlayHelper
+import com.sempermechanics.semper.ui.analysis.run.ComputeOverlayController
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.common.dialog.FaqRedirect
 import com.sempermechanics.semper.ui.common.dialog.Feedback
@@ -26,10 +26,10 @@ import timber.log.Timber
  * Frame 0 of the segment becomes the reference; the rest feed defFilePaths.
  * The extraction runs on [io].
  */
-class AnalysisVideoExtractHelper(
+class AnalysisVideoExtractController(
     private val activity: AppCompatActivity,
     private val viewModel: AnalysisViewModel,
-    private val overlayHelper: ComputeOverlayHelper,
+    private val overlayController: ComputeOverlayController,
     private val tvResult: TextView,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
@@ -50,8 +50,8 @@ class AnalysisVideoExtractHelper(
         onApplied: (AppliedResult) -> Unit,
         onFinished: () -> Unit,
     ): Job {
-        overlayHelper.processingStartTime = System.currentTimeMillis()
-        overlayHelper.show(title = "Extracting Frames", status = "Reading video…", showRunTiles = false)
+        overlayController.processingStartTime = System.currentTimeMillis()
+        overlayController.show(title = "Extracting Frames", status = "Reading video…", showRunTiles = false)
 
         return activity.lifecycleScope.launch(io) {
             try {
@@ -60,7 +60,7 @@ class AnalysisVideoExtractHelper(
                     request = request,
                     cacheDir = activity.cacheDir,
                     onProgress = { percent, status ->
-                        overlayHelper.update(percent = percent.toFloat(), status = status)
+                        overlayController.update(percent = percent.toFloat(), status = status)
                     },
                 )
 
@@ -91,13 +91,13 @@ class AnalysisVideoExtractHelper(
                 withContext(Dispatchers.Main) {
                     FaqRedirect.snackbar(
                         activity,
-                        activity.getString(R.string.video_read_error, e.message),
+                        activity.getString(R.string.video_read_error_fmt, e.message),
                         R.string.url_faq_video_extract,
                     )
                 }
             } finally {
                 withContext(NonCancellable + Dispatchers.Main) {
-                    overlayHelper.hide()
+                    overlayController.hide()
                     tvResult.text = ""
                     onFinished()
                 }

@@ -41,7 +41,7 @@ internal class ViewerScaleController(private val host: ResultViewerActivity) {
     private val visualizationJob = SerialJob()
 
     /** Fixed colour scales per field; in the ViewModel so a rotation keeps them. */
-    private val customBoundsMap: MutableMap<Int, ValueRange> get() = host.viewerVm.customBounds
+    private val customBoundsMap: MutableMap<Int, ValueRange> get() = host.viewModel.customBounds
 
     @Suppress("ComplexCondition") // each is a reason the overlay cannot be scaled to the image
     fun applyHeatmapMatrix() {
@@ -67,8 +67,8 @@ internal class ViewerScaleController(private val host: ResultViewerActivity) {
         val multiplier = DicResult.strainMultiplier(currentDataIndex)
         val unit = host.getString(if (isStrain) R.string.scale_unit_strain else R.string.scale_unit_px)
 
-        dialog.tilScaleMax.hint = host.getString(R.string.scale_max_value, unit)
-        dialog.tilScaleMin.hint = host.getString(R.string.scale_min_value, unit)
+        dialog.tilScaleMax.hint = host.getString(R.string.scale_max_value_fmt, unit)
+        dialog.tilScaleMin.hint = host.getString(R.string.scale_min_value_fmt, unit)
 
         val shown = shownRange.takeIf { cachedHeatmap != null && !host.isShowingSummary && !isGeneratingHeatmap }
         CustomScalePrefill.text(
@@ -81,7 +81,7 @@ internal class ViewerScaleController(private val host: ResultViewerActivity) {
         }
 
         MaterialAlertDialogBuilder(host)
-            .setTitle(host.getString(R.string.scale_dialog_title, host.currentTypeString))
+            .setTitle(host.getString(R.string.scale_dialog_title_fmt, host.currentTypeString))
             .setView(dialog.root)
             .setPositiveButton(R.string.apply) { _, _ ->
                 val maxVal = dialog.etScaleMax.text?.toString()?.toFloatOrNull()
@@ -129,18 +129,18 @@ internal class ViewerScaleController(private val host: ResultViewerActivity) {
             showHeatmap(hit, index)
             // A heatmap hit means this (frame,field) was visited before, so its
             // metrics are already cached — this read is O(1) on the main thread.
-            host.captions.applyFieldMetrics(host.viewerVm.fieldMetricsFor(frameAtStart, index, data), index)
+            host.captions.applyFieldMetrics(host.viewModel.fieldMetricsFor(frameAtStart, index, data), index)
             return
         }
 
         val size = host.imageSize
         val frameStep = host.step
         // Read on Main: viewModels() is a main-thread lazy.
-        val vm = host.viewerVm
+        val viewModel = host.viewModel
         visualizationJob.launch(host.lifecycleScope, Dispatchers.Default) {
             // Warm the stats/extrema off the main thread, next to the heatmap render,
             // so the scrub settle never pays the O(n)+sort on the UI thread.
-            val metrics = vm.fieldMetricsFor(frameAtStart, index, data)
+            val metrics = viewModel.fieldMetricsFor(frameAtStart, index, data)
             val heatmap = if (displaced) {
                 VisualizationEngine.generateDeformedHeatmap(
                     data,
@@ -192,7 +192,7 @@ internal class ViewerScaleController(private val host: ResultViewerActivity) {
             // colour ramp is built on (VisualizationEngine.computeSigmaClampedRange),
             // not the field's true extrema -- the ⓘ details sheet shows those,
             // via DicResult.fieldStats. Same wording as the summary-mode scale
-            // (ViewerSummaryHelper) so the two paths agree.
+            // (ViewerSummaryController) so the two paths agree.
             val minText = ReportBuilder.formatMetric(heatmap.min * multiplier)
             val maxText = ReportBuilder.formatMetric(heatmap.max * multiplier)
             binding.tvScaleMin.text = host.getString(R.string.scale_min_fmt, minText, unit)

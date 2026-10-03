@@ -34,13 +34,13 @@ class FirebaseAuthIntegrationTest {
     }
 
     @Test
-    fun signIn_withTestCredentials_succeeds() = runBlocking {
+    fun signInWithTestCredentialsSucceeds() = runBlocking {
         val result = auth.signInWithEmailAndPassword(testEmail, testPassword).await()
         assertNotNull(result.user)
     }
 
     @Test
-    fun signIn_then_getIdToken_succeeds() = runBlocking {
+    fun signInThenGetIdTokenSucceeds() = runBlocking {
         val result = auth.signInWithEmailAndPassword(testEmail, testPassword).await()
         val token = result.user!!.getIdToken(true).await()
         assertNotNull(token.token)
@@ -48,7 +48,7 @@ class FirebaseAuthIntegrationTest {
     }
 
     @Test
-    fun signIn_then_tokenRefresh_succeeds() = runBlocking {
+    fun signInThenTokenRefreshSucceeds() = runBlocking {
         auth.signInWithEmailAndPassword(testEmail, testPassword).await()
         val user = auth.currentUser!!
         val firstToken = user.getIdToken(false).await().token
