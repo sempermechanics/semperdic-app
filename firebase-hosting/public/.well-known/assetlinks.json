@@ -3,6 +3,27 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
+      "package_name": "com.sempermechanics.semper",
+      "sha256_cert_fingerprints": [
+        "39:30:C4:37:4D:31:83:18:36:0D:6D:BF:CF:9C:68:F8:6C:11:91:1A:AF:48:1E:56:79:21:47:BB:81:13:18:E6",
+        "FF:72:A8:B0:8F:02:A0:5D:65:B5:3D:91:25:0B:EF:7E:3B:0F:F7:53:8A:F2:B0:16:8E:E5:2D:5F:36:B1:5C:9A"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.sempermechanics.materialtesting",
+      "sha256_cert_fingerprints": [
+        "F5:DC:B8:2A:FC:17:87:D5:B3:D3:8F:53:8F:8E:7F:A6:A4:E5:C7:F8:10:6A:60:0F:E7:06:E7:C6:B0:EE:46:37"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
       "package_name": "com.indicvision.semper",
       "sha256_cert_fingerprints": [
         "39:30:C4:37:4D:31:83:18:36:0D:6D:BF:CF:9C:68:F8:6C:11:91:1A:AF:48:1E:56:79:21:47:BB:81:13:18:E6",

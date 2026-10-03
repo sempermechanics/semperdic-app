@@ -29,21 +29,21 @@ Use these words. Do not invent synonyms.
 | `.dat` | Binary field: 8 floats/point (`x y u v exx eyy exy znssd`), 32 bytes |
 | session | One saved analysis on disk (and optionally in the cloud) |
 
-Engine pipeline (`native/docs/ARCHITECTURE.md`): AKAZE seeds → Delaunay → RGDIC → ICGN → VSG → `.dat`.
+Engine pipeline (`engine/docs/ARCHITECTURE.md`): AKAZE seeds → Delaunay → RGDIC → ICGN → VSG → `.dat`.
 
 ## Layout
 
 ```
-app/          Android UI (Kotlin). Gradle builds ../native/CMakeLists.txt;
+app/          Android UI (Kotlin). Gradle builds ../engine/CMakeLists.txt;
               app/src/main/cpp/ holds only a redirect CMakeLists.txt
-native/       Pinned submodule: sempermechanics/semper-dic-engine (solver, tests,
-              docs, and the JNI adapter in native/adapters/android/)
+engine/       Pinned submodule: sempermechanics/semper-dic-engine (solver, tests,
+              docs, and the JNI adapter in engine/adapters/android/)
 backend/      FastAPI on Cloud Run — routers in backend/app/routers/, Firestore
               access in backend/app/repo/ behind the firestore_repo facade
 firebase-hosting/  Auth continue URLs, asset links, generated legal pages
 ```
 
-Bump the engine by changing the `native` gitlink. Its host / sanitizer / DICe suites run
+Bump the engine by changing the `engine` gitlink. Its host / sanitizer / DICe suites run
 in the engine repo; this CI only proves the pin **links** (emulator x86_64, release arm64).
 
 ## Runtime
@@ -95,8 +95,8 @@ non-modal `TransferBannerController` strip.
 - **Analytics and crash reporting share one consent flag** (`DicSettings.diagnosticsEnabled`).
   Events stay PII-free — buckets and enums only, never images, results, session ids
   or specimen names.
-- **Release** builds require HTTPS `INDIC_API_BASE_URL`. Debug emulator boots
-  local-only unless `INDIC_DEV_AUTH_BYPASS=false`.
+- **Release** builds require HTTPS `SEMPER_API_BASE_URL`. Debug emulator boots
+  local-only unless `SEMPER_DEV_AUTH_BYPASS=false`.
 - **Legal pages** are generated: edit `docs/legal/`, run `scripts/render_legal_pages.py`,
   never hand-edit `firebase-hosting/public/{privacy,terms}/`.
 
@@ -121,6 +121,13 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   merge with a merge commit (ADR-015). Owed before release: the emulator passes in
   each PR's test plan, the Pixel 6 benchmark runs, and ADR-015's queued-work upgrade
   check. Results: [QUALITY_PROGRAM_RESULTS.md](docs/ops/QUALITY_PROGRAM_RESULTS.md).
+- **App id `com.sempermechanics.semper` (open PR, stacked on the docs PR).** A new app;
+  "indic" leaves the code and the engine submodule is `engine/`
+  ([ADR-019](docs/adr/ADR-019-sempermechanics-app-id.md)). Owed before merge: the Firebase
+  app and its `google-services.json` (the committed one carries a stand-in client), the
+  Play listing, the `SEMPER_API_BASE_URL` var, a backend and Hosting deploy; the engine
+  PR merged first. material_testing moves to `com.sempermechanics.materialtesting` in
+  the same merge that takes this code.
 - **Deployed.** Cloud Run `semper-api` (image `semper-api-36844645753-1` from `9230f444`,
   2026-10-01; scales to zero) behind API Gateway `semper-gw` (config `v202610010948-83`,
   deployed by CI, ADR-006); staging `semper-api-staging` behind `semper-gw-staging` (CI
@@ -133,13 +140,9 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 - **Owed on the backend side.** Material Testing signed in beside a signed-in Semper on
   one phone, and App Check for it; the Pixel 6 account demoted on 2026-09-26 (#264) still
   needs one **New device** to get its licence back (not verified here).
-- **App release `v1.2-beta.3`** (beta, private GitHub Release, run 36239577288, from
-  `ae05bb87`, versionCode 35). Pixel 6 smoke on 2026-09-26, on the account #264 demoted
-  (runs as Demo): clean install, sign-in, a two-frame run, an attested upload, Home
-  "9 / 25" after a refresh, no crashes.
-- **Ported from material_testing, for the next app release:** #298–#302 (first-run
-  dialogs, keyboard insets, ROI zoom/pan, rename re-sends metadata, each frame on its own
-  photo, ADR-011). Owed: manual emulator checks of the keyboard, ROI dock and viewer.
+- **App release `v1.2-beta.3`** (beta, private GitHub Release, versionCode 35, from
+  `ae05bb87`); Pixel 6 smoke on 2026-09-26 was clean. Next release also carries the
+  material_testing ports #298–#302 (manual keyboard / ROI dock / viewer checks owed).
 - **material_testing shares this history** and merges this `main` (last at `a735582`,
   material_testing#115), with its own app id (TD-133). Shared code and backend changes land
   here first; after the quality program it replays two package mappings
@@ -166,10 +169,10 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 - Backup stamps PENDING before `CloudSync.enqueueUpload`; reversing it lets a late PENDING overwrite SYNCED — [§8](docs/backend/CLOUD_ARCHITECTURE_GCP.md).
 - A 429 that consumes the nonce makes the app's retry a 401 replay: keep a signed route's bucket in `dependencies=[deps.rate_limited(...)]`, never in the handler; unsigned routes call `rate_limit.enforce` — `test_rate_limit_before_nonce.py`.
 - Activities are `@MainThread` at class level, so a private helper that runs on `Dispatchers.IO` needs `@WorkerThread` (or `@AnyThread`) or lint fails — TD-24 in [TECH_DEBT.md](docs/ops/TECH_DEBT.md).
-- `SessionStore`'s parser uses `ignoreUnknownKeys` so old `index.json` fields load; keep it — [SessionStoreLegacyFloorTest](app/src/test/java/com/indicvision/semper/data/session/SessionStoreLegacyFloorTest.kt).
-- `SubsetRecommender` runs on the paper's `NOISE_VARIANCE`; no import supplies a measured floor — [SubsetRecommender.kt](app/src/main/java/com/indicvision/semper/ui/analysis/recommend/SubsetRecommender.kt).
+- `SessionStore`'s parser uses `ignoreUnknownKeys` so old `index.json` fields load; keep it — [SessionStoreLegacyFloorTest](app/src/test/java/com/sempermechanics/semper/data/session/SessionStoreLegacyFloorTest.kt).
+- `SubsetRecommender` runs on the paper's `NOISE_VARIANCE`; no import supplies a measured floor — [SubsetRecommender.kt](app/src/main/java/com/sempermechanics/semper/ui/analysis/recommend/SubsetRecommender.kt).
 - Viewer screens read `ViewerArgs.from(intent, …)`, never `intent.get…Extra(DicKeys…)`; a new viewer field goes in `ViewerArgs`, its default and its `SessionRecord` mapping — [ADR-003](docs/adr/ADR-003-viewerargs-read-side.md).
 - A new wizard input must survive a kill: scalars go in `WizardState`'s Bundle, bytes and lists in `WizardDraft`; and `cacheDir/temp_deformed` is only safe from the janitor while the draft is live — [ADR-005](docs/adr/ADR-005-wizard-process-death.md).
 - After Compute, read the run's `RunSpec` / `RunResult` (`spec`, `settings`), never the wizard's sliders or ROI vars: they stay editable and drift — [ADR-004](docs/adr/ADR-004-runspec.md).
-- Since engine 0.2.3 two runs of one build give bit-identical `.dat` whatever the thread count (TD-65), so a `.dat` hash can prove "engine unchanged" again and any run-to-run difference is a defect — `EnginePipelineSmokeTest.repeatSolve_bitIdentical`, `native/tests/integration/test_full_field_determinism.cpp`.
-- `ConvergenceGate` is batch-only; a sweep runs its whole plan, smallest subset first — [ConvergenceGate.kt](app/src/main/java/com/indicvision/semper/ui/analysis/run/ConvergenceGate.kt).
+- Since engine 0.2.3 two runs of one build give bit-identical `.dat` whatever the thread count (TD-65), so a `.dat` hash can prove "engine unchanged" again and any run-to-run difference is a defect — `EnginePipelineSmokeTest.repeatSolve_bitIdentical`, `engine/tests/integration/test_full_field_determinism.cpp`.
+- `ConvergenceGate` is batch-only; a sweep runs its whole plan, smallest subset first — [ConvergenceGate.kt](app/src/main/java/com/sempermechanics/semper/ui/analysis/run/ConvergenceGate.kt).

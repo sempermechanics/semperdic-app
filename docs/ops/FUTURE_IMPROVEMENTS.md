@@ -105,7 +105,7 @@ startup warning are gone; `/uploads` is plain `verified_device`, and
 
 **Affects** C1–C14, B1, B2 · §E2.7 · *debuggability*
 
-`backend/app/errors.py` and `app/src/main/java/com/indicvision/semper/data/net/ApiErrors.kt` now hold the same
+`backend/app/errors.py` and `app/src/main/java/com/sempermechanics/semper/data/net/ApiErrors.kt` now hold the same
 codes, and `backend/tests/test_error_codes.py` fails when they drift — but adding
 a code the client branches on is still two edits in two languages.
 
@@ -134,11 +134,11 @@ twice.
   ×2, `PendingApprovalActivity` ×1, `ui/limit/SessionLimitActivity.kt:83`),
   diagnostics body included.
 - **`.part`/`.full` sidecar names** have no constant anywhere: they are spelled
-  inline in `DriveTransfer` (:263, :317), in `IndicApi.kt:213`, and hand-rebuilt
+  inline in `DriveTransfer` (:263, :317), in `SemperApi.kt:213`, and hand-rebuilt
   at five sites in `CloudRestore` (:309, :355, :598, :645, :767); a rename in one
   place silently stops the other cleanup paths from cleaning up.
 - **The `tmp → renameTo → copy-fallback` promote idiom** exists six times
-  exactly (`DriveTransfer.kt:350,497`, `IndicApi.kt:219`,
+  exactly (`DriveTransfer.kt:350,497`, `SemperApi.kt:219`,
   `SessionEverythingExporter.kt:91`, `SessionStore.kt:467`, `SessionZip.kt:231`)
   plus two variants (`SessionRepository.kt:105`, `DicBatchRunner.kt:182`).
   One `util/AtomicFiles.promote(tmp, dest)` covers all of them.

@@ -27,7 +27,7 @@ the user is told and to whether to retry, in one `when`.
 |---|---|---|---|---|
 | A backend call | `Authed<T>`: `Ok`, `Disabled` (no backend), `NoToken`, `Failed(HttpFailure)` | `data/net/Authed.kt:9`, made by `CloudApi.authed` (`:37`) | The caller maps the outcome, e.g. an erase to `EraseResult` (`data/cloud/CloudErase.kt:101-112`), a status check to an access status (`data/account/AccessStatusResolver.kt:82-95`) | Per caller; `HttpFailure.isRetryable` (429, 5xx, no answer) is only the generic rule (`data/net/HttpFailure.kt:92`) |
 | What a thrown call means | `HttpFailure(kind, cause)`, `HttpFailure.classify(e)` | `data/net/HttpFailure.kt:17`, `:98` | From `kind`; the backend's `detail` code is in `body`, its request id in `requestId` for the "(ref: …)" suffix | `isRetryable`; `isGoneOrNotOurs` (404/403) means give up |
-| A non-200 backend answer, inside the client | `ApiAnswer(code, body, requestId)` with per-route mappers (`failSigned`, `failMe`, `failApprovedOnly`) | `data/net/IndicApiHttp.kt:78`, `data/net/IndicApiCalls.kt:61-93` | Becomes the specific exception (`DeviceConflictException`, `NotApprovedException`, …) or an `ApiException` that `HttpFailure` classifies | — |
+| A non-200 backend answer, inside the client | `ApiAnswer(code, body, requestId)` with per-route mappers (`failSigned`, `failMe`, `failApprovedOnly`) | `data/net/SemperApiHttp.kt:78`, `data/net/SemperApiCalls.kt:61-93` | Becomes the specific exception (`DeviceConflictException`, `NotApprovedException`, …) or an `ApiException` that `HttpFailure` classifies | — |
 | Why a run stopped | `RunStop` (sealed; `wireCode` is the stored `Int`, `fromWireCode` maps any `Int` back) | `field/RunStop.kt` | `EngineFailure.reasonRes` / `shortReason` (`ui/analysis/run/EngineFailure.kt:46`, `:72`); an unknown code is shown with its number, never as a known cause | A run is not retried; Compute is re-enabled after every outcome (`BatchRunController.kt:116`) |
 | A restore or Save-to-Files download | `DownloadFailure`: `Rejected` (404/403), `Unusable` (corrupt or incomplete backup), `Transient` | `data/cloud/restore/DownloadFailure.kt` | `Rejected`: the backend's licence message (`LicenseErrors.restoreMessage`); `Unusable`: "restore failed", the reason code only logged (`data/DicRestoreWorker.kt:94-114`) | `Transient` → `Result.retry()`; the other two end the work |
 | A backup upload | `UploadFailures`: one method per thrown failure, catch order in `DicUploadWorker` (`data/DicUploadWorker.kt:137-155`); HTTP refusals by `UploadErrors.classify` → `Kind` (`data/cloud/UploadErrors.kt:50`) | `data/UploadFailures.kt` | `run.failure(<string>)` writes the reason Home shows; quota opens the limit screen instead | `UploadLog.retry` keeps staging; a stale session or expired link is discarded and recreated, at most a bounded number of times; terminal paths go through one `abandon` |
@@ -82,7 +82,7 @@ the failure means; and `runCatching` swallows cancellation.
 ## Trade-off analysis
 
 A adds a type per domain and a mapping step, and keeps exceptions inside the
-client (`IndicApi` still throws; `HttpFailure` reads them once). In exchange
+client (`SemperApi` still throws; `HttpFailure` reads them once). In exchange
 the user message and the retry rule are each written down once per domain,
 and the tests pin them (`HttpFailureTest`, `AuthedTest`, `AfterSaveTest`,
 `RunStopTest`, `CloudSyncFailureMappingTest`, `MetadataSendFailureRuleTest`).

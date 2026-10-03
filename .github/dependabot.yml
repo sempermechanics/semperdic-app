@@ -64,6 +64,6 @@ updates:
           - version-update:semver-major
           - version-update:semver-minor
 
-  # Deliberately no gitsubmodule entry: moving the `native` engine pin changes
+  # Deliberately no gitsubmodule entry: moving the `engine` submodule pin changes
   # the bit-exact .dat / GIF oracles, so it is a reviewed step under
   # docs/engine/ENGINE_APP_CONTRACT.md, not a monthly bot bump.

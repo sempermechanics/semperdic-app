@@ -16,17 +16,17 @@
 
     <application>
         <activity
-            android:name="com.indicvision.semper.benchmark.BenchmarkSeedActivity"
+            android:name="com.sempermechanics.semper.benchmark.BenchmarkSeedActivity"
             android:exported="true" />
 
         <activity
-            android:name="com.indicvision.semper.ui.settings.SettingsActivity"
+            android:name="com.sempermechanics.semper.ui.settings.SettingsActivity"
             android:exported="true"
             tools:node="merge"
             tools:replace="android:exported" />
 
         <activity
-            android:name="com.indicvision.semper.ui.analysis.StaticAnalysisActivity"
+            android:name="com.sempermechanics.semper.ui.analysis.StaticAnalysisActivity"
             android:exported="true"
             tools:node="merge"
             tools:replace="android:exported" />

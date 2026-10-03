@@ -3,7 +3,7 @@
 build/
 gradle/gradle-daemon-jvm.properties
 
-# === Local config (SDK path + INDIC_API_BASE_URL — NEVER commit) ===
+# === Local config (SDK path + SEMPER_API_BASE_URL — NEVER commit) ===
 local.properties
 .android-sdk/
 

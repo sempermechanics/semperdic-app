@@ -34,7 +34,7 @@ its data afterwards.
 ./gradlew :app:assembleBenchmark :benchmark:assembleBenchmark -PabiFilters=arm64-v8a
 adb install -r app/build/outputs/apk/benchmark/app-benchmark.apk
 adb install -r benchmark/build/outputs/apk/benchmark/benchmark-benchmark.apk
-adb shell am instrument -w -e startupHeadroom true -e androidx.benchmark.suppressErrors UNLOCKED -e class "com.indicvision.semper.benchmark.StartupHeadroomBenchmark#coldStartup[Full]" com.indicvision.semper.benchmark/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -e startupHeadroom true -e androidx.benchmark.suppressErrors UNLOCKED -e class "com.sempermechanics.semper.benchmark.StartupHeadroomBenchmark#coldStartup[Full]" com.sempermechanics.semper.benchmark/androidx.test.runner.AndroidJUnitRunner
 ```
 
 - Repeat the last command for `[BaselineProfile]` and `[None]`, then run all
@@ -42,10 +42,10 @@ adb shell am instrument -w -e startupHeadroom true -e androidx.benchmark.suppres
 - The phone's 30 s screen timeout can end a run, so send
   `adb shell input keyevent KEYCODE_WAKEUP` every 10 s while it runs.
 - Results are in
-  `/storage/emulated/0/Android/media/com.indicvision.semper.benchmark/*benchmarkData.json`.
+  `/storage/emulated/0/Android/media/com.sempermechanics.semper.benchmark/*benchmarkData.json`.
 - The benchmark APK installs over a debug build (same debug key) without losing
   data. Afterwards, reinstall the debug build and uninstall
-  `com.indicvision.semper.benchmark`.
+  `com.sempermechanics.semper.benchmark`.
 
 ## Results
 

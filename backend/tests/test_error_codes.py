@@ -18,7 +18,7 @@ from app import errors
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CLIENT_ERRORS = (
     _REPO_ROOT
-    / "app/src/main/java/com/indicvision/semper/data/net/ApiErrors.kt"
+    / "app/src/main/java/com/sempermechanics/semper/data/net/ApiErrors.kt"
 )
 
 

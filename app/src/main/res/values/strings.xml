@@ -70,8 +70,8 @@
     <string name="roi_invalid_size">Invalid ROI size</string>
 
     <!-- Static analysis -->
-    <string name="exit_indic_title">Exit Semper?</string>
-    <string name="exit_indic_message">Are you sure you want to exit the app?</string>
+    <string name="exit_semper_title">Exit Semper?</string>
+    <string name="exit_semper_message">Are you sure you want to exit the app?</string>
     <string name="exit_analysis_title">Exit analysis?</string>
     <string name="exit_analysis_message">Are you sure you want to leave? All uncalculated setup and ROI definitions will be lost.</string>
     <string name="no_images_selected">No images selected</string>

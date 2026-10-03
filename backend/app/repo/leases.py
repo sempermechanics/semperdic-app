@@ -26,7 +26,7 @@ from .user_config import (
 )
 
 
-log = logging.getLogger("indic.firestore")
+log = logging.getLogger("semper.firestore")
 
 
 #: How many expired leases one checkout reclaims. A pool cannot have more live

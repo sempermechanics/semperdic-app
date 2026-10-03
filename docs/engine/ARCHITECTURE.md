@@ -2,9 +2,9 @@
 
 The C++ correlation engine no longer lives in this repository. It is developed
 in [`sempermechanics/semper-dic-engine`](https://github.com/sempermechanics/semper-dic-engine)
-and linked here as a pinned git submodule at `native/`.
+and linked here as a pinned git submodule at `engine/`.
 
-**Read the canonical document at [`native/docs/ARCHITECTURE.md`](../../native/docs/ARCHITECTURE.md)**
+**Read the canonical document at [`engine/docs/ARCHITECTURE.md`](../../engine/docs/ARCHITECTURE.md)**
 (after `git submodule update --init --recursive`), or browse it in the engine
 repo.
 
@@ -13,9 +13,9 @@ repo.
 | Question | Where |
 |---|---|
 | What API does the app get from the engine, and what may change? | [ENGINE_APP_CONTRACT.md](ENGINE_APP_CONTRACT.md) — the app-side copy of the stability contract |
-| How is the solver built, and what are Path A/B/C? | `native/docs/ARCHITECTURE.md` |
-| The math behind ICGN, ZNSSD and VSG | `native/docs/MATHEMATICS.md` |
-| How do I run the engine tests? | `native/docs/TESTING.md` |
+| How is the solver built, and what are Path A/B/C? | `engine/docs/ARCHITECTURE.md` |
+| The math behind ICGN, ZNSSD and VSG | `engine/docs/MATHEMATICS.md` |
+| How do I run the engine tests? | `engine/docs/TESTING.md` |
 | How does the JNI layer bind into the app? | [../app/ARCHITECTURE.md](../app/ARCHITECTURE.md) |
 
 ## Building the engine from this repo

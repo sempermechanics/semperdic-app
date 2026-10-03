@@ -35,6 +35,9 @@ def _licensed(store, uid="solo-1", email="solo@lab.org"):
 def test_the_header_names_the_app():
     assert apps.from_header("") == apps.SEMPER
     assert apps.from_header(None) == apps.SEMPER
+    assert apps.from_header("com.sempermechanics.semper") == apps.SEMPER
+    assert apps.from_header(" com.sempermechanics.materialtesting ") == MT
+    # The ids from before the move to com.sempermechanics name the same apps.
     assert apps.from_header("com.indicvision.semper") == apps.SEMPER
     assert apps.from_header(" com.indicvision.semper.materialtesting ") == MT
     # Not Semper: a build nobody registered must not take Semper's slot.

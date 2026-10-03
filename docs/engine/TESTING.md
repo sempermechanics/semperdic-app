@@ -2,18 +2,18 @@
 
 The C++ test suite (`dic_tests`) lives with the engine source in
 [`sempermechanics/semper-dic-engine`](https://github.com/sempermechanics/semper-dic-engine),
-linked here as a pinned submodule at `native/`.
+linked here as a pinned submodule at `engine/`.
 
-**Read the canonical document at [`native/docs/TESTING.md`](../../native/docs/TESTING.md)**
+**Read the canonical document at [`engine/docs/TESTING.md`](../../engine/docs/TESTING.md)**
 for the test catalog and the numeric tolerance contract.
 
 ## Running them from this checkout
 
 ```bash
 git submodule update --init --recursive
-cmake -S native/tests -B build/native-tests -DCMAKE_BUILD_TYPE=Release
-cmake --build build/native-tests -j
-./build/native-tests/dic_tests
+cmake -S engine/tests -B build/engine-tests -DCMAKE_BUILD_TYPE=Release
+cmake --build build/engine-tests -j
+./build/engine-tests/dic_tests
 ```
 
 ## Where engine tests run in CI

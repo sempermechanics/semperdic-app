@@ -121,14 +121,16 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           # Fail the release if cloud is silently disabled — must be the API
           # Gateway (or Cloud Run) HTTPS URL for the target environment.
-          INDIC_API_BASE_URL: ${{ vars.INDIC_API_BASE_URL }}
+          # INDIC_API_BASE_URL is the var's name before the rename; drop it once
+          # SEMPER_API_BASE_URL is set in every environment.
+          SEMPER_API_BASE_URL: ${{ vars.SEMPER_API_BASE_URL || vars.INDIC_API_BASE_URL }}
           # Releases sit above every CI run number ever used as a versionCode
           # (main's CI reached 671 before it switched to a fixed 1), so a phone
           # holding an old CI APK takes the next release as an update.
           RELEASE_CODE_BASE: 1000
         run: |
-          if [ -z "${INDIC_API_BASE_URL}" ]; then
-            echo "INDIC_API_BASE_URL is not set in the release environment vars."
+          if [ -z "${SEMPER_API_BASE_URL}" ]; then
+            echo "SEMPER_API_BASE_URL is not set in the release environment vars."
             echo "Set it to the API Gateway URL before shipping."
             exit 1
           fi

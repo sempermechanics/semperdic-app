@@ -49,6 +49,51 @@
           ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:171818100029:android:66c62c336df47e4d161154",
+        "android_client_info": {
+          "package_name": "com.sempermechanics.semper"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "171818100029-bbs3g6dpo02j2cu00avfif7prh3lk7m0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sempermechanics.semper",
+            "certificate_hash": "32d1ef745cd068108d8832fc3a286951207d086c"
+          }
+        },
+        {
+          "client_id": "171818100029-l7sgjbcm1es0i8ncn95q0kdg6v8b9bus.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sempermechanics.semper",
+            "certificate_hash": "920fd8d7acf4c3461363f29e7b82d3dd96842be2"
+          }
+        },
+        {
+          "client_id": "171818100029-buljk26gokn5v473ouc7f120obgurhj2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0_VDq5JJjUMnWS8WZAzn1a73mFgnAuwQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "171818100029-buljk26gokn5v473ouc7f120obgurhj2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
     }
   ],
   "configuration_version": "1"

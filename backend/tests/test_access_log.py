@@ -12,9 +12,9 @@ async def test_request_id_header_present(client):
 async def test_access_log_line_is_structured_json(client, caplog):
     import logging
 
-    with caplog.at_level(logging.INFO, logger="indic.access"):
+    with caplog.at_level(logging.INFO, logger="semper.access"):
         await client.get("/healthz")
-    lines = [rec.message for rec in caplog.records if rec.name == "indic.access"]
+    lines = [rec.message for rec in caplog.records if rec.name == "semper.access"]
     assert lines, "no access-log line emitted"
     entry = json.loads(lines[-1])
     assert entry["event"] == "http_access"
@@ -35,9 +35,9 @@ async def test_access_log_includes_error_code_on_client_error(client, caplog, mo
     from app import rate_limit
 
     monkeypatch.setattr(rate_limit.health_bucket, "allow", lambda key: False)
-    with caplog.at_level(logging.INFO, logger="indic.access"):
+    with caplog.at_level(logging.INFO, logger="semper.access"):
         await client.get("/healthz")
-    lines = [rec.message for rec in caplog.records if rec.name == "indic.access"]
+    lines = [rec.message for rec in caplog.records if rec.name == "semper.access"]
     entry = json.loads(lines[-1])
     assert entry["status"] == 429
     assert entry["errorCode"] == "http_429"

@@ -711,7 +711,7 @@ def _docs_skipped(rel: Path, globs) -> bool:
 def _tracked(root: Path, suffixes: tuple[str, ...]) -> list[Path]:
     out = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True).stdout
     return [Path(p) for p in out.splitlines()
-            if p.endswith(suffixes) and not p.startswith("native/")]
+            if p.endswith(suffixes) and not p.startswith("engine/")]
 
 
 # --------------------------------------------------------------------------- #

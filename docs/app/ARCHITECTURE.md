@@ -21,14 +21,14 @@ SplashActivity
 ```
 
 Access-status routing is centralized in
-[`AccessRouter`](../../app/src/main/java/com/indicvision/semper/ui/auth/AccessRouter.kt)
+[`AccessRouter`](../../app/src/main/java/com/sempermechanics/semper/ui/auth/AccessRouter.kt)
 using constants from
-[`AccessStatus`](../../app/src/main/java/com/indicvision/semper/data/account/AccessStatus.kt).
+[`AccessStatus`](../../app/src/main/java/com/sempermechanics/semper/data/account/AccessStatus.kt).
 Do not re-encode `"APPROVED"` / `"PENDING"` switches in new screens — call the
 router.
 
 Intent extras shared across Activities live in
-[`DicKeys`](../../app/src/main/java/com/indicvision/semper/navigation/DicKeys.kt).
+[`DicKeys`](../../app/src/main/java/com/sempermechanics/semper/navigation/DicKeys.kt).
 
 ## Package map
 
@@ -68,7 +68,7 @@ on 2026-10-03.
 | `data/cloud/restore/` | 10 | `CloudRestore` with `RestoreBundleFetcher`, `RestoreUnpacker`, `RestoreZipVerifier`; `DownloadFailure`, restore start, download outcomes and progress |
 | `data/account/` | 15 | `AuthRepository` with `AuthLinks`, `AccessStatusResolver`, `FirebaseOp`, `ReauthCredentials`; device key and env, licence entitlements / errors, seat lease and heartbeat, legal terms, TOTP |
 | `data/prefs/` | 6 | `DicSettings`, `CoachPrefs`, `ParamClipboard`, `WizardDraft`, `PrefKey` / `PrefFiles` |
-| `data/net/` | 23 | `IndicApi` with `IndicApiCalls`, `IndicApiSigning`, `IndicApiClients` (the shared OkHttp clients), `Paging`, `ApiHost`; the interceptors; `Authed` / `HttpFailure`; token store/provider; remote config |
+| `data/net/` | 23 | `SemperApi` with `SemperApiCalls`, `SemperApiSigning`, `SemperApiClients` (the shared OkHttp clients), `Paging`, `ApiHost`; the interceptors; `Authed` / `HttpFailure`; token store/provider; remote config |
 | `data/net/drive/` | 4 | `DriveTransfer` over `DriveUploader` and `DriveDownloader` — bytes straight to and from Drive |
 | `report/` | 22 | PDF (`ReportBuilder` with extrema, annotations, colour bar; `PdfReportGenerator`), CSV, GIF, heatmaps (`VisualizationEngine` over `HeatmapColorScale`, `HeatmapRenderer`, `DeformedHeatmap`) |
 | `imaging/` | 9 | `BitmapDecode`, `ImageEncode`, AVI reader, PNG encoder — decode/encode away from the UI classes |
@@ -93,7 +93,7 @@ typed outcomes that rethrow cancellation
 ## Session layout on disk
 
 Each saved analysis lives under the app's session directory (see
-[`SessionStore`](../../app/src/main/java/com/indicvision/semper/data/session/SessionStore.kt)):
+[`SessionStore`](../../app/src/main/java/com/sempermechanics/semper/data/session/SessionStore.kt)):
 
 ```
 <sessionId>/
@@ -104,12 +104,12 @@ Each saved analysis lives under the app's session directory (see
 
 The constants `SessionPaths.RAW_DEFORMED_SUBDIR`, `FRAME_DAT_FMT`, and
 `SessionPaths.frameDat` are shared by the ViewModel / `DicBatchRunner`,
-[`DicUploadWorker`](../../app/src/main/java/com/indicvision/semper/data/DicUploadWorker.kt),
+[`DicUploadWorker`](../../app/src/main/java/com/sempermechanics/semper/data/DicUploadWorker.kt),
 and cloud restore so path segments and `frame_0000.dat` names never diverge.
 
 ## Sync workers
 
-When cloud is configured (`INDIC_API_BASE_URL`):
+When cloud is configured (`SEMPER_API_BASE_URL`):
 
 | Type | File | Job |
 |---|---|---|
@@ -121,17 +121,17 @@ When cloud is configured (`INDIC_API_BASE_URL`):
 | Bundle download | `DicBundleDownloadWorker` | Write a session `.zip` into a SAF document the user picked **before** enqueue. Falls back to packing the local session when the cloud copy is unavailable, and deletes the empty destination on failure |
 | Delete queue | `SessionDeletes` / `BackupDeleteWorker` | Every delete that touches the cloud: one unique chain, a 5-second undo window, one analysis at a time, 429s waited out. Phone-only deletes stay inline (`CloudSync.eraseLocalOnly`). `ui/common/transfer/DeleteFeedback` reports progress and the outcome on Home and Settings |
 
-`IndicApi.listSessions` **pages**: it follows `nextPageToken` until the backend
+`SemperApi.listSessions` **pages**: it follows `nextPageToken` until the backend
 stops returning one, so a deep refresh sees the whole account rather than the
 first page. Anything that lists cloud sessions should go through it rather than
 issuing a single request.
 
 ### The interceptors on the shared client
 
-`IndicApiClients.api` carries four application interceptors, in order:
+`SemperApiClients.api` carries four application interceptors, in order:
 `RetryOnTransient`, `AppCheckHeader`, `AppIdHeader` (`X-App-Id`,
 [ADR-010](../adr/ADR-010-device-binding-per-app.md)) and
-`ClientNonce.ServerDateObserver`; `IndicApiClients.download` inherits them
+`ClientNonce.ServerDateObserver`; `SemperApiClients.download` inherits them
 through `newBuilder()`. The first two carry the rules below. Retry is added first, so it
 wraps the header: a retried attempt reads a fresh App Check token rather than
 replaying one that may have expired while it waited.
@@ -164,10 +164,10 @@ place that answers "am I demo or licensed," and it reads through
 `licensePrefix`, `licenseKind`). Fails closed: before the first successful
 fetch, and on any ambiguous value, everything reads as Demo.
 At launch the status check and the cloud reconcile both ask for config, a few
-milliseconds apart; `IndicApi.getConfig` shares one in-flight request between
+milliseconds apart; `SemperApi.getConfig` shares one in-flight request between
 them (`data/net/SingleFlight.kt`, [perf/request-volume.md](../perf/request-volume.md) Pass 2).
 
-`IndicApi.activateLicense()` calls `POST /v1/licenses/activate` (bearer +
+`SemperApi.activateLicense()` calls `POST /v1/licenses/activate` (bearer +
 `X-Device-Id`, not device-signed) to redeem a key — see
 [CLOUD_ARCHITECTURE_GCP.md §20](../backend/CLOUD_ARCHITECTURE_GCP.md#20-licensing--entitlements)
 for the backend's individual-vs-institution split. **On the Android side there is
@@ -180,7 +180,7 @@ gating input anywhere in `LicenseEntitlements`.
 |---|---|
 | Plan resolution / gating | `data/account/LicenseEntitlements.kt` |
 | Cached config, wire → prefs | `data/net/AppRemoteConfig.kt` (`AppConfigDto` in `ApiDtos.kt`) |
-| Redeem a key | `IndicApi.activateLicense()` |
+| Redeem a key | `SemperApi.activateLicense()` |
 | Expiry notice | `LicenseEntitlements.expiryNoticeDays()` — advisory only; suppressed on a cache older than a week. `mode` stays the only gate. See [WORKFLOWS.md §9.3](WORKFLOWS.md#9-session-limit) |
 | Local analysis cap | `LicenseEntitlements.analysisCap()` — the backend's `maxSessions` once known; before that demo 25, licensed uncapped; see [WORKFLOWS.md §9](WORKFLOWS.md#9-session-limit) |
 
@@ -291,7 +291,7 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
 ## Related docs
 
 - [Engine ↔ app contract](../engine/ENGINE_APP_CONTRACT.md) (the engine itself
-  lives in the `native/` submodule — see [engine/ARCHITECTURE.md](../engine/ARCHITECTURE.md))
+  lives in the `engine/` submodule — see [engine/ARCHITECTURE.md](../engine/ARCHITECTURE.md))
 - [Auth setup](../backend/AUTH_SETUP.md)
 - [Cloud architecture](../backend/CLOUD_ARCHITECTURE_GCP.md)
 - [Workflow index](../WORKFLOWS.md) — every flow's entry point, file chain and

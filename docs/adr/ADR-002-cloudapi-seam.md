@@ -1,4 +1,4 @@
-# ADR-002: `CloudApi` interface seam for `IndicApi`
+# ADR-002: `CloudApi` interface seam for `SemperApi`
 
 **Status:** Accepted
 **Date:** 2026-09-23
@@ -6,10 +6,10 @@
 
 ## Context
 
-`IndicApi` (`app/.../data/net/IndicApi.kt:44`) is `class IndicApi private
+`SemperApi` (`app/.../data/net/SemperApi.kt:44`) is `class SemperApi private
 constructor(context)` with a singleton `get(context)`. It is reached from 21
 call sites in 10 files. Its OkHttp clients are private companion objects and
-its base URL is `BuildConfig.INDIC_API_BASE_URL`, with an `https` `require`.
+its base URL is `BuildConfig.SEMPER_API_BASE_URL`, with an `https` `require`.
 
 So nothing that talks to the backend can be unit-tested with a fake:
 `AuthRepository` (sign-in, terms, config, device registration), `SeatLease`
@@ -27,12 +27,12 @@ removed).
 ## Decision
 
 Extract an interface `CloudApi` in `data/net/` with the 23 public members of
-`IndicApi` (`enabled`, `me`, `getConfig`, `exportAccount`, `registerDevice`,
+`SemperApi` (`enabled`, `me`, `getConfig`, `exportAccount`, `registerDevice`,
 `activateLicense`, `checkoutLease`, `releaseLease`, `acceptTerms`,
 `setImprovementConsent`, `listSessions`, `createSession`, `sessionUploads`,
 `completeFile`, `listSessionFiles`, `downloadRange`, `downloadFile`,
 `listUsers`, `setUserStatus`, `deleteAccount`, `deleteSession`,
-`uploadResumable`). `IndicApi` implements it; its nested exception types stay
+`uploadResumable`). `SemperApi` implements it; its nested exception types stay
 where they are, so no `catch` site changes.
 
 Inject it through **defaulted constructor or function parameters** only where
@@ -41,14 +41,14 @@ there is logic worth testing:
 ```kotlin
 class AuthRepository(
     context: Context,
-    private val api: CloudApi = IndicApi.get(context),
+    private val api: CloudApi = SemperApi.get(context),
     private val auth: AuthBackend = FirebaseAuthBackend,
     private val tokens: TokenSource = TokenProvider,
 )
 ```
 
 plus `SeatLease`, `CloudSync`, and the export function extracted from
-`SettingsYourDataSection`. The other call sites keep `IndicApi.get(context)`,
+`SettingsYourDataSection`. The other call sites keep `SemperApi.get(context)`,
 which now simply returns a `CloudApi`-compatible object.
 
 Tests use a hand-written `FakeCloudApi` (records calls, scripted answers or
@@ -99,13 +99,13 @@ more classes need fakes; nothing in A blocks it.
 ## Consequences
 
 - Easier: `AuthRepositoryTest`, `SeatLeaseTest`, cloud export cancel test.
-- Harder: an `IndicApi` member added later must be added to the interface too
+- Harder: an `SemperApi` member added later must be added to the interface too
   (compile error if a fake does not implement it, so it cannot drift).
 - Revisit: when a third class needs `auth` or `tokens` fakes, consider B.
 
 ## Action items
 
-1. [x] `CloudApi` and `TokenSource` (`data/net/CloudApi.kt`); `IndicApi` and
+1. [x] `CloudApi` and `TokenSource` (`data/net/CloudApi.kt`); `SemperApi` and
        `TokenProvider` implement them. ~~`AuthBackend` / `FirebaseAuthBackend`~~:
        replaced by a `signedIn` lambda (As built).
 2. [x] Defaulted parameters on `AuthRepository`, `SeatLease`, `CloudSync`,
@@ -127,10 +127,10 @@ more classes need fakes; nothing in A blocks it.
 - **Defaults live on the interface.** Kotlin forbids an override from
   restating a default, so `listSessions(verify)`, `downloadFile(expectedBytes,
   onBytes)`, `listUsers(status)` and `uploadResumable(onBytes)` declare theirs
-  on `CloudApi`; calls through `IndicApi` inherit them unchanged.
+  on `CloudApi`; calls through `SemperApi` inherit them unchanged.
 - **The fake fails loudly.** Every `FakeCloudApi` call a test did not script
   throws `AssertionError`, so a decision that reaches the backend when it
   should not fails the test instead of getting an answer.
 - **Other call sites unchanged.** `CloudRestore`, `DicUploadWorker` and the
-  workers still take `IndicApi` in their private helpers; widen them to
+  workers still take `SemperApi` in their private helpers; widen them to
   `CloudApi` when a test needs them.

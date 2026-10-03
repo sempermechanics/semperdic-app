@@ -11,7 +11,7 @@ Two kinds of reference are checked:
 * relative Markdown links, `[text](../app/ARCHITECTURE.md)`
 * backticked repository paths, `` `app/src/main/.../SessionStore.kt` ``
 
-Deliberately not checked: URLs, anchors, and anything under `native/` — that is
+Deliberately not checked: URLs, anchors, and anything under `engine/` — that is
 a submodule, absent from every job that does not check it out.
 
 Usage: python scripts/check_doc_paths.py [--root DIR]
@@ -40,10 +40,10 @@ _SOURCE_SUFFIXES = {
 }
 
 # Submodule content, and paths with a placeholder segment, are not resolvable.
-_SKIP_PREFIXES = ("native/", "http://", "https://", "mailto:", "#")
+_SKIP_PREFIXES = ("engine/", "http://", "https://", "mailto:", "#")
 
 # Trees that are generated, vendored or not ours: skipped wherever they appear.
-_SKIP_DIRS = {"native", "build", ".git", ".gradle", ".cxx", ".venv", "node_modules", "venv"}
+_SKIP_DIRS = {"engine", "build", ".git", ".gradle", ".cxx", ".venv", "node_modules", "venv"}
 _PLACEHOLDERS = ("...", "<", "*", "{", "00N")
 
 # Real paths that are absent from a fresh checkout by design. Each is either a
@@ -88,7 +88,7 @@ def _references(doc: Path, root: Path):
             if not target or not _is_checkable(target):
                 continue
             # Resolved rather than joined: a link into the engine submodule is
-            # written ../../native/… and must be skipped in that form too.
+            # written ../../engine/… and must be skipped in that form too.
             yield number, (doc.parent / target).resolve()
 
 
@@ -124,7 +124,7 @@ def main() -> int:
             print(f"  {entry}", file=sys.stderr)
         print(
             "\nFix the reference or restore the file. If it lives in the engine "
-            "submodule, path it under native/ so this check skips it.",
+            "submodule, path it under engine/ so this check skips it.",
             file=sys.stderr,
         )
         return 1

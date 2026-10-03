@@ -49,7 +49,7 @@ and must never be able to import over production. See
 | Name | Kind | Notes |
 |------|------|-------|
 | `KEYSTORE_BASE64`, `KEY_ALIAS`, `KEY_PASSWORD`, `STORE_PASSWORD` | secrets | Required to ship a signed APK |
-| `INDIC_API_BASE_URL` | var | HTTPS API Gateway (preferred) or Cloud Run URL; required with `-PrequireCloudApi=true` |
+| `SEMPER_API_BASE_URL` | var | HTTPS API Gateway (preferred) or Cloud Run URL; required with `-PrequireCloudApi=true` |
 
 Dispatch **from `main` only** — jobs no-op on other refs.
 

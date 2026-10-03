@@ -20,7 +20,7 @@ from .google_auth import verify_app_check_token, verify_id_token
 from .validation import require_header_identifier
 from . import observability as obs
 
-log = logging.getLogger("indic.auth")
+log = logging.getLogger("semper.auth")
 
 _DEV_USER = {"uid": "dev-user", "email": "dev@local", "role": "admin",
              "access_status": statuses.ACCESS_APPROVED, "activeDeviceId": "dev-device",

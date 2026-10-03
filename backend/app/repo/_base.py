@@ -21,7 +21,7 @@ from ..licenses import (
 from ..observability import DependencyError
 
 
-log = logging.getLogger("indic.firestore")
+log = logging.getLogger("semper.firestore")
 
 
 _DB = None

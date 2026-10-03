@@ -34,7 +34,7 @@ from .mint import (
 )
 
 
-log = logging.getLogger("indic.firestore")
+log = logging.getLogger("semper.firestore")
 
 
 #: How often an account whose invite could not be claimed tries again. The

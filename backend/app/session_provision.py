@@ -6,7 +6,7 @@ from . import drive, firestore_repo as repo, statuses
 from . import observability as obs
 from .config import settings
 
-log = logging.getLogger("indic")
+log = logging.getLogger("semper")
 
 
 def purge_session(sid: str) -> None:

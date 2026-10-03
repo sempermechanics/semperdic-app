@@ -38,7 +38,7 @@ changes ──┬──> tier1-app-fast ───────────┤
 | `console-pages` | `scripts/check_console.py`: the consoles' wiring, CSP, deploy placeholders and gateway paths — their only gate, since they have no compiler — plus `node --test`: the DOM-free `console/util.js`, `auth.js` (sign-in, second factor, step-up, `api`, revoke gate), `router.js`, and the operator, account and institution pages, against a fake Firebase SDK loaded through a `module.register` hook and a DOM parsed from the real pages (`firebase-hosting/tests/harness.mjs`) | No — always runs | seconds |
 | `changes` | Resolves path filters + PR/main/Dependabot mode into tier flags | — | seconds |
 | `tier1-app-fast` | spotless, detekt, lint, JVM unit tests, `compileReleaseKotlin`, Kover coverage log + `koverVerify` floor | `app` (PR); always on `main` push | ~5–8 / ~10 min |
-| `tier3-emulator-e2e` | x86_64 emulator: JNI smoke + `AnalysisWizardSmokeTest`. Excludes `com.indicvision.semper.benchmark` on debug (those need the `benchmark` job). | main push / labels | ~20–40 / ~60–90 min |
+| `tier3-emulator-e2e` | x86_64 emulator: JNI smoke + `AnalysisWizardSmokeTest`. Excludes `com.sempermechanics.semper.benchmark` on debug (those need the `benchmark` job). | main push / labels | ~20–40 / ~60–90 min |
 | `tier4-backend` | ruff, shell-script parse, pip-audit, hashed-lock verification, pytest at `--cov-fail-under=75`, Firestore emulator suite | `backend` (PR); always on `main` push | ~5–10 min |
 | `tier5-signed-release` | R8 + signed `assembleRelease` arm64, `.so` presence, signature verify, R8 mapping artifact | main push / labels | ~15–40 / up to ~90 min |
 | `tier-benchmark` | One API 34 emulator, two suites: Macrobenchmark cold/warm startup (`:benchmark`, `suppressErrors=EMULATOR,LOW-BATTERY,UNLOCKED`), then `:app`'s `HotPathMicroBenchmark` on the debug build, installed by Gradle and run with `adb shell am instrument` (`suppressErrors` adds `DEBUGGABLE`, `ACTIVITY-MISSING`, `NOT-AOT-COMPILED`; through Gradle the list arrives cut at its first comma, TD-86; the step fails unless `am instrument` prints `OK (`, and the results are pulled from the device). Emulator **smoke**: no numeric thresholds; both upload their `*-benchmarkData.json` (`macrobenchmark-results`, `microbenchmark-results`). `scripts/ci_test_report.py` prints failing tests and each metric's min / median / max (`BENCH …` lines) into the log, as Tier 3 does for its failures. CI does not pass `--gates`: the real-device gates (`benchmark/gates.json`, checked only in the phone state `DeviceStateRule` records, [ADR-008](../adr/ADR-008-startup-gates-phone-state.md), [TESTING.md](../app/TESTING.md)) apply to a phone run only. The job reads the app id from `app/build.gradle.kts` (`APP_ID`) for the micro run's `am instrument` and pulls, so it runs unchanged in material_testing. | `benchmark` label / `run_benchmark` dispatch only | ~30–60 min |
@@ -84,14 +84,14 @@ gitleaks detect --config .gitleaks.toml --log-opts="<base-sha>..HEAD"
 | Output | Paths | Jobs |
 |--------|-------|------|
 | `app` | `app/**` except `app/src/main/cpp/**`; `gradle/**`, `*.gradle.kts`, `gradle.properties`, `gradlew`, `gradlew.bat`, `settings.gradle.kts` | tier 1 |
-| `native_core` | `native` (the gitlink itself) and `.gitmodules` | — see note |
-| `native_jni` | `native`, `.gitmodules`, `app/src/main/cpp/**`, `SemperNativeLib.kt` | tiers 3 + 5 on main / labels |
+| `native_core` | `engine` (the gitlink itself) and `.gitmodules` | — see note |
+| `native_jni` | `engine`, `.gitmodules`, `app/src/main/cpp/**`, `SemperNativeLib.kt` | tiers 3 + 5 on main / labels |
 | `backend` | `backend/**`, `firestore.rules`, `firebase-hosting/**`, `scripts/deploy-firestore.sh`, and the client's three wire-contract files | tier 4 |
 | `ci_workflow` | `.github/workflows/ci.yml` | sets `app` + `backend` so a workflow-only PR is not gates-only |
 | `full_ci` | `full-ci` label, or `workflow_dispatch` with `full_ci: true`, or **push to `main`** | all |
 
 Because the engine is a submodule, `native_core` and `native_jni` match the
-**gitlink** `native` rather than a source tree — bumping the pinned engine
+**gitlink** `engine` rather than a source tree — bumping the pinned engine
 commit is what triggers them. `native_core` no longer has a job of its own.
 
 The filter step runs with `predicate-quantifier: 'some-with-excludes'`: a file
@@ -172,7 +172,7 @@ passing. Free private orgs may block classic branch protection — see
 # Individual tiers
 ./gradlew :app:testDebugUnitTest spotlessCheck :app:detekt :app:lintDebug   # tier 1
 ./gradlew :app:connectedDebugAndroidTest -PabiFilters=x86_64 \
-  -Pandroid.testInstrumentationRunnerArguments.notPackage=com.indicvision.semper.benchmark  # tier 3
+  -Pandroid.testInstrumentationRunnerArguments.notPackage=com.sempermechanics.semper.benchmark  # tier 3
 cd backend && pip install -r requirements-test.txt && pytest tests/ -v      # tier 4
 
 # The two always-on gates
@@ -192,7 +192,7 @@ A separate `workflow_dispatch` workflow ([release.yml](../../.github/workflows/r
 builds a signed release APK and publishes it as a GitHub Release. Jobs only run
 when the workflow is dispatched from **`main`**. See [RELEASING.md](RELEASING.md).
 
-Release builds **require** `INDIC_API_BASE_URL` (repo or `release` environment
+Release builds **require** `SEMPER_API_BASE_URL` (repo or `release` environment
 variable — see [ENVIRONMENTS.md](ENVIRONMENTS.md)) and pass
 `-PrequireCloudApi=true` so an empty URL cannot silently ship with cloud sync
 disabled. Local `assembleRelease` without that flag still allows offline

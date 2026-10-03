@@ -8,7 +8,7 @@ from .. import drive, errors
 from .. import observability as obs
 from .. import rate_limit
 
-log = logging.getLogger("indic")
+log = logging.getLogger("semper")
 router = APIRouter()
 
 

@@ -82,7 +82,7 @@ shrank: `bakeAnnotationsToCanvas` went from 14 parameters to 8, and
 | `ui/viewer/ResultViewerActivity.kt` | 1,442 | `ui/analysis/roi/StudioOverlayView.kt` | 495 |
 | `data/DicUploadWorker.kt` | 1,021 | `ui/viewer/ResultViewerActivity.kt` | 494 |
 | `data/CloudRestore.kt` | 912 | `ui/home/HomeActivity.kt` | 492 |
-| `ui/analysis/AnalysisViewModel.kt` | 902 | `data/net/IndicApi.kt` | 490 |
+| `ui/analysis/AnalysisViewModel.kt` | 902 | `data/net/SemperApi.kt` | 490 |
 | `ui/analysis/VsgPlotView.kt` | 842 | `ui/analysis/sweep/VsgPlotView.kt` | 490 |
 | `ui/analysis/SweepSetupHelper.kt` | 820 | `ui/analysis/VsgLatticeActivity.kt` | 487 |
 | `ui/settings/SettingsActivity.kt` | 817 | `data/cloud/SessionMetadataDoc.kt` | 474 |
@@ -215,10 +215,10 @@ build-script change for a later PR.
 Before (`main` @ `ff0cfc3d`; files per package):
 
 ```
-com.indicvision.semper/          9   SemperApp, SemperNativeLib, DicResult, DicKeys, …
+com.sempermechanics.semper/          9   SemperApp, SemperNativeLib, DicResult, DicKeys, …
 ├── analytics/                   1
 ├── data/                       50   workers, session store, cloud sync, restore, auth, prefs, …
-│   └── net/                    16   IndicApi, DriveTransfer, interceptors, tokens
+│   └── net/                    16   SemperApi, DriveTransfer, interceptors, tokens
 ├── imaging/                     9
 ├── navigation/                  1
 ├── report/                     12
@@ -236,7 +236,7 @@ com.indicvision.semper/          9   SemperApp, SemperNativeLib, DicResult, DicK
 After (the #331 branch):
 
 ```
-com.indicvision.semper/          2   SemperApp, SemperNativeLib (JNI names; never move)
+com.sempermechanics.semper/          2   SemperApp, SemperNativeLib (JNI names; never move)
 ├── data/                       11   the six Workers + the backup's steps
 │   ├── account/                15
 │   ├── cloud/                  18
@@ -416,7 +416,7 @@ over one area at a time. The counts are the sites each one replaced.
 | `ExternalLinks`, `SupportMail`, `ByteSize` | `ui/common/` | 3, 3 and 10 sites | #319; #329 |
 | `settings_section_header` | `res/layout/` | 7 copied section headers | #319; #329 |
 | `TransferWorkObserver` | `ui/common/transfer/` | Home's and Settings' hand-written WorkInfo observers | #329 |
-| `ApiAnswer`, `ApiHostInterceptor`, `Paging` | `data/net/` | copied header pairs and hand-built exceptions in `IndicApi`; the host check in 3 interceptors | #324 |
+| `ApiAnswer`, `ApiHostInterceptor`, `Paging` | `data/net/` | copied header pairs and hand-built exceptions in `SemperApi`; the host check in 3 interceptors | #324 |
 | `ShareKind`, `Mime` | `ui/viewer/share/`, `util/` | share-kind and MIME strings | #328 |
 | `AnalysisWizardHost`, `WizardStep`, `RunChrome` | `ui/analysis/wizard/`, `run/` | callback fan-outs; `Int` page numbers | #330, #331 |
 | `UpsertResult`, `saveRunRecord`, `afterSave` | `data/session/`, `ui/analysis/run/` | a `Boolean` save result read as "limit reached" | #326, #330, #331 |
@@ -442,7 +442,7 @@ fused hot loop always moved whole with its function.
 | `SettingsActivity` | 817 | 420 | `SettingsCloudSection`, `SettingsAnalysesSection`, `SettingsFooterSection` | #329 |
 | `HomeActivity` | 802 | 492 | `HomeQuotaCard`, `FirstRunPrompts`, `HomeFabLayout`, `HomeTransferWatch`, `BackupBadgeActions` | #329 |
 | `ShareCenter` | 781 | 207 | `ShareExportJobs`, `ShareExportBuilder`, `ShareExportUi` (#314); the builder then into `FieldImageExport`, `BundleExport`, `DataExport` (#328) | #314, #328 |
-| `IndicApi` | 775 | 490 | `IndicApiSigning`, `IndicApiCalls`, `IndicApiClients`, `Paging`, `ApiHost` | #324 |
+| `SemperApi` | 775 | 490 | `SemperApiSigning`, `SemperApiCalls`, `SemperApiClients`, `Paging`, `ApiHost` | #324 |
 | `VsgLatticeActivity` | 775 | 487 | `LatticeProfiles`, `LatticeGraphExport`, `LatticeControls` | #325 |
 | `AuthRepository` | 721 | 466 | `AuthLinks`, `AccessStatusResolver`, `FirebaseOp`, `ReauthCredentials` | #323 |
 | `StudioOverlayView` | 721 | 495 | `StudioOverlayGeometry`, `StudioOverlayViewport` | #325 |
@@ -575,7 +575,7 @@ integration of the ones before it, so retarget it to `main` once those land.
 | [#321](https://github.com/sempermechanics/semperdic-app/pull/321) | Data-layer primitives: atomic writes, zips, prefs, layouts, work, auth, metadata doc |
 | [#322](https://github.com/sempermechanics/semperdic-app/pull/322) | Docs: fused hot loops stay whole; their files may be split |
 | [#323](https://github.com/sempermechanics/semperdic-app/pull/323) | Account and prefs: typed pref keys, one seat call, `AuthRepository` split |
-| [#324](https://github.com/sempermechanics/semperdic-app/pull/324) | Net: request helpers, paging and expired-link fixes, `IndicApi` / `DriveTransfer` split |
+| [#324](https://github.com/sempermechanics/semperdic-app/pull/324) | Net: request helpers, paging and expired-link fixes, `SemperApi` / `DriveTransfer` split |
 | [#325](https://github.com/sempermechanics/semperdic-app/pull/325) | Analysis parts: ViewBinding, ROI and plot kit, four files split |
 | [#326](https://github.com/sempermechanics/semperdic-app/pull/326) | Restore and session: metadata reader, three restore fixes, `CloudRestore` / `SessionStore` split |
 | [#327](https://github.com/sempermechanics/semperdic-app/pull/327) | Upload and sync: the four-step upload worker, three fixes, `CloudSync` split |

@@ -29,7 +29,7 @@ from .user_config import (
 )
 
 
-log = logging.getLogger("indic.firestore")
+log = logging.getLogger("semper.firestore")
 
 
 # Verdicts from _device_lock_state. "Unbound" is deliberately distinct from

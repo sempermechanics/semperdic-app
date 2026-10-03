@@ -31,7 +31,12 @@ MATERIAL_TESTING = "materialtesting"
 #: holder's phone changed, and it changed for every app on it.
 ALL = (SEMPER, MATERIAL_TESTING)
 
+#: Both apps moved from `com.indicvision.*` to `com.sempermechanics.*`
+#: (ADR-019). The old ids stay until no installed build sends them; each maps
+#: to the same app, so a phone keeps its slot and its backups across the move.
 _BY_APPLICATION_ID = {
+    "com.sempermechanics.semper": SEMPER,
+    "com.sempermechanics.materialtesting": MATERIAL_TESTING,
     "com.indicvision.semper": SEMPER,
     "com.indicvision.semper.materialtesting": MATERIAL_TESTING,
 }

@@ -48,7 +48,7 @@ from .invites import (
 )
 
 
-log = logging.getLogger("indic.firestore")
+log = logging.getLogger("semper.firestore")
 
 
 def _license_public(license_id: str, data: dict) -> dict:

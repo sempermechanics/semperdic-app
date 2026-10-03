@@ -20,7 +20,7 @@ from . import errors
 from . import observability as obs
 from .config import settings
 
-log = logging.getLogger("indic.tasks")
+log = logging.getLogger("semper.tasks")
 
 PROVISION_PATH = "/v1/tasks/provision-session"
 

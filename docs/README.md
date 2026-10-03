@@ -15,7 +15,7 @@ build it. This page routes you to the rest.
 | See which errors open public Troubleshooting | [app/FAQ_LINKS.md](app/FAQ_LINKS.md) · canonical text [app/FAQ.md](app/FAQ.md) |
 | Operate the app to analyse a DIC image set | [OPERATING_MANUAL.md](OPERATING_MANUAL.md) |
 | Understand lighting / measurement-floor accuracy | [app/NOISE_FLOOR_STRAIN_ACCURACY.md](app/NOISE_FLOOR_STRAIN_ACCURACY.md) · short FAQ [app/FAQ.md — lighting-and-accuracy](app/FAQ.md#lighting-and-accuracy) |
-| Change the correlation engine (C++) | [engine/ARCHITECTURE.md](engine/ARCHITECTURE.md) — the engine is a submodule, so this points into `native/docs/` |
+| Change the correlation engine (C++) | [engine/ARCHITECTURE.md](engine/ARCHITECTURE.md) — the engine is a submodule, so this points into `engine/docs/` |
 | Know what the app may assume of the engine | [engine/ENGINE_APP_CONTRACT.md](engine/ENGINE_APP_CONTRACT.md) |
 | Check the math, or write it up | [engine/MATHEMATICS.md](engine/MATHEMATICS.md) |
 | Add or run app tests | [app/TESTING.md](app/TESTING.md) |
@@ -61,7 +61,7 @@ docs/
 ```
 
 `docs/engine/` is mostly signposts: the engine lives in its own repository, and
-its architecture, math and test docs are canonical at `native/docs/`. The one
+its architecture, math and test docs are canonical at `engine/docs/`. The one
 real document here is
 [engine/ENGINE_APP_CONTRACT.md](engine/ENGINE_APP_CONTRACT.md), which states what
 the app is allowed to assume across the JNI boundary.
@@ -85,7 +85,7 @@ Digital Image Correlation measures deformation from photographs:
 
 That is enough theory for most contributions. The full pipeline — AKAZE feature
 seeding → Delaunay mesh → RGDIC propagation → ICGN refinement → VSG strain — is
-in `native/docs/ARCHITECTURE.md` inside the engine submodule.
+in `engine/docs/ARCHITECTURE.md` inside the engine submodule.
 
 ## Terms you'll meet in the code
 

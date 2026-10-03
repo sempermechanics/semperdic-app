@@ -800,7 +800,7 @@ sweep hitting the cap, or a background upload rejected with a quota error.
 is not meant to be one. A licence is minted against the customer's email
 address and attaches at their next sign-in — an individual licence directly, an
 institution seat through the roster — so nothing is read off a phone, dictated,
-or typed. `POST /v1/licenses/activate` and `IndicApi.activateLicense()` remain
+or typed. `POST /v1/licenses/activate` and `SemperApi.activateLicense()` remain
 for support recovery and have no caller in `app/src/`. What the app shows of a
 licence is its prefix, in Settings → Account (4.2a); the key itself never
 reaches the device. This screen's behaviour for a Professional account is
@@ -885,7 +885,7 @@ Not part of the test pass. Recorded so nobody rediscovers them the hard way.
 | **Google SSO** button and its divider | Hidden unless `default_web_client_id` is in the APK (from `google-services.json`). Release resource shrinking must not strip it — see [AUTH_SETUP.md](../backend/AUTH_SETUP.md). Separately, the build's signing SHA-1 must be registered in Firebase or the button shows but sign-in fails |
 | Settings → **Pending access requests** → Admin | Hidden unless the backend reports role `admin` |
 | Dev sign-in bypass (skips auth, disables cloud) | Debug build **and** the bypass flag **and** an emulator |
-| Splash → Home without auth | Debug build with no `INDIC_API_BASE_URL`. A *release* build with no base URL cannot get past sign-in at all |
+| Splash → Home without auth | Debug build with no `SEMPER_API_BASE_URL`. A *release* build with no base URL cannot get past sign-in at all |
 | `DebugViewerSeedActivity` | A 13th activity, declared only in `app/src/debug/AndroidManifest.xml` and exported so `adb` can drop straight into the result viewer for emulator screenshots. The "12 activities" count above is the **main** manifest |
 
 ### Blocked on external setup

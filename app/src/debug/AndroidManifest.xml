@@ -14,7 +14,7 @@
 
     <application>
         <activity
-            android:name="com.indicvision.semper.debug.DebugViewerSeedActivity"
+            android:name="com.sempermechanics.semper.debug.DebugViewerSeedActivity"
             android:exported="true" />
     </application>
 </manifest>

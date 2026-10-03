@@ -100,7 +100,7 @@ so none of the signing steps run if any of the above fails.
    the keystore is absent the variant stays **unsigned** rather than silently
    debug-signed. `assembleRelease` still runs R8 minify; the mapping upload
    fails the job if that file is missing.
-2. Requires variable **`INDIC_API_BASE_URL`** (HTTPS API Gateway or Cloud Run
+2. Requires variable **`SEMPER_API_BASE_URL`** (HTTPS API Gateway or Cloud Run
    URL) and builds with `-PrequireCloudApi=true`. A missing, empty or non-HTTPS
    URL fails the job — cloud sync must not ship silently disabled, and ID tokens
    must not go out in cleartext.
@@ -151,7 +151,7 @@ environment.
 
 | Variable | Description |
 |----------|-------------|
-| `INDIC_API_BASE_URL` | HTTPS base URL of the API Gateway (preferred) or Cloud Run service |
+| `SEMPER_API_BASE_URL` | HTTPS base URL of the API Gateway (preferred) or Cloud Run service |
 
 ### Backend staging / production
 

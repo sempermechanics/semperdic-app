@@ -21,7 +21,7 @@ runs:
       uses: actions/cache@v6
       with:
         path: app/.cxx
-        key: cxx-${{ inputs.abi }}-${{ hashFiles('native/CMakeLists.txt', 'native/adapters/android/CMakeLists.txt', 'native/cmake/*.cmake', '.gitmodules', 'native/**/*.cpp', 'native/**/*.h', 'native/**/*.hpp') }}
+        key: cxx-${{ inputs.abi }}-${{ hashFiles('engine/CMakeLists.txt', 'engine/adapters/android/CMakeLists.txt', 'engine/cmake/*.cmake', '.gitmodules', 'engine/**/*.cpp', 'engine/**/*.h', 'engine/**/*.hpp') }}
         restore-keys: cxx-${{ inputs.abi }}-
 
     - name: Install ccache
@@ -32,7 +32,7 @@ runs:
       uses: actions/cache@v6
       with:
         path: ${{ github.workspace }}/.ccache
-        key: ccache-${{ inputs.abi }}-${{ hashFiles('native/CMakeLists.txt', 'native/adapters/android/CMakeLists.txt', 'native/cmake/*.cmake', '.gitmodules', 'native/**/*.cpp', 'native/**/*.h', 'native/**/*.hpp') }}
+        key: ccache-${{ inputs.abi }}-${{ hashFiles('engine/CMakeLists.txt', 'engine/adapters/android/CMakeLists.txt', 'engine/cmake/*.cmake', '.gitmodules', 'engine/**/*.cpp', 'engine/**/*.h', 'engine/**/*.hpp') }}
         restore-keys: |
           ccache-${{ inputs.abi }}-
           ccache-release-${{ inputs.abi }}-
@@ -40,7 +40,7 @@ runs:
     - name: Sparse OpenCV worktree
       shell: bash
       # The engine script is not marked executable in the submodule checkout.
-      run: bash native/scripts/sparse-opencv.sh
+      run: bash engine/scripts/sparse-opencv.sh
 
     # Same hash as the cache keys above, so prune-cache except-key cannot drift.
     # Also raise Gradle heap for R8, let ninja use every runner core, and point
@@ -49,7 +49,7 @@ runs:
       id: native-env
       shell: bash
       run: |
-        infix='${{ hashFiles('native/CMakeLists.txt', 'native/adapters/android/CMakeLists.txt', 'native/cmake/*.cmake', '.gitmodules', 'native/**/*.cpp', 'native/**/*.h', 'native/**/*.hpp') }}'
+        infix='${{ hashFiles('engine/CMakeLists.txt', 'engine/adapters/android/CMakeLists.txt', 'engine/cmake/*.cmake', '.gitmodules', 'engine/**/*.cpp', 'engine/**/*.h', 'engine/**/*.hpp') }}'
         echo "infix=$infix" >> "$GITHUB_OUTPUT"
         echo "CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)" >> "$GITHUB_ENV"
         echo "GRADLE_OPTS=-Dorg.gradle.jvmargs=-Xmx4g -XX:+UseParallelGC -Dfile.encoding=UTF-8" >> "$GITHUB_ENV"

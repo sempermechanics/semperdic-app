@@ -17,7 +17,7 @@ from . import backoff, errors
 from .config import settings
 from .google_auth import drive_access_token
 
-log = logging.getLogger("indic.drive")
+log = logging.getLogger("semper.drive")
 
 API = "https://www.googleapis.com/drive/v3"
 UPLOAD = (

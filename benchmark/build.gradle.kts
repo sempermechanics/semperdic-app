@@ -15,7 +15,7 @@ val targetPackage: String =
     }
 
 android {
-    namespace = "com.indicvision.semper.benchmark"
+    namespace = "com.sempermechanics.semper.benchmark"
     compileSdk = 37
 
     defaultConfig {

@@ -14,7 +14,7 @@ from collections import Counter, defaultdict
 
 ROOT = sys.argv[1]
 OUT = sys.argv[2]
-MAIN = os.path.join(ROOT, "app", "src", "main", "java", "com", "indicvision", "semper")
+MAIN = os.path.join(ROOT, "app", "src", "main", "java", "com", "sempermechanics", "semper")
 TEST_DIRS = {
     "test": os.path.join(ROOT, "app", "src", "test"),
     "androidTest": os.path.join(ROOT, "app", "src", "androidTest"),

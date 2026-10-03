@@ -98,7 +98,7 @@ the second one starts before the first has answered.
 The plan was to skip the reconcile's fetch when config had been fetched in the
 last 60 s. That can never trigger when the two overlap, so it was not built.
 
-**Lever:** request coalescing. `IndicApi.getConfig` runs through a
+**Lever:** request coalescing. `SemperApi.getConfig` runs through a
 `SingleFlight` (`data/net/SingleFlight.kt`): a call that arrives while one is
 running waits for the same answer.
 - Nothing is cached; the next call after one finishes fetches again.
@@ -138,7 +138,7 @@ The after run kept the screen awake with the wake key and checked that it held o
 all 10 opens. The before run did not; its one silent open is most likely the
 phone sleeping. The phone's own log showed no requests for that open either.
 
-**Cost:** one small class and 12 lines in `IndicApi`; no new dependency. A fetch
+**Cost:** one small class and 12 lines in `SemperApi`; no new dependency. A fetch
 started with one token answers any caller that joins within its ~100 ms flight.
 Every caller at launch holds the same signed-in user's token.
 

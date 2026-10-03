@@ -1,4 +1,4 @@
-title = "IndicVision secret scanning"
+title = "Semper secret scanning"
 
 [extend]
 useDefault = true

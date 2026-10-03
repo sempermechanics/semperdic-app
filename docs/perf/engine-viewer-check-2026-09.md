@@ -6,9 +6,9 @@ changed.**
 
 ## Native solver throughput
 
-`Perf.SubsetSolveThroughput` from the engine's host tests (`native/tests/perf/`),
+`Perf.SubsetSolveThroughput` from the engine's host tests (`engine/tests/perf/`),
 checked against the reference in
-[native/docs/PERF_BASELINE_bd44af0.md](../../native/docs/PERF_BASELINE_bd44af0.md):
+[engine/docs/PERF_BASELINE_bd44af0.md](../../engine/docs/PERF_BASELINE_bd44af0.md):
 ≥ 4557 solves/s, 95 % of 4797.
 
 **Environment:**
@@ -82,4 +82,4 @@ run on the same device, back to back.
 
 `./gradlew :app:installDebug` installs on **every** connected device and
 emulator. Set `ANDROID_SERIAL` to the phone's serial before running it when
-emulators that belong to other work are attached. Afterwards, uninstall `com.indicvision.semper.test`.
+emulators that belong to other work are attached. Afterwards, uninstall `com.sempermechanics.semper.test`.

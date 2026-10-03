@@ -11,7 +11,7 @@ from .. import rate_limit
 from ..deps import any_status_user, current_user, rate_limited, verified_device
 from ._shared import json_dumps
 
-log = logging.getLogger("indic")
+log = logging.getLogger("semper")
 router = APIRouter()
 
 

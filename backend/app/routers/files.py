@@ -11,7 +11,7 @@ from ..deps import rate_limited, verified_device
 from ..models import FileComplete
 from ..validation import DocumentId
 
-log = logging.getLogger("indic")
+log = logging.getLogger("semper")
 router = APIRouter()
 
 

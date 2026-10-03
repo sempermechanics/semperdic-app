@@ -28,7 +28,7 @@ from ..session_provision import provision_session
 from ..validation import PageToken, SessionId
 from ._shared import clamp_page_size, json_dumps, page_block
 
-log = logging.getLogger("indic")
+log = logging.getLogger("semper")
 router = APIRouter()
 
 

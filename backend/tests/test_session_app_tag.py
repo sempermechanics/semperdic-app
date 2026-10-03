@@ -19,7 +19,7 @@ from app import apps, audit, drive, firestore_repo as repo, statuses
 DEV_UID = "dev-user"  # deps._DEV_USER in DEV_INSECURE_AUTH mode
 MT = apps.MATERIAL_TESTING
 MT_HEADER = {"X-App-Id": "com.indicvision.semper.materialtesting"}
-SEMPER_HEADER = {"X-App-Id": "com.indicvision.semper"}
+SEMPER_HEADER = {"X-App-Id": "com.sempermechanics.semper"}
 _SHA = "a" * 64
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"

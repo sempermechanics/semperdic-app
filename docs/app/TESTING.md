@@ -36,7 +36,7 @@ chunk own?" here.
 Reach for these before writing a local helper; each replaced several
 hand-rolled copies (#315, #330).
 
-| Fixture | File (under `app/src/test/java/com/indicvision/semper/`) | Use it for |
+| Fixture | File (under `app/src/test/java/com/sempermechanics/semper/`) | Use it for |
 |---|---|---|
 | `sessionRecord(...)` | `fixtures/SessionRecords.kt` | A `SessionRecord` with every required field defaulted (one frame, 100 × 100 px, subset 41, step 5, the whole image as ROI). Name only the fields the test cares about |
 | `packDat`, `gridFrame`, `writeGridBatch` | `fixtures/DatFixtures.kt` | `.dat` bytes in the engine's layout, a synthetic grid frame, or a whole batch of them in a folder |
@@ -49,13 +49,13 @@ hand-rolled copies (#315, #330).
 ## Running by chunk
 
 ```bash
-./gradlew :app:testDebugUnitTest --tests "com.indicvision.semper.auth.*"
-./gradlew :app:testDebugUnitTest --tests "com.indicvision.semper.session.*"
-./gradlew :app:testDebugUnitTest --tests "com.indicvision.semper.analysis.*"
-./gradlew :app:testDebugUnitTest --tests "com.indicvision.semper.results.*"
-./gradlew :app:testDebugUnitTest --tests "com.indicvision.semper.cloud.*"
-./gradlew :app:testDebugUnitTest --tests "com.indicvision.semper.settings.*"
-./gradlew :app:testDebugUnitTest --tests "com.indicvision.semper.viewer.*"
+./gradlew :app:testDebugUnitTest --tests "com.sempermechanics.semper.auth.*"
+./gradlew :app:testDebugUnitTest --tests "com.sempermechanics.semper.session.*"
+./gradlew :app:testDebugUnitTest --tests "com.sempermechanics.semper.analysis.*"
+./gradlew :app:testDebugUnitTest --tests "com.sempermechanics.semper.results.*"
+./gradlew :app:testDebugUnitTest --tests "com.sempermechanics.semper.cloud.*"
+./gradlew :app:testDebugUnitTest --tests "com.sempermechanics.semper.settings.*"
+./gradlew :app:testDebugUnitTest --tests "com.sempermechanics.semper.viewer.*"
 ```
 
 `settings/HelpSupportSectionTest` drives the real `SettingsActivity` under
@@ -71,8 +71,8 @@ so the only claim worth making is that a third-party decoder agrees.
 `analysis/WizardStateTest` covers the wizard's process-death restore on the
 JVM, `ui/analysis/wizard/WizardDraftRestoreTest` covers it through a real Parcel on a
 device, and neither can kill the process. The kill is a scripted pass: take
-the wizard to step 2, press Home, run `adb shell am kill com.indicvision.semper`
-(if `pidof` still shows the process, `adb shell run-as com.indicvision.semper
+the wizard to step 2, press Home, run `adb shell am kill com.sempermechanics.semper`
+(if `pidof` still shows the process, `adb shell run-as com.sempermechanics.semper
 kill -9 <pid>`), then reopen from Recents. Step, sliders, ROI and both slots
 must come back. Run it once more with `run-as … rm -rf cache/temp_deformed`
 before reopening: expect an empty step 1 and the "cleared while Semper was in
@@ -98,9 +98,9 @@ fixed, so a change in allocations is caused by the code and nothing else.
 
 ```bash
 ./gradlew :app:installDebug :app:installDebugAndroidTest
-adb shell am instrument -w -e class com.indicvision.semper.benchmark.HotPathMicroBenchmark \
+adb shell am instrument -w -e class com.sempermechanics.semper.benchmark.HotPathMicroBenchmark \
   -e androidx.benchmark.suppressErrors EMULATOR,DEBUGGABLE,LOW-BATTERY,UNLOCKED,ACTIVITY-MISSING,NOT-AOT-COMPILED \
-  com.indicvision.semper.test/androidx.test.runner.AndroidJUnitRunner
+  com.sempermechanics.semper.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 Emulators on API 34 and 37 both raise `ACTIVITY-MISSING` and `NOT-AOT-COMPILED`
@@ -144,11 +144,11 @@ Three things that will otherwise cost you an afternoon:
   `ViewerScrubBenchmark` deliberately avoids that API.
 - **The connected task installs over whatever is on the phone, then uninstalls it.**
   `:benchmark:connectedBenchmarkAndroidTest` installs the `benchmark` build over an
-  existing `com.indicvision.semper` (same debug key), keeping its data, and uninstalls
+  existing `com.sempermechanics.semper` (same debug key), keeping its data, and uninstalls
   the app when it finishes, taking that data with it. Back up anything you need first.
   A signed-in session left over from a debug install also changes the launch route
   (Splash → Home rather than sign-in); before TD-90 that crashed both `StartupBenchmark`
-  cases on a build with no `INDIC_API_BASE_URL` (found on a Pixel 6 in material_testing).
+  cases on a build with no `SEMPER_API_BASE_URL` (found on a Pixel 6 in material_testing).
 
 Results land as `*-benchmarkData.json` under the module's
 `build/outputs/connected_android_test_additional_output/`. A worked before/after
@@ -184,7 +184,7 @@ relative numbers only.
 A startup time moves 30–40 % with heat and the charger (material_testing's TD-135),
 so a result is gated only in the state the references assume. `DeviceStateRule` (a
 `@get:Rule` in `StartupBenchmark`, `ScreenBenchmark`, `StartupHeadroomBenchmark` and
-`ViewerScrubBenchmark`) writes `com.indicvision.semper.benchmark-deviceState.json`
+`ViewerScrubBenchmark`) writes `com.sempermechanics.semper.benchmark-deviceState.json`
 next to the results: per test, the thermal status, battery temperature and level,
 charger, free memory and swap, at its start and end. A result whose test ran above
 `state.maxThermalStatus` (0) or off the charger (`state.requirePlugged`) prints
@@ -251,7 +251,7 @@ starts no faster than `None` ([perf/startup.md](../perf/startup.md), which has t
 
 ## What not to test here
 
-- Algorithm accuracy → the engine's own suite, which lives in the `native/`
+- Algorithm accuracy → the engine's own suite, which lives in the `engine/`
   submodule and runs in the engine repo's CI, not here
   ([docs/engine/TESTING.md](../engine/TESTING.md))
 - Backend API → backend pytest (`backend/tests/`)

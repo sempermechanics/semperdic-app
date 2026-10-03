@@ -24,7 +24,7 @@ though, because something outside the compiler records them:
   upgrade pointing at a class that no longer exists. Those jobs fail with
   `ClassNotFoundException`, and uploads, restores and deletes are lost.
 - **JNI** binds `SemperNativeLib`'s natives by symbol name
-  (`Java_com_indicvision_semper_SemperNativeLib_*` in the engine's
+  (`Java_com_sempermechanics_semper_SemperNativeLib_*` in the engine's
   `adapters/android/jni/SemperJNI.cpp`). The engine calls
   `ProgressCallback.onProgressUpdate` through `GetMethodID`, and the R8 keep
   rules in `app/proguard-rules.pro` name both classes.
@@ -54,7 +54,7 @@ File counts are main sources only; the first move's table is in this file's hist
 | `data/cloud/restore/` | 10 | `CloudRestore`, `RestoreBundleFetcher`, `RestoreUnpacker`, `RestoreZipVerifier`, `RestoreStart` (+ `RestoreFailureLedger`), `RestoreDownloadOutcomes`, `DownloadFailure`, `DownloadProgress`, `SafDestination`, `UnrestorableBackupException` |
 | `data/account/` | 15 | `AuthRepository`, `AuthLinks`, `AccessStatus`, `AccessStatusResolver`, `FirebaseOp`, `ReauthCredentials`, `DevAuth`, `DeviceEnv`, `DeviceKeyManager`, `LicenseEntitlements`, `LicenseErrors`, `SeatLease`, `SeatHeartbeat`, `LegalTerms`, `TotpMfa` |
 | `data/prefs/` | 6 | `DicSettings`, `CoachPrefs`, `ParamClipboard`, `WizardDraft`, `PrefKey`, `PrefFiles` |
-| `data/net/` | 23 | The backend client: `IndicApi` (+ `IndicApiCalls`, `IndicApiClients`, `IndicApiHttp`, `IndicApiSigning`, `Paging`, `ApiHost`), `CloudApi`, `Authed`, `HttpFailure`, `HttpStatus`, `ApiDtos`, `ApiErrors`, `ApiExceptions`, the interceptors (`RetryOnTransient`, `AppCheckHeader`, `AppIdHeader`, `ClientNonce`), `AppRemoteConfig`, `ArtifactRoles`, `SingleFlight`, `TokenProvider`, `TokenStore` |
+| `data/net/` | 23 | The backend client: `SemperApi` (+ `SemperApiCalls`, `SemperApiClients`, `SemperApiHttp`, `SemperApiSigning`, `Paging`, `ApiHost`), `CloudApi`, `Authed`, `HttpFailure`, `HttpStatus`, `ApiDtos`, `ApiErrors`, `ApiExceptions`, the interceptors (`RetryOnTransient`, `AppCheckHeader`, `AppIdHeader`, `ClientNonce`), `AppRemoteConfig`, `ArtifactRoles`, `SingleFlight`, `TokenProvider`, `TokenStore` |
 | `data/net/drive/` | 4 | Drive's resumable transfers: `DriveTransfer`, `DriveUploader`, `DriveDownloader`, `DriveUpload` |
 | `imaging/` | 9 | Decoders and encoders (`BitmapDecode`, `ImageEncode`, `AviReader`, `AviLuma`, `MjpegHuffman`, `LumaRange`, …) |
 | `imaging/video/` | 7 | `VideoFrameExtractor`, `FrameSink` (was `VideoFrameBatchWriter`), `VideoKeyframeHelper`, `HardwareVideoDecoder`, `AviCodecDecoder`, `AviVideoDecoder`, `ImageLuma` |
@@ -168,7 +168,7 @@ imports by hand. `scripts/move_kotlin_packages.py` makes that repeatable.
   read the same before and after.
 - Layout XML names moved custom views by FQCN. ViewBinding compiles against
   those names, so a missed reference fails the build, not the app.
-- Kover's view-class filters (`com.indicvision.semper.ui.*Activity*` etc.)
+- Kover's view-class filters (`com.sempermechanics.semper.ui.*Activity*` etc.)
   match nested packages too, so a move alone does not change what coverage
   measures. Splitting an Activity does: its controllers are no longer
   `*Activity*` classes, so their lines join the measured set

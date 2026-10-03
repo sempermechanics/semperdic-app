@@ -178,13 +178,13 @@ jobs:
             # sees pin bumps (gitlink) / .gitmodules — host/sanitizer suites run
             # in the engine repo's own workflow.
             native_core:
-              - 'native'
+              - 'engine'
               - '.gitmodules'
             native_jni:
-              - 'native'
+              - 'engine'
               - '.gitmodules'
               - 'app/src/main/cpp/**'
-              - 'app/src/main/java/com/indicvision/semper/SemperNativeLib.kt'
+              - 'app/src/main/java/com/sempermechanics/semper/SemperNativeLib.kt'
             backend:
               - 'backend/**'
               - 'firestore.rules'
@@ -195,9 +195,9 @@ jobs:
               # a rename on an app-only PR skips the backend tier and the tests
               # holding each pair of lists together never run — which is the one
               # thing keeping them in step.
-              - 'app/src/main/java/com/indicvision/semper/data/net/ApiErrors.kt'
-              - 'app/src/main/java/com/indicvision/semper/data/net/ArtifactRoles.kt'
-              - 'app/src/main/java/com/indicvision/semper/data/cloud/UploadWorkOutcomes.kt'
+              - 'app/src/main/java/com/sempermechanics/semper/data/net/ApiErrors.kt'
+              - 'app/src/main/java/com/sempermechanics/semper/data/net/ArtifactRoles.kt'
+              - 'app/src/main/java/com/sempermechanics/semper/data/cloud/UploadWorkOutcomes.kt'
             ci_workflow:
               - '.github/workflows/ci.yml'
               # Tier 3 and the benchmark tier run it to report results.
@@ -392,7 +392,7 @@ jobs:
             ./gradlew :app:connectedDebugAndroidTest
             -PabiFilters=x86_64
             -PnativeCompilerLauncher=ccache
-            -Pandroid.testInstrumentationRunnerArguments.notPackage=com.indicvision.semper.benchmark
+            -Pandroid.testInstrumentationRunnerArguments.notPackage=com.sempermechanics.semper.benchmark
             --console=plain
 
       # Gradle names no failing test in the log; the report is in the build dir.
@@ -681,7 +681,7 @@ jobs:
           script: |
             ./gradlew :benchmark:connectedBenchmarkAndroidTest -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.enabledRules=Macrobenchmark -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR,LOW-BATTERY,UNLOCKED
             ./gradlew :app:installDebug :app:installDebugAndroidTest -PabiFilters=x86_64 -PnativeCompilerLauncher=ccache --console=plain
-            "$ANDROID_HOME/platform-tools/adb" shell am instrument -w -e class com.indicvision.semper.benchmark.HotPathMicroBenchmark -e androidx.benchmark.suppressErrors EMULATOR,DEBUGGABLE,LOW-BATTERY,UNLOCKED,ACTIVITY-MISSING,NOT-AOT-COMPILED "$APP_ID.test/androidx.test.runner.AndroidJUnitRunner" | tee micro-instrument.txt
+            "$ANDROID_HOME/platform-tools/adb" shell am instrument -w -e class com.sempermechanics.semper.benchmark.HotPathMicroBenchmark -e androidx.benchmark.suppressErrors EMULATOR,DEBUGGABLE,LOW-BATTERY,UNLOCKED,ACTIVITY-MISSING,NOT-AOT-COMPILED "$APP_ID.test/androidx.test.runner.AndroidJUnitRunner" | tee micro-instrument.txt
             mkdir -p app/build/outputs/connected_android_test_additional_output
             "$ANDROID_HOME/platform-tools/adb" pull "/sdcard/Android/media/$APP_ID.test" app/build/outputs/connected_android_test_additional_output || true
             "$ANDROID_HOME/platform-tools/adb" pull "/sdcard/Android/media/$APP_ID" app/build/outputs/connected_android_test_additional_output || true

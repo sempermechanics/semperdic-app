@@ -5,21 +5,21 @@ user in with Firebase, sends the resulting **Firebase ID token** as a bearer
 token, and Cloud Run verifies it with `firebase-admin`.
 
 Three providers are wired in
-[`AuthRepository.kt`](../../app/src/main/java/com/indicvision/semper/data/account/AuthRepository.kt):
+[`AuthRepository.kt`](../../app/src/main/java/com/sempermechanics/semper/data/account/AuthRepository.kt):
 
 | Provider | How it signs in | Email verified? |
 |---|---|---|
-| **Google** | Credential Manager returns a Google ID token, exchanged for a Firebase credential ([GoogleSignInHelper.kt](../../app/src/main/java/com/indicvision/semper/ui/auth/GoogleSignInHelper.kt)) | Yes, by construction |
+| **Google** | Credential Manager returns a Google ID token, exchanged for a Firebase credential ([GoogleSignInHelper.kt](../../app/src/main/java/com/sempermechanics/semper/ui/auth/GoogleSignInHelper.kt)) | Yes, by construction |
 | **Email link** | Firebase emails a sign-in link; tapping it completes sign-in | Yes, by construction |
 | **Email + password** | Standard Firebase email/password | Not until the user confirms |
 
 Forgot a password? The sign-in screen also offers **Forgot password?**, which
 emails a Firebase reset link (`sendPasswordReset` in
-[AuthRepository.kt](../../app/src/main/java/com/indicvision/semper/data/account/AuthRepository.kt)).
+[AuthRepository.kt](../../app/src/main/java/com/sempermechanics/semper/data/account/AuthRepository.kt)).
 It is identity-only — no backend call — and reports success even for an unknown
 email so the screen can't be used to probe which addresses are registered.
 
-> **Sign-in requires `INDIC_API_BASE_URL`.** `AuthRepository.firebaseThen`
+> **Sign-in requires `SEMPER_API_BASE_URL`.** `AuthRepository.firebaseThen`
 > short-circuits when the cloud base URL is blank, so Google and email/password
 > sign-in both fail without it. (Password *reset* and *sending* an email link are
 > the exceptions — they are pure Firebase calls.) Once a user has been APPROVED,
@@ -33,7 +33,7 @@ email so the screen can't be used to probe which addresses are registered.
 2. **Authentication → Sign-in method**: enable **Google**, **Email/Password**,
    and **Email link (passwordless sign-in)**.
 3. **Project settings → Your apps → Android app** with package
-   `com.indicvision.semper`. Add the **SHA-1** of every signing key you use —
+   `com.sempermechanics.semper`. Add the **SHA-1** of every signing key you use —
    debug and release. Google sign-in fails without it.
 
    ```bash
@@ -62,7 +62,7 @@ email so the screen can't be used to probe which addresses are registered.
    Release builds enable `shrinkResources`. `AuthActivity` shows the Google
    button only when that string is present in the APK, so the app must keep a
    **static** `R.string.default_web_client_id` reference (see
-   [GoogleSignInHelper.kt](../../app/src/main/java/com/indicvision/semper/ui/auth/GoogleSignInHelper.kt)).
+   [GoogleSignInHelper.kt](../../app/src/main/java/com/sempermechanics/semper/ui/auth/GoogleSignInHelper.kt)).
    A `getIdentifier`-only lookup looks unused to the shrinker and silently
    hides SSO on release builds.
 
@@ -76,7 +76,7 @@ The passwordless link only signs the user in if tapping it **reopens this app**.
 Firebase mails a link back to the continue URL
 `https://app.sempermechanics.com/auth/finishSignIn`
 (`EMAIL_LINK_CONTINUE_URL` in
-[AuthRepository.kt](../../app/src/main/java/com/indicvision/semper/data/account/AuthRepository.kt)),
+[AuthRepository.kt](../../app/src/main/java/com/sempermechanics/semper/data/account/AuthRepository.kt)),
 and `AuthActivity` declares a matching App Link `intent-filter` for that
 host + path. Builds before that constant changed use
 `https://indicvision-dic-app-auth.firebaseapp.com/finishSignIn`; the manifest
@@ -101,7 +101,7 @@ constrains only implicit matching. `AuthActivity.isTrustedAuthLink` therefore
 re-checks scheme and host against `AUTH_HOST` before it touches `intent.data`,
 and both the sign-in-link and password-reset handlers go through it. Change the
 domain in `AUTH_HOST` (one constant, in
-[AuthRepository.kt](../../app/src/main/java/com/indicvision/semper/data/account/AuthRepository.kt))
+[AuthRepository.kt](../../app/src/main/java/com/sempermechanics/semper/data/account/AuthRepository.kt))
 and the manifest filter together, or tapped links stop being recognised.
 
 ## 2. Backend — which project's tokens to accept
@@ -268,11 +268,11 @@ on the next successful `/v1/me`.
 ## 4. App config — local.properties
 
 ```properties
-INDIC_API_BASE_URL=https://semper-gw-xxxx.an.gateway.dev
+SEMPER_API_BASE_URL=https://semper-gw-xxxx.an.gateway.dev
 ```
 
 That is the only key the app needs, exposed as
-`BuildConfig.INDIC_API_BASE_URL`. Leave it blank to run fully offline with
+`BuildConfig.SEMPER_API_BASE_URL`. Leave it blank to run fully offline with
 cloud sync disabled. Rebuild after changing it.
 
 ## Testing notes

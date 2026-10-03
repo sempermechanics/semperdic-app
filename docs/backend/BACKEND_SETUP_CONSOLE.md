@@ -17,7 +17,7 @@ the app at your deployment.
 ## 1. Select / create the project
 1. Open <https://console.cloud.google.com>.
 2. Top bar → **project picker** → **New Project** (or pick an existing one).
-   Name it e.g. `indic-prod`. Note the **Project ID**.
+   Name it e.g. `semper-prod`. Note the **Project ID**.
 
 ## 2. Enable the APIs
 1. Left menu (☰) → **APIs & Services → Enabled APIs & services**.

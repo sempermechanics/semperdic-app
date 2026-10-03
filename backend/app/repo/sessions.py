@@ -123,7 +123,7 @@ def upload_target(file_id: str, url: str, f: dict) -> dict:
     return {
         "fileId": file_id,
         "uploadUrl": url,
-        "chunkSize": 32 * 1024 * 1024,  # the client uploads in chunks of this size (IndicApi.uploadResumable)
+        "chunkSize": 32 * 1024 * 1024,  # the client uploads in chunks of this size (SemperApi.uploadResumable)
         "name": f.get("name"),
         "role": f.get("role"),
         "sizeBytes": f.get("sizeBytes", 0),

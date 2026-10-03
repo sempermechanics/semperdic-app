@@ -1,7 +1,7 @@
 """Stable error codes returned as FastAPI's `{"detail": "<code>"}`.
 
 These strings are a wire contract, not messages: the Android client branches on
-them (`app/src/main/java/com/indicvision/semper/data/net/ApiErrors.kt`) to tell a
+them (`app/src/main/java/com/sempermechanics/semper/data/net/ApiErrors.kt`) to tell a
 device conflict from a quota rejection inside the same status code. Naming them
 here means a rename is one edit that `tests/test_error_codes.py` then holds
 against the client's copy, instead of a literal typed in a router that silently

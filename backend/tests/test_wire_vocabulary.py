@@ -25,7 +25,7 @@ from app import models, statuses
 
 # tests/ -> backend/ -> repo root
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_CLIENT_ROOT = _REPO_ROOT / "app/src/main/java/com/indicvision/semper"
+_CLIENT_ROOT = _REPO_ROOT / "app/src/main/java/com/sempermechanics/semper"
 _CLIENT_STATUSES = _CLIENT_ROOT / "data/cloud/UploadWorkOutcomes.kt"
 _CLIENT_ROLES = _CLIENT_ROOT / "data/net/ArtifactRoles.kt"
 

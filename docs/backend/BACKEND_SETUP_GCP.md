@@ -21,11 +21,11 @@ without a backend; do this only if you are deploying the cloud side yourself.
 > - ✅ The **backend** (`backend/app/*.py`) is complete: auth, device binding,
 >   Firestore, keyless Drive resumable uploads. You can deploy and smoke-test it
 >   with `curl` right now (Parts A + B).
-> - ✅ The **Android client is implemented** — `data/net/` (IndicApi, TokenStore,
+> - ✅ The **Android client is implemented** — `data/net/` (SemperApi, TokenStore,
 >   TokenProvider), `DeviceKeyManager`, `AuthRepository`, and
 >   `DicUploadWorker` (resumable PUT straight to Drive). Part C is the
 >   operational path to point the app at your deployment and test it.
-> - Cloud sync stays off entirely until `INDIC_API_BASE_URL` is set (C1), so
+> - Cloud sync stays off entirely until `SEMPER_API_BASE_URL` is set (C1), so
 >   the app builds and runs fully offline without any of this.
 >
 > Steps marked 🖐️ happen in a web console (can't be scripted). Do them in order;
@@ -45,7 +45,7 @@ without a backend; do this only if you are deploying the cloud side yourself.
 - `curl` + `python` (3.12) for the smoke test.
 
 ```bash
-export PROJECT=indic-prod          # your GCP project id (placeholder — replace)
+export PROJECT=semper-prod          # your GCP project id (placeholder — replace)
 export REGION=asia-south1          # pick one near you; Firestore must match
 export API_SA=indic-api@$PROJECT.iam.gserviceaccount.com
 gcloud config set project $PROJECT
@@ -144,7 +144,7 @@ gcloud projects add-iam-policy-binding $PROJECT \
 
 ### A5. 🖐️ Add the SA to the Shared Drive
 In **Google Drive → `Semper-Research-Storage` → Manage members**, add
-`indic-api@indic-prod.iam.gserviceaccount.com` as **Manager**.
+`indic-api@semper-prod.iam.gserviceaccount.com` as **Manager**.
   > Use **Manager**, not Content manager. Content manager can upload but
   > **cannot permanently delete**: `files.delete` needs *organizer* rights on
   > the parent, so GDPR erasure silently fails without it.
@@ -542,7 +542,7 @@ Then use `URL=http://localhost:8080` in the B2 steps.
 
 ## Part C — Connect & test the Android app
 
-> **The client code is implemented.** `data/net/` (IndicApi, TokenStore,
+> **The client code is implemented.** `data/net/` (SemperApi, TokenStore,
 > TokenProvider, ApiDtos), the EC-P256 `DeviceKeyManager` (challenge-response),
 > `AuthRepository` (Google, email/password, or email-link sign-in) and `DicUploadWorker` (resumable PUT
 > direct to Drive) are all in the app. This part is the **operational** steps
@@ -636,7 +636,7 @@ gcloud api-gateway gateways describe semper-gw --location $GW_REGION \
 ```
 Leave Cloud Run **ingress at its default** (`all`) — the gateway calls the
 `run.app` URL and only its SA has `run.invoker`, so direct calls still 403; only
-the gateway gets through. In **C1**, set `INDIC_API_BASE_URL` to
+the gateway gets through. In **C1**, set `SEMPER_API_BASE_URL` to
 `https://<gateway defaultHostname>` (not the `run.app` URL).
 
 #### Redeploying the gateway after a route change
@@ -722,12 +722,12 @@ deleted once nothing points at them.
 
 In `local.properties`:
 ```properties
-INDIC_API_BASE_URL=https://semper-gw-xxxx.an.gateway.dev
+SEMPER_API_BASE_URL=https://semper-gw-xxxx.an.gateway.dev
 ```
-Blank `INDIC_API_BASE_URL` = offline-only (cloud disabled). Rebuild after editing.
+Blank `SEMPER_API_BASE_URL` = offline-only (cloud disabled). Rebuild after editing.
 
 Release builds go further. The release workflow passes `-PrequireCloudApi=true`,
-and `app/build.gradle.kts` then **fails the build** if `INDIC_API_BASE_URL` is
+and `app/build.gradle.kts` then **fails the build** if `SEMPER_API_BASE_URL` is
 blank or does not start with `https://` — offline-only must not ship by accident,
 and cleartext would put ID tokens and device signatures on the wire in plain
 text. Set the variable from the environment or `local.properties` when building a
@@ -783,7 +783,7 @@ Firestore directly.
 - Build a **debug** APK and install on a **Google-Play** emulator or a real
   device (plain AOSP images can't do Google Sign-In).
   - The debug auth-skip now only applies when **no** backend is configured. With
-    `INDIC_API_BASE_URL` set (C1), even a debug build runs the **real** sign-in
+    `SEMPER_API_BASE_URL` set (C1), even a debug build runs the **real** sign-in
     flow — so device testing exercises the full path.
 - Sign in with a Google account:
   - **`@indicvision.com`** → auto-APPROVED → straight into the app.

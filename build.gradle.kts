@@ -25,11 +25,11 @@ tasks.register("ciReleaseGate") {
 }
 
 // Formatting gate: `./gradlew spotlessCheck` (CI) / `./gradlew spotlessApply` (fix).
-// Kotlin only — the C++ engine under native/ is deliberately excluded.
+// Kotlin only — the C++ engine under engine/ is deliberately excluded.
 spotless {
     kotlin {
         target("app/src/**/*.kt", "benchmark/src/**/*.kt")
-        targetExclude("**/build/**", "app/src/main/cpp/**", "native/**")
+        targetExclude("**/build/**", "app/src/main/cpp/**", "engine/**")
         ktlint(libs.versions.ktlint.get()).editorConfigOverride(
             mapOf(
                 // Keep the gate about consistency, not churn: these rules would

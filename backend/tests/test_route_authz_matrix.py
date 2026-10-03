@@ -519,7 +519,7 @@ def _owned_session(attacker):
 async def test_uploads_rejects_a_bare_token_even_for_the_owner(attacker, client, caplog):
     """No device headers: refused, and no legacy event is logged any more."""
     _owned_session(attacker)
-    with caplog.at_level("WARNING", logger="indic.auth"):
+    with caplog.at_level("WARNING", logger="semper.auth"):
         r = await client.get("/v1/sessions/s-mine/uploads", headers=attacker.bearer)
     assert r.status_code in (400, 401), r.text
     assert "legacy_unattested_uploads" not in caplog.text

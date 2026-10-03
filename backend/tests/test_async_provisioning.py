@@ -450,7 +450,7 @@ def test_enqueue_failure_is_an_error_event(monkeypatch, caplog):
     monkeypatch.setattr(settings, "GCP_PROJECT", "p")
     monkeypatch.setattr(tasks, "_tasks_client", lambda: Boom())
 
-    with caplog.at_level(logging.ERROR, logger="indic.tasks"):
+    with caplog.at_level(logging.ERROR, logger="semper.tasks"):
         assert tasks.enqueue_provision("s1") is False
 
     events = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]

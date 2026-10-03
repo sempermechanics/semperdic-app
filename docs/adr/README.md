@@ -8,7 +8,7 @@ record that replaced it.
 | ADR | Title | Status | Register |
 |-----|-------|--------|----------|
 | [001](ADR-001-firestore-repo-package.md) | Split `firestore_repo.py` into a package behind a facade | Accepted, built | TD-53, TD-58 |
-| [002](ADR-002-cloudapi-seam.md) | `CloudApi` interface seam for `IndicApi` | Accepted, built | TD-25 |
+| [002](ADR-002-cloudapi-seam.md) | `CloudApi` interface seam for `SemperApi` | Accepted, built | TD-25 |
 | [003](ADR-003-viewerargs-read-side.md) | `ViewerArgs.from` read side with a `SessionRecord` fallback | Accepted, built | TD-3, TD-61 |
 | [004](ADR-004-runspec.md) | Immutable `RunSpec` built once at Compute | Accepted, built | FI-6, TD-61 |
 | [005](ADR-005-wizard-process-death.md) | The wizard survives process death through a draft | Accepted, built | TD-26 |
@@ -23,6 +23,7 @@ record that replaced it.
 | [016](ADR-016-work-that-outlives-the-activity.md) | Work that must outlive the Activity: ViewModel, an app-lifetime run, `NonCancellable` cleanup, or WorkManager | Accepted, built | TD-165, TD-168 |
 | [017](ADR-017-viewbinding-and-ui-kit.md) | ViewBinding for every screen, and one `ui/common` helper per UI job | Accepted, built | — |
 | [018](ADR-018-error-convention.md) | One typed outcome per failure domain; cancellation is never a failure | Accepted, built | TD-41, TD-171 |
+| [019](ADR-019-sempermechanics-app-id.md) | The app is `com.sempermechanics.semper`; "indic" leaves the code, and the engine submodule is `engine/` | Accepted, built (not released) | TD-176 |
 
 Register IDs refer to [../ops/TECH_DEBT.md](../ops/TECH_DEBT.md). ADR-008, ADR-009,
 ADR-011 (ported here), ADR-012 and ADR-013 are material_testing's (ADR-008's benchmark harness and ADR-013's backend route live here too: the harness is shared code, and the backend deploys from this repo); the numbers are shared so they do not collide.

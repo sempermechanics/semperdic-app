@@ -3,8 +3,8 @@
 **Audience:** maintainers of this private app and reviewers of engine bumps.
 
 The engine is published as [`sempermechanics/semper-dic-engine`](https://github.com/sempermechanics/semper-dic-engine)
-(C/C++ SDK + Android JNI + Python). This app links it as a **pinned git submodule** at `native/`.
-The public copy of this contract lives at `native/docs/CONTRACT.md` — the engine repo's own
+(C/C++ SDK + Android JNI + Python). This app links it as a **pinned git submodule** at `engine/`.
+The public copy of this contract lives at `engine/docs/CONTRACT.md` — the engine repo's own
 copy of it; keep the two in sync
 when Frozen/Stable rules change.
 
@@ -13,7 +13,7 @@ when Frozen/Stable rules change.
 > code you can't see. The [golden contract test](#a6-how-improvements-reach-the-app) is the
 > automated backstop; this document is the human one.
 
-You do **not** need the app to contribute. Build and test against `native/tests/` as usual. Just
+You do **not** need the app to contribute. Build and test against `engine/tests/` as usual. Just
 respect the surface described here, and declare your change's [tier](#a1-stability-tiers) in the PR.
 
 ---
@@ -216,7 +216,7 @@ its order; change the meaning of a metrics slot; change a return-code value or m
 1. **Land** the change in [`sempermechanics/semper-dic-engine`](https://github.com/sempermechanics/semper-dic-engine)
    behind the same public signatures (or additively). Update `SEMPER_VERSION` per the semver rules
    in [A.1](#a1-stability-tiers).
-2. **Tag** a release. This app bumps its **pinned `native/` submodule tag**, a maintainer reviews
+2. **Tag** a release. This app bumps its **pinned `engine/` submodule tag**, a maintainer reviews
    the engine diff, and app CI runs the **golden contract test**: a checked-in synthetic
    reference/deformed pair is solved through the real entry point, and the resulting `(N, 8)`
    field plus key metric slots are asserted against a stored golden within tolerance.

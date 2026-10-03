@@ -38,8 +38,8 @@ import threading
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-FALLBACK_APP = "com.indicvision.semper"
-BENCH = "com.indicvision.semper.benchmark"
+FALLBACK_APP = "com.sempermechanics.semper"
+BENCH = "com.sempermechanics.semper.benchmark"
 RUNNER = f"{BENCH}/androidx.test.runner.AndroidJUnitRunner"
 MEDIA = f"/sdcard/Android/media/{BENCH}"
 DEFAULT_TESTS = [

@@ -32,7 +32,7 @@ apps. The deploy and Firestore workflows only run in this repo
    `applicationId` (ADR-008), so nothing else names the app.
 3. Docs conflicts are the norm: keep its CONTEXT and TECH_DEBT, both sides of
    CHANGELOG, and both sides of any ADR both repos added to.
-4. An engine bump (the `native` gitlink) means re-running its real-data checks
+4. An engine bump (the `engine` gitlink) means re-running its real-data checks
    (its `real_data_steel_tensile.py` and `real_data_pmma_bending.py` scripts); its JVM
    tests use arrays recorded on the old engine and stay green either way.
 
@@ -107,7 +107,7 @@ three things the merge will not do on its own.
    Then steps 3 and 4 above (`--compile`, `--kdoc`, `--docs`,
    `check_doc_paths.py`) once, after both.
 2. **Watch one collision.** The second mapping moves
-   `com.indicvision.semper.ui.analysis.VideoSamplingSheet` to
+   `com.sempermechanics.semper.ui.analysis.VideoSamplingSheet` to
    `ui/analysis/frames/`. The fork has its own `ui/analysis/VideoSamplingSheet`
    (step 2 above suggests the same package), and this repository now has
    `ui/analysis/frames/VideoSamplingSheet.kt` as well. Decide which one the
@@ -126,7 +126,7 @@ three things the merge will not do on its own.
    | `originalNameOr` in `ui/analysis/run` (`DicFieldIo.kt`) | `List<String>.originalNameOr(index, fallback)` in `data/session/SessionNaming.kt`. It is **not** in either mapping, so add the import by hand |
    | `VisualizationEngine` results as `Pair` / `Triple` | `ImageSize` and `BakedHeatmap` |
    | `AnalysisRunCodes`, `BatchAnalysisParams` | Removed; the run's codes are `RunStop` (`field/RunStop.kt`) and its inputs `RunSpec` |
-   | `IndicApiHttp.apiException`, `Refusal` | `ApiAnswer` (`data/net/IndicApiHttp.kt`) |
+   | `SemperApiHttp.apiException`, `Refusal` | `ApiAnswer` (`data/net/SemperApiHttp.kt`) |
    | `CloudRestore.recordFrom`, `SkippedNode.fromMetadata`, `SkippedNode.toMetadataJsonArray` | `SessionMetadataDoc` (`data/cloud/SessionMetadataDoc.kt`) reads and writes a backup's `metadata.json` |
    | `SessionStore.upsertAsync` | Removed; call `SessionStore.save` / `upsert` off the main thread |
    | `ZipDirectory.centralDirectoryOffset` | Removed |
@@ -140,6 +140,29 @@ three things the merge will not do on its own.
 Here, a PR that mixes moves with fixes is merged with a merge commit, never a
 squash ([ADR-015](../adr/ADR-015-package-layout.md)), so its pure-move commits
 stay in `git log` for the fork to review one at a time.
+
+### The app id and package move (ADR-019, 2026-10)
+
+[ADR-019](../adr/ADR-019-sempermechanics-app-id.md) moved this app to
+`com.sempermechanics.semper` and renamed the engine submodule's folder from
+`native/` to `engine/`. Take it in **one** merge on the fork, together with the
+fork's own id change:
+
+1. Set `applicationId = "com.sempermechanics.materialtesting"` and register that
+   app in Firebase (new `google-services.json` client). The backend already maps
+   it to `materialtesting` (`backend/app/apps.py`), and `assetlinks.json` lists it.
+2. Merge. Git moves the Kotlin tree (`com/indicvision/semper` →
+   `com/sempermechanics/semper`) and the submodule path; then run
+   `git submodule sync && git submodule update --init --recursive`, and delete
+   `app/.cxx` (its CMake cache holds the old `native/` path).
+3. Rewrite the fork-only files' `package` and `import` lines:
+   `com.indicvision.semper` → `com.sempermechanics.semper`. Same for
+   `IndicApi*` → `SemperApi*` and the `INDIC_*` build keys → `SEMPER_*` (the old
+   keys are still read).
+
+Do not take this code under the old id: the prefs files (`semper_*`) and the
+Keystore alias (`SemperDeviceKeyEc`) are renamed, so an install that upgrades in
+place would find them empty and lose sign-in, settings and its device key.
 
 ## Porting back
 

@@ -54,7 +54,7 @@
         android:paddingHorizontal="20dp"
         android:paddingBottom="24dp">
 
-        <com.indicvision.semper.ui.settings.SettingsScrollContentView
+        <com.sempermechanics.semper.ui.settings.SettingsScrollContentView
             android:id="@+id/settingsSections"
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />

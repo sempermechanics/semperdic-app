@@ -27,8 +27,8 @@ from .routers.health import _client_key  # noqa: F401
 from .session_provision import provision_session, purge_session  # noqa: F401
 
 logging.basicConfig(level=logging.INFO)
-log = logging.getLogger("indic")
-_access_log = logging.getLogger("indic.access")
+log = logging.getLogger("semper")
+_access_log = logging.getLogger("semper.access")
 
 
 def _startup_checks():

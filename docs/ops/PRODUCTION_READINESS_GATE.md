@@ -85,7 +85,7 @@ Strict binary PASS against all applicable external controls is **not** claimed.
 - [x] Staging candidate smoke before traffic shift
       (`deploy-backend.yml`: tagged revision + ID-token `/readyz`). Record a
       deliberate rollback drill when convenient.
-- [x] `INDIC_API_BASE_URL` available to release builds; signed release shipped
+- [x] `SEMPER_API_BASE_URL` available to release builds; signed release shipped
       with `-PrequireCloudApi=true` (e.g. `v0.1.0-beta.1`).
 - [x] `/uploads` always device-attested: the `REQUIRE_ATTESTED_UPLOADS`
       window was retired 2026-09-26 (TD-45), so there is no flag left to
@@ -227,7 +227,7 @@ pre-licensing documents)
       gateway it was **405** until `x-google-endpoints.name` was the API's
       managed service name (#114, #115) — ESPv2 ignores `allowCors` on any
       other name.
-- [x] Old-APK pass (debug build from `bcc467a`, `INDIC_API_BASE_URL` = staging):
+- [x] Old-APK pass (debug build from `bcc467a`, `SEMPER_API_BASE_URL` = staging):
       sign in, back up one analysis (201 + upload completes), **restore fails
       once with "rejected" and does not loop**, delete, export. Two things
       the pass taught: the old build shows the raw `detail`, so the refusal

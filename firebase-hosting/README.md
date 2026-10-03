@@ -8,7 +8,7 @@ and two things the passwordless **email-link sign-in** depends on:
 | Path | Purpose |
 |---|---|
 | `/.well-known/assetlinks.json` | Digital Asset Links — lets Android verify the App Link and route the sign-in link to the app instead of a browser. |
-| `/auth/finishSignIn` | The email link's continue URL (`EMAIL_LINK_CONTINUE_URL` in [`AuthRepository.kt`](../app/src/main/java/com/indicvision/semper/data/account/AuthRepository.kt)) on `app.sempermechanics.com`. On-device the app's App Link intercepts it; in a plain browser it shows a "finish on your phone" page. |
+| `/auth/finishSignIn` | The email link's continue URL (`EMAIL_LINK_CONTINUE_URL` in [`AuthRepository.kt`](../app/src/main/java/com/sempermechanics/semper/data/account/AuthRepository.kt)) on `app.sempermechanics.com`. On-device the app's App Link intercepts it; in a plain browser it shows a "finish on your phone" page. |
 | `/auth/finishReset` | Password-reset continue URL (`RESET_CONTINUE_URL`) on `app.sempermechanics.com`. App Link opens the in-app reset screen; browser falls through to Firebase's `/__/auth/action` handler. |
 | `/finishSignIn`, `/finishReset` | The same two pages at the paths every build before `AUTH_HOST = app.sempermechanics.com` uses, on the `firebaseapp.com` host. The **custom action URL** in Firebase Console → Authentication → Templates → Password reset stays `https://indicvision-dic-app-auth.firebaseapp.com/finishReset` until no such build is installed (TD-29): those builds intercept only that host. |
 | `/privacy/` | Public Privacy Policy summary (canonical markdown in `docs/legal/PRIVACY_POLICY.md`). |
@@ -92,8 +92,8 @@ curl -s https://app.sempermechanics.com/.well-known/assetlinks.json
 curl -s https://indicvision-dic-app-auth.firebaseapp.com/.well-known/assetlinks.json
 
 # On a connected device/emulator (Android 12+):
-adb shell pm verify-app-links --re-verify com.indicvision.semper
-adb shell pm get-app-links com.indicvision.semper   # expect: verified
+adb shell pm verify-app-links --re-verify com.sempermechanics.semper
+adb shell pm get-app-links com.sempermechanics.semper   # expect: verified
 ```
 
 Until the file is live and verified, both App Links fall back to a browser:

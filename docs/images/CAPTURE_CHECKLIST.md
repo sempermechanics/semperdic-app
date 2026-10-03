@@ -1,7 +1,7 @@
 # Screenshot recapture checklist
 
 Most of the folder was recaptured on a debug build (Pixel 5 emulator,
-`INDIC_DEV_AUTH_BYPASS` on, local-only sessions) against the UI current as of
+`SEMPER_DEV_AUTH_BYPASS` on, local-only sessions) against the UI current as of
 **2026-08-19**. A second, smaller pass on **2026-09-09** (headless Pixel 8
 emulator) refreshed the three shots the camera removal and the speckle readout
 made wrong. What's left below needs a signed-in account against a real
@@ -44,7 +44,7 @@ distort.
 
 ## Still needs a real backend + account
 
-Everything below needs `INDIC_DEV_AUTH_BYPASS=false` plus `INDIC_API_BASE_URL`
+Everything below needs `SEMPER_DEV_AUTH_BYPASS=false` plus `SEMPER_API_BASE_URL`
 pointed at a live backend, and a signed-in, approved account with at least one
 cloud-backed analysis. Don't fake these states — recapture once that account is
 available.

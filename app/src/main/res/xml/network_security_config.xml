@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cleartext HTTP is never used: the Indic API base URL must be https. -->
+<!-- Cleartext HTTP is never used: the Semper API base URL must be https. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
 </network-security-config>

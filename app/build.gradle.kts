@@ -31,39 +31,50 @@ fun localProperty(key: String): String? =
         null
     }
 
+/**
+ * [key], or its pre-rename `INDIC_*` spelling, so a local.properties or CI var
+ * from before the move to com.sempermechanics still works.
+ */
+fun semperProperty(key: String): String? = localProperty(key) ?: localProperty(key.replaceFirst("SEMPER_", "INDIC_"))
+
+fun semperEnv(key: String): String? =
+    (System.getenv(key) ?: System.getenv(key.replaceFirst("SEMPER_", "INDIC_")))
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+
 // Debug-only convenience: on an emulator, skip sign-in and run the app as a
-// local-only dev account, even when INDIC_API_BASE_URL is set. Cloud calls are
+// local-only dev account, even when SEMPER_API_BASE_URL is set. Cloud calls are
 // switched off along with it (see DevAuth), so nothing hits the backend
 // unauthenticated. Release builds never get this — the field is hardcoded false
-// below. Put INDIC_DEV_AUTH_BYPASS=false in local.properties to exercise the
+// below. Put SEMPER_DEV_AUTH_BYPASS=false in local.properties to exercise the
 // real sign-in flow on an emulator.
-val devAuthBypass = localProperty("INDIC_DEV_AUTH_BYPASS") != "false"
+val devAuthBypass = semperProperty("SEMPER_DEV_AUTH_BYPASS") != "false"
 // Base URL of the Semper GCP backend (API Gateway or Cloud Run). Empty = cloud
 // sync disabled for local/debug. Release builds that set -PrequireCloudApi=true
-// (CI Release workflow) MUST inject INDIC_API_BASE_URL via env or
+// (CI Release workflow) MUST inject SEMPER_API_BASE_URL via env or
 // local.properties — otherwise the build fails instead of silently shipping
 // offline-only.
-val indicApiBaseUrl =
-    System.getenv("INDIC_API_BASE_URL")?.trim()?.takeIf { it.isNotEmpty() }
-        ?: localProperty("INDIC_API_BASE_URL")
+val semperApiBaseUrl =
+    semperEnv("SEMPER_API_BASE_URL")
+        ?: semperProperty("SEMPER_API_BASE_URL")
         ?: ""
 
 val requireCloudApi =
     (project.findProperty("requireCloudApi") as String?)?.equals("true", ignoreCase = true) == true
-if (requireCloudApi && indicApiBaseUrl.isBlank()) {
+if (requireCloudApi && semperApiBaseUrl.isBlank()) {
     throw GradleException(
-        "INDIC_API_BASE_URL is required for this release build " +
+        "SEMPER_API_BASE_URL is required for this release build " +
             "(-PrequireCloudApi=true). Set the env var or local.properties entry " +
             "to the API Gateway URL so cloud sync is not silently disabled.",
     )
 }
-if (requireCloudApi && !indicApiBaseUrl.startsWith("https://")) {
-    throw GradleException("INDIC_API_BASE_URL must be https when requireCloudApi=true: $indicApiBaseUrl")
+if (requireCloudApi && !semperApiBaseUrl.startsWith("https://")) {
+    throw GradleException("SEMPER_API_BASE_URL must be https when requireCloudApi=true: $semperApiBaseUrl")
 }
 
 // Optional comma-separated CertificatePinner pins for the API host
 // (e.g. sha256/AAAA...=). Empty = system trust store only.
-val indicApiCertPins = localProperty("INDIC_API_CERT_PINS") ?: ""
+val semperApiCertPins = semperProperty("SEMPER_API_CERT_PINS") ?: ""
 
 // Release signing. The keystore and passwords come from the environment
 // (SIGNING_* — set by .github/workflows/release.yml and the tier-5 CI job),
@@ -78,7 +89,7 @@ val releaseKeystore =
         ?.takeIf { it.exists() }
 
 android {
-    namespace = "com.indicvision.semper"
+    namespace = "com.sempermechanics.semper"
     // core-ktx 1.19+ (gradle-deps) requires compileSdk 37+ (AAR metadata).
     compileSdk = 37
     // Pinned (TD-37): the engine builds with -ffast-math and the .dat oracles
@@ -87,7 +98,7 @@ android {
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
-        applicationId = "com.indicvision.semper"
+        applicationId = "com.sempermechanics.semper"
         minSdk = 24
         targetSdk = 36
         // Overridable from the release workflow: -PversionCode / -PversionName.
@@ -95,8 +106,8 @@ android {
         versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
         versionName = (project.findProperty("versionName") as String?)?.takeIf { it.isNotBlank() } ?: "1.0"
 
-        buildConfigField("String", "INDIC_API_BASE_URL", "\"$indicApiBaseUrl\"")
-        buildConfigField("String", "INDIC_API_CERT_PINS", "\"$indicApiCertPins\"")
+        buildConfigField("String", "SEMPER_API_BASE_URL", "\"$semperApiBaseUrl\"")
+        buildConfigField("String", "SEMPER_API_CERT_PINS", "\"$semperApiCertPins\"")
         // Overridden per build type below; the default keeps the flag defined
         // for any variant that doesn't set it (androidTest, lint models).
         buildConfigField("boolean", "DEV_AUTH_BYPASS", "false")
@@ -123,7 +134,7 @@ android {
 
         externalNativeBuild {
             cmake {
-                // Portable engine package at repo-root native/; JNI adapter on.
+                // Portable engine package at repo-root engine/; JNI adapter on.
                 arguments += "-DSEMPER_ANDROID=ON"
 
                 // Vendored OpenCV defaults ENABLE_CCACHE to ON for Ninja builds,
@@ -251,7 +262,7 @@ android {
 
     externalNativeBuild {
         cmake {
-            path = file("../native/CMakeLists.txt")
+            path = file("../engine/CMakeLists.txt")
             version = "3.22.1"
         }
     }
@@ -376,12 +387,12 @@ kover {
                 // (SettingsActivity$Companion, lambdas) without needing a `$`
                 // literal in a Kotlin string.
                 classes(
-                    "com.indicvision.semper.ui.*Activity*",
-                    "com.indicvision.semper.ui.*Adapter*",
-                    "com.indicvision.semper.ui.*Fragment*",
-                    "com.indicvision.semper.ui.*Dialog*",
+                    "com.sempermechanics.semper.ui.*Activity*",
+                    "com.sempermechanics.semper.ui.*Adapter*",
+                    "com.sempermechanics.semper.ui.*Fragment*",
+                    "com.sempermechanics.semper.ui.*Dialog*",
                     // Generated ViewBinding classes: no logic of ours to cover.
-                    "com.indicvision.semper.databinding.*",
+                    "com.sempermechanics.semper.databinding.*",
                 )
             }
         }

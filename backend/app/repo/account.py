@@ -25,7 +25,7 @@ from .seats import (
 )
 
 
-log = logging.getLogger("indic.firestore")
+log = logging.getLogger("semper.firestore")
 
 
 def remember_user_folder(uid: str, folder_id: str, sessions_folder_id: str | None = None) -> None:
