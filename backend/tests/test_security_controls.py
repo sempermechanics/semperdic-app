@@ -61,6 +61,8 @@ async def test_console_preflight_is_answered_for_a_listed_origin(client):
     assert "access-control-allow-credentials" not in response.headers
     # The preflight still leaves through security_headers.
     assert response.headers["x-frame-options"] == "DENY"
+    # Answered once per two hours (Chromium's ceiling), not every ten minutes.
+    assert response.headers["access-control-max-age"] == "7200"
 
 
 @pytest.mark.asyncio
