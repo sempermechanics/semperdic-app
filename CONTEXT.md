@@ -110,7 +110,7 @@ no thresholds ([TESTING.md](docs/app/TESTING.md)); the phone-run gates (`benchma
 [PERF_BASELINE_bd44af0.md](docs/engine/PERF_BASELINE_bd44af0.md)) is a manual reference.
 Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 
-## Current state (2026-10-07)
+## Current state (2026-10-08)
 
 - **Quality program (on `main`, #310–#332, 2026-10-05).** Bug fixes, the package layout
   ([ADR-015](docs/adr/ADR-015-package-layout.md)), ViewBinding and the `ui/common` kit
@@ -147,6 +147,11 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   is not compiled, and it waits on the Firebase app for
   `com.sempermechanics.materialtesting`. Shared code and backend changes land here first
   ([FORK_SYNC.md](docs/ops/FORK_SYNC.md)).
+- **Testing program (2026-10-08, in flight).** Five PRs from the test review: CI tiers
+  follow the diff (an engine bump runs the emulator and arm64 tiers on its PR; main pushes
+  path-aware; weekly full matrix), real coverage floors raised in every PR, golden
+  `.dat` / GIF oracles, then the Android and backend gaps. Plan and gap register in the
+  PR 1 description.
 - **Dependabot** opens monthly PRs for major versions only (pip, Gradle, Actions; #337);
   minor and patch fixes arrive as Dependabot security updates, which are on.
 - **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke

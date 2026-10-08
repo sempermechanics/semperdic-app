@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Weekly full matrix. A push to main runs the emulator and release tiers
+  # only when its diff can break them, so this catches what paths cannot:
+  # a new emulator image, an SDK or runner change, a flaky test going red.
+  schedule:
+    - cron: '17 4 * * 1'
   workflow_dispatch:
     inputs:
       full_ci:
@@ -124,8 +129,8 @@ jobs:
 
   # ===================================================================
   # Path filters — same rules on PR and push. Prove only what the diff
-  # can break. Optional full matrix via `full-ci` label or workflow_dispatch.
-  # No scheduled/weekly runs.
+  # can break. Full matrix: the weekly schedule, the `full-ci` label or
+  # workflow_dispatch full_ci.
   # ===================================================================
   changes:
     name: Detect changes
@@ -138,18 +143,21 @@ jobs:
       pull-requests: read
     outputs:
       app: ${{ steps.flags.outputs.app }}
-      native_core: ${{ steps.flags.outputs.native_core }}
-      native_jni: ${{ steps.flags.outputs.native_jni }}
       backend: ${{ steps.flags.outputs.backend }}
-      full_ci: ${{ steps.flags.outputs.full_ci }}
-      heavy_ci: ${{ steps.flags.outputs.heavy_ci }}
+      emulator: ${{ steps.flags.outputs.emulator }}
+      release_build: ${{ steps.flags.outputs.release_build }}
       benchmark_ci: ${{ steps.flags.outputs.benchmark_ci }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      # A scheduled run has no diff to read, nor has a push with no base (a
+      # zero `before`); both run everything, so skip the filter.
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v3
         id: filter
+        if: >-
+          github.event_name != 'schedule'
+          && !(github.event_name == 'push' && github.event.before == '0000000000000000000000000000000000000000')
         with:
           # Explicit base forces git-diff mode (avoids PR Files API 403 on Dependabot).
           # An empty token is required on pull_request events, else the action
@@ -176,21 +184,32 @@ jobs:
               - 'settings.gradle.kts'
             # Engine sources live in sempermechanics/semper-dic-engine. App CI only
             # sees pin bumps (gitlink) / .gitmodules — host/sanitizer suites run
-            # in the engine repo's own workflow.
-            native_core:
-              - 'engine'
-              - '.gitmodules'
+            # in the engine repo's own workflow. Here a bump or a JNI change has
+            # to build for both ABIs and run EnginePipelineSmokeTest on the
+            # emulator before it merges, not after.
             native_jni:
               - 'engine'
               - '.gitmodules'
               - 'app/src/main/cpp/**'
               - 'app/src/main/java/com/sempermechanics/semper/SemperNativeLib.kt'
+            # Composite actions only the emulator and release tiers use.
+            native_ci:
+              - '.github/actions/setup-native-ci/**'
+              - '.github/actions/enable-kvm/**'
+              - '.github/actions/check-arm64-so/**'
             backend:
               - 'backend/**'
               - 'firestore.rules'
-              - 'firebase-hosting/**'
-              # test_security_controls reads it.
+              # test_security_controls reads Hosting's firebase.json; the pages
+              # themselves are console-pages' job, which runs on every event.
+              - 'firebase-hosting/firebase.json'
+              # test_security_controls reads these two.
               - 'scripts/deploy-firestore.sh'
+              - '.github/workflows/deploy-backend.yml'
+              # test_terms_and_consent reads the Terms' version.
+              - 'docs/legal/**'
+              # Tier 4's ruff is the only lint the ops scripts get.
+              - 'scripts/*.py'
               # The client's copies of the three wire contracts. Without these,
               # a rename on an app-only PR skips the backend tier and the tests
               # holding each pair of lists together never run — which is the one
@@ -200,7 +219,10 @@ jobs:
               - 'app/src/main/java/com/sempermechanics/semper/data/cloud/UploadWorkOutcomes.kt'
             ci_workflow:
               - '.github/workflows/ci.yml'
-              # Tier 3 and the benchmark tier run it to report results.
+              # The composite actions the light tiers run (setup-android-build,
+              # backend-gate, prune-cache); a change to one matched nothing.
+              - '.github/actions/**'
+              # Tier 1 reports its unit tests with it.
               - 'scripts/ci_test_report.py'
             android_test:
               - 'app/src/androidTest/**'
@@ -213,8 +235,8 @@ jobs:
         id: flags
         env:
           FILTER_APP: ${{ steps.filter.outputs.app }}
-          FILTER_NATIVE_CORE: ${{ steps.filter.outputs.native_core }}
           FILTER_NATIVE_JNI: ${{ steps.filter.outputs.native_jni }}
+          FILTER_NATIVE_CI: ${{ steps.filter.outputs.native_ci }}
           FILTER_BACKEND: ${{ steps.filter.outputs.backend }}
           FILTER_CI_WORKFLOW: ${{ steps.filter.outputs.ci_workflow }}
           FILTER_ANDROID_TEST: ${{ steps.filter.outputs.android_test }}
@@ -222,6 +244,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           HEAD_REF: ${{ github.head_ref }}
+          BEFORE: ${{ github.event.before }}
           FULL_DISPATCH: ${{ github.event_name == 'workflow_dispatch' && inputs.full_ci || false }}
           FULL_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'full-ci') }}
           E2E_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'e2e') }}
@@ -231,26 +254,32 @@ jobs:
         run: |
           set -euo pipefail
           full=false
-          app=false; native_core=false; native_jni=false; backend=false
-          heavy=false  # Tier 3 / 5 on this event
+          app=false; backend=false
+          emulator=false        # Tier 3
+          release_build=false   # Tier 5
           benchmark=false
 
-          # Push to main (or explicit full_ci) → full matrix.
-          if { [ "$EVENT_NAME" = "push" ] && [ "$REF" = "refs/heads/main" ]; } \
+          # The weekly schedule, the full-ci label or dispatch full_ci → full
+          # matrix. So is a push whose base is unknown (no diff to filter).
+          main_push=false
+          if [ "$EVENT_NAME" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
+            main_push=true
+          fi
+          if [ "$EVENT_NAME" = "schedule" ] \
              || [ "$FULL_DISPATCH" = "true" ] \
-             || [ "$FULL_LABEL" = "true" ]; then
+             || [ "$FULL_LABEL" = "true" ] \
+             || { [ "$main_push" = "true" ] && [ "${BEFORE//0/}" = "" ]; }; then
             full=true
-            heavy=true
           fi
 
           if [ "$BENCHMARK_LABEL" = "true" ] || [ "$BENCHMARK_DISPATCH" = "true" ]; then
             benchmark=true
           fi
 
-          # Dependabot cheap path: never Tier 3/5; ecosystem picks one light tier.
-          if [ "$EVENT_NAME" = "pull_request" ] && [[ "${HEAD_REF:-}" == dependabot/* ]]; then
-            full=false
-            heavy=false
+          if [ "$full" = "true" ]; then
+            app=true; backend=true; emulator=true; release_build=true
+          elif [ "$EVENT_NAME" = "pull_request" ] && [[ "${HEAD_REF:-}" == dependabot/* ]]; then
+            # Dependabot cheap path: never Tier 3/5; ecosystem picks one light tier.
             case "$HEAD_REF" in
               dependabot/pip/*) backend=true ;;
               dependabot/gradle/*) app=true ;;
@@ -262,16 +291,12 @@ jobs:
                 # Unknown Dependabot ecosystem: stay gates-only.
                 ;;
             esac
-          elif [ "$full" = "true" ]; then
-            app=true; native_core=true; native_jni=true; backend=true
           else
-            # PR path mode: Tier 1 / 4 from paths. Fail closed if filters empty
-            # (gates only) — do not force a full matrix.
+            # Path mode, on a PR and on a push to main alike. Fail closed if the
+            # filters are empty (gates only) — do not force a full matrix.
             if [ "$FILTER_APP" = "true" ] || [ "$FILTER_ANDROID_TEST" = "true" ] || [ "$FILTER_PACKAGING" = "true" ]; then
               app=true
             fi
-            if [ "$FILTER_NATIVE_CORE" = "true" ]; then native_core=true; fi
-            if [ "$FILTER_NATIVE_JNI" = "true" ]; then native_jni=true; fi
             if [ "$FILTER_BACKEND" = "true" ]; then backend=true; fi
             # Editing ci.yml used to be gates-only because this filter was
             # collected and never read. Run the light app + backend tiers so a
@@ -280,21 +305,36 @@ jobs:
               app=true
               backend=true
             fi
+            # An engine bump or a JNI change is proven on the emulator and in
+            # the arm64 release build before it merges. These flags were
+            # computed and read by no job, so a bump was first built on main.
+            if [ "$FILTER_NATIVE_JNI" = "true" ] || [ "$FILTER_NATIVE_CI" = "true" ]; then
+              emulator=true
+              release_build=true
+            fi
+            # Keep rules and the release build config only fail under R8, which
+            # Tier 1 never runs.
+            if [ "$FILTER_PACKAGING" = "true" ]; then release_build=true; fi
             if [ "$E2E_LABEL" = "true" ] || [ "$RELEASE_LABEL" = "true" ]; then
-              heavy=true
+              emulator=true
+              release_build=true
+            fi
+            # Main always reruns the light tiers on the merged tree: they are
+            # minutes, and the heavy ones above still follow the diff.
+            if [ "$main_push" = "true" ]; then
+              app=true
+              backend=true
             fi
           fi
 
           {
             echo "app=$app"
-            echo "native_core=$native_core"
-            echo "native_jni=$native_jni"
             echo "backend=$backend"
-            echo "full_ci=$full"
-            echo "heavy_ci=$heavy"
+            echo "emulator=$emulator"
+            echo "release_build=$release_build"
             echo "benchmark_ci=$benchmark"
           } >> "$GITHUB_OUTPUT"
-          echo "Resolved: app=$app native_core=$native_core native_jni=$native_jni backend=$backend full_ci=$full heavy_ci=$heavy benchmark_ci=$benchmark"
+          echo "Resolved: event=$EVENT_NAME full=$full app=$app backend=$backend emulator=$emulator release_build=$release_build benchmark_ci=$benchmark"
 
   # ===================================================================
   # Tier 1 — Kotlin compile + JVM unit tests + quality gates (no NDK)
@@ -304,14 +344,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: changes
-    if: >-
-      needs.changes.outputs.app == 'true'
-      || needs.changes.outputs.full_ci == 'true'
+    if: needs.changes.outputs.app == 'true'
     steps:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-android-build
 
+      # The androidTest and :benchmark sources compile here (no NDK, seconds) so
+      # a change that breaks them fails on the PR; only the emulator tier runs
+      # them, and that tier is opt-in for app-only changes.
       - name: Build, test and quality gates
         run: >
           ./gradlew --continue --console=plain
@@ -320,11 +361,30 @@ jobs:
           :app:detekt
           :app:lintDebug
           :app:compileReleaseKotlin
+          :app:compileDebugAndroidTestKotlin
+          :benchmark:compileBenchmarkKotlin
 
-      # koverVerify enforces the `minBound` in app/build.gradle.kts (TD-38);
+      # Gradle names no failing test in the log; the report is in the build dir.
+      - name: Report unit test results
+        if: always()
+        run: python3 scripts/ci_test_report.py app/build/test-results/testDebugUnitTest
+
+      # koverVerify enforces the bounds in app/build.gradle.kts (TD-38);
       # koverLog prints the measured number so a raise has evidence.
       - name: Kotlin coverage floor
-        run: ./gradlew --console=plain :app:koverLog :app:koverVerify
+        run: >
+          ./gradlew --console=plain
+          :app:koverLog :app:koverVerify :app:koverXmlReport :app:koverHtmlReport
+
+      - name: Upload unit test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-unit-tests-and-coverage
+          path: |
+            app/build/test-results/testDebugUnitTest/**
+            app/build/reports/kover/**
+          if-no-files-found: ignore
 
   # ===================================================================
   # Tier 2 — Engine host / sanitizers
@@ -333,8 +393,11 @@ jobs:
   # ===================================================================
 
   # ===================================================================
-  # Tier 3 — Emulator (JNI smoke + AnalysisWizardSmokeTest; not full E2E)
-  # Decoupled from Tier 1 so native-jni can run when app Tier 1 is skipped.
+  # Tier 3 — Emulator: the whole androidTest suite bar the benchmark package
+  # (EnginePipelineSmokeTest through the JNI, AnalysisWizardSmokeTest, …).
+  # Runs on an engine/JNI change, the e2e/release/full-ci labels, the weekly
+  # run and main pushes that touch them. Runs even when Tier 1 is skipped (an
+  # engine-only bump), but never after Tier 1 failed.
   # ===================================================================
   tier3-emulator-e2e:
     name: Tier 3 — Emulator E2E
@@ -348,10 +411,7 @@ jobs:
       always()
       && needs.changes.result == 'success'
       && (needs.tier1-app-fast.result == 'success' || needs.tier1-app-fast.result == 'skipped')
-      && (
-        needs.changes.outputs.heavy_ci == 'true'
-        || needs.changes.outputs.full_ci == 'true'
-      )
+      && needs.changes.outputs.emulator == 'true'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -418,9 +478,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: changes
-    if: >-
-      needs.changes.outputs.backend == 'true'
-      || needs.changes.outputs.full_ci == 'true'
+    if: needs.changes.outputs.backend == 'true'
     defaults:
       run:
         working-directory: backend
@@ -506,8 +564,10 @@ jobs:
             'pytest tests/test_firestore_emulator_integration.py -v'
 
   # ===================================================================
-  # Tier 5 — Signed release build (arm64-v8a)
-  # Decoupled from Tier 1 so native-jni can run when app Tier 1 is skipped.
+  # Tier 5 — Signed release build (arm64-v8a), with R8
+  # Runs on an engine/JNI change, a packaging change (keep rules, the app's
+  # build script, the version catalog), the labels and the weekly run; even
+  # when Tier 1 is skipped, never after it failed.
   # ===================================================================
   tier5-signed-release:
     name: Tier 5 — Signed release
@@ -521,10 +581,7 @@ jobs:
       always()
       && needs.changes.result == 'success'
       && (needs.tier1-app-fast.result == 'success' || needs.tier1-app-fast.result == 'skipped')
-      && (
-        needs.changes.outputs.heavy_ci == 'true'
-        || needs.changes.outputs.full_ci == 'true'
-      )
+      && needs.changes.outputs.release_build == 'true'
     steps:
       - uses: actions/checkout@v7
         with:

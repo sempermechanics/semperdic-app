@@ -43,7 +43,10 @@ Check the R8 mapping reached Crashlytics (the release build uploads it); the wor
 1. **Green working tree** — all changes committed, branch merged to **`main`**
    through a reviewed PR.
 2. **Green CI** — `CI OK` must be green on the `main` commit you intend to
-   release (full matrix on push to `main`).
+   release from a **full-matrix** run. A push to `main` runs the emulator and
+   release tiers only when its diff touches them, so dispatch **Actions → CI →
+   Run workflow** on `main` with `full_ci` ticked (or use that commit's weekly
+   run, if it is the head).
 3. **Tag and push** the commit you intend to release:
 
    ```bash
@@ -82,8 +85,10 @@ JVM unit tests, and backend pytest overlap instead of stacking:
 - `verify-legal` — `python scripts/render_legal_pages.py --check`: the published
   Privacy Policy and Terms still match `docs/legal/`.
 - `verify-android` — CI tier 1's checks: `:app:testDebugUnitTest spotlessCheck
-  :app:detekt :app:lintDebug`. No engine/OpenCV submodules: the JVM suite does
-  not `loadLibrary`.
+  :app:detekt :app:lintDebug`, the androidTest and `:benchmark` compiles, and
+  the Kover floor (`koverVerify`). `compileReleaseKotlin` is left to
+  `build-release`, whose R8 build compiles it. No engine/OpenCV submodules: the
+  JVM suite does not `loadLibrary`.
 - `verify-backend` — the shared `backend-gate` action (hashed lock, `pip-audit`,
   ruff over `app/ tests/ scripts/ ../scripts/`, pytest at the 75 % floor), the
   same one CI and Deploy run.

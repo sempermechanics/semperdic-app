@@ -23,9 +23,13 @@ reference comparisons, AddressSanitizer/UndefinedBehaviorSanitizer and
 ThreadSanitizer suites all run in the engine repo's own CI, gating the tags
 this repo pins to.
 
-This repo's CI verifies that the pinned submodule still *links*: an arm64-v8a
-native build in tier 1 and an x86_64 emulator run in tier 3. Bumping the
-submodule pointer triggers both. See [../ops/CI.md](../ops/CI.md).
+This repo's CI verifies that the pinned submodule still *links and behaves*:
+the arm64-v8a release build (R8, signed) in tier 5, and the x86_64 emulator run
+in tier 3, where `EnginePipelineSmokeTest` drives the solver through the JNI.
+Bumping the submodule pointer — or changing `app/src/main/cpp/**` or
+`SemperNativeLib.kt` — triggers both, on the PR and again on the push to
+`main`. Tier 1 is the JVM suite only; it builds no native code. See
+[../ops/CI.md](../ops/CI.md).
 
 ## Changing engine behavior
 

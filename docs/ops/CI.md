@@ -2,16 +2,20 @@
 
 Defined in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml).
 
-**`main` is the only integration branch.** Pull requests target `main`. Pushes
-to `main` run the full matrix. Feature-branch PRs run always-on gates plus
-path-filtered Tier 1 / Tier 4; expensive Tier 3 / Tier 5 run on push to `main`
-or when a PR carries an `e2e` / `release` / `full-ci` label.
+**`main` is the only integration branch.** Pull requests target `main`. Every
+event runs the always-on gates; the tiers follow the diff:
+
+- Tier 1 (app) and Tier 4 (backend) run when their paths change, and on every
+  push to `main`.
+- Tier 3 (emulator) and Tier 5 (arm64 release, R8) run when the diff can break
+  them — an engine bump or JNI change runs both, a packaging change (keep rules,
+  `app/build.gradle.kts`, the version catalog) runs Tier 5 — on a PR and on a
+  push to `main` alike. The `e2e` / `release` / `full-ci` labels force both.
+- The whole matrix runs **weekly** (Monday 04:17 UTC, `schedule`), with the
+  `full-ci` label, or from **Actions → CI → Run workflow** with `full_ci`.
+
 Benchmarks (macro startup and the `HotPathMicroBenchmark` micro suite) run only
 with the `benchmark` label or `workflow_dispatch` → `run_benchmark`.
-
-There is **no weekly/scheduled full matrix** — use those labels or
-**Actions → CI → Run workflow** (`workflow_dispatch`, `full_ci` defaults to
-**false**) for an on-demand full run.
 
 Secrets, vars, and GitHub Environments are mapped in
 [ENVIRONMENTS.md](ENVIRONMENTS.md).
@@ -26,9 +30,9 @@ changes ──┬──> tier1-app-fast ───────────┤
           └──> tier5-signed-release (*) ─┤
                                          └──> ci-ok
 
-(*) On a PR, Tier 3/5 need an `e2e` / `release` / `full-ci` label (or a
-    workflow_dispatch with full_ci). Push to main always schedules them.
-    Skipped Tier 1 no longer cascade-skips JNI/release jobs.
+(*) Tier 3/5 follow the `emulator` / `release_build` flags: engine, JNI and
+    packaging paths, the labels, the weekly run. A skipped Tier 1 (an
+    engine-only bump) does not skip them; a failed one does.
 ```
 
 | Job | Proves | Path-filtered? | Typical (warm / cold) |
@@ -37,10 +41,10 @@ changes ──┬──> tier1-app-fast ───────────┤
 | `legal-pages` | `scripts/render_legal_pages.py --check`: the published pages still match `docs/legal/` | No — always runs | seconds |
 | `console-pages` | `scripts/check_console.py`: the consoles' wiring, CSP, deploy placeholders and gateway paths — their only gate, since they have no compiler — plus `node --test`: the DOM-free `console/util.js`, `auth.js` (sign-in, second factor, step-up, `api`, revoke gate), `router.js`, and the operator, account and institution pages, against a fake Firebase SDK loaded through a `module.register` hook and a DOM parsed from the real pages (`firebase-hosting/tests/harness.mjs`) | No — always runs | seconds |
 | `changes` | Resolves path filters + PR/main/Dependabot mode into tier flags | — | seconds |
-| `tier1-app-fast` | spotless, detekt, lint, JVM unit tests, `compileReleaseKotlin`, Kover coverage log + `koverVerify` floor | `app` (PR); always on `main` push | ~5–8 / ~10 min |
-| `tier3-emulator-e2e` | x86_64 emulator: JNI smoke + `AnalysisWizardSmokeTest`. Excludes `com.sempermechanics.semper.benchmark` on debug (those need the `benchmark` job). | main push / labels | ~20–40 / ~60–90 min |
+| `tier1-app-fast` | spotless, detekt, lint, JVM unit tests, `compileReleaseKotlin`, the androidTest and `:benchmark` sources compile, Kover coverage log + `koverVerify` floor. Failing tests are printed by `scripts/ci_test_report.py`; JUnit XML and the Kover XML/HTML upload as `app-unit-tests-and-coverage` | `app` (PR); always on `main` push | ~5–8 / ~10 min |
+| `tier3-emulator-e2e` | x86_64 emulator: the whole androidTest suite except `com.sempermechanics.semper.benchmark` (those need the `benchmark` job) — `EnginePipelineSmokeTest` through the JNI, `AnalysisWizardSmokeTest`, the device tests | `emulator`: engine / JNI / native-CI actions, labels, weekly | ~20–40 / ~60–90 min |
 | `tier4-backend` | ruff, shell-script parse, pip-audit, hashed-lock verification, pytest at `--cov-fail-under=75`, Firestore emulator suite | `backend` (PR); always on `main` push | ~5–10 min |
-| `tier5-signed-release` | R8 + signed `assembleRelease` arm64, `.so` presence, signature verify, R8 mapping artifact | main push / labels | ~15–40 / up to ~90 min |
+| `tier5-signed-release` | R8 + signed `assembleRelease` arm64, `.so` presence, signature verify, R8 mapping artifact | `release_build`: engine / JNI / native-CI actions / packaging, labels, weekly | ~15–40 / up to ~90 min |
 | `tier-benchmark` | One API 34 emulator, two suites: Macrobenchmark cold/warm startup (`:benchmark`, `suppressErrors=EMULATOR,LOW-BATTERY,UNLOCKED`), then `:app`'s `HotPathMicroBenchmark` on the debug build, installed by Gradle and run with `adb shell am instrument` (`suppressErrors` adds `DEBUGGABLE`, `ACTIVITY-MISSING`, `NOT-AOT-COMPILED`; through Gradle the list arrives cut at its first comma, TD-86; the step fails unless `am instrument` prints `OK (`, and the results are pulled from the device). Emulator **smoke**: no numeric thresholds; both upload their `*-benchmarkData.json` (`macrobenchmark-results`, `microbenchmark-results`). `scripts/ci_test_report.py` prints failing tests and each metric's min / median / max (`BENCH …` lines) into the log, as Tier 3 does for its failures. CI does not pass `--gates`: the real-device gates (`benchmark/gates.json`, checked only in the phone state `DeviceStateRule` records, [ADR-008](../adr/ADR-008-startup-gates-phone-state.md), [TESTING.md](../app/TESTING.md)) apply to a phone run only. The job reads the app id from `app/build.gradle.kts` (`APP_ID`) for the micro run's `am instrument` and pulls, so it runs unchanged in material_testing. | `benchmark` label / `run_benchmark` dispatch only | ~30–60 min |
 | `ci-ok` | Single required status check — every job above passed or was skipped | — | seconds |
 
@@ -81,18 +85,24 @@ gitleaks detect --config .gitleaks.toml --log-opts="<base-sha>..HEAD"
 
 ## Path filters
 
-| Output | Paths | Jobs |
+| Filter | Paths | Sets |
 |--------|-------|------|
-| `app` | `app/**` except `app/src/main/cpp/**`; `gradle/**`, `*.gradle.kts`, `gradle.properties`, `gradlew`, `gradlew.bat`, `settings.gradle.kts` | tier 1 |
-| `native_core` | `engine` (the gitlink itself) and `.gitmodules` | — see note |
-| `native_jni` | `engine`, `.gitmodules`, `app/src/main/cpp/**`, `SemperNativeLib.kt` | tiers 3 + 5 on main / labels |
-| `backend` | `backend/**`, `firestore.rules`, `firebase-hosting/**`, `scripts/deploy-firestore.sh`, and the client's three wire-contract files | tier 4 |
-| `ci_workflow` | `.github/workflows/ci.yml` | sets `app` + `backend` so a workflow-only PR is not gates-only |
-| `full_ci` | `full-ci` label, or `workflow_dispatch` with `full_ci: true`, or **push to `main`** | all |
+| `app` | `app/**` except `app/src/main/cpp/**`; `benchmark/**`, `gradle/**`, `*.gradle.kts`, `gradle.properties`, `gradlew`, `gradlew.bat`, `settings.gradle.kts` | `app` (tier 1) |
+| `android_test` | `app/src/androidTest/**` | `app` (tier 1 compiles it) |
+| `packaging` | `app/build.gradle.kts`, `app/proguard-rules.pro`, `gradle/libs.versions.toml` | `app` + `release_build` (tier 5 runs R8) |
+| `native_jni` | `engine`, `.gitmodules`, `app/src/main/cpp/**`, `SemperNativeLib.kt` | `emulator` + `release_build` (tiers 3 + 5) |
+| `native_ci` | `.github/actions/{setup-native-ci,enable-kvm,check-arm64-so}/**` | `emulator` + `release_build` |
+| `backend` | `backend/**`, `firestore.rules`, `firebase-hosting/firebase.json`, `scripts/deploy-firestore.sh`, `.github/workflows/deploy-backend.yml`, `docs/legal/**`, `scripts/*.py`, and the client's three wire-contract files | `backend` (tier 4) |
+| `ci_workflow` | `.github/workflows/ci.yml`, `.github/actions/**`, `scripts/ci_test_report.py` | `app` + `backend`, so a workflow-only PR is not gates-only |
 
-Because the engine is a submodule, `native_core` and `native_jni` match the
-**gitlink** `engine` rather than a source tree — bumping the pinned engine
-commit is what triggers them. `native_core` no longer has a job of its own.
+The `backend` filter lists every file outside `backend/` that a backend test
+reads (`test_security_controls`, `test_terms_and_consent`), plus the ops
+scripts, whose only lint is Tier 4's ruff. The console pages under
+`firebase-hosting/` are not in it: `console-pages` checks them on every event.
+
+Because the engine is a submodule, `native_jni` matches the **gitlink**
+`engine` rather than a source tree — bumping the pinned engine commit is what
+triggers it.
 
 The filter step runs with `predicate-quantifier: 'some-with-excludes'`: a file
 matches a filter if any of its patterns includes it and no `!` pattern excludes
@@ -100,26 +110,28 @@ it. That is what makes `app`'s "except `app/src/main/cpp/**`" hold. Under the
 default (`some`), the negated pattern matched every file outside `cpp/`, so
 `app` was true on every PR and a docs-only PR ran Tier 1 (TD-96).
 
-Two further filters widen `app` rather than gating a job directly:
-`app/src/androidTest/**` and the packaging files (`app/build.gradle.kts`,
-`app/proguard-rules.pro`, `gradle/libs.versions.toml`).
-
-### PR vs push to `main`
+### What runs for each diff
 
 | Diff class | T1 | T3 | T4 | T5 |
 |------------|----|----|----|-----|
-| app only (PR) | run | —† | — | —† |
-| backend only (PR) | — | — | run | — |
-| engine pin / JNI (PR) | — | —† | — | —† |
-| push to `main` | run | run | run | run |
-| `full-ci` label / dispatch `full_ci` | run | run | run | run |
+| app Kotlin / resources | run | —† | — | —† |
+| androidTest only | run (compiles it) | —† | — | —† |
+| keep rules / app build script / version catalog | run | —† | — | run |
+| engine pin / JNI / `app/src/main/cpp/**` | — (‡) | run | — | run |
+| backend, rules, Terms, ops scripts | — | — | run | — |
+| console pages only | — | — | — | — |
+| docs only | — | — | — | — |
+| push to `main` | run | as the diff | run | as the diff |
+| weekly schedule / `full-ci` label / dispatch `full_ci` | run | run | run | run |
 
 † Also with the `e2e`, `release`, or `full-ci` label on the PR.
+‡ `SemperNativeLib.kt` is also under `app/**`, so a change to it runs Tier 1 too.
 
-Editing `.github/workflows/ci.yml` on a PR runs Tier 1 and Tier 4 (the
-`ci_workflow` filter). Empty path outputs otherwise fail **closed** to gates-only
-(`secret-scan` + `legal-pages` + `console-pages` + `ci-ok`), not a full matrix. Rules-only or
-Hosting-only PRs match `backend` so they cannot skip Tier 4.
+A push to `main` filters against `github.event.before` (the previous `main`
+head), so a merge commit is judged by its whole PR. One with no base (a zero
+`before`) runs the full matrix. Empty path outputs otherwise fail **closed** to
+gates-only (`secret-scan` + `legal-pages` + `console-pages` + `ci-ok`), not a
+full matrix.
 
 ### Dependabot cheap path
 
@@ -164,9 +176,11 @@ ruleset / protection on `main`. It gates on all tiers and treats skipped jobs as
 passing. Free private orgs may block classic branch protection — see
 [ENVIRONMENTS.md](ENVIRONMENTS.md).
 
-## On-demand full matrix
+## Full matrix
 
-- PR label: `full-ci` (or `e2e` / `release` for Tier 3 / 5 only)
+- Weekly: `schedule`, Monday 04:17 UTC. It catches what paths cannot: a new
+  emulator image, an SDK or runner change, a test that went flaky.
+- PR label: `full-ci` (or `e2e` / `release` for Tier 3 + 5 without the rest)
 - Or: Actions tab → **CI** → **Run workflow** (tick `full_ci`)
 
 ## Reproducing a failure locally
