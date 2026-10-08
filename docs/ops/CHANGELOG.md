@@ -12,6 +12,45 @@ Decisions that outlive their PR are recorded in
 [CLOUD_ARCHITECTURE_GCP.md](../backend/CLOUD_ARCHITECTURE_GCP.md) §20,
 [ARCHITECTURE.md](../app/ARCHITECTURE.md) and [../adr/](../adr/).
 
+## 2026-10-08 — Hosting deploys: every wait explained, and the dashboards on every screen size (#369, #372)
+
+#369 (`676762b2`, merged at 16:09 IST) and #372 (`04c74669`, 16:18 IST) were each
+deployed with `scripts/deploy-console.sh`, and both live checks passed. What #369
+changed:
+- **No signed-out flash.** Every page starts `<body data-auth="pending">` with
+  "Checking your sign-in…", and Sign in stays hidden until `auth.js` knows (a CSS
+  fallback shows it after 8 s if the scripts never run). The operator desk and
+  institution seats keep `#app` hidden until the role or licence check passes.
+- **Each wait is named** on the status line, a polite live region: "Checking your
+  access…", "Loading licences…", "Loading the roster…", "Loading your analyses…".
+  After 4 s it adds "Still working — the server can take a few seconds to start."
+- **Tables show placeholder rows while they load**, and a failed load says so in the
+  table with a Retry that reruns only that load. A list's buttons are disabled while
+  it loads, and a late answer for an earlier request is dropped.
+- **The operator desk** puts the licence table first, opens Issue a licence as a card
+  from its toolbar, and keeps Edit on each row with the rest under a More menu
+  (Revoke and Delete last).
+- **Screen sizes:** on phones every table becomes a stack of cards and the header keeps
+  to two rows; on tablets tables scroll inside their card with the first column
+  pinned; on touch screens every control is at least 44 px; keyboard focus is always
+  outlined.
+- `scripts/check_console.py` check 10 requires the pending body and the live
+  `#status` on every page. The console tests: 214.
+
+The live check of #369 on a phone found the account and institution headers on three
+rows, not two: the page title wrapped under the brand. #372 is CSS only: under 600 px
+the brand shows just its mark, the title gets room to wrap on itself, and the card
+heading rule skips full-width rows.
+
+Measured from the browser pane, signed in as `damodar@indicvision.com`:
+- Five warm loads of the operator desk after #369: median 1372 ms to the licences on
+  screen, within the 1078–1454 ms range measured after #365.
+- The live sequence was "Checking your sign-in…", then "Checking your access…", then
+  placeholder rows under "Loading licences…", then the licences, with no Sign in
+  button shown on the way.
+- A first load after the API had idled: `/v1/me` took 15.2 s, the wait the
+  "Still working" line (shown after 4 s) is there to explain.
+
 ## 2026-10-08 — Hosting deploy: each dashboard's code in one wave, its data read together (#365)
 
 #365 (`25aed416`) was deployed with `scripts/deploy-console.sh`, and its live check
