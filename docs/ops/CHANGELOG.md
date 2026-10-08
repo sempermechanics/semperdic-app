@@ -12,6 +12,17 @@ Decisions that outlive their PR are recorded in
 [CLOUD_ARCHITECTURE_GCP.md](../backend/CLOUD_ARCHITECTURE_GCP.md) §20,
 [ARCHITECTURE.md](../app/ARCHITECTURE.md) and [../adr/](../adr/).
 
+## 2026-10-08 — Hosting deploy: the default CSP runs no inline script (#377, TD-204)
+
+#377 (`05f71c58`) was deployed with `scripts/deploy-console.sh` and the live check
+passed. The default `**` policy is now `script-src 'self'` (it allowed
+`'unsafe-inline'`, which no page needed after `finishReset` moved to `reset.js`).
+Live after the deploy: `/terms/`, `/privacy/`, `/finishSignIn/` and `/finishReset/`
+send `script-src 'self'`; `/console/` and `/login` keep their own policy; Firebase's
+`/__/auth/handler` sends no custom CSP. In a browser on the live site `finishReset`
+filled its link, Terms rendered and `/login` reached its signed-out state, with no
+CSP violation logged. `check_console.py` check 11 keeps every policy and page that way.
+
 ## 2026-10-08 — Testing program merged (#366–#368, #370, #371); Hosting deploy of #371
 
 Five stacked PRs from the test review, merged in order once each `CI OK` was green:
