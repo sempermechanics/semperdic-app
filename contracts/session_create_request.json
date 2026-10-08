@@ -1,0 +1,22 @@
+{
+  "specimen": "Steel 24 dogbone",
+  "files": [
+    {
+      "name": "Session.zip",
+      "role": "bundle",
+      "bytes": 48213307,
+      "sha256": "9b2c6f0e1a7d4e5c8b3a2f1e0d9c8b7a6f5e4d3c2b1a09f8e7d6c5b4a3928170"
+    },
+    {
+      "name": "metadata.json",
+      "role": "metadata",
+      "bytes": 2048,
+      "sha256": "4e7d1c0b9a8f7e6d5c4b3a291807f6e5d4c3b2a1908f7e6d5c4b3a2918070f6e"
+    }
+  ],
+  "metrics": {
+    "frameCount": 24.0,
+    "pointsConverged": 18432.0
+  },
+  "localSessionId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"
+}

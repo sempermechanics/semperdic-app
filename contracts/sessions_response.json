@@ -1,0 +1,26 @@
+{
+  "sessions": [
+    {
+      "sessionId": "3f9c2a7e5b1d4c8e9a0b6f2d1e4c7a95",
+      "localSessionId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+      "specimen": "Steel 24 dogbone",
+      "status": "COMPLETED",
+      "fileCount": 2,
+      "completedCount": 2,
+      "totalBytes": 48215355,
+      "driveFolderId": "1QwErTyUiOpAsDfGhJkLzXcVbNm098765",
+      "app": "semper"
+    }
+  ],
+  "quota": {
+    "used": 1,
+    "max": 999
+  },
+  "page": {
+    "size": 50,
+    "count": 1,
+    "nextPageToken": null,
+    "hasMore": false
+  },
+  "verify": null
+}

@@ -292,6 +292,12 @@ android {
                 test.systemProperty("semper.goldens.dir", file("src/test/resources/oracles").absolutePath)
                 test.systemProperty("semper.goldens.update", project.hasProperty("updateGoldens").toString())
                 if (project.hasProperty("updateGoldens")) test.outputs.upToDateWhen { false }
+                // The client/backend wire bodies (ApiDtosContractTest; the
+                // backend's tests/test_wire_contracts.py reads the same files).
+                // An input, so editing one reruns the tests instead of a cache hit.
+                val contracts = rootProject.file("contracts")
+                test.inputs.dir(contracts).withPropertyName("wireContracts")
+                test.systemProperty("semper.contracts.dir", contracts.absolutePath)
             }
         }
     }

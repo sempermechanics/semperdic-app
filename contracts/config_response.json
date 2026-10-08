@@ -1,0 +1,19 @@
+{
+  "mode": "licensed",
+  "plan": "professional",
+  "licenseKind": "institution",
+  "licenseDuration": "timed",
+  "licenseExpiresAt": "2027-03-01T00:00:00+00:00",
+  "licenseGraceEndsAt": "2027-03-15T00:00:00+00:00",
+  "inGrace": true,
+  "licenseSeating": "floating",
+  "leaseExpiresAt": "2027-03-01T00:30:00+00:00",
+  "leaseHeartbeatMinutes": 30,
+  "cloudBackupEnabled": true,
+  "shareEnabled": true,
+  "maxSessions": 999,
+  "maxFilesPerSession": 600,
+  "maxFrames": 500,
+  "datCodecEncodingEnabled": false,
+  "licensePrefix": "SEMP-AB12"
+}

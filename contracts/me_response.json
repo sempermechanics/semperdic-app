@@ -1,0 +1,25 @@
+{
+  "uid": "Xq3LkP9sTzVbN2mR7wYc4HdJ1eF6",
+  "email": "researcher@university.edu",
+  "role": "user",
+  "access_status": "APPROVED",
+  "license": {
+    "mode": "licensed",
+    "kind": "individual",
+    "prefix": "SEMP-U8BX",
+    "duration": "perpetual",
+    "expiresAt": null,
+    "graceEndsAt": null,
+    "inGrace": false,
+    "seating": "assigned",
+    "leaseExpiresAt": null,
+    "held": true
+  },
+  "terms": {
+    "required_version": "2026-09-15",
+    "accepted_version": "2026-09-15",
+    "terms_url": "https://sempermechanics.com/terms/",
+    "privacy_url": "https://sempermechanics.com/privacy/"
+  },
+  "improvement_consent": false
+}

@@ -182,6 +182,9 @@ jobs:
             app:
               - 'app/**'
               - '!app/src/main/cpp/**'
+              # The wire bodies ApiDtosContractTest decodes (the backend's
+              # test_wire_contracts.py reads the same files).
+              - 'contracts/**'
               # The benchmark module builds with the app; without it a
               # benchmark-only PR ran nothing once TD-96 was fixed.
               - 'benchmark/**'
@@ -209,6 +212,8 @@ jobs:
             backend:
               - 'backend/**'
               - 'firestore.rules'
+              # test_wire_contracts holds the shared wire bodies to the routes.
+              - 'contracts/**'
               # test_security_controls reads Hosting's firebase.json; the pages
               # themselves are console-pages' job, which runs on every event.
               - 'firebase-hosting/firebase.json'

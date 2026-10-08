@@ -1,0 +1,21 @@
+{
+  "config": {
+    "mode": "licensed",
+    "plan": "professional",
+    "licenseKind": "individual",
+    "licenseDuration": "perpetual",
+    "licenseExpiresAt": null,
+    "licenseGraceEndsAt": null,
+    "inGrace": false,
+    "licenseSeating": "assigned",
+    "leaseExpiresAt": null,
+    "leaseHeartbeatMinutes": 30,
+    "cloudBackupEnabled": true,
+    "shareEnabled": true,
+    "maxSessions": 999,
+    "maxFilesPerSession": 600,
+    "maxFrames": 500,
+    "datCodecEncodingEnabled": false,
+    "licensePrefix": "SEMP-U8BX"
+  }
+}
