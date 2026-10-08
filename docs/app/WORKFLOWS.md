@@ -445,7 +445,8 @@ extraction show determinate progress and time left instead.
 | [ ] 5.4.6a | Cancel a long frame (big ROI, small step) | Same: no multi-second wait on the progress overlay after confirming |
 | [ ] 5.4.6b | Start a new run straight after cancelling one | It runs normally — the cancel does not carry over |
 | [ ] 5.4.6c | Cancel a sweep at combination 3 of 16 | The **whole sweep** stops — it does not go on to combination 4 |
-| [ ] 5.4.7 | Start a sweep | Status reads "Run i/N · subset · step · VSG" |
+| [ ] 5.4.7 | Start a sweep | "Analysis i of N" beside the title; the planned lattice replaces the graph, all grey rings, with the combination being solved circled; the status under it reads "Solving subset S · step T · W-point window" |
+| [ ] 5.4.7a | Watch the sweep lattice | Each combination fills as it solves or becomes a red ring if skipped; percentage and time left advance per combination; at the end the status reads "Solved K of N analyses · saving" |
 | [ ] 5.4.8 | Background the app mid-run | The run does not survive process death — no resume is offered |
 
 ### 5.5 Terminal states

@@ -221,8 +221,11 @@ sweep, not just the combination in flight.
 
 The same overlay covers importing frames and extracting video, but there it
 counts frames instead: the convergence graph is hidden, because nothing is being
-solved yet. A parameter sweep shows the percentage, time left and the
-combination being solved, without the graph. Cancelling an import asks for confirmation and leaves nothing behind.
+solved yet. A parameter sweep shows *Analysis 7 of 9*, the percentage and time
+left, and its planned lattice in place of the graph: every combination starts
+as a grey ring, fills when it solves, turns into a red ring if it is skipped,
+and the one being solved is circled. The status under it names that
+combination, then *Solved 9 of 9 analyses · saving*. Cancelling an import asks for confirmation and leaves nothing behind.
 
 **A run stops itself if the images decorrelate.** Two consecutive frames below
 50% convergence end it — the frames after them would be no better, and the

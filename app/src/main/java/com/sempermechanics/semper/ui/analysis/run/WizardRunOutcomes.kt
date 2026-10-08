@@ -88,18 +88,7 @@ class WizardRunOutcomes(
     override fun clearEngineFailFaq() = status.setFaq(null)
 
     override fun onSweepProgress(progress: SweepStudyRunner.Progress) {
-        chrome.overlay.update(
-            percent = progress.percent.toFloat(),
-            status = activity.getString(
-                R.string.sweep_running_fmt,
-                progress.runIndex + 1,
-                progress.totalRuns,
-                progress.point.subset,
-                progress.point.step,
-                progress.point.window,
-            ),
-            title = activity.getString(R.string.mode_sweep),
-        )
+        chrome.overlay.updateSweep(progress)
     }
 
     /**
