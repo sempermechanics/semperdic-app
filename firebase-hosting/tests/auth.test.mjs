@@ -6,7 +6,7 @@ import { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   test, fake, FakeUser, readyUser, reset, settle, stillPending, rejection,
-  net, json, storage, prompts, codes, confirms, alerts, page, $, loadAuth,
+  net, json, storage, prompts, codes, confirms, alerts, page, $, loadAuth, until,
 } from "./harness.mjs";
 
 // Dynamic, so that these load after harness.mjs registered its hooks.
@@ -399,11 +399,11 @@ test("ensureDashboardMfa sends an enrolled session without the factor back to Go
   assert.equal($("status").textContent, "Confirming your second factor with Google…");
 });
 
-/** The enrolment card auth.js put on the page. */
-function enrolCard() {
-  const card = page.inserted.find((e) => e.className === "card enrol");
-  assert.ok(card, "enrolment card shown");
-  return card;
+/** The enrolment card auth.js put on the page, once qr.js (imported on demand) has loaded. */
+async function enrolCard() {
+  const find = () => page.inserted.find((e) => e.className === "card enrol");
+  await until(find, "the enrolment card");
+  return find();
 }
 
 test("an account with no factor must enrol TOTP in the page before anything else", async () => {
@@ -413,7 +413,7 @@ test("an account with no factor must enrol TOTP in the page before anything else
   assert.equal($("status").textContent, "Enrol an authenticator app to open any Semper dashboard.");
   assert.equal(fake.callsTo("reauthenticateWithRedirect").length, 0, "a fresh sign-in enrols without a step-up");
 
-  const card = enrolCard();
+  const card = await enrolCard();
   assert.equal(card.anchor, $("status"));
   assert.equal(card.position, "afterend");
   assert.match(card.querySelector(".qr").innerHTML, /^<svg/);
@@ -451,7 +451,7 @@ test("cancelling enrolment rejects ERR_CANCELLED and enrols nothing", async () =
   signIn(new FakeUser());
   const done = auth.ensureDashboardMfa();
   await settle();
-  const card = enrolCard();
+  const card = await enrolCard();
   card.querySelector(".cancel").click();
   assert.equal((await rejection(done)).message, auth.ERR_CANCELLED);
   assert.ok(card.removed);

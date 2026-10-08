@@ -1,4 +1,4 @@
-import { requireSignIn, api, setStatus, esc } from "../auth.js";
+import { requireSignIn, api, setStatus, esc, markFirstData } from "../auth.js";
 import { day, licenceStatePill } from "../util.js";
 import { fetchRoster, wireRoster } from "../roster.js";
 import { mountSwitcher } from "../switcher.js";
@@ -16,13 +16,18 @@ const renderRows = wireRoster({
 
 requireSignIn(async (user) => {
   $("signedOut").hidden = true;
-  if (!(await administersSomething(user))) return;
   // Deep-link support: ?license=... so IT can bookmark their own licence
-  // rather than pasting the id every time.
-  const fromUrl = new URLSearchParams(location.search).get("license");
+  // rather than pasting the id every time. Its roster is read alongside the
+  // list of licences this address administers, not after it; the backend
+  // answers 404 to anyone who does not administer it, and for them the
+  // page shows the "no licence" card and never this answer.
+  const fromUrl = (new URLSearchParams(location.search).get("license") || "").trim();
+  const roster = fromUrl ? fetchRoster(`/v1/institutions/licenses/${encodeURIComponent(fromUrl)}`) : null;
+  if (roster) roster.catch(() => {}); // read, or discarded, below
+  if (!(await administersSomething(user))) return;
   if (fromUrl) {
     $("licenseId").value = fromUrl;
-    load();
+    load(roster);
   }
 });
 
@@ -45,6 +50,7 @@ async function administersSomething(user) {
   }
   if (licenses.length) {
     offerLicences(licenses);
+    markFirstData();
     mountSwitcher("institution", { licenses });
     return true;
   }
@@ -72,15 +78,17 @@ $("licenceChoices").addEventListener("click", (ev) => {
   $("licenseId").value = btn.dataset.pick;
   load();
 });
-$("load").addEventListener("click", load);
+$("load").addEventListener("click", () => load());
 $("licenseId").addEventListener("keydown", (e) => { if (e.key === "Enter") load(); });
 
-async function load() {
+/** Read and show the roster of the licence in the id box, or show the read already `started` for it. */
+async function load(started) {
   licenseId = $("licenseId").value.trim();
   if (!licenseId) return;
   setStatus("Loading…");
   try {
-    render(await fetchRoster(base()));
+    render(await (started || fetchRoster(base())));
+    markFirstData();
     setStatus("");
   } catch (e) {
     $("rosterCard").hidden = true;

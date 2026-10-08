@@ -6,7 +6,7 @@
 import { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  test, fake, FakeUser, readyUser, reset, settle, storage, prompts, codes, page, $, loadAuth,
+  test, fake, FakeUser, readyUser, reset, settle, storage, prompts, codes, page, $, loadAuth, until,
 } from "./harness.mjs";
 
 const auth = await loadAuth();
@@ -169,8 +169,19 @@ test("a sign-in that timed out before a code was accepted says to sign in again"
   assert.equal($("status").className, "muted err");
 });
 
+test("enrolling fetches the QR code library then, and draws the code", async () => {
+  await start(new FakeUser());
+  await until(() => page.inserted.some((e) => e.className === "card enrol"), "the enrolment card");
+  const card = page.inserted.find((e) => e.className === "card enrol");
+  assert.match(card.querySelector(".qr").innerHTML, /^<svg/);
+  assert.ok(!card.querySelector(".qr").hidden, "the picture is shown");
+  card.querySelector(".cancel").click();
+  await settle();
+});
+
 test("declining to enrol signs the account out: every dashboard needs 2FA", async () => {
   const ready = await start(new FakeUser());
+  await until(() => page.inserted.some((e) => e.className === "card enrol"), "the enrolment card");
   const card = page.inserted.find((e) => e.className === "card enrol");
   card.querySelector(".cancel").click();
   await settle();

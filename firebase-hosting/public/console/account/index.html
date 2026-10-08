@@ -11,6 +11,25 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet" />
   <link rel="icon" type="image/webp" href="../semper-icon.webp" />
   <link rel="stylesheet" href="../console.css" />
+  <!-- Start everything sign-in waits for while this page is still parsing:
+       the project config auth.js fetches first (in the mode it fetches it,
+       or it is fetched twice), Google's sign-in servers, and every module
+       the page's scripts import, so they arrive in one round instead of one
+       per level of imports. scripts/check_console.py (check 9) keeps the
+       module list equal to what the scripts import. The API's own address
+       is in config.js, so chrome.js adds that preconnect. -->
+  <link rel="preload" href="/__/firebase/init.json" as="fetch" crossorigin="anonymous" />
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin="anonymous" />
+  <link rel="dns-prefetch" href="https://securetoken.googleapis.com" />
+  <link rel="dns-prefetch" href="https://apis.google.com" />
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js" />
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js" />
+  <link rel="modulepreload" href="../auth.js" />
+  <link rel="modulepreload" href="../config.js" />
+  <link rel="modulepreload" href="../util.js" />
+  <link rel="modulepreload" href="../messages.js" />
+  <link rel="modulepreload" href="../switcher.js" />
+  <link rel="modulepreload" href="../roles.js" />
 </head>
 <body>
   <header>

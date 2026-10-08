@@ -6,11 +6,12 @@
  * `/v1/sessions`, which carries the quota alongside the page.
  */
 import {
-  requireSignIn, api, apiBlob, saveBlob, setStatus, esc, when, day, confirmInPage,
+  requireSignIn, api, apiBlob, saveBlob, setStatus, esc, when, day, confirmInPage, markFirstData,
 } from "../auth.js";
 import { errorDetail, holdsLicence } from "../util.js";
 import { explain as refusalText } from "../messages.js";
 import { mountSwitcher } from "../switcher.js";
+import { licencesAdministered } from "../roles.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -18,10 +19,15 @@ let licence = {};        // the `license` block of /v1/me
 let sessions = [];       // every page loaded so far
 let nextToken = "";
 let quota = null;        // the `quota` block of /v1/sessions
+// The institution licences naming this address, for the dashboard switch:
+// read once, alongside /v1/me rather than after it, and kept for the
+// switch's redraw when the account is read again.
+let administered;
 
 requireSignIn(() => {
   $("signedOut").hidden = true;
   showFactorPill();
+  administered = licencesAdministered().then((out) => out.licenses);
   loadAccount();
   loadSessions({ reset: true });
 });
@@ -51,7 +57,8 @@ async function loadAccount() {
     licence = me.license || {};
     accountError = "";
     renderLicence();
-    mountSwitcher("account", { me });
+    markFirstData();
+    mountSwitcher("account", { me, licenses: administered });
   } catch (e) {
     accountError = `Could not read your account: ${e.message}`;
     setStatus(accountError, true);

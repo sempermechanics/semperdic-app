@@ -310,6 +310,31 @@ export async function settle() {
 }
 
 /**
+ * A response the test sends when it chooses: a route returns `promise`, and
+ * `resolve(response)` answers it. How a test holds one request open to see
+ * what the page does meanwhile.
+ */
+export function deferred() {
+  let resolve;
+  const promise = new Promise((r) => { resolve = r; });
+  return { promise, resolve };
+}
+
+/**
+ * Wait until `check()` is true, for up to `ms`; fail otherwise. Bounded by
+ * time, not turns: what it waits for may be a module read from disk (auth.js
+ * imports qr.js on demand), which on a slow CI runner outlasts any number of
+ * quick turns.
+ */
+export async function until(check, what = "the condition", ms = 3000) {
+  const deadline = Date.now() + ms;
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error(`gave up waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 1));
+  }
+}
+
+/**
  * Whether `promise` is still unsettled once everything else has settled —
  * how a test sees "the page left for Google and this call never returns".
  */

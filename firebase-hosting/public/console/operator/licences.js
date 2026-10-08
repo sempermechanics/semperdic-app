@@ -2,7 +2,7 @@
  * when one licence changes. What each row's buttons do lives with the card
  * or dialog the button opens; the entry module routes the clicks.
  */
-import { api, setStatus, esc } from "../auth.js";
+import { api, setStatus, esc, markFirstData } from "../auth.js";
 import {
   day, licenceStatePill, licenceListPath, searchableLicenceText, upsertLicence,
 } from "../util.js";
@@ -41,22 +41,37 @@ const listPath = (extra = {}) => licenceListPath({
 });
 
 /**
- * Fetch and redraw the licence table, from its first page.
+ * Start reading the first page now, for `loadLicences` to show later. The
+ * desk starts it alongside its role check rather than after it; for anyone
+ * but staff the backend refuses it and the refusal is never shown.
+ */
+export function startLicenceLoad() {
+  const path = listPath();
+  const data = api(path);
+  data.catch(() => {}); // read, or discarded, by loadLicences
+  return { path, data };
+}
+
+/**
+ * Fetch and redraw the licence table, from its first page — or show the read
+ * `startLicenceLoad` began, when the toggles still ask for that page.
  *
  * A change to one licence does not come here: it refreshes that row
  * (`refreshLicence`). Reloading the first page after every change was the
  * desk's slowness, and it dropped every page loaded with "Load more".
  */
-export async function loadLicences() {
+export async function loadLicences(started) {
   setStatus("Loading…");
   desk.verified = {};
   desk.searchHits = null;
   try {
-    const data = await api(listPath());
+    const path = listPath();
+    const data = await (started && started.path === path ? started.data : api(path));
     desk.licences = data.licenses || [];
     desk.licencePage = data.page || {};
     desk.demoAllowance = Number.isInteger(data.demoMaxAnalyses) ? data.demoMaxAnalyses : null;
     renderLicences();
+    markFirstData();
     setStatus("");
     for (const fn of readers) fn(null);
     if (searchableLicenceText($("filter").value)) searchLicences();

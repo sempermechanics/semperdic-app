@@ -60,13 +60,15 @@ import {
   TotpMultiFactorGenerator,
 } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 import { API_BASE_URL } from "./config.js";
-import { qrSvg } from "./qr.js";
 import { errorDetail, reauthMethods } from "./util.js";
 
 // Hosting's /__/firebase/init.js is the classic-SDK script
 // (`firebase.initializeApp({...})`), not a module — there is nothing to
 // import from it. The same config as JSON is one fetch away; top-level await
 // holds every page's module until it is here, which is what they want anyway.
+// Every page's <head> preloads it (`as="fetch" crossorigin="anonymous"`, the
+// mode of this plain fetch), so the browser has usually fetched it before
+// this line runs; a preload in any other mode would be fetched twice.
 const firebaseConfig = await fetch("/__/firebase/init.json").then((r) => {
   if (!r.ok) throw new Error(`hosting/init-error: /__/firebase/init.json ${r.status}`);
   return r.json();
@@ -474,8 +476,12 @@ export async function ensureDashboardMfa() {
   if (!user) throw new Error("not_signed_in");
   if (!hasSecondFactor(user)) {
     setStatus("Enrol an authenticator app to open any Semper dashboard.");
+    // The QR library is needed once per account, here, so it is fetched
+    // here rather than on every page load. If it cannot be fetched the card
+    // shows the key to type instead.
+    const qr = import("./qr.js").then((m) => m.qrSvg, () => null);
     const enrolment = await beginTotpEnrolment(user.email);
-    await enrolInPage(enrolment, user.email);
+    await enrolInPage(enrolment, user.email, await qr);
     setStatus("Authenticator enrolled.");
   }
   if (!(await sessionHasSecondFactor())) {
@@ -529,9 +535,10 @@ export async function beginTotpEnrolment(accountLabel) {
  *
  * The secret and the account go in as text nodes — never through innerHTML —
  * and the SVG is the library's own output for a URI we built, so the one
- * innerHTML below carries nothing a user typed.
+ * innerHTML below carries nothing a user typed. Without `qrSvg` (qr.js could
+ * not be fetched) the key is shown open in place of the picture.
  */
-function enrolInPage(enrolment, account) {
+function enrolInPage(enrolment, account, qrSvg) {
   const card = document.createElement("section");
   card.className = "card enrol";
   card.innerHTML = `
@@ -553,7 +560,12 @@ function enrolInPage(enrolment, account) {
       <button class="secondary cancel">Cancel</button>
     </div>
     <p class="muted err feedback"></p>`;
-  card.querySelector(".qr").innerHTML = qrSvg(enrolment.qrUrl);
+  if (qrSvg) {
+    card.querySelector(".qr").innerHTML = qrSvg(enrolment.qrUrl);
+  } else {
+    card.querySelector(".qr").hidden = true;
+    card.querySelector("details").open = true;
+  }
   card.querySelector(".key").textContent = enrolment.secret;
   card.querySelector(".account").textContent = account;
 
@@ -671,6 +683,7 @@ export function requireSignIn(onReady) {
     resumeHanded = true;
     try {
       await ensureDashboardMfa();
+      mark("semper:auth-ready");
       appEl.hidden = false;
       onReady(user, resume);
     } catch (e) {
@@ -811,6 +824,27 @@ export function saveBlob(blob, filename) {
 }
 
 /** Write a message into the page's status line. */
+/**
+ * A Performance API mark, for measuring a page load in DevTools or with
+ * `performance.getEntriesByName(name)`: `semper:auth-ready` when sign-in and
+ * the second factor are settled, `semper:first-data` when a page first shows
+ * what it loaded (`markFirstData`). Absent support is not an error.
+ */
+function mark(name) {
+  try {
+    performance.mark(name);
+  } catch { /* no Performance API */ }
+}
+
+let firstDataMarked = false;
+
+/** Mark the first time this page shows data it loaded (see `mark`). */
+export function markFirstData() {
+  if (firstDataMarked) return;
+  firstDataMarked = true;
+  mark("semper:first-data");
+}
+
 export function setStatus(message, isError = false) {
   const el = document.getElementById("status");
   if (!el) return;

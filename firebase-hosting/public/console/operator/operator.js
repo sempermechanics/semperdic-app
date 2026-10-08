@@ -5,23 +5,35 @@
 import { requireSignIn, api, setStatus } from "../auth.js";
 import { unfinishedStepUpText } from "../util.js";
 import { mountSwitcher } from "../switcher.js";
+import { licencesAdministered } from "../roles.js";
 import { $, labelOf } from "./state.js";
-import { loadLicences } from "./licences.js";
+import { loadLicences, startLicenceLoad } from "./licences.js";
 import "./mint.js";
 import { openEdit, openConvert } from "./edit.js";
-import { clearLicenceDevice, showDeviceHistory, loadUsers } from "./people.js";
+import {
+  clearLicenceDevice, showDeviceHistory, loadUsers, startUsersLoad,
+} from "./people.js";
 import { openVerified } from "./verify.js";
 import { revokeLicence, resumeRevoke, deleteLicence, resumeDelete } from "./lifecycle.js";
 import { openRoster } from "./roster-card.js";
 
 requireSignIn(async (user, resume) => {
   $("signedOut").hidden = true;
-  const me = await operatorMe(user);
+  // Every read the desk needs goes out together, the role check first:
+  // waiting for the role before asking for the licences doubled the time to
+  // a filled table. Only staff are shown what comes back; for anyone else
+  // the backend refuses the desk's reads, and the refusals are dropped.
+  const role = api("/v1/me");
+  role.catch(() => {}); // read by operatorMe
+  const licences = startLicenceLoad();
+  const users = startUsersLoad();
+  const administered = licencesAdministered().then((out) => out.licenses);
+  const me = await operatorMe(user, role);
   if (!me) return;
-  mountSwitcher("operator", { me });
+  mountSwitcher("operator", { me, licenses: administered });
   showFactorPill();
-  loadUsers();
-  await loadLicences();
+  loadUsers(users);
+  await loadLicences(licences);
   // Back from the Google re-authentication a revoke asked for: finish it
   // now, while the fresh sign-in is inside the backend's window. If the
   // round trip failed, say so here — after the list load, whose own status
@@ -41,10 +53,10 @@ requireSignIn(async (user, resume) => {
  * refusal. Now the desk stays hidden and the account is told where it can go
  * instead.
  */
-async function operatorMe(user) {
+async function operatorMe(user, role) {
   let me;
   try {
-    me = await api("/v1/me");
+    me = await role;
   } catch (e) {
     $("app").hidden = true;
     setStatus(`Could not check whether ${user.email} is an operator: ${e.message}`, true);
