@@ -190,6 +190,11 @@ def _attr(attrs: str, name: str) -> str | None:
     return found.group(1) if found else None
 
 
+def _href(module: str, page: str) -> str:
+    """`module` as the page would write it in an href."""
+    return os.path.relpath(module, os.path.dirname(page)).replace(os.sep, "/")
+
+
 def check_preloads() -> None:
     for page in PAGES:
         html = read(page)
@@ -224,15 +229,14 @@ def check_preloads() -> None:
         static = page_modules(page, on_demand=False)
         on_demand = set(page_modules(page)) - set(static)
         wanted = set(static) - set(page_scripts(page))
-        short = lambda path: os.path.relpath(path, os.path.dirname(page)).replace(os.sep, "/")
         for module in sorted(wanted - preloaded):
-            fail(page, f"does not preload {short(module)}, which it runs — "
-                       f'add <link rel="modulepreload" href="{short(module)}">')
+            fail(page, f"does not preload {_href(module, page)}, which it runs — "
+                       f'add <link rel="modulepreload" href="{_href(module, page)}">')
         for module in sorted(preloaded - wanted):
             why = ("is only imported on demand" if module in on_demand
                    else "is a <script src> of the page already" if module in page_scripts(page)
                    else "is not imported by this page")
-            fail(page, f"preloads {short(module)}, which {why}")
+            fail(page, f"preloads {_href(module, page)}, which {why}")
 
         imported = {url for module in static for url in _REMOTE_IMPORT.findall(read(module))}
         for url in sorted(imported - remote):
