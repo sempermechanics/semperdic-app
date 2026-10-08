@@ -30,9 +30,10 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch to regenerate the lock on and push to
+        # No default: main requires CI OK (ruleset), so a push there is
+        # refused. Name the PR branch, usually Dependabot's.
+        description: PR branch to regenerate the lock on and push to (not main)
         required: true
-        default: main
 
 permissions:
   contents: read

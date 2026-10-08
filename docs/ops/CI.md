@@ -172,10 +172,12 @@ Skipped jobs count as success for `ci-ok`.
 
 ## Required check
 
-Set **`CI OK`** (`ci-ok`) as the single required status check in a branch
-ruleset / protection on `main`. It gates on all tiers and treats skipped jobs as
-passing. Free private orgs may block classic branch protection — see
-[ENVIRONMENTS.md](ENVIRONMENTS.md).
+**`CI OK`** (`ci-ok`) is the single required status check on `main`: repository
+ruleset `main` (id 24720948, set 2026-10-08) requires it on the default branch and
+blocks force-push and deletion, with no bypass actors. It gates on all tiers and
+treats skipped jobs as passing. Every change reaches `main` through a PR whose
+`CI OK` passed; a direct push is refused. That includes the Backend lock workflow:
+dispatch it on the PR branch (a Dependabot branch, its purpose), not on `main`.
 
 ## Full matrix
 
