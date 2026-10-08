@@ -2,7 +2,7 @@
 // Behaviour of console/auth.js — API calls, step-up, second factor, enrolment
 // and the revoke gate — against the fake Firebase SDK in fakes/ (see
 // harness.mjs for how the gstatic imports are redirected).
-import { beforeEach, afterEach } from "node:test";
+import { beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
   test, fake, FakeUser, readyUser, reset, settle, stillPending, rejection,
@@ -592,3 +592,46 @@ test("the revoke password is asked for in a password box", async () => {
   assert.equal(card.querySelector("h2").textContent, "Re-enter your password");
   assert.equal(card.querySelector("input").type, "password");
 });
+
+/* ------------------------------------------------------------- waiting */
+
+test("a wait says what it is waiting for, and after 4 s why it is long", async () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    let answer;
+    const call = auth.whileWaiting(new Promise((r) => { answer = r; }), "Loading licences…");
+    assert.equal($("status").textContent, "Loading licences…");
+    mock.timers.tick(3999);
+    assert.equal($("status").textContent, "Loading licences…");
+    mock.timers.tick(1);
+    assert.equal($("status").textContent,
+      "Loading licences… Still working — the server can take a few seconds to start.");
+    answer("rows");
+    assert.equal(await call, "rows");
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("a quick answer never shows the slow note, and a newer message is not overwritten", async () => {
+  mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    assert.equal(await auth.whileWaiting(Promise.resolve(1), "Loading…"), 1);
+    mock.timers.tick(5000);
+    assert.equal($("status").textContent, "Loading…");
+
+    const slow = auth.whileWaiting(new Promise(() => {}), "Checking your access…");
+    slow.catch(() => {});
+    auth.setStatus("Something else happened.");
+    mock.timers.tick(5000);
+    assert.equal($("status").textContent, "Something else happened.");
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test("a failed wait rejects as the call did", async () => {
+  const e = await rejection(auth.whileWaiting(Promise.reject(new Error("boom")), "Loading…"));
+  assert.equal(e.message, "boom");
+});
+

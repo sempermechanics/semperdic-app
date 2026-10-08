@@ -1,4 +1,5 @@
 import { api, esc, when } from "../auth.js";
+import { placeholderRows, retryRow } from "../util.js";
 import { $, desk, labelOf } from "./state.js";
 import { renderLicences, onLicenceRead } from "./licences.js";
 
@@ -46,13 +47,18 @@ export async function openVerified(id) {
   await loadVerified(id);
 }
 
+let verifyLoad = 0; // the latest check; an answer for an older one is dropped
+
 async function loadVerified(id) {
+  const ticket = ++verifyLoad;
   $("verifySummary").textContent = "Checking every seat against its holder…";
-  $("verifyRows").innerHTML = "";
+  $("verifyRows").innerHTML = placeholderRows(4, 3);
+  $("verifyReload").disabled = true;
   try {
     const report = await api(
       `/v1/admin/licenses/${encodeURIComponent(id)}/reconcile`,
     );
+    if (ticket !== verifyLoad) return;
     desk.verified[id] = report;
     $("verifySummary").innerHTML = verifiedSummary(report);
     $("verifyRows").innerHTML = (report.seats || []).map(verifiedRow).join("") ||
@@ -60,11 +66,16 @@ async function loadVerified(id) {
     // The Seats column now has a second number to show for this licence.
     renderLicences();
   } catch (e) {
-    const msg = e.code === "kind_not_institution"
+    if (ticket !== verifyLoad) return;
+    const individual = e.code === "kind_not_institution";
+    const msg = individual
       ? "This is an individual licence: one holder, no roster, so there " +
         "are no two counts to compare."
       : `Could not check the seats: ${e.message}`;
     $("verifySummary").innerHTML = `<span class="err">${esc(msg)}</span>`;
+    $("verifyRows").innerHTML = individual ? "" : retryRow(4, "The seats were not checked.");
+  } finally {
+    if (ticket === verifyLoad) $("verifyReload").disabled = false;
   }
 }
 
@@ -122,6 +133,11 @@ function verifiedRow(s) {
 
 $("verifyClose").addEventListener("click", () => {
   $("verifyCard").hidden = true;
+});
+
+$("verifyRows").addEventListener("click", (ev) => {
+  const id = $("verifyCard").dataset.licence;
+  if (id && ev.target.closest("button[data-retry]")) loadVerified(id);
 });
 
 $("verifyReload").addEventListener("click", () => {

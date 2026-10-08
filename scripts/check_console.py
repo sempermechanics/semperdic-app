@@ -39,6 +39,9 @@ runtime, and a person only discovers in production:
    `/__/firebase/init.json` in the mode auth.js fetches it, and no preload
    that sends credentials. A missing preload costs a round trip; one too
    many downloads code the page never runs.
+10. Every page starts as "checking your sign-in": `<body data-auth="pending">`
+   (console.css keeps Sign in hidden until auth.js knows) and a `#status`
+   that is a polite live region, so each step of a load is read out.
 
 Checks 2, 3, 7 and 8 read every module a page runs: its `<script src>` and,
 transitively, what those import by relative path, including on demand.
@@ -246,6 +249,24 @@ def check_preloads() -> None:
             fail(page, f"preloads {url}, which no module it runs imports")
 
 
+# ---------------- 10: pages start pending, with a live status line --------
+
+
+def check_pending() -> None:
+    for page in PAGES:
+        html = read(page)
+        if not re.search(r'<body\b[^>]*\bdata-auth="pending"', html):
+            fail(page, '<body> lacks data-auth="pending" — a signed-in visitor '
+                       "is offered Sign in until auth.js has checked")
+        status = re.search(r'<p\b[^>]*\bid="status"[^>]*>', html)
+        attrs = status.group(0) if status else ""
+        for want in ('role="status"', 'aria-live="polite"', "data-pending"):
+            if want not in attrs:
+                fail(page, f"#status lacks {want} — the status line is how "
+                           "every wait is explained, and a screen reader "
+                           "hears it only from a live region")
+
+
 # ---------------- 3: every id a module asks for, its page defines ---------
 
 
@@ -448,6 +469,7 @@ def main() -> int:
     check_gateway()
     check_codes()
     check_preloads()
+    check_pending()
 
     if failures:
         print("Console checks failed:\n", file=sys.stderr)

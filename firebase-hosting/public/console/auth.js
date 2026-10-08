@@ -607,8 +607,17 @@ function enrolInPage(enrolment, account, qrSvg) {
  * every console before it fetches anything. `resume` is whatever the page
  * stashed before a re-authentication redirect that has just completed, or
  * null.
+ *
+ * Until the sign-in state is known the page says "Checking your sign-in…"
+ * (its markup: `<body data-auth="pending">` and a pending `#status`), and
+ * console.css keeps Sign in out of sight, so someone already signed in is
+ * not offered it first. This sets `data-auth` to "in" or "out" once known.
+ *
+ * `showApp: false` leaves `#app` hidden for the page to show once its own
+ * check passes: the operator desk and the institution page are only for
+ * some accounts, and showed their controls before saying whose they were.
  */
-export function requireSignIn(onReady) {
+export function requireSignIn(onReady, { showApp = true } = {}) {
   const signInBtn = document.getElementById("signIn");
   const signOutBtn = document.getElementById("signOut");
   const who = document.getElementById("who");
@@ -667,10 +676,13 @@ export function requireSignIn(onReady) {
     // replaced the user object the listener was called with.
     const user = auth.currentUser;
     const signedIn = Boolean(user);
+    document.body.dataset.auth = signedIn ? "in" : "out";
+    if (!signedIn) clearPendingStatus();
     signInBtn.hidden = signedIn;
     signOutBtn.hidden = !signedIn;
     if (signedOut) signedOut.hidden = signedIn;
     who.textContent = signedIn ? user.email : "";
+    who.title = who.textContent; // the whole address, where a phone cuts it short
     if (!signedIn) {
       readyUid = null;
       appEl.hidden = true;
@@ -684,7 +696,8 @@ export function requireSignIn(onReady) {
     try {
       await ensureDashboardMfa();
       mark("semper:auth-ready");
-      appEl.hidden = false;
+      clearPendingStatus();
+      if (showApp) appEl.hidden = false;
       onReady(user, resume);
     } catch (e) {
       readyUid = null;
@@ -848,8 +861,38 @@ export function markFirstData() {
 export function setStatus(message, isError = false) {
   const el = document.getElementById("status");
   if (!el) return;
+  delete el.dataset.pending;
   el.textContent = message;
   el.className = isError ? "muted err" : "muted";
+}
+
+/** Clear "Checking your sign-in…" if nothing has replaced it since. */
+function clearPendingStatus() {
+  const el = document.getElementById("status");
+  if (el && "pending" in el.dataset) setStatus("");
+}
+
+/** How long a wait goes before the status line says why it is long. */
+export const SLOW_AFTER_MS = 4000;
+export const SLOW_NOTE = "Still working — the server can take a few seconds to start.";
+
+/**
+ * Say `message` on the status line while `promise` runs, and if it is still
+ * running after `after` ms, add why: the API scales to zero when idle, and
+ * its first answer after that can take ten seconds or more. Resolves or
+ * rejects as `promise` does; what the line says afterwards is the caller's.
+ */
+export async function whileWaiting(promise, message, { after = SLOW_AFTER_MS } = {}) {
+  setStatus(message);
+  const timer = setTimeout(() => {
+    const el = document.getElementById("status");
+    if (el && el.textContent === message) setStatus(`${message} ${SLOW_NOTE}`);
+  }, after);
+  try {
+    return await promise;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Pure helpers live in util.js, where `node --test` can reach them; the pages
