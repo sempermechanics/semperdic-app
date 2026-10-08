@@ -46,7 +46,7 @@ started by the operator:
 - The dry-run against `v202610070628-manual` showed the same 29 encoding-only lines,
   so `semper-gw` is unchanged.
 
-## 2026-10-08 — Hosting deploy: the default CSP runs no inline script (#377, TD-204)
+## 2026-10-08 — Hosting deploy: the default CSP runs no inline script (#377, TD-205)
 
 #377 (`05f71c58`) was deployed with `scripts/deploy-console.sh` and the live check
 passed. The default `**` policy is now `script-src 'self'` (it allowed
@@ -80,7 +80,7 @@ Five stacked PRs from the test review, merged in order once each `CI OK` was gre
 
 Floors after #371: app lines 72 / branches 54 (74.50 / 56.41 %, Activities now
 counted), backend 93 (95.47 %; 95.54 % with the emulator tier), console lines 53
-(55.32 %, counted per page load: TD-203). TD-199–TD-204 hold the gaps left open.
+(55.32 %, counted per page load: TD-203). TD-199–TD-205 hold the gaps left open.
 
 #371 (`f0a5e367`) was deployed with `scripts/deploy-console.sh` and the live check
 passed: the live `console/roster.js` takes the path before asking, and
