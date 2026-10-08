@@ -6,7 +6,7 @@
 import { beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
-  test, reset, settle, openPage, json, net, confirms, sent, page, $, loadAuth,
+  test, reset, settle, openPage, json, net, confirms, sent, page, $, loadAuth, deferred,
 } from "./harness.mjs";
 
 await loadAuth();
@@ -43,7 +43,7 @@ test("the page starts once signed in: 2FA pill, account and analyses", async () 
   assert.equal($("signedOut").hidden, true);
   assert.equal($("mfaPill").hidden, false);
   assert.equal($("mfaPill").textContent, "2FA on");
-  assert.deepEqual(sent(), ["GET /v1/me", "GET /v1/sessions?app=all", "GET /v1/institutions/licenses"]);
+  assert.deepEqual(sent().sort(), ["GET /v1/institutions/licenses", "GET /v1/me", "GET /v1/sessions?app=all"]);
 });
 
 const tabs = () => $("switch").querySelectorAll("a").map((a) =>
@@ -62,6 +62,19 @@ test("an IT contact gets Institution seats | Your account", async () => {
   assert.deepEqual(tabs(), [["Institution seats", "../institution/", ""], ["Your account", "../account/", "page"]]);
 });
 
+test("the switch's licence list is read alongside /v1/me, and once", async () => {
+  const me = deferred();
+  await open({ routes: {
+    "GET /v1/me": () => me.promise,
+    "GET /v1/institutions/licenses": () => json(200, { licenses: [{ id: "L1" }] }),
+  } });
+  assert.deepEqual(sent(/institutions/), ["GET /v1/institutions/licenses"], "sent before /v1/me answers");
+  me.resolve(json(200, { email: "user@example.com", license: {} }));
+  await settle();
+  assert.equal($("switch").hidden, false);
+  assert.equal(sent(/institutions/).length, 1);
+});
+
 test("an account with only this dashboard sees no switch", async () => {
   await open({ license: { mode: "licensed", held: true } });
   assert.equal($("switch").hidden, true);
@@ -70,7 +83,8 @@ test("an account with only this dashboard sees no switch", async () => {
 test("when /v1/me fails there is no switch, and the analyses still load", async () => {
   await open({ routes: { "GET /v1/me": () => json(503, { detail: "unavailable" }) } });
   assert.equal($("switch").hidden, true);
-  assert.deepEqual(sent(), ["GET /v1/me", "GET /v1/sessions?app=all"]);
+  // The switch's own read went out alongside /v1/me; without a role it shows nothing.
+  assert.deepEqual(sent().sort(), ["GET /v1/institutions/licenses", "GET /v1/me", "GET /v1/sessions?app=all"]);
 });
 
 test("a live licence shows its kind, key, end date, and may be moved", async () => {

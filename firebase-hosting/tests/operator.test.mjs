@@ -8,7 +8,7 @@ import { beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
   test, reset, settle, openPage, json, net, confirms, prompts, codes, sent, storage, fake,
-  readyUser, FakeUser, $, loadAuth,
+  readyUser, FakeUser, $, loadAuth, deferred,
 } from "./harness.mjs";
 
 await loadAuth();
@@ -64,21 +64,67 @@ const rowButton = (kind, id) => $("licenceRows").querySelector(`button[data-${ki
 
 /* --------------------------------------------------------------- access */
 
+/** What the backend answers a non-staff account's desk reads, sent alongside its /v1/me. */
+const REFUSED_DESK = {
+  [LIST]: () => json(403, { detail: "not_admin" }),
+  "GET /v1/admin/users?status=PENDING&limit=50": () => json(403, { detail: "not_admin" }),
+  "GET /v1/institutions/licenses": () => json(200, { licenses: [] }),
+};
+
 test("an account that is not staff sees where it can go, and no desk", async () => {
   await openPage("operator", {
     user: readyUser({ email: "someone@lab.org" }),
-    routes: { "GET /v1/me": () => json(200, { role: "user" }) },
+    routes: { "GET /v1/me": () => json(200, { role: "user" }), ...REFUSED_DESK },
   });
   assert.equal($("app").hidden, true);
   assert.equal($("notOperator").hidden, false);
   assert.equal($("notOperatorWho").textContent, "someone@lab.org");
-  assert.deepEqual(sent(), ["GET /v1/me"], "nothing of the desk is loaded");
+  assert.equal(sent()[0], "GET /v1/me", "the role is asked first");
+  assert.equal($("licenceRows").innerHTML, "", "nothing of the desk is shown");
+  assert.equal($("userRows").innerHTML, "");
+  assert.equal($("switch").hidden, true);
+  assert.equal($("status").textContent, "", "the refused desk reads are never reported");
 });
 
 test("when the role cannot be read, the desk stays hidden and says why", async () => {
-  await openPage("operator", { routes: { "GET /v1/me": () => json(503, { detail: "unavailable" }) } });
+  await openPage("operator", {
+    routes: { "GET /v1/me": () => json(503, { detail: "unavailable" }), ...REFUSED_DESK },
+  });
   assert.equal($("app").hidden, true);
+  assert.equal($("licenceRows").innerHTML, "");
   assert.deepEqual(status(), ["Could not check whether operator@example.com is an operator: unavailable", "muted err"]);
+});
+
+test("the desk's reads go out with the role check, and show only once it says staff", async () => {
+  const role = deferred();
+  await open({ routes: { "GET /v1/me": () => role.promise } });
+  assert.equal(sent()[0], "GET /v1/me");
+  assert.deepEqual(sent().slice(1).sort(), [
+    "GET /v1/admin/licenses?limit=50&include_revoked=false",
+    "GET /v1/admin/users?status=PENDING&limit=50",
+    "GET /v1/institutions/licenses",
+  ], "all sent while the role check is pending");
+  assert.equal($("licenceRows").innerHTML, "", "nothing shown before the role is known");
+  role.resolve(json(200, { role: "admin" }));
+  await settle();
+  assert.deepEqual(labels(), ["SEMP-IND1", "SEMP-UNI1"]);
+  assert.equal(sent(/admin\/licenses/).length, 1, "the list read early is the one shown");
+  assert.equal(sent(/admin\/users/).length, 1);
+  assert.equal($("switch").hidden, false);
+});
+
+test("a toggle changed while the role check is pending gets the list it asks for", async () => {
+  const role = deferred();
+  const revoked = { ...IND, id: "lic-rev", keyPrefix: "SEMP-REV1", status: "revoked" };
+  await open({ routes: {
+    "GET /v1/me": () => role.promise,
+    "GET /v1/admin/licenses?limit=50": () => json(200, { licenses: [revoked], page: {} }),
+  } });
+  $("showRevoked").checked = true;
+  $("showRevoked").dispatch("change");
+  role.resolve(json(200, { role: "admin" }));
+  await settle();
+  assert.deepEqual(labels(), ["SEMP-REV1"], "not the first page read before the change");
 });
 
 const tabs = () => $("switch").querySelectorAll("a").map((a) =>

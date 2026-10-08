@@ -264,6 +264,26 @@ export async function settle() {
 }
 
 /**
+ * A response the test sends when it chooses: a route returns `promise`, and
+ * `resolve(response)` answers it. How a test holds one request open to see
+ * what the page does meanwhile.
+ */
+export function deferred() {
+  let resolve;
+  const promise = new Promise((r) => { resolve = r; });
+  return { promise, resolve };
+}
+
+/** Wait until `check()` is true, for a bounded number of turns; fail otherwise. */
+export async function until(check, what = "the condition") {
+  for (let i = 0; i < 200; i += 1) {
+    if (check()) return;
+    await new Promise((r) => setImmediate(r));
+  }
+  throw new Error(`gave up waiting for ${what}`);
+}
+
+/**
  * Whether `promise` is still unsettled once everything else has settled —
  * how a test sees "the page left for Google and this call never returns".
  */

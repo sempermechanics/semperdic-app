@@ -64,11 +64,21 @@ export async function showDeviceHistory(id) {
 
 /* ---------------------------------------------------------- accounts */
 
-$("reloadUsers").addEventListener("click", loadUsers);
+$("reloadUsers").addEventListener("click", () => loadUsers());
 
-export async function loadUsers() {
+const PENDING_USERS = "/v1/admin/users?status=PENDING&limit=50";
+
+/** Start reading who waits for approval, for `loadUsers` (see startLicenceLoad). */
+export function startUsersLoad() {
+  const data = api(PENDING_USERS);
+  data.catch(() => {}); // read, or discarded, by loadUsers
+  return data;
+}
+
+/** Fetch and show who waits for approval, or show the read already `started`. */
+export async function loadUsers(started) {
   try {
-    const data = await api("/v1/admin/users?status=PENDING&limit=50");
+    const data = await (started || api(PENDING_USERS));
     const rows = data.users || [];
     $("userRows").innerHTML = rows.length
       ? rows.map((u) => `
