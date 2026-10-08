@@ -4,11 +4,10 @@ import android.app.Activity
 import android.content.Intent
 import android.view.View
 import androidx.test.core.app.ApplicationProvider
-import com.google.firebase.FirebaseApp
-import com.google.firebase.FirebaseOptions
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.account.DeviceKeys
 import com.sempermechanics.semper.data.net.AccountCache
+import com.sempermechanics.semper.fixtures.ensureTestFirebaseApp
 import com.sempermechanics.semper.ui.auth.PendingApprovalActivity
 import com.sempermechanics.semper.ui.common.auth.SupportMail
 import com.sempermechanics.semper.ui.limit.SessionLimitActivity
@@ -42,16 +41,7 @@ class SupportMailBodiesTest {
 
     /** Pending reads the signed-in address through Firebase Auth, which needs an app; nobody is signed in. */
     @Before
-    fun firebase() {
-        if (FirebaseApp.getApps(context).isEmpty()) {
-            val options = FirebaseOptions.Builder()
-                .setApplicationId("1:1:android:1")
-                .setApiKey("test-api-key")
-                .setProjectId("test-project")
-                .build()
-            FirebaseApp.initializeApp(context, options)
-        }
-    }
+    fun firebase() = ensureTestFirebaseApp(context)
 
     private fun <A : Activity> mailFrom(type: Class<A>, button: Int): Intent {
         val controller = Robolectric.buildActivity(type).setup().also { built += it }

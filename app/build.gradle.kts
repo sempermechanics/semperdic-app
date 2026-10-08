@@ -396,40 +396,35 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
     jvmTarget = "17"
 }
 
-// Coverage: exclude view classes only — ViewModels and the pure helpers that
-// live alongside them (AnalysisViewModel, FrameOrderHelper, …) are the app's
-// highest-churn logic and were invisible while the whole `ui` package was
-// excluded. Android view/entry-point classes stay out: they need an emulator,
-// not JVM unit tests, so counting them would only depress the floor.
+// Coverage: everything but generated bindings. Activities, adapters and dialogs
+// were excluded as "emulator-only", but Robolectric runs most of them (Settings,
+// the viewer, Home, the wizard), and leaving them out hid ~2,100 lines of the
+// app's screens from the number. Counting them is the honest figure.
 kover {
     reports {
         filters {
             excludes {
-                // Trailing `*` also swallows nested/synthetic classes
-                // (SettingsActivity$Companion, lambdas) without needing a `$`
-                // literal in a Kotlin string.
                 classes(
-                    "com.sempermechanics.semper.ui.*Activity*",
-                    "com.sempermechanics.semper.ui.*Adapter*",
-                    "com.sempermechanics.semper.ui.*Fragment*",
-                    "com.sempermechanics.semper.ui.*Dialog*",
                     // Generated ViewBinding classes: no logic of ours to cover.
                     "com.sempermechanics.semper.databinding.*",
                 )
             }
         }
         verify {
-            // Two points under the measured coverage (2026-10-08, after the golden
-            // oracles: lines 75.88 %, branches 60.08 %), so churn does not fail
-            // unrelated PRs while a real drop does. Every PR that adds tests re-measures (`koverXmlReport`,
-            // the totals in build/reports/kover/report.xml) and raises both to
-            // measured − 2; never lower them. The line floor sat at 49 while
+            // Two points under the measured coverage, so churn does not fail
+            // unrelated PRs while a real drop does. Every PR that adds tests
+            // re-measures (`koverXmlReport`, the totals in
+            // build/reports/kover/report.xml) and raises both to measured − 2;
+            // never lower them. 2026-10-08: lines 74.50 %, branches 56.41 %, the
+            // first figure with the screens counted (76.84 / 60.80 % on the old,
+            // narrower set, whose floors were 73 / 58 — the reset is the wider
+            // measure, not lost coverage). The line floor once sat at 49 while
             // coverage climbed past 75, so a 26-point drop would have passed.
             rule("Line coverage") {
-                minBound(73)
+                minBound(72)
             }
             rule("Branch coverage") {
-                minBound(58, kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH)
+                minBound(54, kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH)
             }
         }
     }
