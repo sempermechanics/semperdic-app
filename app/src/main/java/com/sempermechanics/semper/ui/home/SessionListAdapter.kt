@@ -5,24 +5,20 @@
 package com.sempermechanics.semper.ui.home
 
 import android.annotation.SuppressLint
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.annotation.StringRes
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.cloud.TransferPhase
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.databinding.ItemSessionBinding
-import com.sempermechanics.semper.imaging.BitmapDecoder
-import com.sempermechanics.semper.ui.analysis.run.EngineFailure
-import com.sempermechanics.semper.ui.common.media.ThumbnailLoader
 import com.sempermechanics.semper.ui.common.transfer.TransferWorkObserver
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.Executors
 
 /**
  * Home session list. Selection state lives with the owner ([isSelected]); this
@@ -38,25 +34,26 @@ class SessionListAdapter(
     private var items: List<SessionRecord> = emptyList()
     private val dateFmt = SimpleDateFormat("MMM d", Locale.getDefault())
 
-    /** id → live upload progress; empty except for rows currently backing up. */
+    /** id → live transfer progress; empty except for rows currently backing up or restoring. */
     private var progress: Map<String, TransferWorkObserver.RowProgress> = emptyMap()
 
     /**
      * Ids whose frames are not on this phone, read off the main thread with
-     * the list ([submit]). A SYNCED one is badged "Only in cloud"; selection
-     * and open ask [hasLocalData] instead of listing the session directory.
+     * the list ([submit]). A SYNCED one shows "Only in cloud" and keeps its
+     * reference thumbnail; selection and open ask [hasLocalData] instead of
+     * listing the session directory.
      */
     private var withoutLocalData: Set<String> = emptySet()
 
     /**
-     * Whether rows show their sync badge and upload bar at all. False on a
+     * Whether rows show their state icon and transfer bar at all. False on a
      * demo account: its analyses are recorded silently and it has no restore,
-     * so there is nothing for a badge to say or a tap to do.
+     * so there is nothing for an icon to say or a tap to do.
      */
     private var syncVisible: Boolean = true
 
-    /** Reference thumbnails; an evicted one is dropped, never recycled under a live row. */
-    private val thumbs = ThumbnailLoader(THUMB_CACHE_MAX, thumbExecutor, ::decodeThumb)
+    /** Result and reference thumbnails; made with the first row, which knows the screen density. */
+    private var thumbs: SessionThumbs? = null
 
     /**
      * Shows [newItems]. [withoutLocalData] are the ids among them with no frame
@@ -85,7 +82,7 @@ class SessionListAdapter(
         if (index >= 0) notifyItemChanged(index)
     }
 
-    /** Update live backup progress; rebinds only the rows whose progress changed. */
+    /** Update live transfer progress; rebinds only the rows whose progress changed. */
     fun setUploadProgress(new: Map<String, TransferWorkObserver.RowProgress>) {
         val old = progress
         if (old == new) return
@@ -100,65 +97,40 @@ class SessionListAdapter(
         items.filter { it.id in ids }
 
     /** Drop cached thumbs (e.g. when Home is destroyed). */
-    fun clearThumbCache() = thumbs.clear()
+    fun clearThumbCache() {
+        thumbs?.clear()
+    }
 
     class Holder(val row: ItemSessionBinding) : RecyclerView.ViewHolder(row.root)
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder =
-        Holder(ItemSessionBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
+        if (thumbs == null) {
+            val edge = parent.resources.getDimensionPixelSize(R.dimen.session_thumb_size) * THUMB_OVERSAMPLE
+            thumbs = SessionThumbs(edge)
+        }
+        return Holder(ItemSessionBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+    }
 
     override fun getItemCount() = items.size
-
-    /**
-     * Date · size · headline, plus why it stopped when it did.
-     *
-     * A run cut short reads as "39 of 50 frames" rather than "39 frames": the
-     * count alone cannot distinguish a short run from a shorter test.
-     */
-    private fun subtitleFor(context: android.content.Context, r: SessionRecord): String = buildString {
-        append(dateFmt.format(Date(r.createdAt)))
-        append(" · ")
-        if (r.isSweep) {
-            append(context.getString(R.string.session_sweep_kind))
-        } else if (r.stoppedEarly && r.plannedFrameCount > r.frameCount) {
-            append(
-                context.resources.getQuantityString(
-                    R.plurals.session_frames_of_fmt,
-                    r.plannedFrameCount,
-                    r.frameCount,
-                    r.plannedFrameCount,
-                ),
-            )
-        } else {
-            append(context.resources.getQuantityString(R.plurals.session_frames_fmt, r.frameCount, r.frameCount))
-        }
-        if (r.headline.isNotBlank()) {
-            append(" · ")
-            append(r.headline)
-        }
-        if (r.stoppedEarly) {
-            append(" · ")
-            append(EngineFailure.shortReason(context, r.stopCode))
-        }
-    }
 
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val r = items[position]
         val row = holder.row
         val context = holder.itemView.context
+        val prog = progress[r.id]?.takeIf { syncVisible }
         row.sessionTitle.text = r.name
-        row.sessionSubtitle.text = subtitleFor(context, r)
+        row.sessionSubtitle.text = if (prog != null) {
+            SessionRowText.transfer(context, prog)
+        } else {
+            SessionRowText.subtitle(context, r, dateFmt.format(Date(r.createdAt)))
+        }
 
-        bindSyncBadge(holder, r)
-        thumbs.bind(row.sessionThumb, r.refPath.takeIf { it.isNotBlank() }?.let { Thumb(it, r.imgW, r.imgH) })
+        bindState(holder, r, prog)
+        thumbs?.bind(row, r, framesOnPhone = hasLocalData(r.id))
 
         val selected = isSelected(r.id)
         row.sessionCheck.isVisible = selected
-        row.sessionCard.setCardBackgroundColor(
-            context.getColor(if (selected) R.color.sky_container else R.color.surface_muted),
-        )
-        row.sessionCard.strokeColor =
-            context.getColor(if (selected) R.color.sky_primary else R.color.surface_outline)
+        row.sessionRow.setBackgroundColor(if (selected) context.getColor(R.color.sky_container) else Color.TRANSPARENT)
 
         // Outside selection mode a tap opens the analysis and a long-press
         // starts selecting; inside it, every tap just toggles a row. That
@@ -171,100 +143,48 @@ class SessionListAdapter(
     }
 
     /**
-     * Sync badge and progress bar. While a backup is running, the badge shows
-     * live progress and a bar appears under the subtitle; otherwise it is the
-     * normal sync-state badge. Hidden entirely when [syncVisible] is false.
+     * State icon and transfer bar. While a transfer runs ([prog]) the icon
+     * shows its phase and a bar appears under the subtitle; otherwise the icon
+     * says where the backup stands. Hidden entirely when [syncVisible] is false.
      */
-    private fun bindSyncBadge(holder: Holder, r: SessionRecord) {
+    private fun bindState(holder: Holder, r: SessionRecord, prog: TransferWorkObserver.RowProgress?) {
         val context = holder.itemView.context
-        val badge = holder.row.sessionBadge
+        val stateView = holder.row.sessionState
         val progressBar = holder.row.sessionProgress
-        val prog = progress[r.id]
-        badge.isVisible = syncVisible
+        stateView.isVisible = syncVisible
+        progressBar.isVisible = prog != null
         if (!syncVisible) {
             progressBar.isIndeterminate = false
-            progressBar.isVisible = false
-            badge.setOnClickListener(null)
-        } else if (prog != null) {
-            progressBar.isVisible = true
-            // Bundle restore reports 0% for most of the Session.zip download —
-            // indeterminate reads as "working" instead of a stuck empty bar.
-            val indeterminate = prog.phase == TransferPhase.DOWNLOAD && prog.percent <= 0
-            progressBar.isIndeterminate = indeterminate
-            if (!indeterminate) {
-                progressBar.setProgressCompat(prog.percent.coerceIn(0, PERCENT), true)
-            }
-            badge.text = context.getString(
-                when (prog.phase) {
-                    TransferPhase.PREPARE -> R.string.badge_preparing_fmt
-                    TransferPhase.DOWNLOAD -> R.string.badge_downloading_fmt
-                    TransferPhase.UPLOAD -> R.string.badge_uploading_fmt
-                },
-                prog.percent.coerceAtLeast(0),
-            )
-            badge.setTextColor(context.getColor(R.color.sky_on_container))
+            stateView.setOnClickListener(null)
+            return
+        }
+        val icon = if (prog != null) {
+            bindBar(holder, prog)
+            SessionStateIcon.forTransfer(prog.phase)
         } else {
             progressBar.isIndeterminate = false
-            progressBar.isVisible = false
-            badge.setText(syncStateLabel(r))
-            badge.setTextColor(
-                if (r.syncState == SessionRecord.SyncState.FAILED) {
-                    context.getColor(R.color.semantic_danger)
-                } else {
-                    context.getColor(R.color.sky_on_container)
-                },
-            )
+            SessionStateIcon.forState(r.syncState, framesOnPhone = hasLocalData(r.id))
         }
-        if (syncVisible) badge.setOnClickListener { onBadgeClick(r) }
+        stateView.setImageResource(icon.icon)
+        stateView.imageTintList = ColorStateList.valueOf(context.getColor(icon.tint))
+        stateView.contentDescription = context.getString(icon.label)
+        stateView.setOnClickListener { onBadgeClick(r) }
     }
 
-    /** The idle badge: where [r]'s backup stands, and "Only in cloud" for a synced one off this phone. */
-    @StringRes
-    private fun syncStateLabel(r: SessionRecord): Int =
-        syncStateLabel(r.syncState, framesOnPhone = r.id !in withoutLocalData)
-
-    /** A row's reference image, with the raw dimensions a TIFF/RAW sniff needs. */
-    private data class Thumb(val path: String, val rawWidth: Int, val rawHeight: Int)
-
-    companion object {
-        /**
-         * The words for a backup in [state], on Home's badge and Settings'
-         * analysis rows alike; a synced one whose frames are not on this
-         * phone ([framesOnPhone] false) is "Only in cloud".
-         */
-        @StringRes
-        internal fun syncStateLabel(state: SessionRecord.SyncState, framesOnPhone: Boolean = true): Int =
-            when (state) {
-                SessionRecord.SyncState.SYNCED ->
-                    if (framesOnPhone) R.string.badge_synced else R.string.badge_cloud_only
-                SessionRecord.SyncState.PENDING -> R.string.badge_pending
-                SessionRecord.SyncState.LOCAL_ONLY -> R.string.badge_local
-                SessionRecord.SyncState.FAILED -> R.string.badge_not_backed_up
-            }
-
-        private const val THUMB_CACHE_MAX = 24
-        private const val THUMB_EDGE = 256
-        private const val PERCENT = 100
-        private val thumbExecutor = Executors.newSingleThreadExecutor()
-
-        /**
-         * Runs on the decode thread. The existence check is file I/O, so it
-         * runs here rather than on every bind. A missing reference is not a
-         * miss: a restore can still bring it back. Sniff-first via
-         * [BitmapDecoder] — never hand TIFF/RAW to BitmapFactory (Skia
-         * "invalid input" spam on Home rebind).
-         */
-        private fun decodeThumb(thumb: Thumb): ThumbnailLoader.Decoded {
-            if (!File(thumb.path).exists()) return ThumbnailLoader.Decoded.Missing
-            val bitmap = BitmapDecoder.decodeFileForView(
-                thumb.path,
-                THUMB_EDGE,
-                THUMB_EDGE,
-                THUMB_EDGE,
-                rawWidth = thumb.rawWidth,
-                rawHeight = thumb.rawHeight,
-            )
-            return if (bitmap != null) ThumbnailLoader.Decoded.Loaded(bitmap) else ThumbnailLoader.Decoded.Undecodable
+    private fun bindBar(holder: Holder, prog: TransferWorkObserver.RowProgress) {
+        val progressBar = holder.row.sessionProgress
+        // Bundle restore reports 0% for most of the Session.zip download —
+        // indeterminate reads as "working" instead of a stuck empty bar.
+        val indeterminate = prog.phase == TransferPhase.DOWNLOAD && prog.percent <= 0
+        progressBar.isIndeterminate = indeterminate
+        if (!indeterminate) {
+            progressBar.setProgressCompat(prog.percent.coerceIn(0, PERCENT), true)
         }
+    }
+
+    private companion object {
+        /** The cached result render is twice the thumb view's edge in px. */
+        const val THUMB_OVERSAMPLE = 2
+        const val PERCENT = 100
     }
 }

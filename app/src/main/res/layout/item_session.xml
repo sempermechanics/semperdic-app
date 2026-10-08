@@ -1,30 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<!-- One Home row. Rows sit flat on the list's surface, split by a 1dp divider
+     (a view background, so force-dark inverts it with the surface); a
+     selected row is tinted (SessionListAdapter). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/sessionCard"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sessionRow"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginVertical="5dp"
-    app:cardBackgroundColor="@color/surface_muted"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="0dp"
-    app:strokeColor="@color/surface_outline"
-    app:strokeWidth="1dp" tools:ignore="SmallSp">
+    android:foreground="?attr/selectableItemBackground"
+    android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="12dp">
+        android:paddingHorizontal="@dimen/space_16"
+        android:paddingVertical="@dimen/space_12">
 
-        <!-- The tick replaces the thumbnail while selected, so the row keeps
+        <!-- The result heatmap covers the reference once it has rendered;
+             until then, or with no frames on the phone, the reference shows
+             through. The tick replaces both while selected, so the row keeps
              its height and nothing shifts when selection mode toggles. -->
         <FrameLayout
-            android:layout_width="44dp"
-            android:layout_height="44dp">
+            android:layout_width="@dimen/session_thumb_size"
+            android:layout_height="@dimen/session_thumb_size">
 
             <ImageView
                 android:id="@+id/sessionThumb"
@@ -35,12 +36,19 @@
                 android:scaleType="centerCrop" />
 
             <ImageView
+                android:id="@+id/sessionResultThumb"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:scaleType="centerCrop" />
+
+            <ImageView
                 android:id="@+id/sessionCheck"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@color/sky_container"
                 android:contentDescription="@string/selection_selected_desc"
-                android:padding="8dp"
+                android:padding="@dimen/space_8"
                 android:src="@drawable/ic_check_circle"
                 android:visibility="gone"
                 app:tint="@color/sky_primary" />
@@ -49,7 +57,7 @@
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginStart="@dimen/space_12"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -60,39 +68,49 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:textSize="15sp"
+                android:textStyle="bold"
+                tools:text="steel_00" />
 
             <TextView
                 android:id="@+id/sessionSubtitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+                android:textAppearance="@style/TextAppearance.Semper.Numeric"
+                tools:text="40 frames · 96.3% converged · Oct 5" />
 
-            <!-- Shown only while this session's backup is running. -->
+            <!-- Shown only while this session's transfer is running. -->
             <com.google.android.material.progressindicator.LinearProgressIndicator
                 android:id="@+id/sessionProgress"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="@dimen/space_4"
                 android:visibility="gone"
                 app:indicatorColor="@color/sky_primary"
-                app:trackCornerRadius="2dp"
-                app:trackThickness="3dp" />
+                app:trackColor="@color/surface_outline"
+                app:trackThickness="2dp" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/sessionBadge"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_badge"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="3dp"
-            android:textSize="10sp"
-            android:textStyle="bold" />
+        <!-- Where the backup stands; a tap retries or backs up (BackupBadgeActions).
+             A 20dp glyph in a 40dp target. -->
+        <ImageView
+            android:id="@+id/sessionState"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="@dimen/space_4"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/sync_state_not_backed_up"
+            android:padding="10dp"
+            android:src="@drawable/ic_cloud_off"
+            app:tint="@color/text_secondary" />
     </LinearLayout>
-</com.google.android.material.card.MaterialCardView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginHorizontal="@dimen/space_16"
+        android:background="@color/surface_outline" />
+</LinearLayout>

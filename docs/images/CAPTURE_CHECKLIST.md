@@ -21,7 +21,7 @@ distort.
 
 | File | Used in §. | State captured |
 |---|---|---|
-| `home.png` | §1 | *(2026-09-09, dark)* Empty state with the new plain **+** button, replacing the shot that still showed the camera-and-video FAB glyph. Still missing: session rows at all, and with them the **Synced** / **Pending** / **Only in cloud** badges — see below |
+| `home.png` | §1 | *(2026-09-09, dark)* Empty state with the new plain **+** button, replacing the shot that still showed the camera-and-video FAB glyph. Still missing: session rows at all, and with them the cloud state icons (**Backed up** / **Upload pending** / **Only in cloud**) and result-heatmap thumbnails — see below |
 | `new-analysis-source.png` | §4 | Images tab open, gallery grid populated, a video tile showing its badge |
 | `step1-frames.png` | §4 | Reference + 3 deformed frames loaded, order badges visible |
 | `frame-order-menu.png` | §4 | The sort menu open over the loaded strip |
@@ -51,7 +51,7 @@ available.
 
 | File | Used in §. | State to be in |
 |---|---|---|
-| `home.png` | §1 | A few sessions with mixed sync badges (**Synced** / **Pending** / **Only in cloud**) so the badge language is visible in one shot. The camera-glyph problem is fixed as of 2026-09-09, but that replacement is an empty-state shot, so the list itself is still undocumented |
+| `home.png` | §1 | A few sessions with mixed cloud state icons (**Backed up** / **Upload pending** / **Only in cloud**) and result-heatmap thumbnails, so the icon language is visible in one shot. The camera-glyph problem is fixed as of 2026-09-09, but that replacement is an empty-state shot, so the list itself is still undocumented |
 | `delete-dialog.png` | §10 | The delete choice dialog, on a row with both local and cloud copies, so it reads **Delete device** / **Delete cloud** |
 | `settings.png` | §10 | **Analyses data management** with a row showing all three actions — Download / Restore / Delete — and, if a transfer is running, the top transfer banner (§4.0 of WORKFLOWS.md) |
 

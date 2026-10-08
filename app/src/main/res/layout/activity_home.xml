@@ -13,72 +13,75 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
+        <!-- Title and gear on one line; the account chips sit under it and
+             show only when there is something to say (HomeQuotaCard). -->
         <LinearLayout
             android:id="@+id/homeTopBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:paddingHorizontal="20dp"
-            android:paddingVertical="14dp">
+            android:paddingTop="14dp"
+            android:paddingBottom="@dimen/space_8">
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_weight="1"
                     android:text="@string/home_title"
                     android:textColor="@color/text_primary"
-                    android:textSize="24sp"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/tvHomeQuota"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_warn_chip"
-                    android:paddingHorizontal="8dp"
-                    android:paddingVertical="3dp"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="11sp"
-                    android:visibility="gone"
-                    tools:text="2 / 4 analyses used" />
-
-                <!-- License expiry / grace notice. Separate from tvHomeQuota
-                     because a licensed account always has a known quota, so it
-                     would never reach that view's unknown-quota hint branch. -->
-                <TextView
-                    android:id="@+id/tvHomeLicense"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:background="@drawable/bg_warn_chip"
-                    android:paddingHorizontal="8dp"
-                    android:paddingVertical="3dp"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="11sp"
-                    android:visibility="gone"
-                    tools:text="License expires in 9 days" />
+                <ImageButton
+                    android:id="@+id/btnHomeSettings"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/home_settings"
+                    android:src="@drawable/ic_settings_gear"
+                    app:tint="@color/text_primary" />
             </LinearLayout>
 
-            <ImageButton
-                android:id="@+id/btnHomeSettings"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/home_settings"
-                android:src="@drawable/ic_settings_gear"
-                app:tint="@color/text_primary" />
+            <!-- Shown from 80% of the analysis ceiling (HomeQuotaCard). -->
+            <TextView
+                android:id="@+id/tvHomeQuota"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_warn_chip"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:visibility="gone"
+                tools:text="820 / 999 analyses used" />
+
+            <!-- License expiry / grace notice. Separate from tvHomeQuota
+                 because a licensed account always has a known quota, so it
+                 would never reach that view's unknown-quota hint branch. -->
+            <TextView
+                android:id="@+id/tvHomeLicense"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:background="@drawable/bg_warn_chip"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="11sp"
+                android:visibility="gone"
+                tools:text="License expires in 9 days" />
         </LinearLayout>
 
         <!-- Contextual bar: replaces the title row while rows are selected, and
              deliberately mirrors its geometry — same 20dp/14dp padding, same
-             surface, same 24sp bold heading, same 48dp text_primary icon
+             surface, same 20sp bold heading, same 48dp text_primary icon
              buttons — so the screen keeps its shape when selection starts.
              Rename only makes sense for one row, so it hides above a single
              selection (see HomeActivity.updateSelectionBar). -->
@@ -92,7 +95,7 @@
             android:paddingBottom="10dp"
             android:visibility="gone">
 
-            <!-- Row 1 matches the title row exactly: 48dp buttons, 24sp bold
+            <!-- Row 1 matches the title row exactly: 48dp buttons, 20sp bold
                  heading, every glyph on the same 32dp inset as the settings
                  gear, so nothing shifts when the two bars swap. -->
             <LinearLayout
@@ -119,7 +122,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="@color/text_primary"
-                    android:textSize="24sp"
+                    android:textSize="20sp"
                     android:textStyle="bold"
                     tools:text="2 selected" />
 
@@ -170,8 +173,8 @@
         </LinearLayout>
 
         <!-- Backups this phone has no row for (another phone, a reinstall).
-             Styled as a session card so it reads as part of the list; shown
-             only when there is something to offer (HomeActivity). -->
+             A card above the flat rows; shown only when there is something
+             to offer (HomeActivity). -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/homeCloudBackups"
             android:layout_width="match_parent"
@@ -245,7 +248,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"
-                android:paddingHorizontal="16dp"
                 android:paddingBottom="96dp" />
         </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
     </LinearLayout>

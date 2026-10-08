@@ -16,7 +16,8 @@ import kotlinx.coroutines.withContext
 
 /**
  * Home's account lines and its analysis-limit gate: the quota line
- * ([quotaView]), the license-expiry notice ([licenseView]), and the
+ * ([quotaView], shown from [SHOW_FROM_PERCENT] percent of the ceiling),
+ * the license-expiry notice ([licenseView]), and the
  * persistent limit screen every quota check on Home opens.
  *
  * @param openSettings where a tap on the quota line goes while under the limit.
@@ -70,7 +71,9 @@ internal class HomeQuotaCard(
             }
             return
         }
-        quotaView.isVisible = true
+        // Far from the ceiling the count is noise; it shows once the ceiling is near.
+        quotaView.isVisible = nearCeiling(used, max)
+        if (!quotaView.isVisible) return
         quotaView.text = activity.resources.getQuantityString(R.plurals.home_quota_fmt, used, used, max)
         quotaView.setTextColor(
             activity.getColor(
@@ -123,5 +126,16 @@ internal class HomeQuotaCard(
                 },
             ),
         )
+    }
+
+    companion object {
+        /** The quota line shows from this share of the ceiling, in percent. */
+        const val SHOW_FROM_PERCENT = 80
+
+        private const val PERCENT = 100L
+
+        /** True when [used] of [max] analyses is at least [SHOW_FROM_PERCENT] percent of the ceiling. */
+        fun nearCeiling(used: Int, max: Int): Boolean =
+            max > 0 && used.toLong() * PERCENT >= max.toLong() * SHOW_FROM_PERCENT
     }
 }

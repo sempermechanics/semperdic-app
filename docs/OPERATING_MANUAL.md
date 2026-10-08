@@ -28,7 +28,7 @@ strain fields — and has not used this app. -->
 > `step2-parameters.png` and `speckle-warning.png` were recaptured on 2026-09-09
 > after the in-app camera was removed, so they show the current **+** button and
 > the speckle readout — but `home.png` is now an empty-state shot, so the list
-> rows and the cloud sync badges are not visible on it; those and the Settings
+> rows and their cloud state icons are not visible on it; those and the Settings
 > **Download** row still need a real-account pass. `settings.png` shows the
 > current UI but only its local-only state. Every other screenshot on this page
 > matches the current UI. The diagrams
@@ -94,6 +94,23 @@ Home lists your analyses. Tap one to open it. Long-press for select, rename,
 delete. Pull down to sync. **+** goes straight to the picker — pick existing
 photos or a video. There is no in-app camera; the app measures images you
 already have. (The shot above is the empty state, before any analysis exists.)
+
+Each row shows the last frame's U displacement as its thumbnail (the reference
+image until that is drawn, or when the frames are not on the phone), the name,
+and a line such as `40 frames · 96.3% converged · Oct 5`. A convergence under
+85% is amber. A new analysis is named after its reference image, `steel_00`;
+a second one from the same image becomes `steel_00 (2)`. The cloud icon at the
+row's end says where the backup stands:
+
+| Icon | Means |
+|---|---|
+| Cloud with a tick | Backed up |
+| Cloud with an up arrow | Upload pending, or backing up now |
+| Crossed-out cloud | Not backed up (red: the backup failed) |
+| Cloud with a down arrow | Only in cloud, or restoring now |
+
+While a backup or restore runs, a thin bar under the row fills and the line
+reads `Backing up · 35.0%`.
 
 ---
 
@@ -577,9 +594,9 @@ With a backup you are asked *where* instead — **Delete from this phone**,
 keeping the backup, **Delete the cloud backup**, keeping the phone's copy, or
 **Delete everywhere**. Read that dialog before tapping.
 
-**Deleting on this device only is not losing it.** The row stays on Home, badged
+**Deleting on this device only is not losing it.** The row stays on Home, marked
 **Only in cloud**, and tapping it offers to **Restore** the analysis to the phone.
-It restores in the background, and you stay on Home. That is the point of the badge: a cloud-backed analysis is one tap
+It restores in the background, and you stay on Home. That is the point of the mark: a cloud-backed analysis is one tap
 from being local again, so freeing space is a reversible decision.
 
 <img src="images/settings.png" width="300" alt="Settings sections">
@@ -609,10 +626,10 @@ the analyses and the cache actually occupy, and gives you three tools:
 **Background transfers survive leaving the screen and are honest about failure.**
 An upload or restore runs even if you navigate away, showing a system
 notification while it works, and — while you are on Home — a progress bar on the
-row itself, for downloads as well as uploads. Success is quiet: the badge or list
-just updates. A backup that *fails for good* (another device holds the account,
-the analysis is too large, or a render ran out of memory) raises a dialog on the
-Home badge explaining why, with **Try again**. A restore that fails (the backup
+row itself, for downloads as well as uploads. Success is quiet: the row's cloud
+icon or the list just updates. A backup that *fails for good* (another device
+holds the account, the analysis is too large, or a render ran out of memory)
+turns the icon red; tap it for a dialog explaining why, with **Try again**. A restore that fails (the backup
 was deleted, or is not this account's) says so once, on whichever of Home or
 Settings you are on. You are no longer left guessing.
 
@@ -636,7 +653,8 @@ licence goes back first: an institution seat is freed for someone else, and an
 individual licence is released and re-offered to the same address, so signing
 up again with it is licensed straight away.
 
-**Quota.** The Home chip reads `Using N of M analyses` and turns red at the cap.
+**Quota.** From 80% of the cap, a chip under the Home title reads
+`N / M analyses used`; it turns red at the cap. Below 80% it is hidden.
 Only a run that makes a new analysis is checked against it: a re-run of the
 same inputs is not, but one after picking a new reference or new frames is.
 Not a paywall — email support from the limit screen, or delete something and
@@ -676,8 +694,8 @@ Write above that block; leave it in place.
 | Summary still says "Rendering" | A long analysis takes a while to render five fields; the frames are usable meanwhile |
 | Summary shows one frame, not a loop | Android 8 or older. Single-setting field GIFs still export |
 | Delete account opens the sign-in screen | Expected — that is where your identity is confirmed |
-| Badge stuck on Pending | Offline, Wi-Fi-only, or backup off |
-| Badge shows Failed | Tap it — the dialog names why (device conflict, too large, ran out of memory) and offers **Try again** |
+| Cloud icon stuck on Upload pending | Offline, Wi-Fi-only, or backup off |
+| Cloud icon crossed out in red | The backup failed. Tap the icon — the dialog names why (device conflict, too large, ran out of memory) and offers **Try again** |
 | Restore never arrived | If it failed for good, Home and Settings both show a message saying so; otherwise it retries on a flaky network |
 | Row says "Only in cloud" | Its local frames were freed (by you, or by the auto-free budget). Tap it and choose **Restore** |
 | Phone out of space | **Settings → Storage → Free up space**, and consider setting an auto-free budget |
@@ -749,7 +767,7 @@ backend sends nothing and says nothing, and the pending list is your only signal
 Every account is **Demo** (25 saved analyses, no share, no backup/restore
 *feature*) until a licensed key is activated. A demo account's analyses are
 still **recorded** — images and results upload and are stored exactly as a
-licensed account's are — but the app shows demo no sync badge, banner or
+licensed account's are — but the app shows demo no sync icon, banner or
 Settings backup section, and the backend refuses demo retrieval (`/content`,
 bundle → `feature_not_licensed`). Recording is open so that installed builds
 predating licensing keep backing up after the backend deploy; a licence turns

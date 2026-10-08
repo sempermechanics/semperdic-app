@@ -9,6 +9,7 @@ import com.sempermechanics.semper.data.session.RunInput
 import com.sempermechanics.semper.data.session.RunMetrics
 import com.sempermechanics.semper.data.session.RunOutcome
 import com.sempermechanics.semper.data.session.RunReference
+import com.sempermechanics.semper.data.session.SessionNaming
 import com.sempermechanics.semper.data.session.SessionPaths
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.data.session.SkippedNode
@@ -25,9 +26,6 @@ import com.sempermechanics.semper.ui.analysis.sweep.SweepStudyRunner
 import com.sempermechanics.semper.ui.analysis.sweep.toSkippedNode
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /*
  * Virtual strain gauge study (see SweepStudy): the sweep's run, and the
@@ -279,17 +277,18 @@ private fun sweepSummary(
     val solvedLabels = result.runs.map { labelByPoint[it.point].orEmpty() }
     val totalPlanned = sweep.plan.size
     val existing = SessionStore.get(appContext, localSessionId)
-    // Regenerate the sweep auto-name each run (keyed to the original createdAt
-    // so the timestamp is stable), unless the user renamed the session — so a
-    // single re-run that becomes a sweep now reads as a sweep, and vice-versa.
-    val stamp = timestamp(existing?.createdAt ?: System.currentTimeMillis())
+    // Regenerate the sweep auto-name each run unless the user renamed the
+    // session — so a single re-run that becomes a sweep now reads as a sweep,
+    // and vice-versa. No date: the Home row shows it; a clash gets " (2)".
     val name = if (existing?.renamedByUser == true) {
         existing.name
     } else {
-        appContext.getString(
-            R.string.session_sweep_name_fmt,
-            defDisplay.substringBeforeLast('.').ifBlank { defDisplay },
-            stamp,
+        SessionNaming.uniqueName(
+            appContext.getString(
+                R.string.session_sweep_name_fmt,
+                defDisplay.substringBeforeLast('.').ifBlank { defDisplay },
+            ),
+            SessionStore.namesOtherThan(appContext, localSessionId),
         )
     }
     val headline = appContext.resources.getQuantityString(
@@ -303,7 +302,3 @@ private fun sweepSummary(
     )
     return SweepSummary(solvedLabels, name, headline)
 }
-
-/** The "MMM d, HH:mm:ss" stamp used in default session names / sweep labels. */
-private fun timestamp(millis: Long): String =
-    SimpleDateFormat("MMM d, HH:mm:ss", Locale.US).format(Date(millis))

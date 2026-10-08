@@ -10,4 +10,7 @@
     <dimen name="space_12">12dp</dimen>
     <dimen name="space_16">16dp</dimen>
     <dimen name="space_24">24dp</dimen>
+
+    <!-- Home row thumbnail edge; its result render is cached at twice this in px (SessionThumbs). -->
+    <dimen name="session_thumb_size">48dp</dimen>
 </resources>
