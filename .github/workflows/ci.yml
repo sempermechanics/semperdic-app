@@ -125,15 +125,15 @@ jobs:
           node-version: '22'
       - run: python scripts/check_console.py
       # Line coverage of the console modules (the tests and the vendored QR
-      # encoder excluded), floored two points under the measured 48.85 %
-      # (2026-10-08). Raise it with the tests that lift it; never lower it.
+      # encoder excluded), floored two points under the measured 55.32 %
+      # (2026-10-08). The figure counts each page load apart (TD-203). Raise it with the tests that lift it; never lower it.
       - name: Console helper tests
         run: >
           node --test
           --experimental-test-coverage
           --test-coverage-exclude="firebase-hosting/tests/**"
           --test-coverage-exclude="**/vendor/**"
-          --test-coverage-lines=46
+          --test-coverage-lines=53
           "firebase-hosting/tests/*.test.mjs"
 
   # ===================================================================
@@ -182,6 +182,9 @@ jobs:
             app:
               - 'app/**'
               - '!app/src/main/cpp/**'
+              # The wire bodies ApiDtosContractTest decodes (the backend's
+              # test_wire_contracts.py reads the same files).
+              - 'contracts/**'
               # The benchmark module builds with the app; without it a
               # benchmark-only PR ran nothing once TD-96 was fixed.
               - 'benchmark/**'
@@ -209,6 +212,8 @@ jobs:
             backend:
               - 'backend/**'
               - 'firestore.rules'
+              # test_wire_contracts holds the shared wire bodies to the routes.
+              - 'contracts/**'
               # test_security_controls reads Hosting's firebase.json; the pages
               # themselves are console-pages' job, which runs on every event.
               - 'firebase-hosting/firebase.json'
@@ -562,7 +567,7 @@ jobs:
 
       # Appends to the backend gate's coverage data (backend/.coverage), so the
       # transaction paths only a real Firestore reaches count, and gates the
-      # total two points under the measured 93.09 % (2026-10-08).
+      # total two points under the measured 95.54 % (2026-10-08).
       - name: Run Firestore emulator tier
         env:
           GOOGLE_CLOUD_PROJECT: semper-ci-emulator
@@ -573,7 +578,7 @@ jobs:
             --only firestore \
             --config firebase.emulator.json \
             --project semper-ci-emulator \
-            'pytest tests/test_firestore_emulator_integration.py -v --cov=app --cov-append --cov-report=term --cov-fail-under=91'
+            'pytest tests/test_firestore_emulator_integration.py -v --cov=app --cov-append --cov-report=term --cov-fail-under=93'
 
   # ===================================================================
   # Tier 5 — Signed release build (arm64-v8a), with R8

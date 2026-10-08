@@ -153,8 +153,9 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 - **Testing program (2026-10-08, in flight).** Five PRs from the test review: CI tiers
   follow the diff (an engine bump runs the emulator and arm64 tiers on its PR; main pushes
   path-aware; weekly full matrix), real coverage floors raised in every PR, golden
-  `.dat` / GIF oracles, then the Android and backend gaps. Plan and gap register in the
-  PR 1 description.
+  `.dat` / GIF oracles, then the Android and backend gaps. Stacked #366 → #367 → #368 →
+  #370 → PR 5 (contracts/, index check, console gate tests); merge in that order. Plan and
+  gap register in #366.
 - **Dependabot** opens monthly PRs for major versions only (pip, Gradle, Actions; #337);
   minor and patch fixes arrive as Dependabot security updates, which are on.
 - **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke
@@ -168,7 +169,7 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 ## Traps
 
 - An undeclared route 404s in production with nothing in the logs: ESPv2 is an allowlist. `test_gateway_parity.py` checks the spec — [§20.9](docs/backend/CLOUD_ARCHITECTURE_GCP.md).
-- A query that needs a composite index fails `FAILED_PRECONDITION` at runtime, not deploy: run `scripts/deploy-firestore.sh indexes` (Git Bash, Node >= 20) and wait for the build before the backend that queries it (the staff licence list needs three) — [§5](docs/backend/CLOUD_ARCHITECTURE_GCP.md). TTL policies live in that file's `fieldOverrides`; never deploy it with `--force`, which deletes any the file omits.
+- A query that needs a composite index fails `FAILED_PRECONDITION` at runtime, not deploy (`test_firestore_query_indexes.py` catches one missing from the file; declare a new query's shape there): run `scripts/deploy-firestore.sh indexes` (Git Bash, Node >= 20) and wait for the build before the backend that queries it (the staff licence list needs three) — [§5](docs/backend/CLOUD_ARCHITECTURE_GCP.md). TTL policies live in that file's `fieldOverrides`; never deploy it with `--force`, which deletes any the file omits.
 - `MAX_SESSIONS_PER_USER` is deleted; a deployment still setting it silently gets `DEMO_MAX_ANALYSES` (25) — [§7](docs/backend/CLOUD_ARCHITECTURE_GCP.md).
 - List env vars (`CONSOLE_ORIGINS`, `ADMIN_EMAILS`) are space-separated; the deploy action splits on commas — [§20.8](docs/backend/CLOUD_ARCHITECTURE_GCP.md).
 - `GET /v1/sessions` lists the asking app's sessions (`X-App-Id`; an untagged session is Semper's), and `/files` answers only that app; a browser or export that needs the whole account asks `?app=all` or uses `iter_all_user_sessions` — [ADR-014](docs/adr/ADR-014-session-app-tag.md).

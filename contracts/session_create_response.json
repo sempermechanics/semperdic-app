@@ -1,0 +1,23 @@
+{
+  "sessionId": "3f9c2a7e5b1d4c8e9a0b6f2d1e4c7a95",
+  "status": "UPLOADING",
+  "uploads": [
+    {
+      "fileId": "3f9c2a7e5b1d4c8e9a0b6f2d1e4c7a95_bundle_Session.zip",
+      "uploadUrl": "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&upload_id=ADPycdv3x9Qk2mL7rT0aWbZs",
+      "chunkSize": 33554432,
+      "name": "Session.zip",
+      "role": "bundle",
+      "sizeBytes": 48213307
+    },
+    {
+      "fileId": "3f9c2a7e5b1d4c8e9a0b6f2d1e4c7a95_metadata_metadata.json",
+      "uploadUrl": "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&upload_id=ADPycdv3x9Qk2mL7rT0aWbZs",
+      "chunkSize": 33554432,
+      "name": "metadata.json",
+      "role": "metadata",
+      "sizeBytes": 2048
+    }
+  ],
+  "nextPageToken": null
+}

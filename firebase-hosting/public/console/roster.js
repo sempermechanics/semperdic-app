@@ -85,8 +85,12 @@ const ACT_ERRORS = {
  * Returns `render(seats, invites)`, which fills `rows`.
  */
 export function wireRoster({ rows, email, add, base, report, reload, retry = reload }) {
+  // Each action takes the roster's path before it asks, so an answer given after
+  // another roster was opened (or this one closed) still goes to the one asked on.
   async function act(action, uid) {
     const spec = ACTIONS[action];
+    const root = base();
+    if (!root) return;
     if (action === "remove" && !(await confirmInPage({
       title: "Remove member",
       message: "Remove this member? Their saved analyses stay untouched.",
@@ -96,7 +100,7 @@ export function wireRoster({ rows, email, add, base, report, reload, retry = rel
     }
     report(`${spec.verb}…`);
     try {
-      await api(`${base()}/seats/${encodeURIComponent(uid)}`,
+      await api(`${root}/seats/${encodeURIComponent(uid)}`,
         { method: spec.method, ...(spec.body ? { body: JSON.stringify(spec.body) } : {}) });
       await reload();
     } catch (e) {
@@ -105,6 +109,8 @@ export function wireRoster({ rows, email, add, base, report, reload, retry = rel
   }
 
   async function withdraw(inviteId) {
+    const root = base();
+    if (!root) return;
     if (!(await confirmInPage({
       title: "Withdraw invitation",
       message: "Withdraw this invitation? Nobody has claimed it yet.",
@@ -112,7 +118,7 @@ export function wireRoster({ rows, email, add, base, report, reload, retry = rel
     }))) return;
     report("Withdrawing…");
     try {
-      await api(`${base()}/invites/${encodeURIComponent(inviteId)}`, { method: "DELETE" });
+      await api(`${root}/invites/${encodeURIComponent(inviteId)}`, { method: "DELETE" });
       await reload();
     } catch (e) {
       report(`Could not withdraw: ${e.message}`, true);

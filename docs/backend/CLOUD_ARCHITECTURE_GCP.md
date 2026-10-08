@@ -640,7 +640,12 @@ audit_logs/{autoId}               (append-only)
   `__name__` (`sessions(uid)`, `users(access_status)`, `files(sessionId)`) are
   served by the automatic single-field indexes. Deploy with
   `firebase deploy --only firestore:indexes` — a missing index shows up as a
-  `FAILED_PRECONDITION` at runtime, not at deploy time.
+  `FAILED_PRECONDITION` at runtime, not at deploy time, and neither the fake
+  store nor the emulator enforces one. `backend/tests/test_firestore_query_indexes.py`
+  is the check: each query's shape (collection, filters, order) is declared
+  there, an AST walk of `app/` keeps the declarations in step with the code,
+  and a shape that needs a composite index the file lacks fails with the
+  index to add.
 - **Exempt** large/opaque fields from indexing (`publicKeyPem`, `uploadUrl`,
   `sha256`) to cut index cost and stay off the 40 KB/1500-field limits.
 - **TTL policy** on `challenges.expireAt` is a *field* policy, not an index. It
@@ -2033,7 +2038,9 @@ script, the ids a module asks for, rewrite targets, every `/v1` path declared
 on the gateway, and `__API_BASE_URL__` / `__API_ORIGIN__` still being
 placeholders in the committed files. `scripts/deploy-console.sh` substitutes
 them for the deploy and its `trap` restores them afterwards — committing a
-substituted host fails that check.
+substituted host fails that check. The gate has its own tests
+(`backend/tests/test_check_console.py`), which plant each failure in a small
+tree and run it with `--root`.
 
 **The same Hosting site carries the app's auth continue links.** They live
 under `/auth/` on `app.sempermechanics.com` (`AUTH_HOST` in

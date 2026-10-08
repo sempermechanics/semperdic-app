@@ -31,6 +31,29 @@ chunk own?" here.
 - **JVM tests** own Kotlin orchestration and data contracts. Do not add JVM
   tests that re-assert displacement accuracy.
 
+## Wire contracts (`contracts/`)
+
+The JSON the app and the backend exchange is pinned once, in the top-level
+`contracts/` directory: one realistic body per request the app sends
+(`*_request.json`) and per response it reads (`*_response.json`). Two suites
+read the same files:
+
+- `cloud/ApiDtosContractTest` (app): a request fixture decodes into its DTO
+  and re-encodes unchanged, so the DTO sends exactly those keys; a response
+  fixture decodes, and every field its DTO reads is a key the fixture has (a
+  renamed field would otherwise decode to its default). Gradle gets the
+  directory through the `semper.contracts.dir` system property and tracks it
+  as a test input.
+- `backend/tests/test_wire_contracts.py`: each request validates against the
+  pydantic model its route takes, with no key the model would drop; each
+  response is compared, keys and JSON types both ways, with what the real
+  routes return when driven from device registration to a finished backup.
+
+A backend response that grows a field fails the backend test until the fixture
+has it. A field removed or renamed on either side fails one of the two suites;
+change the client first, since installed builds keep reading the old name. The
+`app` and `backend` CI filters both include `contracts/**`.
+
 ## Shared fixtures
 
 Reach for these before writing a local helper; each replaced several
@@ -248,9 +271,9 @@ Three suites are gated on coverage, each two points under what it measured:
 |---|---|---|---|
 | App JVM (Kover, lines) | 74.50 % | 72 | `app/build.gradle.kts` `kover.verify` |
 | App JVM (Kover, branches) | 56.41 % | 54 | same |
-| Backend (pytest-cov, lines) | 92.93 % | 90 | `.github/actions/backend-gate/action.yml` |
-| Backend + Firestore emulator tier | 93.09 % | 91 | `ci.yml` tier 4, `--cov-append` |
-| Console modules (`node --test`, lines) | 48.85 % | 46 | `ci.yml` `console-pages` |
+| Backend (pytest-cov, lines) | 95.47 % | 93 | `.github/actions/backend-gate/action.yml` |
+| Backend + Firestore emulator tier | 95.54 % | 93 | `ci.yml` tier 4, `--cov-append` |
+| Console modules (`node --test`, lines; per load, TD-203) | 55.32 % | 53 | `ci.yml` `console-pages` |
 
 **Every PR that adds tests re-measures and raises the floors it moved** to
 measured − 2 (rounded down), in the same PR, with the date in the comment

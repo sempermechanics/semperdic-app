@@ -86,7 +86,7 @@ invariant list, and none of them are drive-by changes.
   ([ADR-018](docs/adr/ADR-018-error-convention.md)).
 - Gate before pushing: `./gradlew ciReleaseGate` (spotless, detekt, lintDebug,
   unit tests, R8, assembleRelease). Backend:
-  `cd backend && python -m pytest tests/ -q --cov=app --cov-fail-under=75`.
+  `cd backend && python -m pytest tests/ -q --cov=app --cov-fail-under=93`.
   Full command table: [CLAUDE.md](CLAUDE.md).
 - Without an Android SDK, run the full matrix in CI instead: `workflow_dispatch`
   on the **CI** workflow with `full_ci: true`, which ignores path filters and

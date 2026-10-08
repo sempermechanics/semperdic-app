@@ -1,0 +1,7 @@
+# Made-up licence keys in test data (generic-api-key on "key": "SEMP-…"), added
+# in the testing program's PR 5 (#371): the shared contract body and two console
+# tests. Not real keys; listed by fingerprint so a real key anywhere else, or a
+# new one in these files, is still caught.
+b50ff99634083ba62b5350624a4917767f042247:contracts/license_activate_request.json:generic-api-key:2
+bc8159727d3322db2a6570f342dd12eab905974d:firebase-hosting/tests/operator-edit.test.mjs:generic-api-key:209
+bc8159727d3322db2a6570f342dd12eab905974d:firebase-hosting/tests/operator-mint.test.mjs:generic-api-key:91

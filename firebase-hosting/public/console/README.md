@@ -432,8 +432,14 @@ that reads them instead, and runs as the **Console pages** CI job:
 | Every page preloads exactly the modules it imports (not those imported on demand), and `init.json` as `fetch`/`anonymous` | A missing preload costs a round trip per level of imports; a wrong mode or an extra one downloads twice or for nothing |
 | Every page starts `<body data-auth="pending">`, its `#status` a polite live region marked pending | Without them a signed-in visitor is offered Sign in first, and a screen reader hears none of the loading steps |
 
-Run it directly with `python scripts/check_console.py`. Node is used for the
-syntax check when it is on `PATH` and skipped with a note when it is not.
+Run it directly with `python scripts/check_console.py` (`--root <repo>` checks
+another tree). Node is used for the syntax check when it is on `PATH` and
+skipped with a note when it is not. The auth continue pages
+(`public/finishSignIn`, `public/finishReset`) get the first three checks: their
+code is in files (`finishReset/reset.js`, loaded by an absolute path because
+the page is served at two addresses), present, parsing, and wired to ids that
+exist. `backend/tests/test_check_console.py` plants each failure above in a
+small tree and asserts the gate reports it.
 
 A page's modules are followed through their relative imports, those imported
 on demand included, so a split page is checked as a whole. Each test loads a page afresh with `?load=N`;

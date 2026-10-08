@@ -42,12 +42,12 @@ runs:
       working-directory: backend
       run: ruff check app/ tests/ scripts/ ../scripts/
 
-    # The floor sits two points under the measured value (92.93 % on
-    # 2026-10-08; it was 75 against that) so ordinary churn does not break
+    # The floor sits two points under the measured value (95.47 % on
+    # 2026-10-08; it was 75 against 92.93 before the gap tests) so ordinary churn does not break
     # unrelated PRs. Raise it when it climbs; never lower it to make a red
     # build green. CI's tier 4 appends the emulator suite to this data and
     # gates the total too.
     - name: Test
       shell: bash
       working-directory: backend
-      run: pytest tests/ -q --cov=app --cov-report=term-missing --cov-fail-under=90
+      run: pytest tests/ -q --cov=app --cov-report=term-missing --cov-fail-under=93

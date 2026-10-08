@@ -5,6 +5,7 @@ import android.net.Uri
 import com.sempermechanics.semper.ui.viewer.ResultViewerViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -106,7 +107,10 @@ internal class ShareExportJobs(
         produce: suspend (report: (Int, String) -> Unit) -> Pair<File, String>,
     ) {
         _running.update { it + (id to Running(id, title)) }
-        val job = scope.launch {
+        // Undispatched, so the body is already inside the try below when start
+        // returns: a job cancelled before its first dispatch would otherwise never
+        // run at all, and its Cancelled outcome would never be sent.
+        val job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
             val outcome = try {
                 val (file, mime) = withContext(Dispatchers.Default) {
                     produce { percent, status -> progress(id, percent, status) }
