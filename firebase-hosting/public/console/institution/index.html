@@ -30,7 +30,7 @@
   <link rel="modulepreload" href="../roles.js" />
   <link rel="modulepreload" href="../roster.js" />
 </head>
-<body>
+<body data-auth="pending">
   <header>
     <a class="brand" href="https://sempermechanics.com/"><img src="../semper-mark.webp" alt="" width="28" height="28" />semper</a>
     <h1>Institution seats</h1>
@@ -44,8 +44,9 @@
 
   <main>
     <!-- Outside #app: enrolment, step-up and sign-in errors report here while
-         the dashboard is still hidden. -->
-    <p id="status" class="muted"></p>
+         the dashboard is still hidden. A live region, so each step of a load
+         is read out; it says it is checking the sign-in until auth.js knows. -->
+    <p id="status" class="muted" role="status" aria-live="polite" data-pending>Checking your sign-in…</p>
 
     <!-- Shown instead of the seat manager when no licence names this
          address as an administrator (institution.js decides). -->

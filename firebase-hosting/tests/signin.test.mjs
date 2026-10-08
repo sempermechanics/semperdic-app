@@ -35,6 +35,44 @@ function returningFromRevokeStepUp(resume = { action: "revoke", id: "L1" }) {
   return resume;
 }
 
+test("before the sign-in state is known, the page says it is checking, and offers no Sign in", () => {
+  assert.equal(page.body.dataset.auth, "pending", "console.css hides Sign in while pending");
+  assert.equal($("status").textContent, "Checking your sign-in…");
+  assert.equal($("status").getAttribute("role"), "status");
+  assert.equal($("status").getAttribute("aria-live"), "polite");
+});
+
+test("signed out, the page says so: data-auth out, and the checking line cleared", async () => {
+  await start(null);
+  assert.equal(page.body.dataset.auth, "out");
+  assert.equal($("status").textContent, "");
+  assert.equal("pending" in $("status").dataset, false);
+});
+
+test("a message from the return leg replaces the checking line and stays", async () => {
+  storage.setItem(AFTER_REAUTH, "Re-authenticated.");
+  fake.redirectResult = { user: readyUser() };
+  await start(readyUser());
+  assert.equal(page.body.dataset.auth, "in");
+  assert.equal($("status").textContent, "Re-authenticated.");
+});
+
+test("signed in, the checking line is cleared before the page starts", async () => {
+  const ready = await start(readyUser());
+  assert.equal(ready.length, 1);
+  assert.equal(page.body.dataset.auth, "in");
+  assert.equal($("status").textContent, "");
+});
+
+test("showApp: false leaves the dashboard hidden for the page to show", async () => {
+  fake.auth.currentUser = readyUser();
+  const ready = [];
+  auth.requireSignIn((u) => ready.push(u), { showApp: false });
+  await settle();
+  assert.equal(ready.length, 1);
+  assert.equal($("app").hidden, true);
+});
+
 test("a signed-out visitor sees Sign in and no dashboard", async () => {
   const ready = await start(null);
   assert.equal(ready.length, 0);

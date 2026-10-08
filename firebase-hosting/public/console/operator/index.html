@@ -38,7 +38,7 @@
   <link rel="modulepreload" href="lifecycle.js" />
   <link rel="modulepreload" href="roster-card.js" />
 </head>
-<body>
+<body data-auth="pending">
   <header>
     <a class="brand" href="https://sempermechanics.com/"><img src="../semper-mark.webp" alt="" width="28" height="28" />semper</a>
     <h1>Operator</h1>
@@ -53,8 +53,9 @@
 
   <main>
     <!-- Outside #app: enrolment, step-up and sign-in errors report here while
-         the dashboard is still hidden. -->
-    <p id="status" class="muted"></p>
+         the dashboard is still hidden. A live region, so each step of a load
+         is read out; it says it is checking the sign-in until auth.js knows. -->
+    <p id="status" class="muted" role="status" aria-live="polite" data-pending>Checking your sign-in…</p>
 
     <!-- The whole desk is for Semper staff; everyone else sees this and
          nothing of the desk (operator.js decides from /v1/me). -->
@@ -69,8 +70,14 @@
 
     <div id="app" hidden>
       <!-- ------------------------------------------------------- mint -->
-      <section class="card">
-        <h2>Issue a licence</h2>
+      <!-- Opened from the Licences card: most visits look a licence up, and a
+           700-pixel form stood between the desk and its table. -->
+      <section class="card" id="issueCard" hidden>
+        <div class="row">
+          <h2 style="margin:0">Issue a licence</h2>
+          <span class="spacer"></span>
+          <button id="closeIssue" class="secondary">Close</button>
+        </div>
         <div class="row">
           <label><input type="radio" name="kind" value="individual" checked /> Individual</label>
           <label><input type="radio" name="kind" value="institution" /> Institution</label>
@@ -155,9 +162,10 @@
           <label class="muted"><input type="checkbox" id="showRevoked" /> Show revoked</label>
           <label class="muted"><input type="checkbox" id="showDemo" /> Show Demo keys</label>
           <button id="reload" class="secondary">Refresh</button>
+          <button id="openIssue">Issue a licence</button>
         </div>
         <div class="wrap">
-          <table>
+          <table class="licences">
             <thead>
               <tr>
                 <th>Key</th><th>Kind</th><th>Mode</th><th>Seats</th><th>Term</th>

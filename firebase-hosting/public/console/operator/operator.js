@@ -2,7 +2,7 @@
  * see the desk, and routes each licence row's buttons to the card or dialog
  * that handles them; the rest is in the modules imported below.
  */
-import { requireSignIn, api, setStatus } from "../auth.js";
+import { requireSignIn, api, setStatus, whileWaiting } from "../auth.js";
 import { unfinishedStepUpText } from "../util.js";
 import { mountSwitcher } from "../switcher.js";
 import { licencesAdministered } from "../roles.js";
@@ -28,8 +28,9 @@ requireSignIn(async (user, resume) => {
   const licences = startLicenceLoad();
   const users = startUsersLoad();
   const administered = licencesAdministered().then((out) => out.licenses);
-  const me = await operatorMe(user, role);
+  const me = await operatorMe(user, whileWaiting(role, "Checking your access…"));
   if (!me) return;
+  $("app").hidden = false;
   mountSwitcher("operator", { me, licenses: administered });
   showFactorPill();
   loadUsers(users);
@@ -44,7 +45,7 @@ requireSignIn(async (user, resume) => {
   }
   if (resume && resume.action === "revoke") resumeRevoke(resume.id);
   if (resume && resume.action === "delete") resumeDelete(resume.id);
-});
+}, { showApp: false });
 
 /**
  * The /v1/me answer if this account may see the desk at all, else null.
@@ -85,6 +86,10 @@ function showFactorPill() {
 $("licenceRows").addEventListener("click", (ev) => {
   const btn = ev.target.closest("button");
   if (!btn) return;
+  if ("retry" in btn.dataset) loadLicences();
+  // A choice from a row's More menu closes the menu.
+  const menu = btn.closest("details");
+  if (menu) menu.open = false;
   if (btn.dataset.edit) openEdit(btn.dataset.edit);
   if (btn.dataset.delete) deleteLicence(btn.dataset.delete);
   if (btn.dataset.convert) openConvert(btn.dataset.convert);

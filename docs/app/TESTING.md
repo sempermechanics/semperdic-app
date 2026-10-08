@@ -273,7 +273,7 @@ Three suites are gated on coverage, each two points under what it measured:
 | App JVM (Kover, branches) | 56.41 % | 54 | same |
 | Backend (pytest-cov, lines) | 95.47 % | 93 | `.github/actions/backend-gate/action.yml` |
 | Backend + Firestore emulator tier | 95.54 % | 93 | `ci.yml` tier 4, `--cov-append` |
-| Console modules (`node --test`, lines; per load, TD-203) | 55.47 % | 53 | `ci.yml` `console-pages` |
+| Console modules (`node --test`, lines; per load, TD-203) | 55.32 % | 53 | `ci.yml` `console-pages` |
 
 **Every PR that adds tests re-measures and raises the floors it moved** to
 measured − 2 (rounded down), in the same PR, with the date in the comment

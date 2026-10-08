@@ -90,7 +90,7 @@ test("a pending list that cannot be read says so in the table; Reload asks again
   await openDesk({ routes: {
     [PENDING]: () => (n++ ? json(200, { users: WAITING.slice(1) }) : json(503, { detail: "unavailable" })),
   } });
-  assert.deepEqual(userRows(), [["Could not load: unavailable"]]);
+  assert.deepEqual(userRows(), [["Could not load: unavailable Retry"]]);
   assert.equal($("status").textContent, "", "the licence table still loaded");
   await click($("reloadUsers"));
   assert.deepEqual(sent(/users/), [PENDING, PENDING]);

@@ -2,9 +2,10 @@
  * when one licence changes. What each row's buttons do lives with the card
  * or dialog the button opens; the entry module routes the clicks.
  */
-import { api, setStatus, esc, markFirstData } from "../auth.js";
+import { api, setStatus, esc, markFirstData, whileWaiting } from "../auth.js";
 import {
   day, licenceStatePill, licenceListPath, searchableLicenceText, upsertLicence,
+  placeholderRows, retryRow,
 } from "../util.js";
 import { $, desk, demoCapNote } from "./state.js";
 
@@ -23,7 +24,11 @@ export function onLicenceRead(fn) {
 
 // Newest first, and without Demo keys, so the first page is the one wanted.
 const LICENCE_PAGE = 50;
+const COLUMNS = 9;
 let searchTimer = 0;
+// Which table load is the latest: a toggle flipped twice sends two, and the
+// first to answer must not be drawn over the second.
+let licenceLoad = 0;
 
 $("reload").addEventListener("click", () => loadLicences());
 $("filter").addEventListener("input", onFilterInput);
@@ -61,12 +66,20 @@ export function startLicenceLoad() {
  * desk's slowness, and it dropped every page loaded with "Load more".
  */
 export async function loadLicences(started) {
-  setStatus("Loading…");
+  const ticket = ++licenceLoad;
   desk.verified = {};
   desk.searchHits = null;
+  $("licenceRows").innerHTML = placeholderRows(COLUMNS, 5);
+  $("licencePaging").textContent = "";
+  $("loadMore").hidden = true;
+  $("reload").disabled = true;
   try {
     const path = listPath();
-    const data = await (started && started.path === path ? started.data : api(path));
+    const data = await whileWaiting(
+      started && started.path === path ? started.data : api(path),
+      "Loading licences…",
+    );
+    if (ticket !== licenceLoad) return;
     desk.licences = data.licenses || [];
     desk.licencePage = data.page || {};
     desk.demoAllowance = Number.isInteger(data.demoMaxAnalyses) ? data.demoMaxAnalyses : null;
@@ -76,12 +89,14 @@ export async function loadLicences(started) {
     for (const fn of readers) fn(null);
     if (searchableLicenceText($("filter").value)) searchLicences();
   } catch (e) {
-    setStatus(
-      e.code === "not_admin"
-        ? "That account is not a Semper operator."
-        : `Could not load licences: ${e.message}`,
-      true,
-    );
+    if (ticket !== licenceLoad) return;
+    const message = e.code === "not_admin"
+      ? "That account is not a Semper operator."
+      : `Could not load licences: ${e.message}`;
+    setStatus(message, true);
+    $("licenceRows").innerHTML = retryRow(COLUMNS, message);
+  } finally {
+    if (ticket === licenceLoad) $("reload").disabled = false;
   }
 }
 
@@ -176,16 +191,30 @@ export function renderLicences() {
     (showRevoked || l.status !== "revoked") &&
     (showDemo || l.mode !== "demo") &&
     (found.has(l.id) || matches(l)));
+  const hidden = [!showRevoked ? "revoked" : "", !showDemo ? "Demo" : ""].filter(Boolean);
   $("licenceRows").innerHTML = rows.length
     ? rows.map(licenceRow).join("")
-    : `<tr><td colspan="9" class="muted">${q && !desk.searchHits && searchableLicenceText(q)
-      ? "Searching…" : "Nothing matches."}</td></tr>`;
-  const hidden = [!showRevoked ? "revoked" : "", !showDemo ? "Demo" : ""].filter(Boolean);
+    : `<tr><td colspan="${COLUMNS}" class="muted">${esc(q && !desk.searchHits && searchableLicenceText(q)
+      ? "Searching…" : emptyText(q, hidden))}</td></tr>`;
   const note = hidden.length ? ` (${hidden.join(" and ")} hidden)` : "";
   $("licencePaging").textContent = desk.licencePage.hasMore
     ? `Newest ${desk.licences.length} shown${note}; more exist.`
     : `${desk.licences.length} licence(s)${note}.`;
   $("loadMore").hidden = !desk.licencePage.hasMore;
+}
+
+/** What an empty table says, with what to try next. */
+function emptyText(q, hidden) {
+  const show = hidden.length
+    ? `tick ${hidden.map((h) => `Show ${h === "Demo" ? "Demo keys" : "revoked"}`).join(" or ")}`
+    : "";
+  if (q) return `No licences match. Clear the filter${show ? `, or ${show}` : ""}.`;
+  // Revoked and Demo licences are not fetched until asked for, so an empty
+  // table does not mean there are none.
+  return show
+    ? `No licences to show. ${show[0].toUpperCase()}${show.slice(1)} to include those, ` +
+      "or issue one with Issue a licence."
+    : "No licences to show. Issue one with Issue a licence.";
 }
 
 function seatSummary(lic) {
@@ -237,16 +266,24 @@ function licenceRow(lic) {
   const deleteButton = demo && lic.createdByUid === "system"
     ? ""
     : `<button class="danger" data-delete="${esc(lic.id)}">Delete</button>`;
+  // Six buttons a row made the table wider than any screen. What is done
+  // most stays in view; the rest is under More, the irreversible last.
   const actions = revoked ? deleteButton : `
     <button class="secondary" data-edit="${esc(lic.id)}">Edit</button>
     ${lic.kind === "institution"
-      ? `<button class="secondary" data-roster="${esc(lic.id)}">Roster</button>
-         <button class="secondary" data-verify="${esc(lic.id)}">Verify</button>`
-      : `<button class="secondary" data-device="${esc(lic.id)}">New device</button>`}
-    ${convertButton}
-    <button class="secondary" data-history="${esc(lic.id)}">Devices</button>
-    <button class="danger" data-revoke="${esc(lic.id)}">Revoke</button>
-    ${deleteButton}`;
+      ? `<button class="secondary" data-roster="${esc(lic.id)}">Roster</button>` : ""}
+    <details class="more">
+      <summary>More</summary>
+      <div class="menu">
+        ${lic.kind === "institution"
+          ? `<button class="secondary" data-verify="${esc(lic.id)}">Verify</button>`
+          : `<button class="secondary" data-device="${esc(lic.id)}">New device</button>`}
+        ${convertButton}
+        <button class="secondary" data-history="${esc(lic.id)}">Devices</button>
+        <button class="danger" data-revoke="${esc(lic.id)}">Revoke</button>
+        ${deleteButton}
+      </div>
+    </details>`;
   return `
     <tr>
       <td class="mono">${esc(label)}</td>

@@ -1,5 +1,5 @@
-import { requireSignIn, api, setStatus, esc, markFirstData } from "../auth.js";
-import { day, licenceStatePill } from "../util.js";
+import { requireSignIn, api, setStatus, esc, markFirstData, whileWaiting } from "../auth.js";
+import { day, licenceStatePill, placeholderRows, retryRow } from "../util.js";
 import { fetchRoster, wireRoster } from "../roster.js";
 import { mountSwitcher } from "../switcher.js";
 
@@ -25,11 +25,12 @@ requireSignIn(async (user) => {
   const roster = fromUrl ? fetchRoster(`/v1/institutions/licenses/${encodeURIComponent(fromUrl)}`) : null;
   if (roster) roster.catch(() => {}); // read, or discarded, below
   if (!(await administersSomething(user))) return;
+  $("app").hidden = false;
   if (fromUrl) {
     $("licenseId").value = fromUrl;
     load(roster);
   }
-});
+}, { showApp: false });
 
 /**
  * Whether any institution licence names this address as an administrator.
@@ -40,7 +41,9 @@ requireSignIn(async (user) => {
 async function administersSomething(user) {
   let licenses;
   try {
-    licenses = (await api("/v1/institutions/licenses")).licenses || [];
+    licenses = (await whileWaiting(api("/v1/institutions/licenses"), "Checking your access…"))
+      .licenses || [];
+    setStatus("");
   } catch (e) {
     if (e.code !== "email_not_verified") {
       setStatus(`Could not list your institution licences: ${e.message}`, true);
@@ -81,18 +84,35 @@ $("licenceChoices").addEventListener("click", (ev) => {
 $("load").addEventListener("click", () => load());
 $("licenseId").addEventListener("keydown", (e) => { if (e.key === "Enter") load(); });
 
+let rosterLoad = 0; // the latest roster asked for; an older answer is dropped
+
 /** Read and show the roster of the licence in the id box, or show the read already `started` for it. */
 async function load(started) {
   licenseId = $("licenseId").value.trim();
   if (!licenseId) return;
-  setStatus("Loading…");
+  const ticket = ++rosterLoad;
+  // The card shows its shape at once, and never the last licence's members
+  // under this one's id.
+  $("summary").innerHTML = '<p><span class="skeleton pill"></span> <span class="skeleton pill"></span></p>' +
+    '<p><span class="skeleton line"></span></p>';
+  $("rosterHelp").textContent = "";
+  $("rows").innerHTML = placeholderRows(5, 3);
+  $("rosterCard").hidden = false;
+  $("load").disabled = true;
   try {
-    render(await (started || fetchRoster(base())));
+    const data = await whileWaiting(started || fetchRoster(base()), "Loading the roster…");
+    if (ticket !== rosterLoad) return;
+    render(data);
     markFirstData();
     setStatus("");
   } catch (e) {
-    $("rosterCard").hidden = true;
+    if (ticket !== rosterLoad) return;
     $("summary").innerHTML = "";
+    if (e.code !== "license_not_found") {
+      $("rows").innerHTML = retryRow(5, `Could not load: ${e.message}`);
+    } else {
+      $("rosterCard").hidden = true;
+    }
     // The backend answers 404 identically for a licence that does not
     // exist and one you do not administer, so that probing ids tells you
     // nothing about other institutions. Say so rather than implying the id
@@ -103,6 +123,8 @@ async function load(started) {
         : `Could not load: ${e.message}`,
       true,
     );
+  } finally {
+    if (ticket === rosterLoad) $("load").disabled = false;
   }
 }
 

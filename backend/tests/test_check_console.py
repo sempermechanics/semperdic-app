@@ -50,8 +50,9 @@ def _page(up: str, body: str = "", head: str = "") -> str:
   <link rel="modulepreload" href="{up}shared.js" />
   <link rel="modulepreload" href="{up}config.js" />
 {head}</head>
-<body>
+<body data-auth="pending">
   <p id="go"></p>
+  <p id="status" role="status" aria-live="polite" data-pending></p>
 {body}  <script type="module" src="page.js"></script>
 </body>
 </html>
@@ -305,3 +306,13 @@ def test_every_planted_failure_is_reported_not_just_the_first(checker, tree):
     _edit(_console(tree, "operator", "page.js"), '$("go")', '$("missing")')
     _edit(_console(tree, "page.js"), '"known_code"', '"renamed_code"')
     assert len(checker.run(str(tree))) == 3
+
+
+def test_a_console_page_not_born_pending_fails(checker, tree):
+    _edit(_console(tree, "operator", "index.html"), '<body data-auth="pending">', "<body>")
+    _one_failure(checker, tree, "operator", 'lacks data-auth="pending"')
+
+
+def test_a_status_line_that_is_not_a_live_region_fails(checker, tree):
+    _edit(_console(tree, "account", "index.html"), ' aria-live="polite"', "")
+    _one_failure(checker, tree, "account", 'lacks aria-live="polite"')

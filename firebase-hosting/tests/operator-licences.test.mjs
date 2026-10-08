@@ -52,7 +52,7 @@ test("a list answer with nothing in it, and no demo allowance, still renders", a
     [LIST]: () => json(200, {}),
     "GET /v1/admin/licenses?limit=50&include_demo=true&include_revoked=false": () => json(200, { licenses: [DEMO] }),
   } });
-  assert.equal($("licenceRows").textContent.trim(), "Nothing matches.");
+  assert.equal($("licenceRows").textContent.trim(), "No licences to show. Tick Show revoked or Show Demo keys to include those, or issue one with Issue a licence.");
   assert.equal($("licencePaging").textContent, "0 licence(s) (revoked and Demo hidden).");
   $("showDemo").checked = true;
   $("showDemo").dispatch("change");
@@ -70,7 +70,7 @@ test("a licence list that cannot be read says why", async () => {
     reset();
     await openDesk({ routes: { [LIST]: reply } });
     assert.deepEqual(status(), [text, "muted err"], text);
-    assert.equal($("licenceRows").innerHTML, "");
+    assert.equal($("licenceRows").textContent.trim(), `${text} Retry`, "the table says it too, with a Retry");
   }
 });
 
@@ -151,7 +151,7 @@ test("typing again before the pause ends sends one search, for the last text", a
     mock.timers.tick(300);
     await settle();
     assert.deepEqual(sent(/q=/), [SEARCH]);
-    assert.equal($("licenceRows").textContent.trim(), "Nothing matches.");
+    assert.equal($("licenceRows").textContent.trim(), "No licences match. Clear the filter, or tick Show revoked or Show Demo keys.");
   } finally {
     mock.timers.reset();
   }
@@ -172,7 +172,7 @@ test("a roster that cannot be read says so in the card; Close hides it", async (
   await click(rowButton("roster", UNI.id));
   assert.equal($("rosterCard").hidden, false);
   assert.equal($("rosterName").textContent, "SEMP-UNI1");
-  assert.deepEqual(tableRows("rosterRows"), [["Could not load the roster: unavailable"]]);
+  assert.deepEqual(tableRows("rosterRows"), [["Could not load the roster: unavailable Retry"]]);
   await click($("rosterClose"));
   assert.equal($("rosterCard").hidden, true);
 });

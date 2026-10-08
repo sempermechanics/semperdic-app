@@ -12,6 +12,32 @@ Decisions that outlive their PR are recorded in
 [CLOUD_ARCHITECTURE_GCP.md](../backend/CLOUD_ARCHITECTURE_GCP.md) §20,
 [ARCHITECTURE.md](../app/ARCHITECTURE.md) and [../adr/](../adr/).
 
+## 2026-10-08 — Hosting deploy: each dashboard's code in one wave, its data read together (#365)
+
+#365 (`25aed416`) was deployed with `scripts/deploy-console.sh`, and its live check
+passed. The deploy also put #362 and #364 live: every typed key, password and
+confirmation is now asked for in the page. What #365 changed:
+- Every page preloads its whole module graph and `init.json`, and preconnects to
+  sign-in and the API.
+- The QR library loads only for enrolment.
+- The operator desk sends its licence list, approvals and switch list together with
+  `/v1/me` instead of after it.
+
+Measured from the browser pane, signed in as `damodar@indicvision.com`, five warm loads
+of the operator desk before and after, timed to the licences on screen:
+
+| | Before | After |
+|---|---|---|
+| Median | 1689 ms | 1303 ms |
+| Range | 1591–2040 ms | 1078–1454 ms |
+| `init.json` arrives | about 700 ms | 120–380 ms |
+| Licence list starts | about 300 ms after `/v1/me` | with `/v1/me` |
+
+No file was fetched twice, `qrcode` was not loaded, and `/login` still forwards. The
+first load after a long idle took 10.7 s, all of it `/v1/me` waiting for the API to
+start. That is the wait the dashboards' "Still working — the server can take a few
+seconds to start." line (next change) explains.
+
 ## 2026-10-08 — Hosting deploys: the authenticator code asked for in the page, with Try again (#358, #361)
 
 The consoles asked for the authenticator code with `window.prompt`. The Claude desktop

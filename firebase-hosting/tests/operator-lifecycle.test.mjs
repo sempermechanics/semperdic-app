@@ -94,7 +94,7 @@ test("a deleted licence found by a search leaves the search results too", async 
   prompts.answer("SEMP-IND1");
   await click(rowButton("delete", IND.id));
   assert.deepEqual(sent(/DELETE/), [DELETE(IND)]);
-  assert.equal($("licenceRows").textContent.trim(), "Nothing matches.", "not kept on screen as a search hit");
+  assert.equal($("licenceRows").textContent.trim(), "No licences match. Clear the filter, or tick Show revoked or Show Demo keys.", "not kept on screen as a search hit");
 });
 
 test("back from Google, declining the delete sends nothing, and a second start does not ask again", async () => {
@@ -123,7 +123,7 @@ test("with Show revoked ticked, a revoked row stays, offering only Delete, and n
   await click(rowButton("revoke", IND.id));
   assert.deepEqual(status(), ["SEMP-IND1 revoked — its holder is on demo from their next request.", "muted"]);
   assert.deepEqual(rows().map((r) => [r[0], r[6], r[8]]), [["SEMP-IND1", "revoked", "Delete"], ["SEMP-UNI1", "redeemed",
-    "Edit Roster Verify Devices Revoke Delete"]]);
+    "Edit Roster More Verify Devices Revoke Delete"]]);
 });
 
 test("revoking the licence whose roster is open closes the roster; another licence leaves it", async () => {
@@ -141,7 +141,7 @@ test("revoking the licence whose roster is open closes the roster; another licen
   assert.equal($("rosterCard").hidden, false, "a different licence");
   await click(rowButton("revoke", UNI.id));
   assert.equal($("rosterCard").hidden, true);
-  assert.deepEqual(labels(), ["Nothing matches."], "both revoked, both out of view");
+  assert.deepEqual(labels(), ["No licences to show. Tick Show revoked or Show Demo keys to include those, or issue one with Issue a licence."], "both revoked, both out of view");
 });
 
 test("a revoke the network lost says why and keeps the row", async () => {
@@ -197,7 +197,7 @@ test("an empty or unreadable deleted list says so", async () => {
   reset();
   await openDesk({ routes: { [DELETED]: () => json(503, { detail: "unavailable" }) } });
   await click($("loadDeleted"));
-  assert.deepEqual(deletedRows(), [["Could not load: unavailable"]]);
+  assert.deepEqual(deletedRows(), [["Could not load: unavailable Retry"]]);
   assert.equal($("deletedRows").querySelector("td").className, "err");
 });
 

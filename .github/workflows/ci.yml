@@ -125,7 +125,7 @@ jobs:
           node-version: '22'
       - run: python scripts/check_console.py
       # Line coverage of the console modules (the tests and the vendored QR
-      # encoder excluded), floored two points under the measured 55.47 %
+      # encoder excluded), floored two points under the measured 55.32 %
       # (2026-10-08). The figure counts each page load apart (TD-203). Raise it with the tests that lift it; never lower it.
       - name: Console helper tests
         run: >
