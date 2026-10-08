@@ -17,6 +17,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.android.material.appbar.MaterialToolbar
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.prefs.CoachPrefs
+import com.sempermechanics.semper.fixtures.awaitDrawnFrame
 import com.sempermechanics.semper.ui.analysis.StaticAnalysisActivity
 import com.sempermechanics.semper.ui.analysis.wizard.WizardStep
 import org.junit.Assert.assertEquals
@@ -119,8 +120,7 @@ class AnalysisWizardSmokeTest {
     }
 
     private fun captureWizardShot(name: String) {
-        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
-        Thread.sleep(400)
+        awaitDrawnFrame()
         val bmp = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
         val dir = InstrumentationRegistry.getInstrumentation().targetContext.cacheDir
         File(dir, name).outputStream().use { out ->

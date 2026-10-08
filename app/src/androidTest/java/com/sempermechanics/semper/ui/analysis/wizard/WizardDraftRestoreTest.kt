@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sempermechanics.semper.data.prefs.WizardDraft
 import com.sempermechanics.semper.field.ImageSize
+import com.sempermechanics.semper.fixtures.awaitCondition
 import com.sempermechanics.semper.ui.analysis.frames.DeformedFrame
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -56,11 +57,7 @@ class WizardDraftRestoreTest {
     }
 
     private fun awaitDraft(what: String, done: () -> Boolean) {
-        val deadline = System.currentTimeMillis() + TIMEOUT_MS
-        while (!done()) {
-            check(System.currentTimeMillis() < deadline) { "the view model never mirrored its $what" }
-            Thread.sleep(POLL_MS)
-        }
+        awaitCondition("the view model to mirror its $what", TIMEOUT_MS, done)
     }
 
     @Test
@@ -119,6 +116,5 @@ class WizardDraftRestoreTest {
         val MASK = ByteArray(1024) { 1 }
         const val FRAMES = 3
         const val TIMEOUT_MS = 5_000L
-        const val POLL_MS = 20L
     }
 }

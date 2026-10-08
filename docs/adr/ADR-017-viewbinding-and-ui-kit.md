@@ -108,7 +108,7 @@ Free today, and every new screen adds lookups that fail only at run time.
 ## Trade-off analysis
 
 ViewBinding generates a class per layout, a little build time and APK size
-(the generated classes are excluded from Kover, `app/build.gradle.kts:383-384`).
+(the generated classes are excluded from Kover, `app/build.gradle.kts:408-409`).
 The kit is one more place to look, but each helper replaced between 3 and
 about 65 copies, and some copies had drifted (sign-out confirm wording,
 spinner visibility, the thumbnail tag bug).

@@ -19,6 +19,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.fixtures.awaitCondition
 import com.sempermechanics.semper.navigation.IntentKeys
 import com.sempermechanics.semper.ui.analysis.RoiDrawActivity
 import com.sempermechanics.semper.ui.analysis.roi.StudioOverlayView
@@ -152,6 +153,8 @@ class RoiEditorGestureTest {
             setRoi(scenario)
             val before = roi(scenario)
             tap(centre(scenario))
+            // The detector only calls a tap single once the double-tap window has
+            // passed with no second tap, so this wait is the gesture itself.
             Thread.sleep(ViewConfiguration.getDoubleTapTimeout() + SETTLE_MS)
             instrumentation.waitForIdleSync()
 
@@ -335,6 +338,7 @@ class RoiEditorGestureTest {
         tap(at)
         Thread.sleep(DOUBLE_TAP_GAP_MS)
         tap(at)
+        // Let the double-tap window close, so the next tap starts a new gesture.
         Thread.sleep(ViewConfiguration.getDoubleTapTimeout() + SETTLE_MS)
         instrumentation.waitForIdleSync()
     }
@@ -358,13 +362,10 @@ class RoiEditorGestureTest {
         what: String,
         done: (RoiDrawActivity) -> Boolean,
     ) {
-        val deadline = System.currentTimeMillis() + TIMEOUT_MS
-        while (true) {
+        awaitCondition(what, TIMEOUT_MS) {
             var ok = false
             scenario.onActivity { ok = done(it) }
-            if (ok) return
-            check(System.currentTimeMillis() < deadline) { "timed out waiting for $what" }
-            Thread.sleep(POLL_MS)
+            ok
         }
     }
 
@@ -384,6 +385,9 @@ class RoiEditorGestureTest {
 
         const val SECOND_DOWN = MotionEvent.ACTION_POINTER_DOWN or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
         const val SECOND_UP = MotionEvent.ACTION_POINTER_UP or (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
+
+        // Gesture pacing, not waits: the detectors read event timing, so these
+        // sleeps are part of the touch input itself. State is awaited with awaitOn.
         const val STEPS = 20
         const val MOVE_MS = 10L
         const val TAP_MS = 40L
@@ -397,6 +401,5 @@ class RoiEditorGestureTest {
         const val PAN_TOLERANCE = 2f
         const val SETTLE_MS = 200L
         const val TIMEOUT_MS = 20_000L
-        const val POLL_MS = 50L
     }
 }
