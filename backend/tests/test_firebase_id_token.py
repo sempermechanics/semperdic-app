@@ -15,6 +15,8 @@ import json
 import time
 
 import fake_firestore
+import google.auth
+import google.auth.credentials
 import google.oauth2.id_token
 import pytest
 from cryptography import x509
@@ -64,6 +66,13 @@ OTHER_KEY, _ = _key_and_cert()
 def certs(monkeypatch):
     """Google's certificate set, as this test's one key. Records what was asked for."""
     monkeypatch.delenv("FIREBASE_AUTH_EMULATOR_HOST", raising=False)  # emulated = unsigned
+    # firebase-admin builds its auth client from Application Default
+    # Credentials, which CI does not have. Verifying a token needs none (only
+    # the public certificates), so anonymous ones for the test project do.
+    monkeypatch.setattr(
+        google.auth, "default",
+        lambda *_a, **_k: (google.auth.credentials.AnonymousCredentials(), PROJECT),
+    )
     asked = []
 
     def fetch(_request, url):
