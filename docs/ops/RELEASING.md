@@ -90,7 +90,7 @@ JVM unit tests, and backend pytest overlap instead of stacking:
   `build-release`, whose R8 build compiles it. No engine/OpenCV submodules: the
   JVM suite does not `loadLibrary`.
 - `verify-backend` — the shared `backend-gate` action (hashed lock, `pip-audit`,
-  ruff over `app/ tests/ scripts/ ../scripts/`, pytest at the 90 % floor), the
+  ruff over `app/ tests/ scripts/ ../scripts/`, pytest at the 93 % floor), the
   same one CI and Deploy run.
 
 `build-release` declares `needs: [verify-legal, verify-android, verify-backend]`,
@@ -220,7 +220,7 @@ the two always-on gates. Run those separately:
 
 ```bash
 python scripts/render_legal_pages.py --check                     # legal-pages
-cd backend && pytest tests/ -q --cov=app --cov-fail-under=90     # tier 4
+cd backend && pytest tests/ -q --cov=app --cov-fail-under=93     # tier 4
 ./gradlew :app:connectedDebugAndroidTest -PabiFilters=x86_64     # tier 3
 ```
 

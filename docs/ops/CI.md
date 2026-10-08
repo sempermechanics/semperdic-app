@@ -39,11 +39,11 @@ changes ──┬──> tier1-app-fast ───────────┤
 |-----|--------|---|-----------------------|
 | `secret-scan` | gitleaks (see below) | No — always runs | ~1–2 min |
 | `legal-pages` | `scripts/render_legal_pages.py --check`: the published pages still match `docs/legal/` | No — always runs | seconds |
-| `console-pages` | `scripts/check_console.py`: the consoles' wiring, CSP, deploy placeholders and gateway paths — their only gate, since they have no compiler — plus `node --test`: the DOM-free `console/util.js`, `auth.js` (sign-in, second factor, step-up, `api`, revoke gate), `router.js`, and the operator, account and institution pages, against a fake Firebase SDK loaded through a `module.register` hook and a DOM parsed from the real pages (`firebase-hosting/tests/harness.mjs`), with line coverage of the console modules gated at 46 % (tests and `vendor/` excluded) | No — always runs | seconds |
+| `console-pages` | `scripts/check_console.py`: the consoles' wiring, CSP, deploy placeholders and gateway paths — their only gate, since they have no compiler — plus `node --test`: the DOM-free `console/util.js`, `auth.js` (sign-in, second factor, step-up, `api`, revoke gate), `router.js`, and the operator, account and institution pages, against a fake Firebase SDK loaded through a `module.register` hook and a DOM parsed from the real pages (`firebase-hosting/tests/harness.mjs`), with line coverage of the console modules gated at 53 % (tests and `vendor/` excluded; counted per page load, TD-203). | No — always runs | seconds |
 | `changes` | Resolves path filters + PR/main/Dependabot mode into tier flags | — | seconds |
 | `tier1-app-fast` | spotless, detekt, lint, JVM unit tests, `compileReleaseKotlin`, the androidTest and `:benchmark` sources compile, Kover coverage log + `koverVerify` floor. Failing tests are printed by `scripts/ci_test_report.py`; JUnit XML and the Kover XML/HTML upload as `app-unit-tests-and-coverage` | `app` (PR); always on `main` push | ~5–8 / ~10 min |
 | `tier3-emulator-e2e` | x86_64 emulator: the whole androidTest suite except `com.sempermechanics.semper.benchmark` (those need the `benchmark` job) — `EnginePipelineSmokeTest` through the JNI, `AnalysisWizardSmokeTest`, the device tests | `emulator`: engine / JNI / native-CI actions, labels, weekly | ~20–40 / ~60–90 min |
-| `tier4-backend` | ruff, shell-script parse, pip-audit, hashed-lock verification, pytest at `--cov-fail-under=90`, then the Firestore emulator suite appended to the same coverage and the total gated at 91 | `backend` (PR); always on `main` push | ~5–10 min |
+| `tier4-backend` | ruff, shell-script parse, pip-audit, hashed-lock verification, pytest at `--cov-fail-under=93`, then the Firestore emulator suite appended to the same coverage and the total gated at 93. pytest also holds the console gate's own tests (`test_check_console.py`), the index check (`test_firestore_query_indexes.py`) and the wire contracts (`test_wire_contracts.py`, over `contracts/`) | `backend` (PR); always on `main` push | ~5–10 min |
 | `tier5-signed-release` | R8 + signed `assembleRelease` arm64, `.so` presence, signature verify, R8 mapping artifact | `release_build`: engine / JNI / native-CI actions / packaging, labels, weekly | ~15–40 / up to ~90 min |
 | `tier-benchmark` | One API 34 emulator, two suites: Macrobenchmark cold/warm startup (`:benchmark`, `suppressErrors=EMULATOR,LOW-BATTERY,UNLOCKED`), then `:app`'s `HotPathMicroBenchmark` on the debug build, installed by Gradle and run with `adb shell am instrument` (`suppressErrors` adds `DEBUGGABLE`, `ACTIVITY-MISSING`, `NOT-AOT-COMPILED`; through Gradle the list arrives cut at its first comma, TD-86; the step fails unless `am instrument` prints `OK (`, and the results are pulled from the device). Emulator **smoke**: no numeric thresholds; both upload their `*-benchmarkData.json` (`macrobenchmark-results`, `microbenchmark-results`). `scripts/ci_test_report.py` prints failing tests and each metric's min / median / max (`BENCH …` lines) into the log, as Tier 3 does for its failures. CI does not pass `--gates`: the real-device gates (`benchmark/gates.json`, checked only in the phone state `DeviceStateRule` records, [ADR-008](../adr/ADR-008-startup-gates-phone-state.md), [TESTING.md](../app/TESTING.md)) apply to a phone run only. The job reads the app id from `app/build.gradle.kts` (`APP_ID`) for the micro run's `am instrument` and pulls, so it runs unchanged in material_testing. | `benchmark` label / `run_benchmark` dispatch only | ~30–60 min |
 | `ci-ok` | Single required status check — every job above passed or was skipped | — | seconds |
@@ -87,12 +87,12 @@ gitleaks detect --config .gitleaks.toml --log-opts="<base-sha>..HEAD"
 
 | Filter | Paths | Sets |
 |--------|-------|------|
-| `app` | `app/**` except `app/src/main/cpp/**`; `benchmark/**`, `gradle/**`, `*.gradle.kts`, `gradle.properties`, `gradlew`, `gradlew.bat`, `settings.gradle.kts` | `app` (tier 1) |
+| `app` | `app/**` except `app/src/main/cpp/**`; `benchmark/**`, `gradle/**`, `*.gradle.kts`, `gradle.properties`, `gradlew`, `gradlew.bat`, `settings.gradle.kts`, `contracts/**` | `app` (tier 1) |
 | `android_test` | `app/src/androidTest/**` | `app` (tier 1 compiles it) |
 | `packaging` | `app/build.gradle.kts`, `app/proguard-rules.pro`, `gradle/libs.versions.toml` | `app` + `release_build` (tier 5 runs R8) |
 | `native_jni` | `engine`, `.gitmodules`, `app/src/main/cpp/**`, `SemperNativeLib.kt` | `emulator` + `release_build` (tiers 3 + 5) |
 | `native_ci` | `.github/actions/{setup-native-ci,enable-kvm,check-arm64-so}/**` | `emulator` + `release_build` |
-| `backend` | `backend/**`, `firestore.rules`, `firebase-hosting/firebase.json`, `scripts/deploy-firestore.sh`, `.github/workflows/deploy-backend.yml`, `docs/legal/**`, `scripts/*.py`, and the client's three wire-contract files | `backend` (tier 4) |
+| `backend` | `backend/**`, `firestore.rules`, `firebase-hosting/firebase.json`, `scripts/deploy-firestore.sh`, `.github/workflows/deploy-backend.yml`, `docs/legal/**`, `scripts/*.py`, `contracts/**`, and the client's three wire-contract files | `backend` (tier 4) |
 | `ci_workflow` | `.github/workflows/ci.yml`, `.github/actions/**`, `scripts/ci_test_report.py` | `app` + `backend`, so a workflow-only PR is not gates-only |
 
 The `backend` filter lists every file outside `backend/` that a backend test
@@ -119,6 +119,7 @@ default (`some`), the negated pattern matched every file outside `cpp/`, so
 | keep rules / app build script / version catalog | run | —† | — | run |
 | engine pin / JNI / `app/src/main/cpp/**` | — (‡) | run | — | run |
 | backend, rules, Terms, ops scripts | — | — | run | — |
+| `contracts/**` (shared wire bodies) | run | —† | run | —† |
 | console pages only | — | — | — | — |
 | docs only | — | — | — | — |
 | push to `main` | run | as the diff | run | as the diff |
@@ -229,7 +230,7 @@ Environments. A **production** deploy runs only when dispatched from `main`
 1. Runs the shared [`backend-gate`](../../.github/actions/backend-gate/action.yml),
    the same check Release and CI tier 4 run. It installs the hashed lock
    the image uses, runs `pip-audit`, ruff over `app/ tests/ scripts/ ../scripts/`,
-   and pytest at the 90 % coverage floor.
+   and pytest at the 93 % coverage floor.
 2. Deploys from `backend/` tagging the new revision
    `cand-<run_id>-<run_attempt>`.
    - **Existing service:** `no_traffic: true` — the previous revision keeps

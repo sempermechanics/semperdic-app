@@ -153,8 +153,9 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 - **Testing program (2026-10-08, in flight).** Five PRs from the test review: CI tiers
   follow the diff (an engine bump runs the emulator and arm64 tiers on its PR; main pushes
   path-aware; weekly full matrix), real coverage floors raised in every PR, golden
-  `.dat` / GIF oracles, then the Android and backend gaps. Plan and gap register in the
-  PR 1 description.
+  `.dat` / GIF oracles, then the Android and backend gaps. Stacked #366 → #367 → #368 →
+  #370 → PR 5 (contracts/, index check, console gate tests); merge in that order. Plan and
+  gap register in #366.
 - **Dependabot** opens monthly PRs for major versions only (pip, Gradle, Actions; #337);
   minor and patch fixes arrive as Dependabot security updates, which are on.
 - **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke
