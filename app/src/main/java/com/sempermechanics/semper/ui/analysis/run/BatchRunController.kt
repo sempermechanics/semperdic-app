@@ -64,13 +64,7 @@ class BatchRunController(
                 launch {
                     viewModel.progress.collect { progress ->
                         if (progress == null) return@collect
-                        overlayController.update(
-                            percent = progress.percent,
-                            status = progress.status,
-                            title = progress.status,
-                            pointsSolved = progress.pointsSolved,
-                            convergencePercent = progress.convergencePercent,
-                        )
+                        overlayController.updateRun(progress)
                     }
                 }
                 launch {

@@ -208,14 +208,21 @@ Then **Compute** (Single) or **Next: Summary →** (Sweep).
 
 <img src="images/running.png" width="300" alt="Progress dialog">
 
-**# converged** and **convergence** update live. **Cancel** stops the run
+The card shows the percentage, the time left (once a few seconds of progress
+give a steady rate), seconds per frame and elapsed time. **Convergence per frame**
+is a line across all planned frames with a dashed line at 50%; frames under it
+get a red dot. Under the graph, the status reads *Correlating frame 23 · 40%*,
+then *Completed 40 of 40 frames · saving* while the run writes the analysis.
+After one low frame an amber line warns that one more stops the run.
+**Cancel** stops the run
 where it is, within a moment — it does not wait out the frame being solved.
 Nothing is kept. Back is blocked. Cancelling a parameter sweep abandons the whole
 sweep, not just the combination in flight.
 
 The same overlay covers importing frames and extracting video, but there it
-counts frames instead: the two compute tiles are hidden, because nothing is being
-solved yet. Cancelling an import asks for confirmation and leaves nothing behind.
+counts frames instead: the convergence graph is hidden, because nothing is being
+solved yet. A parameter sweep shows the percentage, time left and the
+combination being solved, without the graph. Cancelling an import asks for confirmation and leaves nothing behind.
 
 **A run stops itself if the images decorrelate.** Two consecutive frames below
 50% convergence end it — the frames after them would be no better, and the

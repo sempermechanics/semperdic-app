@@ -28,7 +28,7 @@ distort.
 | `step2-parameters.png` | §4 | *(2026-09-09, dark)* Advanced parameters expanded, **Compute** button visible, and the muted speckle readout under the subset slider ("Speckle measures about 4.3 px across…") |
 | `speckle-warning.png` | §4 (new) | *(2026-09-09, dark)* Step 1 with the over-resolved speckle chip — a 12.8 px pattern against the 9 px ceiling |
 | `speckle-span-warning.png` | §4 (new) | *(2026-09-10, dark)* Step 2 with the subset-span chip under the slider — a 7.1 px pattern against a 15 px subset, asking for 23 |
-| `running.png` | §4 | **# converged** / **convergence** tiles showing |
+| `running.png` | §4 | *(2026-10-08, light, Pixel_5 AVD)* Mid-run: "Frame N of M", time left, the convergence line over several frames, "Correlating frame N · X%" under it |
 | `roi-editor.png` | §6 | Draw + Crop mode, one rectangle drawn, HUD showing `W × H at (x, y)` |
 | `step3-sweep.png` | §7 | Ranges populated, planned lattice visible, **Compute** button |
 | `result-lattice.png` | §7 | Summary line above the lattice, hollow (skipped) nodes, **All / Node** pill visible |

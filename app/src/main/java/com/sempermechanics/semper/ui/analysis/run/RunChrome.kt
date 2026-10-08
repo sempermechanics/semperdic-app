@@ -44,13 +44,14 @@ class RunChrome(
     }
 
     /**
-     * A run has started: shows the overlay ([title] and [status] when given,
-     * else the overlay's own), keeps the screen on, and arms Cancel with
-     * [onCancel].
+     * A run has started: shows the overlay, keeps the screen on, and arms
+     * Cancel with [onCancel]. A batch run passes no [title] and [status] and
+     * gets the overlay's own, with its convergence graph; a sweep passes both
+     * and gets no graph, since its solves are combinations, not frames.
      */
     fun beginRun(title: String? = null, status: String? = null, onCancel: () -> Unit) {
         overlay.processingStartTime = System.currentTimeMillis()
-        if (title != null && status != null) overlay.show(title, status) else overlay.show()
+        if (title != null && status != null) overlay.show(title, status, showConvergence = false) else overlay.show()
         activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         begin(CancelPrompt(R.string.cancel_run_title, R.string.cancel_run_body, onCancel))
     }

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Spacing scale. New and reworked layouts take their margins and padding
+        from here instead of inline dp; older screens move over when they are
+        next reworked, not in a sweep. Add a step only when a layout uses it.
+    -->
+    <dimen name="space_4">4dp</dimen>
+    <dimen name="space_8">8dp</dimen>
+    <dimen name="space_12">12dp</dimen>
+    <dimen name="space_16">16dp</dimen>
+    <dimen name="space_24">24dp</dimen>
+</resources>

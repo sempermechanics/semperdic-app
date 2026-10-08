@@ -34,14 +34,26 @@ data class RunResult(
     fun viewerSettings(): SessionRecordSettings? = settings ?: spec?.recordSettings()
 }
 
-/** One tick of a batch run's progress, for the overlay. */
+/**
+ * One tick of a batch run's progress, for the overlay.
+ *
+ * @property percent the whole run, 0–100
+ * @property frameIndex the 0-based frame being solved; -1 while the reference
+ *   is cached; [plannedFrames] once every frame is solved and the run is saving
+ * @property framePercent progress within [frameIndex], 0–100
+ * @property perFrameConvergence each frame's convergence once it is solved,
+ *   NaN before (and for a frame that kept no points); null when this tick
+ *   carries none. Always a copy: the progress flow drops old ticks, and the
+ *   next frame's tick carries every frame so far, so a dropped one loses nothing.
+ */
+@Suppress("ArrayInDataClass") // a snapshot read once by the overlay; never compared or hashed
 data class BatchProgressUpdate(
     val percent: Float,
     val status: String,
-    val timerText: String,
-    // Live overlay tiles; -1 = no update this tick
-    val pointsSolved: Int = -1,
-    val convergencePercent: Float = -1f,
+    val frameIndex: Int = -1,
+    val plannedFrames: Int = 0,
+    val framePercent: Float = 0f,
+    val perFrameConvergence: FloatArray? = null,
 )
 
 /** How a batch run or a sweep ended. */
