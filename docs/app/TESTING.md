@@ -21,7 +21,7 @@ chunk own?" here.
 | **upgrade** | Prefs / session index forward compatibility | (covered in settings + session) | `upgrade/PrefsUpgradeSmokeTest` |
 | **e2e** | Wizard chrome smoke (Next + toolbar; Back / Compute / instruction GONE on step 1) | — | `AnalysisWizardSmokeTest` |
 | **pipeline** | JNI + native runtime | — | `pipeline/EnginePipelineSmokeTest` |
-| **benchmark** | Startup / screen / viewer-scrub Macrobenchmarks; hot-path microbenchmarks | — | `:app` androidTest `benchmark/HotPathMicroBenchmark`, `:benchmark` module (both in CI's `tier-benchmark`: label `benchmark` / workflow_dispatch) |
+| **benchmark** | Startup / screen / viewer-scrub Macrobenchmarks; hot-path microbenchmarks | — | `:app` androidTest `benchmark/HotPathMicroBenchmark`, `:benchmark` module (both in CI's `tier-benchmark`: label `benchmark` / workflow_dispatch / a PR touching a hot path) |
 
 ## Overlap rules
 
@@ -136,7 +136,9 @@ the session store in a state you can come back to.
 ## Performance benchmarks
 
 Two suites, answering different questions. Neither runs in the normal gate — both
-need a device, and they are gated in CI behind the `benchmark` label.
+need a device. CI's `tier-benchmark` job runs them on the `benchmark` label, a
+`run_benchmark` dispatch, or a PR that touches a hot path (the `hot_path` filter in
+`ci.yml`).
 
 **Micro (`:app` androidTest) — "did this operation get cheaper?"**
 Measures median `timeNs` **and `allocationCount`** for the hot paths (`valueRanges`,
@@ -175,9 +177,10 @@ CI's `tier-benchmark` job passes the same `suppressErrors` (plus
 `enabledRules=Macrobenchmark`) on an **API 34** emulator;
 `benchmark/build.gradle.kts` sets the same suppress list so a local emulator run
 matches CI. On the same emulator the job then runs the micro suite with the
-`am instrument` command above. Numbers are smoke, not
-a regression gate; both suites' `*-benchmarkData.json` are uploaded, as
-`macrobenchmark-results` and `microbenchmark-results`.
+`am instrument` command above. Those numbers are not gated; both suites'
+`*-benchmarkData.json` are uploaded, as `macrobenchmark-results` and
+`microbenchmark-results`. On a PR the micro suite then runs again, A/B against the
+PR's base, and that is a gate (below).
 
 Three things that will otherwise cost you an afternoon:
 
@@ -207,6 +210,25 @@ from `:app`'s build into `BuildConfig.TARGET_PACKAGE` and the manifest's `<queri
 so the same sources run in material_testing under its own id. CI's micro step and
 `scripts/startup_ab.py` read the same `applicationId` line of `app/build.gradle.kts`.
 
+### CI microbenchmark A/B (TD-199)
+
+An emulator's absolute times say nothing (its speed moves from runner to runner), so
+on a PR `tier-benchmark` judges the hot paths by their change against the PR's base.
+It builds the base (A) and the PR (B) as debug app + androidTest APKs, in the one
+checkout, then `scripts/micro_ab.py` runs `HotPathMicroBenchmark` from each on the
+same emulator in A B B A order, so drift hits both builds equally. For each
+benchmark it pools every `timeNs` run of a build (50 a round) and fails the job if
+B's median is more than `microAbMargin` (15 %, `benchmark/gates.json`) over A's.
+The log shows both medians, the change and both allocation counts; the rounds are
+uploaded as `microbenchmark-ab`. A benchmark only one build has (the PR adds or
+removes it) is reported and not compared. Method tracing is off for these runs
+(`profiling.mode none`).
+
+A PR that means to slow a hot path (a correctness fix that costs time) gets the
+`perf-accepted` label: the comparison still runs and prints a warning, but passes.
+Labels apply from the next push. To re-read a run, download `microbenchmark-ab` and
+run `python scripts/micro_ab.py --analyse <folder>`.
+
 ### Real-device gates
 
 [`benchmark/gates.json`](../../benchmark/gates.json) turns a phone's reference medians
@@ -227,8 +249,9 @@ only reports and always exits 0. **The Pixel 6 (`oriole`)** has references from
 2026-10-05 for the tests that stayed in the reference state: Settings cold start and
 scroll, and both viewer scrubs. Startup cold and warm start and the wizard cold start
 reached thermal status 1 and have none yet (TD-155). material_testing's were taken on
-its own app and are not copied. Microbenchmark times are not gated: debuggable and not AOT-compiled, they are
-relative numbers only.
+its own app and are not copied. Microbenchmark times have no reference here: debuggable
+and not AOT-compiled, they are relative numbers, gated only against the PR's base in
+CI (below).
 
 **The phone's state ([ADR-008](../adr/ADR-008-startup-gates-phone-state.md)).**
 A startup time moves 30–40 % with heat and the charger (material_testing's TD-135),
