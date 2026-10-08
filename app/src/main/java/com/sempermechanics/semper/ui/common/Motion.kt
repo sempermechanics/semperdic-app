@@ -1,5 +1,9 @@
 package com.sempermechanics.semper.ui.common
 
+import android.animation.ValueAnimator
+import android.content.Context
+import android.os.Build
+import android.provider.Settings
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
@@ -34,6 +38,21 @@ object Motion {
             ordering = AutoTransition.ORDERING_TOGETHER
         }
         TransitionManager.beginDelayedTransition(container, transition)
+    }
+
+    /**
+     * True when the user has turned animations off (Developer options or
+     * Accessibility, "Remove animations"): the animator duration scale is 0.
+     * A pulse, a shimmer or a tweened value then shows its end state at once.
+     */
+    fun reduced(context: Context): Boolean {
+        val scale = Settings.Global.getFloat(
+            context.contentResolver,
+            Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        )
+        val enabled = Build.VERSION.SDK_INT < Build.VERSION_CODES.O || ValueAnimator.areAnimatorsEnabled()
+        return scale == 0f || !enabled
     }
 
     /** One-shot entrance: rise + fade. Use on a root/card when a screen appears. */

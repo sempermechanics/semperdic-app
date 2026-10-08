@@ -179,6 +179,7 @@ internal class ViewerScaleController(private val host: ResultViewerActivity) {
         binding.imgHeatmapOverlay.scaleType = ImageView.ScaleType.MATRIX
         binding.imgHeatmapOverlay.setImageBitmap(heatmap.bitmap)
         applyHeatmapMatrix()
+        host.captions.openingDone()
 
         shownRange = heatmap.range
 

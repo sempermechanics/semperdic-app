@@ -54,6 +54,7 @@ Conventions:
 | A wizard warning row | `WarnChip` (`ui/common/dialog/WarnChip.kt:19`) | Show/hide by hand |
 | A bottom sheet of rows | `inflateSheet` + `Sheet.row` (`ui/common/dialog/Sheet.kt:48`, `:26`) | A `BottomSheetDialog` per screen |
 | A busy spinner over controls | `View.setBusy` (`ui/common/Busy.kt:15`) | |
+| A wait shown in one view slot, only past 300 ms, still with animations off | `InlineBusy` (`ui/common/InlineBusy.kt:32`), latest wins through `SerialJob` | A spinner shown at once, or nothing |
 | One refresh at a time, a burst folded into one more | `ConflatedRefresh` (`ui/common/ConflatedRefresh.kt:22`) | |
 
 **Still hand-built, and why.**

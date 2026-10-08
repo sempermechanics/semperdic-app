@@ -143,6 +143,49 @@
                                 android:text="@string/action_change" />
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Over the dropzone or card while a pick is read (ReferenceSlotBusy):
+                         a skeleton thumbnail while an image decodes, a spinner while a
+                         video's metadata is read. Shown only past 300 ms. -->
+                    <LinearLayout
+                        android:id="@+id/refBusy"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_slot_busy"
+                        android:gravity="center_vertical"
+                        android:minHeight="46dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <View
+                            android:id="@+id/refBusySkeleton"
+                            android:layout_width="46dp"
+                            android:layout_height="46dp"
+                            android:background="@drawable/bg_skeleton_thumb" />
+
+                        <com.google.android.material.progressindicator.CircularProgressIndicator
+                            android:id="@+id/refBusySpinner"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/space_16"
+                            android:indeterminate="true"
+                            android:visibility="gone"
+                            app:indicatorColor="@color/sky_primary"
+                            app:indicatorSize="18dp"
+                            app:trackThickness="2dp" />
+
+                        <TextView
+                            android:id="@+id/tvRefBusy"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/space_12"
+                            android:layout_weight="1"
+                            android:maxLines="1"
+                            android:ellipsize="end"
+                            android:textColor="@color/viewer_chrome_muted"
+                            android:textSize="12sp"
+                            tools:text="Decoding RAW · 24 MP" />
+                    </LinearLayout>
                 </FrameLayout>
 
                 <!-- Deformed frames slot -->

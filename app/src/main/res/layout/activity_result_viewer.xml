@@ -374,4 +374,42 @@
         android:layout_height="0dp"
         android:visibility="gone" />
 
+    <!-- "Opening … · N frames" while the first frame loads (ViewerCaptions.showOpening):
+         shown only past 300 ms, gone once that frame draws. Floats over the
+         canvas; nothing else in the layout moves for it. -->
+    <LinearLayout
+        android:id="@+id/viewerOpening"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginHorizontal="@dimen/space_24"
+        android:background="@drawable/bg_pill_glass"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="@dimen/space_16"
+        android:paddingVertical="@dimen/space_8"
+        android:visibility="gone">
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/viewerOpeningSpinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/space_8"
+            android:indeterminate="true"
+            android:visibility="gone"
+            app:indicatorColor="@color/viewer_chrome_text"
+            app:indicatorSize="16dp"
+            app:trackThickness="2dp" />
+
+        <TextView
+            android:id="@+id/tvViewerOpening"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="middle"
+            android:maxLines="1"
+            android:textColor="@color/viewer_chrome_text"
+            android:textSize="13sp"
+            tools:text="Opening steel_00 · 40 frames" />
+    </LinearLayout>
+
 </FrameLayout>

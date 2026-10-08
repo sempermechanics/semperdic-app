@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A thumbnail still decoding: a muted rounded block where the image will go.
+     viewer_glass_stroke flips with the theme, so it reads as muted on both canvases. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="8dp" />
+    <solid android:color="@color/viewer_glass_stroke" />
+</shape>

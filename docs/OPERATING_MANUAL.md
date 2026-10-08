@@ -116,7 +116,16 @@ warning naming a bigger subset size. Treat it as a comment on the pattern, not
 just a setting.
 
 **Video.** Pick a video and a sampling sheet opens: frame rate, time segment,
-live frame-count estimate. Frame 0 becomes the reference.
+live frame-count estimate. Frame 0 becomes the reference. While the video's
+length and frame rate are read, the reference slot shows a small spinner and
+**Reading video…**.
+
+**While a reference decodes.** If it takes longer than about a third of a
+second, the reference slot shows a grey placeholder thumbnail and **Decoding
+image**, or **Decoding RAW · 24 MP** for a RAW or DNG (the megapixels only when
+the file's header gives its size). A quick decode shows nothing. With
+animations turned off in Android's settings, the placeholder holds still and
+spinners are left out.
 
 ---
 
@@ -283,10 +292,15 @@ for 0.007 px accuracy, sampled on a 4×4 grid and taken as the median.
 It is a starting point. Touch the slider and it stops tracking the image.
 **Reset** brings it back.
 
-A muted line under the subset slider reads **"Speckle measures about N px
-across. Good practice asks for 3–9 px."** — the same measurement as the step 1
-chip, kept in front of you while you move the slider. It updates as the
-reference changes and disappears if the reference is removed. Below it, a
+A muted line under the subset slider carries the measurement. While it runs
+(past about a third of a second) the line reads **Measuring speckle…**. When it
+lands, the slider slides to the recommended size (it jumps when animations are
+off) and the line reads **"Set to 31 px from speckle 4.3 px. Good practice
+asks for 3–9 px."**. Once you set a size of your own it reads **"Speckle
+measures about N px across. Good practice asks for 3–9 px."** — the same
+measurement as the step 1 chip, kept in front of you while you move the
+slider. It updates as the reference changes, and disappears if the reference is
+removed or the measurement fails. Below it, a
 warning chip appears if the subset you are on cannot span three speckles, and
 names the size that would; it clears as soon as the slider passes that size.
 
@@ -452,6 +466,10 @@ Look for the VSG where the curves stop separating.
 ## 8. Reading results
 
 <img src="images/result-viewer.png" width="300" alt="Result viewer">
+
+**Opening.** If the first frame takes longer than about a third of a second to
+appear, a small pill in the middle reads **Opening steel_00 · 40 frames** (the
+reference's name and the frame count) until that frame draws.
 
 Field pills switch field. Pinch to zoom (~10×), drag to pan; both survive a
 field change. Double-tap zooms or resets. A horizontal fling while fit-to-screen

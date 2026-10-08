@@ -588,12 +588,28 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="speckle_under_resolved_fmt">Speckle measures about %1$.1f px across, below the %2$d px minimum. The pattern may be too fine for this frame to resolve, and points can fail to correlate. Shoot closer, or use a coarser pattern.</string>
     <string name="speckle_over_resolved_fmt">Speckle measures about %1$.1f px across, above the %2$d px the method needs. It will correlate, but a finer pattern would give more measurement points across the same area.</string>
     <string name="speckle_subset_span_fmt">A %1$d px subset spans too few speckles on this pattern to be unambiguous. Good practice asks for at least %2$d px here.</string>
+    <!-- The readout while the speckle is measured (shown past 300 ms), and once the
+         measurement has set the slider: the size it chose, the speckle it chose from. -->
+    <string name="speckle_measuring">Measuring speckle…</string>
+    <string name="speckle_set_from_fmt">Set to %1$d px from speckle %2$.1f px. Good practice asks for %3$d–%4$d px.</string>
     <string name="next_reason_ref">add a reference image to continue</string>
     <string name="next_reason_def">add at least one deformed frame to continue</string>
     <string name="run_analysis">Compute</string>
     <string name="new_analysis_title">New analysis</string>
     <string name="step_of_fmt">Step %1$d of %2$d</string>
     <string name="reference_meta_fmt">Reference · %1$d × %2$d px</string>
+    <!-- The reference slot while a pick is read (ReferenceSlotBusy). -->
+    <string name="reference_decoding_image">Decoding image</string>
+    <string name="reference_decoding_raw">Decoding RAW</string>
+    <string name="reference_decoding_raw_mp_fmt">Decoding RAW · %1$d MP</string>
+    <string name="video_reading">Reading video…</string>
+    <!-- The viewer while its first frame loads (ViewerCaptions.showOpening). -->
+    <string name="viewer_opening_fmt">Opening %1$s</string>
+    <string name="viewer_opening_unnamed">analysis</string>
+    <plurals name="viewer_opening_frames_fmt">
+        <item quantity="one">Opening %1$s · %2$d frame</item>
+        <item quantity="other">Opening %1$s · %2$d frames</item>
+    </plurals>
     
     <string name="frame_order_label">Analysis order</string>
     <string name="frame_order_name_asc">Name · A–Z</string>
