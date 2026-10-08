@@ -2017,7 +2017,9 @@ policy is restated for them verbatim in `firebase.json`. For the same reason
 both pages carry a `<base href>`: a relative path in them would resolve
 against the site root at the pretty address and one directory too high.
 Every other page — the legal pages,
-the auth continue-URLs — keeps the strict `default-src 'self'`. `connect-src` is
+the auth continue-URLs — keeps the strict `default-src 'self'`, with
+`script-src 'self'` and no `'unsafe-inline'` since 2026-10-08 (check 11 of
+`scripts/check_console.py` keeps every policy, and every page, that way). `connect-src` is
 widened for the API and Firebase Auth's token endpoints. `script-src` is
 widened to exactly two origins and never to `'unsafe-inline'`:
 `https://www.gstatic.com` for the SDK modules and `https://apis.google.com`
