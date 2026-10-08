@@ -210,12 +210,11 @@ test("a roster change that finishes after the card closed reads nothing more", a
     "no roster or licence re-read for a closed card");
 });
 
-// Found while writing these tests: roster.js resolves `base()` only after the
-// Remove confirmation is answered, so a removal confirmed after another
-// licence's roster was opened is sent to that other licence.
+// Found while writing these tests: roster.js once resolved `base()` only after
+// the Remove confirmation was answered, so a removal confirmed after another
+// licence's roster was opened went to that other licence.
 nodeTest("a removal confirmed after switching rosters goes to the licence it was asked on", {
   timeout: 5000,
-  todo: "roster.js act() reads base() after confirmInPage; the DELETE follows the roster open at confirm time",
 }, async () => {
   await openDesk({ licenses: [IND, UNI, UNI2], routes: {
     [`GET ${seatsOf(UNI)}`]: () => json(200, ROSTER),
@@ -223,6 +222,8 @@ nodeTest("a removal confirmed after switching rosters goes to the licence it was
     [`DELETE ${seatsOf(UNI)}/u1`]: () => json(200, { revoked: true }),
     [`DELETE ${seatsOf(UNI2)}/u1`]: () => json(404, { detail: "seat_not_found" }),
     [`GET /v1/admin/licenses/${UNI.id}`]: () => json(200, UNI),
+    // The reload after it re-reads the roster on screen, which is now UNI2's.
+    [`GET /v1/admin/licenses/${UNI2.id}`]: () => json(200, UNI2),
   } });
   await click(rowButton("roster", UNI.id));
   $("rosterRows").querySelector('button[data-act="remove"]').click(); // the confirmation waits
