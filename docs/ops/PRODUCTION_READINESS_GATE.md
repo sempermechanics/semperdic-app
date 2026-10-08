@@ -70,7 +70,8 @@ Strict binary PASS against all applicable external controls is **not** claimed.
 - [x] Firestore emulator tier runs in CI (`FIRESTORE_EMULATOR_HOST` is set in the
       Tier 4 job). It found three real defects the in-memory fake could not
       express — see "Contention fixes" below.
-- [x] Coverage gated at 75% (`--cov-fail-under`), currently 78%.
+- [x] Coverage gated at 90 % (`--cov-fail-under`), measured 92.93 % (2026-10-08); with
+      the emulator tier appended, 93.09 %, gated at 91 % in CI tier 4.
 - [x] Dependency audit (`pip-audit`) and hashed lock verification in CI.
 - [x] **Dependency-outage readiness test**: `test_health.py` asserts `/healthz`
       stays 200 while both dependencies raise, and `/readyz` returns 503 with the

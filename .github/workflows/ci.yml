@@ -124,8 +124,17 @@ jobs:
         with:
           node-version: '22'
       - run: python scripts/check_console.py
+      # Line coverage of the console modules (the tests and the vendored QR
+      # encoder excluded), floored two points under the measured 48.85 %
+      # (2026-10-08). Raise it with the tests that lift it; never lower it.
       - name: Console helper tests
-        run: node --test "firebase-hosting/tests/*.test.mjs"
+        run: >
+          node --test
+          --experimental-test-coverage
+          --test-coverage-exclude="firebase-hosting/tests/**"
+          --test-coverage-exclude="**/vendor/**"
+          --test-coverage-lines=46
+          "firebase-hosting/tests/*.test.mjs"
 
   # ===================================================================
   # Path filters — same rules on PR and push. Prove only what the diff
@@ -551,6 +560,9 @@ jobs:
           # firebase-tools 15 dropped emulator support for Java < 21 (v15.0.0 notes).
           java-version: '21'
 
+      # Appends to the backend gate's coverage data (backend/.coverage), so the
+      # transaction paths only a real Firestore reaches count, and gates the
+      # total two points under the measured 93.09 % (2026-10-08).
       - name: Run Firestore emulator tier
         env:
           GOOGLE_CLOUD_PROJECT: semper-ci-emulator
@@ -561,7 +573,7 @@ jobs:
             --only firestore \
             --config firebase.emulator.json \
             --project semper-ci-emulator \
-            'pytest tests/test_firestore_emulator_integration.py -v'
+            'pytest tests/test_firestore_emulator_integration.py -v --cov=app --cov-append --cov-report=term --cov-fail-under=91'
 
   # ===================================================================
   # Tier 5 — Signed release build (arm64-v8a), with R8

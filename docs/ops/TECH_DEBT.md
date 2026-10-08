@@ -117,8 +117,8 @@ See [../../engine/docs/PERF_BASELINE_bd44af0.md](../../engine/docs/PERF_BASELINE
 ≥ 4557 solves/s on the host, the smoke and DICe floors, and `-O3 -ffast-math` / OpenMP /
 LTO kept on the release pipeline. **No CI job in this repository enforces the
 solve-rate floor:** it is checked by hand in the engine repo when the `engine` pin
-moves. `koverVerify` (floor 49, `app/build.gradle.kts:420`) runs in CI tier 1 and
-`ciReleaseGate`.
+moves. `koverVerify` (lines 73, branches 58, `app/build.gradle.kts:423-426`) runs in CI
+tier 1, `ciReleaseGate` and the release workflow.
 
 The CI benchmark job ("Benchmarks (macro + micro)") is emulator **smoke**, with no
 numeric thresholds. Macrobenchmark suppresses `EMULATOR,LOW-BATTERY,UNLOCKED`.
