@@ -2,26 +2,39 @@
  * see the desk, and routes each licence row's buttons to the card or dialog
  * that handles them; the rest is in the modules imported below.
  */
-import { requireSignIn, api, setStatus } from "../auth.js";
+import { requireSignIn, api, setStatus, whileWaiting } from "../auth.js";
 import { unfinishedStepUpText } from "../util.js";
 import { mountSwitcher } from "../switcher.js";
+import { licencesAdministered } from "../roles.js";
 import { $, labelOf } from "./state.js";
-import { loadLicences } from "./licences.js";
+import { loadLicences, startLicenceLoad } from "./licences.js";
 import "./mint.js";
 import { openEdit, openConvert } from "./edit.js";
-import { clearLicenceDevice, showDeviceHistory, loadUsers } from "./people.js";
+import {
+  clearLicenceDevice, showDeviceHistory, loadUsers, startUsersLoad,
+} from "./people.js";
 import { openVerified } from "./verify.js";
 import { revokeLicence, resumeRevoke, deleteLicence, resumeDelete } from "./lifecycle.js";
 import { openRoster } from "./roster-card.js";
 
 requireSignIn(async (user, resume) => {
   $("signedOut").hidden = true;
-  const me = await operatorMe(user);
+  // Every read the desk needs goes out together, the role check first:
+  // waiting for the role before asking for the licences doubled the time to
+  // a filled table. Only staff are shown what comes back; for anyone else
+  // the backend refuses the desk's reads, and the refusals are dropped.
+  const role = api("/v1/me");
+  role.catch(() => {}); // read by operatorMe
+  const licences = startLicenceLoad();
+  const users = startUsersLoad();
+  const administered = licencesAdministered().then((out) => out.licenses);
+  const me = await operatorMe(user, whileWaiting(role, "Checking your access…"));
   if (!me) return;
-  mountSwitcher("operator", { me });
+  $("app").hidden = false;
+  mountSwitcher("operator", { me, licenses: administered });
   showFactorPill();
-  loadUsers();
-  await loadLicences();
+  loadUsers(users);
+  await loadLicences(licences);
   // Back from the Google re-authentication a revoke asked for: finish it
   // now, while the fresh sign-in is inside the backend's window. If the
   // round trip failed, say so here — after the list load, whose own status
@@ -32,7 +45,7 @@ requireSignIn(async (user, resume) => {
   }
   if (resume && resume.action === "revoke") resumeRevoke(resume.id);
   if (resume && resume.action === "delete") resumeDelete(resume.id);
-});
+}, { showApp: false });
 
 /**
  * The /v1/me answer if this account may see the desk at all, else null.
@@ -41,10 +54,10 @@ requireSignIn(async (user, resume) => {
  * refusal. Now the desk stays hidden and the account is told where it can go
  * instead.
  */
-async function operatorMe(user) {
+async function operatorMe(user, role) {
   let me;
   try {
-    me = await api("/v1/me");
+    me = await role;
   } catch (e) {
     $("app").hidden = true;
     setStatus(`Could not check whether ${user.email} is an operator: ${e.message}`, true);
@@ -73,6 +86,10 @@ function showFactorPill() {
 $("licenceRows").addEventListener("click", (ev) => {
   const btn = ev.target.closest("button");
   if (!btn) return;
+  if ("retry" in btn.dataset) loadLicences();
+  // A choice from a row's More menu closes the menu.
+  const menu = btn.closest("details");
+  if (menu) menu.open = false;
   if (btn.dataset.edit) openEdit(btn.dataset.edit);
   if (btn.dataset.delete) deleteLicence(btn.dataset.delete);
   if (btn.dataset.convert) openConvert(btn.dataset.convert);

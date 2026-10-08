@@ -3,7 +3,7 @@
  * an unlicensed account.
  */
 import { api, setStatus, esc, confirmInPage, tellInPage } from "../auth.js";
-import { seatDevices } from "../util.js";
+import { seatDevices, placeholderRows, retryRow } from "../util.js";
 import { explain } from "../messages.js";
 import { $, labelOf } from "./state.js";
 import { showLicence } from "./licences.js";
@@ -68,11 +68,27 @@ export async function showDeviceHistory(id) {
 
 /* ---------------------------------------------------------- accounts */
 
-$("reloadUsers").addEventListener("click", loadUsers);
+$("reloadUsers").addEventListener("click", () => loadUsers());
 
-export async function loadUsers() {
+const PENDING_USERS = "/v1/admin/users?status=PENDING&limit=50";
+
+/** Start reading who waits for approval, for `loadUsers` (see startLicenceLoad). */
+export function startUsersLoad() {
+  const data = api(PENDING_USERS);
+  data.catch(() => {}); // read, or discarded, by loadUsers
+  return data;
+}
+
+let usersLoad = 0; // the latest load; an older answer is not drawn over it
+
+/** Fetch and show who waits for approval, or show the read already `started`. */
+export async function loadUsers(started) {
+  const ticket = ++usersLoad;
+  $("userRows").innerHTML = placeholderRows(4, 2);
+  $("reloadUsers").disabled = true;
   try {
-    const data = await api("/v1/admin/users?status=PENDING&limit=50");
+    const data = await (started || api(PENDING_USERS));
+    if (ticket !== usersLoad) return;
     const rows = data.users || [];
     $("userRows").innerHTML = rows.length
       ? rows.map((u) => `
@@ -89,8 +105,10 @@ export async function loadUsers() {
           </tr>`).join("")
       : '<tr><td colspan="4" class="muted">Nobody waiting.</td></tr>';
   } catch (e) {
-    $("userRows").innerHTML =
-      `<tr><td colspan="4" class="err">Could not load: ${esc(e.message)}</td></tr>`;
+    if (ticket !== usersLoad) return;
+    $("userRows").innerHTML = retryRow(4, `Could not load: ${e.message}`);
+  } finally {
+    if (ticket === usersLoad) $("reloadUsers").disabled = false;
   }
 }
 
@@ -123,6 +141,7 @@ $("releasePhone").addEventListener("click", async () => {
 });
 
 $("userRows").addEventListener("click", async (ev) => {
+  if (ev.target.closest("button[data-retry]")) return loadUsers();
   const btn = ev.target.closest("button[data-approve]");
   if (!btn) return;
   btn.disabled = true;

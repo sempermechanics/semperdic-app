@@ -4,7 +4,12 @@
 
    The tokens, type and component shapes are the marketing site's
    (semper-website/css/style.css) so that sempermechanics.com → /login is one
-   product, not two. Copy a value from there rather than inventing one here. */
+   product, not two. Copy a value from there rather than inventing one here.
+
+   Three screen sizes, the same three as the site's: phone up to 600px,
+   tablet 601–1024px (either way up), desktop beyond. Media queries cannot
+   read custom properties, so the numbers are written in each query; keep
+   them these. */
 :root {
   color-scheme: dark;
   --bg: #0c0f14;
@@ -37,6 +42,20 @@ body {
 }
 a { color: inherit; text-decoration: none; }
 a:hover { color: var(--accent); }
+/* Keyboard focus is always visible: the desk is driven by keyboard as much
+   as by mouse, and the browsers' default ring was lost on the dark ground. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input:focus-visible, select:focus-visible { outline: none; }
+
+/* Until auth.js knows whether anyone is signed in (body[data-auth]), Sign in
+   and the signed-out note stay out of sight: someone already signed in was
+   offered "Sign in with Google" first. If the scripts never run, the
+   animation shows them after 8 s anyway. */
+@keyframes auth-fallback { to { visibility: visible; } }
+body[data-auth="pending"] #signIn,
+body[data-auth="pending"] #signedOut {
+  visibility: hidden; animation: auth-fallback 0s 8s forwards;
+}
 
 /* Header: the site's fixed bar, unfixed — a console is a working surface and
    a sticky 4 rem strip over a licence table is 4 rem of table you cannot see. */
@@ -116,6 +135,8 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); }
 td.actions { text-align: right; white-space: nowrap; }
+/* A key is read as one word; broken over two lines it was misread. */
+td.mono { white-space: nowrap; }
 .pill {
   display: inline-block; padding: .1rem .6rem; border-radius: 999px;
   font-size: .78rem; font-weight: 500; border: 1px solid var(--line-strong);
@@ -129,6 +150,34 @@ td.actions { text-align: right; white-space: nowrap; }
 }
 .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 .err { color: var(--danger); }
+
+/* Placeholders while something loads (util.js placeholderRows, and the
+   account's licence card): the shape of what is coming, in grey. They pulse
+   only for those who have not asked for less motion. */
+.skeleton {
+  display: inline-block; vertical-align: middle; height: .8em; width: min(7rem, 80%);
+  border-radius: 4px; background: var(--line-strong); opacity: .6;
+}
+.skeleton.pill { width: 5rem; height: 1.35em; border-radius: 999px; }
+.skeleton.line { width: min(24rem, 90%); }
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton { animation: skeleton-pulse 1.4s ease-in-out infinite; }
+}
+@keyframes skeleton-pulse { 50% { opacity: .25; } }
+
+/* A licence row's rarer actions (licences.js): a disclosure that opens in
+   place, under its button, so the table's own scrolling never clips it. */
+details.more { display: inline-block; vertical-align: top; text-align: left; }
+details.more > summary {
+  list-style: none; display: inline-block; cursor: pointer;
+  font-weight: 600; font-size: .9rem; padding: .55rem 1rem; border-radius: 8px;
+  border: 1px solid var(--line-strong); color: var(--ink);
+}
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::after { content: " ▾"; color: var(--muted); }
+details.more > summary:hover { background: rgba(255, 255, 255, 0.04); }
+details.more[open] > summary { border-color: var(--accent); }
+details.more .menu { display: flex; flex-direction: column; gap: .35rem; margin-top: .35rem; }
 
 /* The status line sits above the first card, and the licence table is well
    below it: a result written there while the operator worked in the table was
@@ -184,9 +233,74 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
   border: 1px solid var(--line-strong); display: inline-block; word-break: break-all;
 }
 
-@media (max-width: 640px) {
-  header { padding: .75rem 1rem; }
-  header h1 { padding-left: 0; border-left: 0; flex-basis: 100%; line-height: 1.3; }
+/* Tablet and up: a table wider than its card scrolls sideways inside it, and
+   its first column (the key, the member, the analysis) stays in view. */
+@media (min-width: 601px) {
+  .wrap th:first-child, .wrap td:first-child {
+    position: sticky; left: 0; z-index: 1; background: var(--card);
+  }
+}
+
+/* Phone. The header keeps to two rows: the brand, the page, who is signed in
+   (cut short if long) and Sign out; then the dashboard switch, full width.
+   The brand is its mark alone here: with the word beside it, a page named
+   "Your account" or "Institution seats" pushed Sign out onto a third row. */
+@media (max-width: 600px) {
+  header { padding: .6rem 1rem; gap: .5rem .75rem; }
+  .brand { font-size: 0; gap: 0; }
+  header h1 { padding-left: .75rem; line-height: 1.25; }
+  header .spacer, #mfaPill { display: none; }
+  #who {
+    flex: 1 1 0; min-width: 0; font-size: .8rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .switch { order: 10; flex-basis: 100%; display: flex; }
+  .switch a { flex: 1; text-align: center; }
   main { padding: 1.25rem 1rem; }
+  .card { padding: 1rem; }
   footer { padding: 1rem; }
+  /* A text box in a toolbar takes the whole line rather than a squeezed slot. */
+  .row > input:not([type="checkbox"]):not([type="radio"]) { flex: 1 1 100%; min-width: 0; }
+  dialog { width: calc(100% - 1rem); padding: 1rem; }
+
+  /* Every table becomes a stack of cards, one per row: its first cell as
+     the heading, then "label  value" lines (chrome.js labels each cell
+     from its column heading), then the row's buttons. A nine-column table
+     scrolled sideways on a phone showed one column at a time. */
+  .wrap { overflow: visible; }
+  .wrap table, .wrap tbody, .wrap tr, .wrap td { display: block; }
+  .wrap thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .wrap tr {
+    border: 1px solid var(--line); border-radius: 10px; padding: .6rem .8rem;
+    margin-bottom: .75rem; background: var(--bg-elevated);
+  }
+  .wrap td { display: flex; gap: .75rem; border: 0; padding: .2rem 0; }
+  .wrap td[data-label]::before {
+    content: attr(data-label); flex: 0 0 6.5rem; color: var(--muted);
+    font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    padding-top: .2rem;
+  }
+  .wrap td:first-child:not([colspan]) { font-weight: 600; font-size: 1rem; }
+  .wrap td:first-child::before, .wrap td.actions::before { content: none; }
+  .wrap td.actions { flex-wrap: wrap; align-items: flex-start; white-space: normal; padding-top: .5rem; }
+  .wrap td[colspan] { display: block; }
+}
+
+/* The narrowest phones: a long page name ("Institution seats") takes two
+   lines beside the brand rather than pushing Sign out onto a third row. */
+@media (max-width: 360px) {
+  header h1 { flex: 0 1 min-content; }
+}
+
+/* Touch screens: every control at least 44px high, and text boxes at 16px so
+   iOS does not zoom the page when one is tapped. */
+@media (pointer: coarse) {
+  button, details.more > summary, .switch a { min-height: 44px; }
+  .switch a { display: inline-flex; align-items: center; justify-content: center; }
+  input, select { min-height: 44px; font-size: max(16px, 1em); }
+  input[type="checkbox"], input[type="radio"] { min-height: 0; width: 1.25rem; height: 1.25rem; }
+  .row label { min-height: 44px; }
 }

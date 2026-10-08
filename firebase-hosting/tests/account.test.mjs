@@ -6,7 +6,7 @@
 import { beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
-  test, reset, settle, openPage, json, net, confirms, sent, page, $, loadAuth,
+  test, reset, settle, openPage, json, net, confirms, sent, page, $, loadAuth, deferred,
 } from "./harness.mjs";
 
 await loadAuth();
@@ -43,7 +43,7 @@ test("the page starts once signed in: 2FA pill, account and analyses", async () 
   assert.equal($("signedOut").hidden, true);
   assert.equal($("mfaPill").hidden, false);
   assert.equal($("mfaPill").textContent, "2FA on");
-  assert.deepEqual(sent(), ["GET /v1/me", "GET /v1/sessions?app=all", "GET /v1/institutions/licenses"]);
+  assert.deepEqual(sent().sort(), ["GET /v1/institutions/licenses", "GET /v1/me", "GET /v1/sessions?app=all"]);
 });
 
 const tabs = () => $("switch").querySelectorAll("a").map((a) =>
@@ -62,6 +62,19 @@ test("an IT contact gets Institution seats | Your account", async () => {
   assert.deepEqual(tabs(), [["Institution seats", "../institution/", ""], ["Your account", "../account/", "page"]]);
 });
 
+test("the switch's licence list is read alongside /v1/me, and once", async () => {
+  const me = deferred();
+  await open({ routes: {
+    "GET /v1/me": () => me.promise,
+    "GET /v1/institutions/licenses": () => json(200, { licenses: [{ id: "L1" }] }),
+  } });
+  assert.deepEqual(sent(/institutions/), ["GET /v1/institutions/licenses"], "sent before /v1/me answers");
+  me.resolve(json(200, { email: "user@example.com", license: {} }));
+  await settle();
+  assert.equal($("switch").hidden, false);
+  assert.equal(sent(/institutions/).length, 1);
+});
+
 test("an account with only this dashboard sees no switch", async () => {
   await open({ license: { mode: "licensed", held: true } });
   assert.equal($("switch").hidden, true);
@@ -70,7 +83,8 @@ test("an account with only this dashboard sees no switch", async () => {
 test("when /v1/me fails there is no switch, and the analyses still load", async () => {
   await open({ routes: { "GET /v1/me": () => json(503, { detail: "unavailable" }) } });
   assert.equal($("switch").hidden, true);
-  assert.deepEqual(sent(), ["GET /v1/me", "GET /v1/sessions?app=all"]);
+  // The switch's own read went out alongside /v1/me; without a role it shows nothing.
+  assert.deepEqual(sent().sort(), ["GET /v1/institutions/licenses", "GET /v1/me", "GET /v1/sessions?app=all"]);
 });
 
 test("a live licence shows its kind, key, end date, and may be moved", async () => {
@@ -265,6 +279,51 @@ test("Show more fetches the next page and appends it", async () => {
   await settle();
   assert.deepEqual(rowTexts().map((r) => r[0]), ["a a", "b b"]);
   assert.equal($("more").hidden, true);
+});
+
+test("Show more is held while a page loads, so no page is listed twice", async () => {
+  const next = deferred();
+  await open({
+    sessions: { sessions: [{ sessionId: "a", status: "COMPLETED", completedCount: 1, totalBytes: 10 }],
+      page: { nextPageToken: "t/1" }, quota: { used: 2, max: 25 } },
+    routes: { "GET /v1/sessions?app=all&page_token=t%2F1": () => next.promise },
+  });
+  $("more").click();
+  $("more").click();
+  await settle();
+  assert.equal(sent(/page_token/).length, 1, "the second click did nothing");
+  next.resolve(json(200, {
+    sessions: [{ sessionId: "b", status: "COMPLETED", completedCount: 1, totalBytes: 10 }],
+    page: {}, quota: { used: 2, max: 25 },
+  }));
+  await settle();
+  assert.deepEqual(rowTexts().map((r) => r[0]), ["a a", "b b"]);
+});
+
+test("the licence card and the analyses show placeholders until they load", async () => {
+  const me = deferred();
+  const list = deferred();
+  await open({ routes: { "GET /v1/me": () => me.promise, "GET /v1/sessions": () => list.promise } });
+  assert.equal($("pills").querySelectorAll(".skeleton").length, 2);
+  assert.equal($("rows").querySelectorAll("tr.placeholder").length, 3);
+  assert.equal($("status").textContent, "Loading your analyses…");
+  me.resolve(json(200, { email: "user@example.com", license: { mode: "licensed", held: true } }));
+  list.resolve(json(200, { sessions: [], quota: { used: 0, max: 25 } }));
+  await settle();
+  assert.equal($("pills").querySelectorAll(".skeleton").length, 0);
+  assert.equal($("rows").textContent.trim(), "Nothing backed up yet.");
+});
+
+test("a failed analyses list offers Retry", async () => {
+  let fail = true;
+  await open({ routes: { "GET /v1/sessions": () => (fail
+    ? json(503, { detail: "unavailable" })
+    : json(200, { sessions: [], quota: { used: 0, max: 25 } })) } });
+  assert.match($("rows").textContent, /Could not list your analyses: unavailable/);
+  fail = false;
+  $("rows").querySelector("button[data-retry]").click();
+  await settle();
+  assert.equal($("rows").textContent.trim(), "Nothing backed up yet.");
 });
 
 test("a failed analyses list is reported", async () => {
