@@ -124,17 +124,18 @@ jobs:
         with:
           node-version: '22'
       - run: python scripts/check_console.py
-      # Line coverage of the console modules (the tests and the vendored QR
-      # encoder excluded), floored two points under the measured 55.32 %
-      # (2026-10-08). The figure counts each page load apart (TD-203). Raise it with the tests that lift it; never lower it.
+      # The tests write raw V8 coverage; console_coverage.mjs merges each
+      # file's copies (pages load as page.js?load=N, which Node's own report
+      # counts apart) and gates the console's line coverage two points
+      # under the measured 98.30 % (2026-10-08). Every .js under public/
+      # counts, loaded or not, except vendor/. Raise it with the tests that
+      # lift it; never lower it.
       - name: Console helper tests
-        run: >
-          node --test
-          --experimental-test-coverage
-          --test-coverage-exclude="firebase-hosting/tests/**"
-          --test-coverage-exclude="**/vendor/**"
-          --test-coverage-lines=53
-          "firebase-hosting/tests/*.test.mjs"
+        env:
+          NODE_V8_COVERAGE: ${{ runner.temp }}/console-coverage
+        run: node --test "firebase-hosting/tests/*.test.mjs"
+      - name: Console line coverage (merged by file)
+        run: node scripts/console_coverage.mjs "${{ runner.temp }}/console-coverage" --lines=96
 
   # ===================================================================
   # Path filters — same rules on PR and push. Prove only what the diff

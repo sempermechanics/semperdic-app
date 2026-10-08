@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 
 const PUBLIC = new URL("../public/", import.meta.url);
@@ -22,7 +23,11 @@ function runReset(search) {
       getElementById: (id) => (id === "continueLink" ? link : null),
     },
   };
-  vm.runInNewContext(read("finishReset/reset.js"), context);
+  // Named by its path, so the coverage of the run is the file's
+  // (scripts/console_coverage.mjs).
+  vm.runInNewContext(read("finishReset/reset.js"), context, {
+    filename: fileURLToPath(new URL("finishReset/reset.js", PUBLIC)),
+  });
   return { replaced, listeners, link };
 }
 

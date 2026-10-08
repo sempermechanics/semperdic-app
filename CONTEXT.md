@@ -153,7 +153,7 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 - **Testing program (2026-10-08, merged #366–#371).** CI tiers follow the diff (weekly
   full matrix), coverage floors at measured − 2 raised by every test PR
   ([TESTING.md](docs/app/TESTING.md#coverage-floors)), golden `.dat` / GIF files, shared
-  `contracts/`. Open: TD-199–TD-203. `main` requires `CI OK` (ruleset,
+  `contracts/`. Open: TD-199–TD-202. `main` requires `CI OK` (ruleset,
   2026-10-08).
 - **Dependabot** opens monthly PRs for major versions only (pip, Gradle, Actions; #337);
   minor and patch fixes arrive as Dependabot security updates, which are on.
