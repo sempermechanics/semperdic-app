@@ -13,6 +13,7 @@ and two things the passwordless **email-link sign-in** depends on:
 | `/finishSignIn`, `/finishReset` | The same two pages at the paths every build before `AUTH_HOST = app.sempermechanics.com` uses, on the `firebaseapp.com` host. The **custom action URL** in Firebase Console → Authentication → Templates → Password reset stays `https://indicvision-dic-app-auth.firebaseapp.com/finishReset` until no such build is installed (TD-29): those builds intercept only that host. |
 | `/privacy/` | Public Privacy Policy summary (canonical markdown in `docs/legal/PRIVACY_POLICY.md`). |
 | `/terms/` | Public Terms of Service summary (canonical markdown in `docs/legal/TERMS_OF_SERVICE.md`). |
+| any other address | `404.html`, which Hosting serves with status 404: "This page doesn't exist", then a bar and, after 5 s, `/login` (this host has no page at `/`). No script, so it works under the `/console/**` policy too. |
 
 Firebase Auth is configured to use **direct continue-URL handlers** (not the
 retired Dynamic Links), so the emailed link lands on `/finishSignIn` carrying
