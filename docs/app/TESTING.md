@@ -269,8 +269,8 @@ Three suites are gated on coverage, each two points under what it measured:
 
 | Suite | Measured (2026-10-08) | Floor | Where |
 |---|---|---|---|
-| App JVM (Kover, lines) | 75.88 % | 73 | `app/build.gradle.kts` `kover.verify` |
-| App JVM (Kover, branches) | 60.08 % | 58 | same |
+| App JVM (Kover, lines) | 74.50 % | 72 | `app/build.gradle.kts` `kover.verify` |
+| App JVM (Kover, branches) | 56.41 % | 54 | same |
 | Backend (pytest-cov, lines) | 92.93 % | 90 | `.github/actions/backend-gate/action.yml` |
 | Backend + Firestore emulator tier | 93.09 % | 91 | `ci.yml` tier 4, `--cov-append` |
 | Console modules (`node --test`, lines) | 48.85 % | 46 | `ci.yml` `console-pages` |
@@ -290,9 +290,16 @@ node --test --experimental-test-coverage --test-coverage-exclude="firebase-hosti
   --test-coverage-exclude="**/vendor/**" "firebase-hosting/tests/*.test.mjs"
 ```
 
-Kover leaves out Activities, Adapters, Fragments, Dialogs and generated
-bindings (`app/build.gradle.kts` `kover.reports.filters`), so the app figure is
-of the classes the JVM suite is meant to reach.
+Kover leaves out only the generated bindings (`app/build.gradle.kts`
+`kover.reports.filters`). Activities, Adapters and Dialogs were excluded until
+2026-10-08; Robolectric runs most of them, so they now count. That reset the app
+floors from 73 / 58 to 72 / 54: on the old, narrower set the same suite measured
+76.84 / 60.80 %.
+
+Device tests wait on conditions, not on the clock: `awaitCondition(what) { done }`
+and `awaitDrawnFrame()` (before a screenshot) in `androidTest/.../fixtures/DeviceWaits.kt`.
+The only sleeps left are the touch pacing in `RoiEditorGestureTest`, where the
+gesture detectors read the event timing.
 
 ### Known coverage gaps
 
