@@ -15,8 +15,8 @@ Decisions that outlive their PR are recorded in
 ## 2026-10-08 — Hosting deploy: each dashboard's code in one wave, its data read together (#365)
 
 #365 (`25aed416`) was deployed with `scripts/deploy-console.sh`, and its live check
-passed. The deploy also put #362 and #364 live: every typed key, password and
-confirmation is now asked for in the page. What #365 changed:
+passed. #362 and #364 were already live (the entry below), so every typed key,
+password and confirmation was by then asked for in the page. What #365 changed:
 - Every page preloads its whole module graph and `init.json`, and preconnects to
   sign-in and the API.
 - The QR library loads only for enrolment.
@@ -37,6 +37,24 @@ No file was fetched twice, `qrcode` was not loaded, and `/login` still forwards.
 first load after a long idle took 10.7 s, all of it `/v1/me` waiting for the API to
 start. That is the wait the dashboards' "Still working — the server can take a few
 seconds to start." line (next change) explains.
+
+## 2026-10-08 — Hosting deploy: no browser confirm or alert left in the consoles (#364)
+
+From `0aff4722`, merged at 13:52 IST, with `scripts/deploy-console.sh`. Its live check
+found the gateway filled in on `app.sempermechanics.com`. #362, deployed before this,
+had moved the typed keys and the revoke password off `window.prompt`. #364 moved the
+nine `confirm()` calls and the one `alert()` left into the page as well:
+- revoke and delete, both the who-is-affected step and the step after the return from
+  Google;
+- New device and device history (one move a line);
+- the roster's Remove and Withdraw;
+- the account page's give-a-seat-back and move-a-device.
+
+All of them are built by one `pageCard` in `auth.js`, as `askInPage`, `confirmInPage`
+and `tellInPage`. On both hosts, `auth.js`, `roster.js`, `console.css`,
+`operator/lifecycle.js`, `operator/people.js` and `account/account.js` matched `main`,
+and `config.js` and the console CSP named the production gateway. Nobody clicked
+through the new cards signed in at the time; the console tests (188) drive each one.
 
 ## 2026-10-08 — Hosting deploys: the authenticator code asked for in the page, with Try again (#358, #361)
 

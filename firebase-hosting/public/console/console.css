@@ -242,10 +242,13 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 }
 
 /* Phone. The header keeps to two rows: the brand, the page, who is signed in
-   (cut short if long) and Sign out; then the dashboard switch, full width. */
+   (cut short if long) and Sign out; then the dashboard switch, full width.
+   The brand is its mark alone here: with the word beside it, a page named
+   "Your account" or "Institution seats" pushed Sign out onto a third row. */
 @media (max-width: 600px) {
   header { padding: .6rem 1rem; gap: .5rem .75rem; }
-  header h1 { padding-left: .75rem; }
+  .brand { font-size: 0; gap: 0; }
+  header h1 { padding-left: .75rem; line-height: 1.25; }
   header .spacer, #mfaPill { display: none; }
   #who {
     flex: 1 1 0; min-width: 0; font-size: .8rem;
@@ -280,10 +283,16 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
     font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
     padding-top: .2rem;
   }
-  .wrap td:first-child { font-weight: 600; font-size: 1rem; }
+  .wrap td:first-child:not([colspan]) { font-weight: 600; font-size: 1rem; }
   .wrap td:first-child::before, .wrap td.actions::before { content: none; }
   .wrap td.actions { flex-wrap: wrap; align-items: flex-start; white-space: normal; padding-top: .5rem; }
   .wrap td[colspan] { display: block; }
+}
+
+/* The narrowest phones: a long page name ("Institution seats") takes two
+   lines beside the brand rather than pushing Sign out onto a third row. */
+@media (max-width: 360px) {
+  header h1 { flex: 0 1 min-content; }
 }
 
 /* Touch screens: every control at least 44px high, and text boxes at 16px so
