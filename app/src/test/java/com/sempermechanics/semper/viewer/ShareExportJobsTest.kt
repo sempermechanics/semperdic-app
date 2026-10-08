@@ -7,6 +7,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -21,6 +22,9 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 /**
  * The export jobs the viewer's ViewModel holds: ids, concurrent jobs, cancel
@@ -82,6 +86,36 @@ class ShareExportJobsTest {
         val second = withTimeout(TIMEOUT_MS) { jobs.outcomes.first() }
         assertEquals(ShareExportJobs.Outcome.Ready(b, out, "text/csv", direct = false), second)
         assertTrue(jobs.running.value.isEmpty())
+    }
+
+    @Test
+    fun `a job cancelled before its first dispatch still reports Cancelled`() = runBlocking {
+        // The scope's thread is held until after the cancel, so the job cannot
+        // have started on it: the case CI hit as a 10 s timeout.
+        val gate = CountDownLatch(1)
+        val thread = Executors.newSingleThreadExecutor()
+        val held = CoroutineScope(
+            SupervisorJob() + Executor { task ->
+                thread.execute {
+                    gate.await()
+                    task.run()
+                }
+            }.asCoroutineDispatcher(),
+        )
+        try {
+            val heldJobs = ShareExportJobs(
+                held,
+                ApplicationProvider.getApplicationContext<android.app.Application>().contentResolver,
+            )
+            val id = heldJobs.newId("csv")
+            heldJobs.start(id, "CSV", null, direct = false) { file("x") to "text/csv" }
+            heldJobs.cancel(id)
+            gate.countDown()
+            assertEquals(ShareExportJobs.Outcome.Cancelled(id), withTimeout(TIMEOUT_MS) { heldJobs.outcomes.first() })
+        } finally {
+            held.cancel()
+            thread.shutdownNow()
+        }
     }
 
     @Test
