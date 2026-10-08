@@ -149,27 +149,31 @@ function unstashResume() {
 /* ---------------------------------------------------------------- challenge */
 
 /**
- * Ask for one line of text in the page: a card with a heading, the message
- * (paragraphs split on blank lines), a text or password box, the confirm
- * button and Cancel. Resolves the trimmed answer ("" if left blank), or null
- * on Cancel.
+ * A card in the page in place of the browser's own dialogs: a heading, the
+ * message (paragraphs split on blank lines; a single line break is kept), an
+ * optional text or password box, the confirm button and, unless `cancel` is
+ * null, a Cancel button. Resolves what `answer` makes of the confirm (given
+ * the box's trimmed text), or null on Cancel.
  *
- * Not `window.prompt`, for the reason `codeCard` gives: some browsers show no
- * prompt at all. The card goes after `anchor` (default: the status line). The
- * Edit dialog passes an element inside itself, because a modal dialog makes
- * everything outside it unreachable. Every piece of text goes in as a text
- * node, so a licence label or address is never markup.
+ * Not `window.prompt` / `confirm` / `alert`, for the reason `codeCard` gives:
+ * some browsers show none of them at all. The card goes after `anchor`
+ * (default: the status line). The Edit dialog passes an element inside
+ * itself, because a modal dialog makes everything outside it unreachable.
+ * Every piece of text goes in as a text node, so a licence label or address
+ * is never markup.
  */
-export function askInPage({ title, message, password = false, confirm = "Confirm", anchor } = {}) {
+function pageCard(kind, {
+  title, message, input = false, password = false, confirm, cancel = "Cancel", anchor, answer,
+}) {
   const card = document.createElement("section");
-  card.className = "card ask";
+  card.className = `card ${kind}`;
   card.innerHTML = `
     <h2></h2>
     <div class="lines"></div>
     <div class="row">
       <input size="24" />
       <button type="button" class="confirm"></button>
-      <button type="button" class="secondary cancel">Cancel</button>
+      <button type="button" class="secondary cancel"></button>
     </div>`;
   card.querySelector("h2").textContent = title;
   const lines = card.querySelector(".lines");
@@ -179,29 +183,60 @@ export function askInPage({ title, message, password = false, confirm = "Confirm
     p.textContent = text;
     lines.appendChild(p);
   }
-  const input = card.querySelector("input");
-  input.type = password ? "password" : "text";
-  input.autocomplete = password ? "current-password" : "off";
-  card.querySelector(".confirm").textContent = confirm;
+  const box = card.querySelector("input");
+  if (input) {
+    box.type = password ? "password" : "text";
+    box.autocomplete = password ? "current-password" : "off";
+  } else {
+    box.remove();
+  }
+  const ok = card.querySelector(".confirm");
+  ok.textContent = confirm;
+  const no = card.querySelector(".cancel");
+  if (cancel == null) no.remove();
+  else no.textContent = cancel;
 
   const at = anchor || document.getElementById("status") || document.querySelector("main");
   at.insertAdjacentElement("afterend", card);
   // The desk's status line sits above a long table; bring the card into view.
   if (card.scrollIntoView) card.scrollIntoView({ block: "center" });
-  input.focus();
+  (input ? box : ok).focus();
 
   return new Promise((resolve) => {
     const done = (value) => { card.remove(); resolve(value); };
-    const ok = () => done(input.value.trim());
-    card.querySelector(".confirm").addEventListener("click", ok);
-    // Enter answers the card; inside the Edit form it must not also submit it.
-    input.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter") return;
-      if (e.preventDefault) e.preventDefault();
-      ok();
-    });
-    card.querySelector(".cancel").addEventListener("click", () => done(null));
+    const yes = () => done(answer(input ? box.value.trim() : ""));
+    ok.addEventListener("click", yes);
+    if (input) {
+      // Enter answers the card; inside the Edit form it must not also submit it.
+      box.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        if (e.preventDefault) e.preventDefault();
+        yes();
+      });
+    }
+    if (cancel != null) no.addEventListener("click", () => done(null));
   });
+}
+
+/**
+ * Ask for one line of text in the page. Resolves the trimmed answer ("" if
+ * left blank), or null on Cancel.
+ */
+export function askInPage({ title, message, password = false, confirm = "Confirm", anchor } = {}) {
+  return pageCard("ask", {
+    title, message, input: true, password, confirm, anchor, answer: (text) => text,
+  });
+}
+
+/** A yes / no question in the page. Resolves true on `confirm`, false on Cancel. */
+export async function confirmInPage({ title, message, confirm = "Continue", anchor } = {}) {
+  const yes = await pageCard("confirm", { title, message, confirm, anchor, answer: () => true });
+  return yes === true;
+}
+
+/** Something to read, in the page, with one Close button. Resolves once closed. */
+export async function tellInPage({ title, message, anchor } = {}) {
+  await pageCard("tell", { title, message, confirm: "Close", cancel: null, anchor, answer: () => true });
 }
 
 /**

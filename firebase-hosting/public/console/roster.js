@@ -8,7 +8,7 @@
  * summary, where messages land); this module owns the rows, what each button
  * sends, and what a refusal says.
  */
-import { api, esc } from "./auth.js";
+import { api, esc, confirmInPage } from "./auth.js";
 import { explain } from "./messages.js";
 import { seatCells, inviteCells } from "./util.js";
 
@@ -86,7 +86,11 @@ const ACT_ERRORS = {
 export function wireRoster({ rows, email, add, base, report, reload }) {
   async function act(action, uid) {
     const spec = ACTIONS[action];
-    if (action === "remove" && !confirm("Remove this member? Their saved analyses stay untouched.")) {
+    if (action === "remove" && !(await confirmInPage({
+      title: "Remove member",
+      message: "Remove this member? Their saved analyses stay untouched.",
+      confirm: "Remove",
+    }))) {
       return;
     }
     report(`${spec.verb}…`);
@@ -100,7 +104,11 @@ export function wireRoster({ rows, email, add, base, report, reload }) {
   }
 
   async function withdraw(inviteId) {
-    if (!confirm("Withdraw this invitation? Nobody has claimed it yet.")) return;
+    if (!(await confirmInPage({
+      title: "Withdraw invitation",
+      message: "Withdraw this invitation? Nobody has claimed it yet.",
+      confirm: "Withdraw",
+    }))) return;
     report("Withdrawing…");
     try {
       await api(`${base()}/invites/${encodeURIComponent(inviteId)}`, { method: "DELETE" });

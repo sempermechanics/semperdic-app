@@ -6,7 +6,7 @@
  * `/v1/sessions`, which carries the quota alongside the page.
  */
 import {
-  requireSignIn, api, apiBlob, saveBlob, setStatus, esc, when, day, markFirstData,
+  requireSignIn, api, apiBlob, saveBlob, setStatus, esc, when, day, confirmInPage, markFirstData,
 } from "../auth.js";
 import { errorDetail, holdsLicence } from "../util.js";
 import { explain as refusalText } from "../messages.js";
@@ -150,10 +150,12 @@ function explain(licensed, floating, holdsSeat, held, lapsed) {
 }
 
 $("release").addEventListener("click", async () => {
-  if (!confirm(
-    "Give up your seat? Your saved work stays exactly as it is, and you " +
-    "take another seat the next time you use Semper — if one is free.",
-  )) return;
+  if (!(await confirmInPage({
+    title: "Give up your seat",
+    message: "Give up your seat? Your saved work stays exactly as it is, and you " +
+      "take another seat the next time you use Semper — if one is free.",
+    confirm: "Give up seat",
+  }))) return;
   setStatus("Returning your seat…");
   try {
     await api("/v1/licenses/release", { method: "POST" });
@@ -180,12 +182,14 @@ $("unbindMt").addEventListener("click", () => unbind("materialtesting", "Materia
  * named in the query; the backend reads no app as Semper.
  */
 async function unbind(app, name) {
-  if (!confirm(
-    `Move ${name} to a different device?\n\n` +
-    `Nothing is deleted and nothing is cancelled. ${name} stops being ` +
-    "licensed on your current device, and attaches to the next device you " +
-    "sign in on. Your analyses come with you once it has.",
-  )) return;
+  if (!(await confirmInPage({
+    title: `Move ${name}`,
+    message: `Move ${name} to a different device?\n\n` +
+      `Nothing is deleted and nothing is cancelled. ${name} stops being ` +
+      "licensed on your current device, and attaches to the next device you " +
+      "sign in on. Your analyses come with you once it has.",
+    confirm: "Move",
+  }))) return;
   setStatus("Unlocking…");
   try {
     const path = app ? `/v1/licenses/unbind?app=${encodeURIComponent(app)}` : "/v1/licenses/unbind";

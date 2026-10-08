@@ -66,6 +66,9 @@ header h1 {
 .switch a + a { border-left: 1px solid var(--line-strong); }
 .switch a:hover { color: var(--ink); background: rgba(255, 255, 255, 0.04); }
 .switch a[aria-current="page"] { color: var(--accent); background: var(--accent-dim); }
+/* The in-page ask / confirm / tell cards (auth.js pageCard): a single line
+   break in a message is kept, so device history reads one move a line. */
+.card .line { white-space: pre-line; }
 main { flex: 1; width: 100%; max-width: var(--max-width); margin: 0 auto; padding: 2rem 1.5rem; }
 
 footer {
