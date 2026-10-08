@@ -177,5 +177,10 @@
             android:foregroundServiceType="dataSync"
             tools:node="merge" />
 
+        <!-- Retry on a failed backup / restore notification; only our own explicit PendingIntents reach it. -->
+        <receiver
+            android:name=".data.cloud.TransferRetryReceiver"
+            android:exported="false" />
+
     </application>
 </manifest>

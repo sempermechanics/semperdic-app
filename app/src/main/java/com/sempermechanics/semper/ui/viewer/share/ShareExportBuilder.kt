@@ -1,6 +1,7 @@
 package com.sempermechanics.semper.ui.viewer.share
 
 import android.content.res.Resources
+import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.session.CacheJanitor
 import com.sempermechanics.semper.field.DicResult
 import com.sempermechanics.semper.util.Mime
@@ -30,13 +31,13 @@ internal class ShareExportBuilder(
 ) {
     private val images = FieldImageExport(s, outDir)
     private val dataFiles = DataExport(s, resources, outDir)
-    private val bundle = BundleExport(s, outDir, images, dataFiles)
+    private val bundle = BundleExport(s, resources, outDir, images, dataFiles)
 
     /**
      * The file for job [kind] and its MIME type. Throws when the generator
      * produced nothing usable, which the job reports as "share failed".
      */
-    suspend fun produce(kind: ShareKind, report: (Int, String) -> Unit): Pair<File, String> {
+    suspend fun produce(kind: ShareKind, report: ExportReport): Pair<File, String> {
         val (files, mime) = buildKind(kind, report)
         // Safety: never hand an empty or missing file to the share sheet —
         // a generator that silently produced nothing would otherwise share
@@ -54,18 +55,25 @@ internal class ShareExportBuilder(
         return handoff
     }
 
+    /**
+     * The kind's files. Every kind but the one-photo share reports as it goes:
+     * frame by frame (CSV, GIFs, the ZIP's heatmaps, the PDF's own pages) or
+     * field by field (the frame's photos). The one photo is a single render.
+     */
     private suspend fun buildKind(
         kind: ShareKind,
-        report: (Int, String) -> Unit,
+        report: ExportReport,
     ): Pair<List<File>, String> = when (kind) {
         ShareKind.PHOTO -> listOf(images.currentPhoto()) to Mime.PNG
         ShareKind.PDF -> listOf(dataFiles.allFramesPdf(report)) to Mime.PDF
         ShareKind.ZIP -> listOf(bundle.everythingZip(report)) to Mime.ZIP
-        ShareKind.CSV -> listOf(dataFiles.batchCsv()) to Mime.CSV
-        ShareKind.PHOTOS -> images.allFieldPhotos() to Mime.PNG
+        ShareKind.CSV -> listOf(dataFiles.batchCsv(report)) to Mime.CSV
+        ShareKind.PHOTOS -> images.allFieldPhotos { done, total, label ->
+            report.step(resources, done, total, R.string.share_progress_photos_fmt, label)
+        } to Mime.PNG
         ShareKind.GIFS -> {
             check(!s.isSweep) { "Animations are not offered for sweeps" }
-            dataFiles.fieldAnimations() to Mime.GIF
+            dataFiles.fieldAnimations(report) to Mime.GIF
         }
     }
 

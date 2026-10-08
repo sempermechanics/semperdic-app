@@ -71,10 +71,11 @@ Conventions:
 - **The wizard's batch and sweep jobs** keep their own `Job` fields
   (`ui/analysis/wizard/RunChannels.kt:52-53`): they run on the native
   dispatcher, and `SerialJob` is main-thread only.
-- **46 `findViewById` calls remain.** 23 are the sweep page
+- **39 `findViewById` calls remain.** 23 are the sweep page
   (`SweepSetupController`, `SweepRangeFields`), which still finds its views on the
-  page instead of taking its binding. 7 are `TransferBannerController`, which
-  wraps a strip included in two hosts. Most of the rest are kit pieces that
+  page instead of taking its binding. (`TransferBannerController`'s 7 went with the
+  export-progress change, 2026-10-08: it binds the strip it wraps with
+  `ViewTransferBannerBinding.bind`.) Most of the rest are kit pieces that
   work on any host's view (a row by id, `android.R.id.content`, Material's
   bottom-sheet container).
 

@@ -60,6 +60,15 @@ object IntentKeys {
     /** 0–100 percent for the current [UPLOAD_PHASE]. */
     const val UPLOAD_PERCENT = "UPLOAD_PERCENT"
 
+    /** Bytes moved so far (Long), while the phase counts bytes: an upload's bytes to Drive, a download. */
+    const val TRANSFER_BYTES_DONE = "TRANSFER_BYTES_DONE"
+
+    /** The bytes the phase will move (Long), alongside [TRANSFER_BYTES_DONE]. */
+    const val TRANSFER_BYTES_TOTAL = "TRANSFER_BYTES_TOTAL"
+
+    /** Smoothed bytes per second (Long), once the worker's meter knows it. */
+    const val TRANSFER_BYTES_PER_SECOND = "TRANSFER_BYTES_PER_SECOND"
+
     // ── DicRestoreWorker / DicBundleDownloadWorker → UI
     /** The [UPLOAD_PHASE] a restore or bundle download reports while fetching. */
     const val PHASE_DOWNLOAD = "download"

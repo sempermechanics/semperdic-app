@@ -9,6 +9,9 @@ import androidx.work.WorkerParameters
 import com.sempermechanics.semper.data.cloud.CloudSync
 import com.sempermechanics.semper.data.cloud.TransferNotifications
 import com.sempermechanics.semper.data.cloud.TransferPhase
+import com.sempermechanics.semper.data.cloud.TransferProgressUpdates
+import com.sempermechanics.semper.data.cloud.TransferResultNotifications
+import com.sempermechanics.semper.data.cloud.TransferRetryReceiver
 import com.sempermechanics.semper.data.cloud.UploadErrors
 import com.sempermechanics.semper.data.cloud.UploadProgressSampler
 import com.sempermechanics.semper.data.net.ApiException
@@ -115,21 +118,38 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         val idToken = tokens.usableIdToken() ?: return@withContext UploadLog.retry("no usable Firebase ID token")
         val localId = inputData.getString(IntentKeys.SESSION_LOCAL_ID) ?: return@withContext Result.failure()
         val record = SessionStore.get(applicationContext, localId) ?: return@withContext Result.failure()
-        backUp(UploadRun(applicationContext, api, tokens, idToken, record))
+        backUp(UploadRun(applicationContext, api, tokens, idToken, record)).also { result ->
+            TransferResultNotifications.afterWork(
+                applicationContext,
+                TransferResultNotifications.Subject(TransferNotifications.Kind.UPLOAD, localId, record.name),
+                result,
+                reason = result.outputData.getString(IntentKeys.UPLOAD_FAIL_REASON),
+                retry = TransferRetryReceiver.uploadIntent(applicationContext, localId, record.name),
+            )
+        }
     }
 
     /** Stage, ensure the cloud session, upload the files, complete; any failure ends as [UploadFailures] says. */
     private suspend fun backUp(run: UploadRun): Result = coroutineScope {
         val staging = UploadStaging(applicationContext, run.record).apply { prepare() }
         val reuse = staging.reuse
-        // Live progress for the Home row (UploadProgressSampler): the steps feed
-        // these counters and the sampler publishes only changes.
+        // Live progress for the Home row and the notification (UploadProgressSampler):
+        // the steps feed these counters and the sampler publishes only changes.
         val progress = UploadProgressSampler(
             run.localId,
             initialPhase = if (reuse) TransferPhase.UPLOAD.wire else TransferPhase.PREPARE.wire,
             initialTotal = if (reuse) 1L else run.record.defNames.size.toLong().coerceAtLeast(1L),
         )
-        val sampler = progress.launchIn(this, UploadTuning.PROGRESS_SAMPLE_MS) { setProgress(it) }
+        val sampler = progress.launchIn(
+            this,
+            UploadTuning.PROGRESS_SAMPLE_MS,
+            onReading = { shown ->
+                TransferProgressUpdates.post(
+                    this@DicUploadWorker,
+                    TransferNotifications.foreground(applicationContext, TransferNotifications.Kind.UPLOAD, shown),
+                )
+            },
+        ) { setProgress(it) }
         val stagingDir = staging.layout.dir
         val failures = UploadFailures(run, stagingDir)
         try {
@@ -202,7 +222,7 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
      */
     private suspend fun uploadFiles(run: UploadRun, plan: UploadPlan, progress: UploadProgressSampler) {
         // Switch the Home progress to byte-based upload tracking.
-        progress.begin(TransferPhase.UPLOAD, plan.work.sumOf { it.file.length() })
+        progress.begin(TransferPhase.UPLOAD, plan.work.sumOf { it.file.length() }, bytes = true)
         coroutineScope {
             val concurrency = UploadTuning.uploadConcurrency(applicationContext)
             val gate = Semaphore(concurrency)

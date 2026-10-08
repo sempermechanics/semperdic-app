@@ -159,16 +159,22 @@ internal class FieldImageExport(
         )
     }
 
-    fun allFieldPhotos(): List<File> {
+    /**
+     * Every field of the current frame as an annotated PNG. [onField] hears
+     * (fields done, field count, the field now in progress) before each field,
+     * and once more when the last is written.
+     */
+    fun allFieldPhotos(onField: (done: Int, total: Int, label: String) -> Unit = { _, _, _ -> }): List<File> {
         val data = s.frameData()
         val baseCache = mutableMapOf<Pair<Int, Int>, Bitmap>()
         return try {
-            FIELDS.map { (label, idx) ->
+            FIELDS.mapIndexed { done, (label, idx) ->
+                onField(done, FIELDS.size, label)
                 writePng(
                     renderAnnotated(data, idx, label, s.frameIndex, baseCache),
                     "${s.baseName}_${label}_frame${s.frameIndex + 1}.png",
                 )
-            }
+            }.also { onField(FIELDS.size, FIELDS.size, FIELDS.last().first) }
         } finally {
             recycleBaseCache(baseCache)
         }

@@ -1,8 +1,12 @@
 package com.sempermechanics.semper.data.cloud.restore
 
+import com.sempermechanics.semper.data.cloud.TransferBytes
+import com.sempermechanics.semper.data.cloud.TransferPhase
+import com.sempermechanics.semper.data.cloud.TransferWork
 import com.sempermechanics.semper.navigation.IntentKeys
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DownloadProgressTest {
@@ -24,5 +28,16 @@ class DownloadProgressTest {
 
         val bundle = DownloadProgress.data(done = 1, total = 4)
         assertFalse(bundle.keyValueMap.containsKey(IntentKeys.SESSION_LOCAL_ID))
+    }
+
+    @Test
+    fun `progress carries the bytes and the rate for the banner`() {
+        val data = DownloadProgress.data(done = 3, total = 8, localId = "s1", perSecond = 1_500.0)
+        assertEquals(TransferBytes(3, 8, 1_500.0), TransferBytes.read(data))
+        val running = TransferWork.State.Running(TransferPhase.DOWNLOAD, 37, "s1", TransferBytes.read(data))
+        assertEquals(37.5, running.exactPercent!!, 0.0)
+        // Before the size is known there are no bytes to show, and the whole percent stands.
+        assertNull(TransferBytes.read(DownloadProgress.data(done = 0, total = 0)))
+        assertEquals(12.0, TransferWork.State.Running(TransferPhase.DOWNLOAD, 12, null).exactPercent!!, 0.0)
     }
 }

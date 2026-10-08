@@ -51,20 +51,20 @@ on 2026-10-03.
 | `ui/analysis/recommend/` | 9 | `SubsetRecommender` and `SubsetRecommendationController`, speckle scale, noise floor, good-practice and strain-window copy, EXIF patch map |
 | `ui/analysis/sweep/` | 17 | Parameter sweep: `SweepSetupController` with `SweepRangeFields` / `SweepFramePicker`, `SweepStudy` / `SweepStudyRunner`, the lattice (`SweepControls`, `SweepProfiles`, `SweepGraphExport`) and plot views (`SweepPlotView` with viewport, axes, palette; `PlotStyle`), line-cut preview |
 | `ui/viewer/` | 19 | `ResultViewerActivity` and its controllers (`ViewerChromeController`, `ViewerImageLoader`, `ViewerFrameLoader`, `ViewerScaleController`, `FrameJumpController`, `ViewerCaptions`, `ViewerShareController`, `FieldPopup`), `SaveExportActivity`, their ViewModels, `ViewerArgs` ([ADR-003](../adr/ADR-003-viewerargs-read-side.md)), scrub cache, `ViewerFieldPills`, the ⓘ details sheet; heatmaps draw each frame on its own photo at the displaced positions ([ADR-011](../adr/ADR-011-viewer-deformed-frame.md)) |
-| `ui/viewer/share/` | 11 | `ShareCenter` → `ShareExportJobs` (held by `ResultViewerViewModel`) → `ShareExportBuilder` (`FieldImageExport`, `BundleExport`, `DataExport`); `ShareExportController`, `ShareKind`, `SendToSheet`, `ViewerReportFactory` |
+| `ui/viewer/share/` | 12 | `ShareCenter` → `ShareExportJobs` (held by `ResultViewerViewModel`) → `ShareExportBuilder` (`FieldImageExport`, `BundleExport`, `DataExport`); `ExportProgress` (each kind's per-frame / per-field progress); `ShareExportController`, `ShareKind`, `SendToSheet`, `ViewerReportFactory` |
 | `ui/viewer/summary/` | 3 | Summary GIF (`SummaryAnimation`), caption, `ViewerSummaryController` |
 | `ui/viewer/inspect/` | 5 | Tap-to-probe: `InspectOverlayView`, `PointSpatialIndex`, `TouchImageView`, field histogram view |
 | `ui/settings/` | 15 | `SettingsActivity` (restore, download, delete) and its sections: account, cloud, analyses, storage, preferences, your data, help, footer; `AccountDeletionRun`, `BusyTransfers`; scroll body via `SettingsScrollContentView` |
 | `ui/admin/` | 1 | Admin screen — approve/revoke users via `/v1/admin/*` |
 | `ui/limit/` | 2 | Session-quota and seat-required screens |
-| `ui/common/` | 14 | Cross-screen basics: insets, motion, keyboard (`Keyboard`, `ImeReveal`), toggle groups, `dp`, `SerialJob`, `ConflatedRefresh`, `Busy` (`setBusy`), `ViewportMath`, `ByteSize`, `EtaEstimator` (time left for runs, exports and transfers), coach marks, the settings section header |
+| `ui/common/` | 15 | Cross-screen basics: insets, motion, keyboard (`Keyboard`, `ImeReveal`), toggle groups, `dp`, `SerialJob`, `ConflatedRefresh`, `Busy` (`setBusy`), `ViewportMath`, `ByteSize`, `EtaEstimator` (time left for runs, exports and transfers), `ProgressText` (their "34.6%", "4.2 of 12.0 MB · 1.1 MB/s" wording), coach marks, the settings section header |
 | `ui/common/dialog/` | 8 | `Feedback.toast`, `CrispToast`, `Dialogs` (info, confirm, i-buttons), `Sheet` (`inflateSheet`), `WarnChip`, `FaqRedirect`, delete-choice and progress dialogs |
 | `ui/common/auth/` | 6 | `AuthRoute` (re-authentication), sign-out confirm and run, `ExternalLinks`, `SupportMail` |
 | `ui/common/media/` | 6 | `MediaPickerSheet` (Home **+** and the wizard dropzones), `MediaStoreBrowser`, `MediaSourceChooser`, `ThumbnailLoader` |
 | `ui/common/transfer/` | 4 | `TransferBannerController`, `TransferWorkObserver` (one reading of WorkManager jobs for Home and Settings), `DeleteFeedback`, `RestoreFailureNotice` |
 | `data/` | 11 | The six WorkManager workers (WorkManager stores their class names, so they never move) and the backup's steps beside `DicUploadWorker`: `UploadStaging`, `UploadSessionPlanner`, `UploadRun`, `UploadFailures`, `UploadTuning` |
 | `data/session/` | 17 | `SessionStore` / `SessionRecord`, `SessionPaths` / `SessionLayout`, `SessionRepository`, `SessionNaming`, zip and `.dat` codecs, storage budget, cache janitor |
-| `data/cloud/` | 18 | `CloudSync` with `CloudErase` / `CloudReconcile`, upload bundling / metadata / outcomes, `SessionMetadataDoc`, deletes, backup listing, account export, `WorkTags` / `TransferWork`, transfer log and notifications |
+| `data/cloud/` | 22 | `CloudSync` with `CloudErase` / `CloudReconcile`, upload bundling / metadata / outcomes, `SessionMetadataDoc`, deletes, backup listing, account export, `WorkTags` / `TransferWork`, transfer log; the notifications: running (`TransferNotifications`, fed by `TransferMeter` / `TransferProgressUpdates`), outcome (`TransferResultNotifications`) and its Retry (`TransferRetryReceiver`, named in the manifest, so it stays put) |
 | `data/cloud/restore/` | 10 | `CloudRestore` with `RestoreBundleFetcher`, `RestoreUnpacker`, `RestoreZipVerifier`; `DownloadFailure`, restore start, download outcomes and progress |
 | `data/account/` | 15 | `AuthRepository` with `AuthLinks`, `AccessStatusResolver`, `FirebaseOp`, `ReauthCredentials`; device key and env, licence entitlements / errors, seat lease and heartbeat, legal terms, TOTP |
 | `data/prefs/` | 6 | `AppSettings`, `CoachPrefs`, `ParamClipboard`, `WizardDraft`, `PrefKey` / `PrefFiles` |
@@ -217,10 +217,15 @@ Two exports deliberately bypass it: Settings' **Download** already has its
 destination (§4 of [WORKFLOWS.md](WORKFLOWS.md)), and the lattice's **Save graph**
 goes to the system chooser directly.
 
-Long exports are not modal. Dismissing the progress dialog parks the job in
-`ui/common/transfer/TransferBannerController` — a non-modal strip with progress, Cancel
-and prev/next paging — hosted by both `ResultViewerActivity` and
-`SettingsActivity`, where it also carries restores and bundle downloads.
+Long exports are not modal. The progress dialog (`ui/common/dialog/DeterminateProgressDialog`)
+shows the job's status, its percent to one decimal and the time left (`EtaEstimator`);
+every kind but the one-photo share reports as it goes (`ExportReport`, built in
+`ExportProgress.kt`; the ZIP gives each stage its share of the bar), from callbacks
+around the encoders, never inside their loops. Dismissing the dialog parks the job in
+`ui/common/transfer/TransferBannerController` — a non-modal strip with the same status,
+percent and time left, Cancel and prev/next paging — hosted by both
+`ResultViewerActivity` and `SettingsActivity`, where it also carries restores and
+bundle downloads.
 
 ## Memory & failure invariants
 
@@ -283,7 +288,7 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
 | Change the sweep result lattice | `ui/analysis/VsgLatticeActivity.kt` + `SweepControls` / `SweepProfiles` / `SweepGraphExport`, `SweepLatticeView`, `SweepPlotView` |
 | Change heatmap / probe | `ui/viewer/ViewerScaleController.kt` (heatmap, colour scale), `ViewerImageLoader.kt` (photo under the map), `inspect/ViewerInspectController.kt` (probe); wired in `ResultViewerActivity.kt` |
 | Change how exports are handed off | `ui/viewer/share/ShareCenter.kt` → `ShareExportJobs.kt` → `ShareExportBuilder.kt`, `SendToSheet.kt`, `SaveExportActivity.kt` |
-| Change transfer progress UI | `ui/common/transfer/TransferBannerController.kt` (Settings + viewer), `data/cloud/TransferNotifications.kt` (the one channel) |
+| Change transfer progress UI | `ui/common/transfer/TransferBannerController.kt` (Settings + viewer), `ui/common/ProgressText.kt` (the wording), `data/cloud/TransferNotifications.kt` (the one channel; running notification) and `TransferResultNotifications.kt` (outcome + Retry) |
 | Change the new-analysis media sheet | `ui/common/media/MediaPickerSheet.kt` / `MediaSourceChooser.kt` — shared by the Home **+** and both wizard dropzones |
 | Show a toast, dialog, sheet or thumbnail | `ui/common/dialog/Feedback`, `Dialogs`, `Sheet`; `ui/common/media/ThumbnailLoader` ([ADR-017](../adr/ADR-017-viewbinding-and-ui-kit.md)) |
 | Add an analytics event | `diagnostics/SemperAnalytics.kt` — keep params PII-free and consent-gated |

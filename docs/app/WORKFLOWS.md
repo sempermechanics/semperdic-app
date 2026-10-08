@@ -230,10 +230,13 @@ top of Settings (§4.0).
 
 #### 4.0 The transfer banner
 
-A non-modal strip at the top of Settings, not a dialog: title, a progress bar
-(determinate once a percentage is known), **Cancel**, and — when more than one
-transfer is live — **‹ ›** arrows with an "n / N" page count. It carries restores,
-bundle downloads, **Export my data** and **Download my cloud account data**.
+A non-modal strip at the top of Settings, not a dialog: title, a status line with
+the percent to one decimal on its right ("34.6%"), a progress bar (spinning until a
+percentage is known), "About N s left" under the bar once there is an estimate,
+**Cancel**, and — when more than one transfer is live — **‹ ›** arrows with an
+"n / N" page count. A restore or download's status reads "4.2 of 12.0 MB · 1.1 MB/s".
+It carries restores, bundle downloads, **Export my data** and **Download my cloud
+account data**.
 
 | # | Action | Expected |
 |---|---|---|
@@ -241,6 +244,7 @@ bundle downloads, **Export my data** and **Download my cloud account data**.
 | [ ] 4.0.2 | Start a second one while the first runs | The banner pages: "1 / 2", with ‹ › to step between them |
 | [ ] 4.0.3 | Tap **Cancel** on a page | That transfer stops; the others keep running and the paging recounts |
 | [ ] 4.0.4 | Let one finish | Its page disappears; the banner hides itself once the last one is done |
+| [ ] 4.0.5 | Watch a restore or download for a few seconds | The status reads "x.x of y.y MB · z.z MB/s", the percent has one decimal, and "About N s left" appears after about 3 s |
 
 | # | Action | Expected |
 |---|---|---|
@@ -718,7 +722,8 @@ a centre double-tap brings the bars back when they have faded.
 | [ ] 8.5.6 | **Everything (.zip)** | Raw photos, per-frame results for all five fields, the CSV and the PDF; single-setting also includes the five field GIFs under `animations/` |
 | [ ] 8.5.7 | Check the filename of anything you export | It carries the specimen / analysis name, not a generic `export.zip` |
 | [ ] 8.5.8 | Export a very large analysis | Determinate progress dialog, then either a file or a message naming the failure — never a crash, and never an OOM from rendering the report |
-| [ ] 8.5.8a | Dismiss that dialog with Back, or by tapping outside | The export keeps running behind a **transfer banner** at the top of the viewer, with its own progress, Cancel and ‹ › paging — the same strip Settings uses (§4.0) |
+| [ ] 8.5.8b | Watch the dialog of a CSV, **All fields**, **Animations** or **Everything** export | It spins until the first report, then names what it is on ("Frame 12 of 40 · heatmaps", "Field 2 of 5 · V heatmap", "Frame 3 of 40 · Exx animation"), shows the percent to one decimal on the right and, after about 3 s, "About N s left" under the bar. No kind spins for its whole run; only **Single Field** (one render) has no steps |
+| [ ] 8.5.8a | Dismiss that dialog with Back, or by tapping outside | The export keeps running behind a **transfer banner** at the top of the viewer, with the same status, percent and time left, Cancel and ‹ › paging — the same strip Settings uses (§4.0) |
 | [ ] 8.5.9 | Check an exported PNG | Heatmap baked in, min/max annotated, composited to a **1280 px long edge** — not the reference's full sensor resolution |
 
 ### 8.5a Send to — the export handoff
@@ -851,10 +856,14 @@ are `B1`–`B4` in [../WORKFLOWS.md](../WORKFLOWS.md#b-app--background-and-data-
 They are **no longer silent about failure**: a terminal upload failure surfaces on
 Home (message pill + a "why + retry" dialog on the badge), and a terminal restore
 failure surfaces on **both** Home and Settings, each carrying a human reason.
-Success is quiet by design — the badge/list simply updates.
+In the notification shade, a finished transfer says so ("steel_00 is backed up",
+"… is restored", "… is saved") and a failed one gives its reason, with **Retry** on a
+backup or a restore (Settings → Notifications must allow them from Android 13 on;
+the app does not ask).
 
 Progress is visible in three places: the transfer's foreground notification while
-you are elsewhere in the system; a live badge and progress bar on the Home row
+you are elsewhere in the system (bar, "4.2 of 12.0 MB · 1.1 MB/s", "34.6% · About
+35 s left"; an upload still staging says "Preparing the backup"); a live badge and progress bar on the Home row
 whenever Home is on screen, for downloads as well as uploads; and the **transfer
 banner** inside Settings (§4.0) and the result viewer (§8.5.8a), which is what
 carries exports and anything started from those screens.
@@ -868,7 +877,8 @@ carries exports and anything started from those screens.
 | [ ] 10.3a | Cause a terminal upload or restore failure | The reason is surfaced on return (Home message pill / badge dialog, or the same pill in Settings) — not swallowed |
 | [ ] 10.3b | Start a restore, then sit on Home while it runs | That row shows a progress bar and badge throughout — you are not left guessing |
 | [ ] 10.3c | Start a Download from Settings and leave Settings | It finishes anyway and reports the outcome; it is a worker, not an Activity-scoped job |
-| [ ] 10.4 | Background the app during a transfer | Its foreground notification tracks it; returning to Home picks the row progress back up |
+| [ ] 10.4 | Background the app during a transfer | Its foreground notification tracks it with bytes, rate, percent and time left; returning to Home picks the row progress back up |
+| [ ] 10.4a | With notifications allowed, let a backup finish, then make one fail | "<name> is backed up"; then "<name> was not backed up" with the reason and **Retry**, which queues the backup again (the row goes back to Pending) |
 | [ ] 10.5 | Delete a backup and background the app inside the undo window | The delete still fires after the window |
 | [ ] 10.6 | Pull to refresh on Home with many cloud sessions | The listing pages through the backend until complete — sessions past the first page are not silently missing |
 | [ ] 10.7 | Deep-refresh while Drive is unreachable | Nothing is purged from the list; a transient backend outage must not look like deleted data |
@@ -933,9 +943,11 @@ verified, both are live; §1.13a covers the in-app reset form it opens.
   Images tab needs them (Home also asks for video). The Files tab opens SAF
   instead, so Drive and DNG work without that grant (§3a).
 - **The only notification channel is for transfers** — `TransferNotifications`
-  creates one channel (`semper_transfers`) carrying three notifications: upload,
-  restore and download. There are no *completion* notifications; terminal failures
-  surface in-app instead (§10).
+  creates one channel (`semper_transfers`) carrying the running upload, restore and
+  download notifications, and `TransferResultNotifications` posts each one's outcome
+  there (§10). `POST_NOTIFICATIONS` is declared but never requested, so on Android 13+
+  the outcomes show only after the user allows notifications in system settings;
+  terminal failures still surface in-app either way.
 - **No open-source licenses screen.** Privacy Policy and Terms of Service are
   linked from the About dialog and open the hosted pages in a browser; there is
   no in-app licence attribution list.

@@ -526,9 +526,11 @@ provenance record.
 **Share** (the usual system chooser). For everything but the single photo the
 sheet comes up **first**, so the file is written straight into the folder you
 picked instead of being staged and handed over. Exports are named after the
-analysis, so a folder of them is still readable a month later. A long export does
-not hold the screen: dismiss the progress dialog and it carries on behind a strip
-at the top, with its own progress and a Cancel.
+analysis, so a folder of them is still readable a month later. While an export
+runs, its progress dialog says what it is on ("Frame 12 of 40 · heatmaps"), the
+percent to one decimal ("34.6%") and, after a few seconds, "About 35 s left". A long
+export does not hold the screen: dismiss the progress dialog and it carries on behind
+a strip at the top, with the same progress and a Cancel.
 
 | Export | Contents |
 |---|---|
@@ -608,9 +610,12 @@ the analyses and the cache actually occupy, and gives you three tools:
 
 **Background transfers survive leaving the screen and are honest about failure.**
 An upload or restore runs even if you navigate away, showing a system
-notification while it works, and — while you are on Home — a progress bar on the
-row itself, for downloads as well as uploads. Success is quiet: the badge or list
-just updates. A backup that *fails for good* (another device holds the account,
+notification while it works ("4.2 of 12.0 MB · 1.1 MB/s", "34.6% · About 35 s
+left"), and — while you are on Home — a progress bar on the row itself, for
+downloads as well as uploads. When it ends, the notification says so ("steel_00 is
+backed up"), or gives the reason it failed with **Retry** for a backup or a restore.
+From Android 13 on those end-of-transfer notifications appear only once you allow
+Semper's notifications in the system settings. A backup that *fails for good* (another device holds the account,
 the analysis is too large, or a render ran out of memory) raises a dialog on the
 Home badge explaining why, with **Try again**. A restore that fails (the backup
 was deleted, or is not this account's) says so once, on whichever of Home or

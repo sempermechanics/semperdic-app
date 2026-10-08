@@ -21,6 +21,7 @@ import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
 import com.sempermechanics.semper.ui.common.ByteSize
 import com.sempermechanics.semper.ui.common.ConflatedRefresh
+import com.sempermechanics.semper.ui.common.ProgressText
 import com.sempermechanics.semper.ui.common.dialog.Feedback
 import com.sempermechanics.semper.ui.common.transfer.RestoreFailureNotice
 import com.sempermechanics.semper.ui.common.transfer.TransferBannerController
@@ -184,22 +185,30 @@ internal class SettingsAnalysesSection(
         val state = job.state
         when {
             state is TransferWork.State.Running -> {
-                val percent = state.percent ?: 0
                 if (!transferBanner.contains(key)) {
                     transferBanner.upsert(
                         TransferBannerController.Transfer(
                             id = key,
                             title = activity.getString(R.string.transfer_banner_restore),
                             cancellable = false,
-                            percent = percent,
                         ),
                     )
-                } else {
-                    transferBanner.updateProgress(key, percent)
                 }
+                showProgress(key, state)
             }
             job.isFinished -> transferBanner.remove(key)
         }
+    }
+
+    /**
+     * A running restore's or download's page: the percent to a tenth and
+     * "4.2 of 12.0 MB · 1.1 MB/s" once the worker reports bytes; the banner
+     * adds the time left.
+     */
+    private fun showProgress(key: String, state: TransferWork.State.Running) {
+        val bytes = state.bytes
+        val status = bytes?.let { ProgressText.transfer(activity.resources, it.done, it.total, it.perSecond) }
+        transferBanner.updateProgress(key, state.exactPercent ?: 0.0, status)
     }
 
     /** A restore that succeeded reloads the list so the session appears; one that failed says so once. */
@@ -217,15 +226,18 @@ internal class SettingsAnalysesSection(
         val state = job.state
         when {
             job.isFinished -> transferBanner.remove(key)
-            !transferBanner.contains(key) -> transferBanner.upsert(
-                TransferBannerController.Transfer(
-                    id = key,
-                    title = activity.getString(R.string.transfer_banner_download),
-                    percent = (state as? TransferWork.State.Running)?.percent ?: 0,
-                    onCancel = { CloudRestore.cancelBundleDownload(activity, key) },
-                ),
-            )
-            state is TransferWork.State.Running -> transferBanner.updateProgress(key, state.percent ?: 0)
+            else -> {
+                if (!transferBanner.contains(key)) {
+                    transferBanner.upsert(
+                        TransferBannerController.Transfer(
+                            id = key,
+                            title = activity.getString(R.string.transfer_banner_download),
+                            onCancel = { CloudRestore.cancelBundleDownload(activity, key) },
+                        ),
+                    )
+                }
+                if (state is TransferWork.State.Running) showProgress(key, state)
+            }
         }
     }
 
