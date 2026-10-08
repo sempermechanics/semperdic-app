@@ -413,11 +413,17 @@ kover {
             }
         }
         verify {
-            // Two points under the measured line coverage (51.7 % on 2026-09-24,
-            // after the TD-57 view-class tests), so churn does not fail unrelated
-            // PRs while a real drop does. Raise it as coverage climbs; never lower it.
-            rule {
-                minBound(49)
+            // Two points under the measured coverage (2026-10-08: lines 75.84 %,
+            // branches 60.03 %), so churn does not fail unrelated PRs while a real
+            // drop does. Every PR that adds tests re-measures (`koverXmlReport`,
+            // the totals in build/reports/kover/report.xml) and raises both to
+            // measured − 2; never lower them. The line floor sat at 49 while
+            // coverage climbed past 75, so a 26-point drop would have passed.
+            rule("Line coverage") {
+                minBound(73)
+            }
+            rule("Branch coverage") {
+                minBound(58, kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH)
             }
         }
     }

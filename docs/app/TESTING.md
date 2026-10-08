@@ -215,6 +215,37 @@ connected task), wakes the screen every 10 s, and stops without touching the pho
 it is locked or another instrumentation is running. `--analyse ab-run` re-reads a
 finished run.
 
+### Coverage floors
+
+Three suites are gated on coverage, each two points under what it measured:
+
+| Suite | Measured (2026-10-08) | Floor | Where |
+|---|---|---|---|
+| App JVM (Kover, lines) | 75.84 % | 73 | `app/build.gradle.kts` `kover.verify` |
+| App JVM (Kover, branches) | 60.03 % | 58 | same |
+| Backend (pytest-cov, lines) | 92.93 % | 90 | `.github/actions/backend-gate/action.yml` |
+| Backend + Firestore emulator tier | 93.09 % | 91 | `ci.yml` tier 4, `--cov-append` |
+| Console modules (`node --test`, lines) | 48.85 % | 46 | `ci.yml` `console-pages` |
+
+**Every PR that adds tests re-measures and raises the floors it moved** to
+measured − 2 (rounded down), in the same PR, with the date in the comment
+beside the number. Never lower a floor to turn a build green; the one
+exception is a PR that changes *what* is measured (an exclude removed), which
+resets the floor and says why.
+
+Measuring:
+
+```bash
+./gradlew :app:testDebugUnitTest :app:koverXmlReport   # totals: app/build/reports/kover/report.xml
+cd backend && pytest tests/ -q --cov=app               # TOTAL line
+node --test --experimental-test-coverage --test-coverage-exclude="firebase-hosting/tests/**" \
+  --test-coverage-exclude="**/vendor/**" "firebase-hosting/tests/*.test.mjs"
+```
+
+Kover leaves out Activities, Adapters, Fragments, Dialogs and generated
+bindings (`app/build.gradle.kts` `kover.reports.filters`), so the app figure is
+of the classes the JVM suite is meant to reach.
+
 ### Known coverage gaps
 
 Worth knowing before you assume something is protected:

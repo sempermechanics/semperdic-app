@@ -11,9 +11,9 @@ Windows: `gradlew.bat`. Quote `-Pandroid.testInstrumentationRunnerArguments…` 
 |---------|------|
 | `./gradlew ciReleaseGate` | Spotless, detekt, lintDebug, unit tests, R8, assembleRelease |
 | `./gradlew :app:testDebugUnitTest spotlessCheck :app:detekt :app:lintDebug` | Tier 1 without R8 |
-| `./gradlew :app:koverLog :app:koverVerify` | Coverage log + floor (49; measured 75.1 % on 2026-10-03; enforced in CI tier 1 and `ciReleaseGate`) |
+| `./gradlew :app:koverLog :app:koverVerify` | Coverage log + floors (lines 73, branches 58; measured 75.84 / 60.03 % on 2026-10-08; CI tier 1, `ciReleaseGate`, release). Every test PR raises them to measured − 2: [TESTING.md](docs/app/TESTING.md#coverage-floors) |
 | `./gradlew :app:connectedDebugAndroidTest -PabiFilters=x86_64 "-Pandroid.testInstrumentationRunnerArguments.notPackage=com.sempermechanics.semper.benchmark"` | Emulator instrumented; exclude benchmark package on debug |
-| `cd backend && python -m pytest tests/ -q --cov=app --cov-fail-under=75` | Backend (install lock + `requirements-test.txt`) |
+| `cd backend && python -m pytest tests/ -q --cov=app --cov-fail-under=90` | Backend (install lock + `requirements-test.txt`) |
 | `python scripts/render_legal_pages.py --check` | Hosted legal pages match `docs/legal/` |
 | `python scripts/check_console.py` | Console pages: wiring, CSP, placeholders, gateway paths |
 | `gitleaks detect --config .gitleaks.toml` | Secret scan |
