@@ -68,6 +68,31 @@ handing their path in on the intent.
 than a decoder of ours: the encoder is written against the GIF89a spec by hand,
 so the only claim worth making is that a third-party decoder agrees.
 
+**Golden oracles.** The `.dat` and GIF outputs are pinned byte for byte against
+committed files in `app/src/test/resources/oracles/`, compared by
+`fixtures/Goldens.kt`:
+
+| Golden | Test | Pins |
+|---|---|---|
+| `field_small.dat` | `results/DatFieldOracleTest` | A field written through `DicFieldIo` as the batch loop writes it: the 32-byte `x y u v exx eyy exy znssd` record, little-endian, valid points only — and that `decodeDatFile` reads it back |
+| `summary_u.gif`, `summary_exx.gif` | `results/SummaryGifOracleTest` | A whole `SummaryAnimation` build (decode, fit, heatmap render, jet palette, LZW): the bytes the viewer shows and Share sends |
+
+Parity tests (`VisualizationEngineTest`, `ReportBuilderTest`) compare the code
+against an older copy of itself, and the round trips (`DatCodecTest`,
+`GifEncoderTest`) against itself; both stay green when a change moves both
+sides together. The goldens do not. A change that is *meant* to move an output
+regenerates them and the diff of the binary file is the review:
+
+```bash
+./gradlew :app:testDebugUnitTest -PupdateGoldens --tests "*Oracle*"
+```
+
+The batch loop that writes the `.dat` files, `runBatchAnalysisBody`, cannot run
+on the JVM (no engine library). `pipeline/EnginePipelineSmokeTest.batchLoopWritesEveryFrameAndSavesTheSession`
+runs it on the emulator: three shifted frames, each `.dat` must hold its own
+translation within 0.25 px, and the run must save its Home row. CI runs it in
+Tier 3, which an engine bump or JNI change now triggers.
+
 `analysis/WizardStateTest` covers the wizard's process-death restore on the
 JVM, `ui/analysis/wizard/WizardDraftRestoreTest` covers it through a real Parcel on a
 device, and neither can kill the process. The kill is a scripted pass: take
@@ -221,8 +246,8 @@ Three suites are gated on coverage, each two points under what it measured:
 
 | Suite | Measured (2026-10-08) | Floor | Where |
 |---|---|---|---|
-| App JVM (Kover, lines) | 75.84 % | 73 | `app/build.gradle.kts` `kover.verify` |
-| App JVM (Kover, branches) | 60.03 % | 58 | same |
+| App JVM (Kover, lines) | 75.88 % | 73 | `app/build.gradle.kts` `kover.verify` |
+| App JVM (Kover, branches) | 60.08 % | 58 | same |
 | Backend (pytest-cov, lines) | 92.93 % | 90 | `.github/actions/backend-gate/action.yml` |
 | Backend + Firestore emulator tier | 93.09 % | 91 | `ci.yml` tier 4, `--cov-append` |
 | Console modules (`node --test`, lines) | 48.85 % | 46 | `ci.yml` `console-pages` |
