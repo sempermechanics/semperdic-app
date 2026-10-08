@@ -6,7 +6,7 @@
 import { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  test, reset, settle, openPage, json, net, confirms, sent, readyUser, $, loadAuth,
+  test, reset, settle, openPage, json, net, confirms, sent, readyUser, $, loadAuth, deferred,
 } from "./harness.mjs";
 
 await loadAuth();
@@ -64,16 +64,32 @@ test("an IT contact gets Institution seats | Your account, staff all three", asy
   assert.deepEqual(tabs(), [["Operator", ""], ["Institution seats", "page"], ["Your account", ""]]);
 });
 
+test("a deep-linked roster is read alongside the licence list, not after it", async () => {
+  const list = deferred();
+  await open({ routes: { "GET /v1/institutions/licenses": () => list.promise } });
+  assert.deepEqual(sent().sort(), ["GET /v1/institutions/licenses", `GET ${SEATS}`]);
+  assert.equal($("summary").textContent, "", "not shown before the list says this address may");
+  list.resolve(json(200, { licenses: [{ id: "L1" }] }));
+  await settle();
+  assert.match(summary(), /^SEMP-UNI1/);
+  assert.equal(sent(/seats/).length, 1, "the roster read early is the one shown");
+});
+
 test("an address no licence names is told so, and sees no roster form", async () => {
   await openPage("institution", {
     user: readyUser({ email: "stranger@example.com" }),
     search: "?license=L1",
-    routes: { "GET /v1/institutions/licenses": () => json(200, { licenses: [] }) },
+    routes: {
+      "GET /v1/institutions/licenses": () => json(200, { licenses: [] }),
+      // Read alongside the list; the backend refuses it to a stranger.
+      "GET /v1/institutions/licenses/L1/seats": () => json(404, { detail: "license_not_found" }),
+    },
   });
   assert.equal($("app").hidden, true);
   assert.equal($("notAdmin").hidden, false);
   assert.equal($("notAdminWho").textContent, "stranger@example.com");
-  assert.deepEqual(sent(), ["GET /v1/institutions/licenses"], "the deep link is not followed");
+  assert.equal($("status").textContent, "", "the refused roster is never reported");
+  assert.equal($("licenseId").value, "", "the deep link is not followed");
 });
 
 test("an unverified address is treated as administering nothing", async () => {
@@ -150,6 +166,44 @@ test("each member row offers only what applies to that seat", async () => {
     ["eve@uni.edu", "invited", "—", "joins at first sign-in", "Withdraw"],
   ]);
   assert.equal($("rows").querySelectorAll('[data-uid="u3"]').length, 0, "nothing to act on for a removed member");
+});
+
+test("the seat manager stays hidden until the licence list names this address", async () => {
+  const list = deferred();
+  await open({ routes: { "GET /v1/institutions/licenses": () => list.promise } });
+  assert.equal($("app").hidden, true);
+  assert.equal($("status").textContent, "Checking your access…");
+  list.resolve(json(200, { licenses: [{ id: "L1" }] }));
+  await settle();
+  assert.equal($("app").hidden, false);
+});
+
+test("opening another licence while one loads shows the one asked for last", async () => {
+  const slow = deferred();
+  await open({ routes: {
+    [`GET ${SEATS}`]: () => slow.promise,
+    "GET /v1/institutions/licenses/L2/seats": () => json(200, {
+      ...assigned, license: { ...assigned.license, keyPrefix: "SEMP-UNI2" } }),
+  } });
+  assert.equal($("rows").querySelectorAll("tr.placeholder").length, 3, "placeholders, not the last roster");
+  $("licenseId").value = "L2";
+  $("load").disabled = false; // a person can also press Enter in the box
+  $("licenseId").dispatch("keydown", { key: "Enter" });
+  await settle();
+  assert.match(summary(), /^SEMP-UNI2/);
+  slow.resolve(json(200, assigned));
+  await settle();
+  assert.match(summary(), /^SEMP-UNI2/, "L1 answered late and was dropped");
+});
+
+test("a roster that fails to load offers Retry", async () => {
+  let fail = true;
+  await open({ routes: { [`GET ${SEATS}`]: () => (fail ? json(500, { detail: "boom" }) : json(200, assigned)) } });
+  assert.deepEqual(status(), ["Could not load: boom", "muted err"]);
+  fail = false;
+  $("rows").querySelector("button[data-retry]").click();
+  await settle();
+  assert.match(summary(), /^SEMP-UNI1/);
 });
 
 test("a licence that is not yours reads as not found, and the old roster goes", async () => {

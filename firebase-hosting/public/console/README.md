@@ -60,8 +60,9 @@ tab per dashboard the account can open, shown whenever there is more than one.
 Staff get Operator and Your account, an IT contact Institution seats (deep-linked
 when there is exactly one licence) and Your account, and someone who is both
 gets all three. `roles.js` decides it from the same two answers the front door
-routes on; a page passes the one it already read, so the switch adds one
-request. A failed read hides only the tab it would have shown.
+routes on; a page passes the one it already read (or the read it already
+started), so the switch adds one request, sent alongside the page's own. A
+failed read hides only the tab it would have shown.
 
 The two restricted pages make the same check themselves, because a link can
 land anyone on them: the operator desk asks `/v1/me` and shows nothing of the
@@ -69,7 +70,11 @@ desk to an account without `role=admin`, and the institution page asks
 `/v1/institutions/licenses` and shows nothing of the seat manager to an address
 no licence names. Each says so in a card with a link to the account page. The
 backend refuses the calls anyway; the gate only spares people a form that every
-submit would refuse.
+submit would refuse. Neither waits for its check before asking for its data:
+the desk sends its licence list and approvals with `/v1/me`, and the roster of
+a `?license=` link goes out with the licence list. The answers are shown only
+once the check passes; for anyone else the backend refuses them, and the
+refusals are dropped unshown.
 
 Nothing is inferred from the email domain and nothing is remembered in the
 browser, so an account that changes hands routes correctly the first time.
@@ -79,7 +84,9 @@ consequences worth knowing before editing them. A header is matched against the
 request path and knows nothing about the rewrite, so the relaxed console CSP is
 restated for `{/login,/account}` in `firebase.json` and the two values must stay
 identical. And a relative path in the page would resolve against the site root
-at those addresses, so both pages carry a `<base href>`.
+at those addresses, so the two pages served there (`index.html` and
+`account/index.html`) carry a `<base href>`; the operator and institution pages
+are only ever opened at their own address and have none.
 
 ## Why the operator console needs a second factor
 
@@ -320,11 +327,89 @@ there before inventing one here. The brand mark and favicon are copies of the
 site's `assets/semper/semper-mark.webp` / `semper-icon.webp`; the fonts come
 from Google Fonts, which is why the console CSP names
 `fonts.googleapis.com` (`style-src`) and `fonts.gstatic.com` (`font-src`) — the
-site-wide policy does not. Every page declares `<base href="/console/…">` so it
-works at its rewritten address too, which is why the console CSP's `base-uri`
-is `'self'` rather than `'none'`; `check_console.py` refuses the pair any other
-way. `chrome.js` holds the footer year: the CSP is `script-src 'self'`, so an
-inline one-liner would never run.
+site-wide policy does not. The two pages served at a rewritten address declare
+`<base href="/console/…">` so they work there too, which is why the console
+CSP's `base-uri` is `'self'` rather than `'none'`; `check_console.py` refuses
+the pair any other way. `chrome.js` holds the footer year, and the preconnect
+to the API (below): the CSP is `script-src 'self'`, so an inline one-liner
+would never run.
+
+### Load speed
+
+Sign-in cannot start until the Firebase SDK, every page module and the
+project config (`/__/firebase/init.json`) have arrived, and with no build step
+the browser used to discover the modules one level of imports at a time, each
+a round trip of its own. Each page's `<head>` now names everything at once:
+
+- `<link rel="modulepreload">` for every module its scripts import, the two
+  gstatic SDK files included. `check_console.py` keeps the list equal to the
+  import graph, so a new import that is not preloaded fails CI.
+- `<link rel="preload">` for `init.json`, `as="fetch" crossorigin="anonymous"`
+  — the mode of `auth.js`'s plain `fetch`; any other mode is fetched twice.
+- A preconnect to Google's sign-in server. The preconnect to the API is added
+  by `chrome.js` from `config.js`, so no hostname is written into the pages.
+
+`qr.js` and its vendored library are not among them: `ensureDashboardMfa`
+imports them on demand, the one time an account enrols. Pages then send their
+reads together rather than one after another (see "The front door").
+
+Files stay `Cache-Control: no-cache`: each load revalidates every file, now
+in one parallel round of 304s. Long-lived caching would need versioned file
+names, which means a build step.
+
+Each page marks `semper:auth-ready` (sign-in and the second factor settled)
+and `semper:first-data` (its first loaded data shown) with the Performance
+API, so a load can be timed with `performance.getEntriesByType("mark")`.
+
+### Waiting
+
+A load is never a blank page or a silent one:
+
+- **Before the sign-in state is known** a page says "Checking your sign-in…"
+  and does not offer Sign in: `<body data-auth="pending">` and a pending
+  `#status` in the markup, and `console.css` keeps `#signIn` / `#signedOut`
+  hidden until `auth.js` sets `data-auth` to `in` or `out`. If the scripts
+  never run, a CSS animation shows them after 8 s.
+- **Restricted pages stay hidden until allowed.** The operator desk and the
+  institution page call `requireSignIn(onReady, { showApp: false })` and show
+  `#app` only once `/v1/me` (or the licence list) says the account may see it.
+- **Each step is named** on the status line by `whileWaiting` (`auth.js`):
+  "Checking your access…", "Loading licences…", "Loading the roster…",
+  "Loading your analyses…", "Finding your dashboard…". After 4 s it adds
+  "Still working — the server can take a few seconds to start.": the API
+  scales to zero, and its first answer after idling was measured at 10.7 s.
+  `#status` is a polite live region, so a screen reader hears each step.
+- **Tables show their shape while they load** (`placeholderRows` in
+  `util.js`; the account's licence card has them in its markup), pulsing only
+  without `prefers-reduced-motion`.
+- **A failed table says so in the table, with Retry** (`retryRow`), which
+  reruns that one load.
+- **No double loads, no stale answers.** A list's Refresh / Show more / Open /
+  Re-check is disabled while it loads (two clicks on Show more listed a page
+  twice), and each load takes a ticket so an older answer arriving late is
+  dropped rather than drawn over a newer one.
+
+### Screen sizes
+
+Phone up to 600px, tablet 601–1024px, desktop beyond, the same in every
+media query in `console.css`.
+
+- **Phone:** every table in a `.wrap` becomes a stack of cards, its first
+  cell as the heading and the rest as "label value" lines. `chrome.js`
+  copies each column's heading onto its cells (`data-label`) whenever a
+  table's rows change. The header keeps to two rows: brand, page, the
+  signed-in address (cut short; the whole of it on hover), Sign out; then
+  the dashboard switch, full width.
+- **Tablet and desktop:** tables stay tables and scroll sideways inside
+  their card, the first column pinned.
+- **Touch screens** (`pointer: coarse`): every control at least 44px high,
+  and text boxes at 16px so iOS does not zoom when one is tapped.
+- **Keyboard:** a visible accent outline on whatever has focus.
+
+On the desk, the licence table comes first and **Issue a licence** opens its
+card from the table's toolbar. Each licence row keeps Edit (and Roster) in
+view; the rest is under **More**, a `<details>` that opens in place, Revoke
+and Delete last.
 
 ## Checking them
 
@@ -344,12 +429,14 @@ that reads them instead, and runs as the **Console pages** CI job:
 | The two console CSPs are identical | The rewrite addresses would otherwise be served a different policy |
 | Every `/v1` path a console calls is in `gateway/openapi.yaml` | ESPv2 is an allowlist; an undeclared route 404s in production |
 | Every refusal code a page matches (`e.code === "…"`, or a key of a sentence map) is declared in `backend/app/errors.py` | A renamed code leaves the page's sentence unreachable, and the page shows the raw code instead |
+| Every page preloads exactly the modules it imports (not those imported on demand), and `init.json` as `fetch`/`anonymous` | A missing preload costs a round trip per level of imports; a wrong mode or an extra one downloads twice or for nothing |
+| Every page starts `<body data-auth="pending">`, its `#status` a polite live region marked pending | Without them a signed-in visitor is offered Sign in first, and a screen reader hears none of the loading steps |
 
 Run it directly with `python scripts/check_console.py`. Node is used for the
 syntax check when it is on `PATH` and skipped with a note when it is not.
 
-A page's modules are followed through their relative imports, so a split page
-is checked as a whole. Each test loads a page afresh with `?load=N`;
+A page's modules are followed through their relative imports, those imported
+on demand included, so a split page is checked as a whole. Each test loads a page afresh with `?load=N`;
 `tests/firebase-hooks.mjs` gives the modules in the page's own folder the same
 query, so their state starts empty as well. The shared modules one folder up
 stay one copy, as in a browser.

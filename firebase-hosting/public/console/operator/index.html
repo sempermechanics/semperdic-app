@@ -9,8 +9,36 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet" />
   <link rel="icon" type="image/webp" href="../semper-icon.webp" />
   <link rel="stylesheet" href="../console.css" />
+  <!-- Start everything sign-in waits for while this page is still parsing:
+       the project config auth.js fetches first (in the mode it fetches it,
+       or it is fetched twice), Google's sign-in servers, and every module
+       the page's scripts import, so they arrive in one round instead of one
+       per level of imports. scripts/check_console.py (check 9) keeps the
+       module list equal to what the scripts import. The API's own address
+       is in config.js, so chrome.js adds that preconnect. -->
+  <link rel="preload" href="/__/firebase/init.json" as="fetch" crossorigin="anonymous" />
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin="anonymous" />
+  <link rel="dns-prefetch" href="https://securetoken.googleapis.com" />
+  <link rel="dns-prefetch" href="https://apis.google.com" />
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js" />
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js" />
+  <link rel="modulepreload" href="../auth.js" />
+  <link rel="modulepreload" href="../config.js" />
+  <link rel="modulepreload" href="../util.js" />
+  <link rel="modulepreload" href="../messages.js" />
+  <link rel="modulepreload" href="../switcher.js" />
+  <link rel="modulepreload" href="../roles.js" />
+  <link rel="modulepreload" href="../roster.js" />
+  <link rel="modulepreload" href="state.js" />
+  <link rel="modulepreload" href="licences.js" />
+  <link rel="modulepreload" href="mint.js" />
+  <link rel="modulepreload" href="edit.js" />
+  <link rel="modulepreload" href="people.js" />
+  <link rel="modulepreload" href="verify.js" />
+  <link rel="modulepreload" href="lifecycle.js" />
+  <link rel="modulepreload" href="roster-card.js" />
 </head>
-<body>
+<body data-auth="pending">
   <header>
     <a class="brand" href="https://sempermechanics.com/"><img src="../semper-mark.webp" alt="" width="28" height="28" />semper</a>
     <h1>Operator</h1>
@@ -25,8 +53,9 @@
 
   <main>
     <!-- Outside #app: enrolment, step-up and sign-in errors report here while
-         the dashboard is still hidden. -->
-    <p id="status" class="muted"></p>
+         the dashboard is still hidden. A live region, so each step of a load
+         is read out; it says it is checking the sign-in until auth.js knows. -->
+    <p id="status" class="muted" role="status" aria-live="polite" data-pending>Checking your sign-in…</p>
 
     <!-- The whole desk is for Semper staff; everyone else sees this and
          nothing of the desk (operator.js decides from /v1/me). -->
@@ -41,8 +70,14 @@
 
     <div id="app" hidden>
       <!-- ------------------------------------------------------- mint -->
-      <section class="card">
-        <h2>Issue a licence</h2>
+      <!-- Opened from the Licences card: most visits look a licence up, and a
+           700-pixel form stood between the desk and its table. -->
+      <section class="card" id="issueCard" hidden>
+        <div class="row">
+          <h2 style="margin:0">Issue a licence</h2>
+          <span class="spacer"></span>
+          <button id="closeIssue" class="secondary">Close</button>
+        </div>
         <div class="row">
           <label><input type="radio" name="kind" value="individual" checked /> Individual</label>
           <label><input type="radio" name="kind" value="institution" /> Institution</label>
@@ -127,9 +162,10 @@
           <label class="muted"><input type="checkbox" id="showRevoked" /> Show revoked</label>
           <label class="muted"><input type="checkbox" id="showDemo" /> Show Demo keys</label>
           <button id="reload" class="secondary">Refresh</button>
+          <button id="openIssue">Issue a licence</button>
         </div>
         <div class="wrap">
-          <table>
+          <table class="licences">
             <thead>
               <tr>
                 <th>Key</th><th>Kind</th><th>Mode</th><th>Seats</th><th>Term</th>
