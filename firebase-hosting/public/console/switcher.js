@@ -10,8 +10,8 @@
  *
  * Decided from what the backend says on each load, the same two answers the
  * front door routes on; nothing is remembered in the browser. A page passes
- * the answer it already read, and the switch asks only for the other
- * (roles.js decides what each answer opens).
+ * the answer it already read, or the read it already started, and the switch
+ * asks only for the other (roles.js decides what each answer opens).
  */
 import { api, esc } from "./auth.js";
 import { licencesAdministered, dashboardsFor } from "./roles.js";
@@ -27,11 +27,13 @@ const TABS = {
 /**
  * Fill and show `#switch` with `current` marked, when the account has more
  * than one dashboard. `known` carries what the page already read (`me`,
- * `licenses`). A failed read hides only what it would have shown; the
- * switch is a convenience and never stops a page.
+ * `licenses`), each as the answer or a promise of it. A failed read hides
+ * only what it would have shown; the switch is a convenience and never
+ * stops a page.
  */
 export async function mountSwitcher(current, known = {}) {
-  let { me, licenses } = known;
+  let me = await known.me;
+  let licenses = await known.licenses;
   if (me === undefined) {
     try {
       me = await api("/v1/me", {}, { allowStepUp: false });

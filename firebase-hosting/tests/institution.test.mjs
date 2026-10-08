@@ -6,7 +6,7 @@
 import { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  test, reset, settle, openPage, json, net, confirms, sent, readyUser, $, loadAuth,
+  test, reset, settle, openPage, json, net, confirms, sent, readyUser, $, loadAuth, deferred,
 } from "./harness.mjs";
 
 await loadAuth();
@@ -64,16 +64,32 @@ test("an IT contact gets Institution seats | Your account, staff all three", asy
   assert.deepEqual(tabs(), [["Operator", ""], ["Institution seats", "page"], ["Your account", ""]]);
 });
 
+test("a deep-linked roster is read alongside the licence list, not after it", async () => {
+  const list = deferred();
+  await open({ routes: { "GET /v1/institutions/licenses": () => list.promise } });
+  assert.deepEqual(sent().sort(), ["GET /v1/institutions/licenses", `GET ${SEATS}`]);
+  assert.equal($("summary").textContent, "", "not shown before the list says this address may");
+  list.resolve(json(200, { licenses: [{ id: "L1" }] }));
+  await settle();
+  assert.match(summary(), /^SEMP-UNI1/);
+  assert.equal(sent(/seats/).length, 1, "the roster read early is the one shown");
+});
+
 test("an address no licence names is told so, and sees no roster form", async () => {
   await openPage("institution", {
     user: readyUser({ email: "stranger@example.com" }),
     search: "?license=L1",
-    routes: { "GET /v1/institutions/licenses": () => json(200, { licenses: [] }) },
+    routes: {
+      "GET /v1/institutions/licenses": () => json(200, { licenses: [] }),
+      // Read alongside the list; the backend refuses it to a stranger.
+      "GET /v1/institutions/licenses/L1/seats": () => json(404, { detail: "license_not_found" }),
+    },
   });
   assert.equal($("app").hidden, true);
   assert.equal($("notAdmin").hidden, false);
   assert.equal($("notAdminWho").textContent, "stranger@example.com");
-  assert.deepEqual(sent(), ["GET /v1/institutions/licenses"], "the deep link is not followed");
+  assert.equal($("status").textContent, "", "the refused roster is never reported");
+  assert.equal($("licenseId").value, "", "the deep link is not followed");
 });
 
 test("an unverified address is treated as administering nothing", async () => {
