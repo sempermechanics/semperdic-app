@@ -150,12 +150,11 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   is not compiled, and it waits on the Firebase app for
   `com.sempermechanics.materialtesting`. Shared code and backend changes land here first
   ([FORK_SYNC.md](docs/ops/FORK_SYNC.md)).
-- **Testing program (2026-10-08, in flight).** Five PRs from the test review: CI tiers
-  follow the diff (an engine bump runs the emulator and arm64 tiers on its PR; main pushes
-  path-aware; weekly full matrix), real coverage floors raised in every PR, golden
-  `.dat` / GIF oracles, then the Android and backend gaps. Stacked #366 → #367 → #368 →
-  #370 → PR 5 (contracts/, index check, console gate tests); merge in that order. Plan and
-  gap register in #366.
+- **Testing program (2026-10-08, merged #366–#371).** CI tiers follow the diff (weekly
+  full matrix), coverage floors at measured − 2 raised by every test PR
+  ([TESTING.md](docs/app/TESTING.md#coverage-floors)), golden `.dat` / GIF files, shared
+  `contracts/`. Open: TD-199–TD-204; the `CI OK` ruleset on `main` is the owner's
+  (command in #366).
 - **Dependabot** opens monthly PRs for major versions only (pip, Gradle, Actions; #337);
   minor and patch fixes arrive as Dependabot security updates, which are on.
 - **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke

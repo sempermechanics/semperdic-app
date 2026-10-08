@@ -12,6 +12,35 @@ Decisions that outlive their PR are recorded in
 [CLOUD_ARCHITECTURE_GCP.md](../backend/CLOUD_ARCHITECTURE_GCP.md) §20,
 [ARCHITECTURE.md](../app/ARCHITECTURE.md) and [../adr/](../adr/).
 
+## 2026-10-08 — Testing program merged (#366–#368, #370, #371); Hosting deploy of #371
+
+Five stacked PRs from the test review, merged in order once each `CI OK` was green:
+- **#366** CI tiers follow the diff: an engine or JNI change runs the emulator and
+  arm64 tiers on its PR, keep-rule and build-script changes run R8, Tier 1 compiles
+  androidTest and `:benchmark`, `main` pushes are path-aware, and a weekly
+  `schedule` runs the full matrix. Tier 1 uploads JUnit and Kover reports.
+- **#367** Real coverage floors (measured − 2, raised by every test PR): Kover lines
+  and branches, the backend with the Firestore emulator tier appended, and the
+  console modules.
+- **#368** Committed golden `.dat` and GIF files (`-PupdateGoldens` to regenerate);
+  `DicFieldIo` tests; the batch loop runs on the emulator.
+- **#370** Settings, viewer, restore and admin tests; Kover counts Activities,
+  Adapters and Dialogs; device tests wait on conditions, not sleeps.
+- **#371** Shared `contracts/` wire bodies (app and backend), the composite-index
+  check, `check_console.py`'s own tests, backend thin spots (`drive.py` 65 → 99 %).
+  Two fixes: `console/roster.js` took the roster path after Remove / Withdraw was
+  confirmed, so a confirmation answered after opening another licence's roster went
+  to that licence; and `ShareExportJobs.start` lost the Cancelled outcome of an
+  export cancelled before its first dispatch (a 10 s CI timeout).
+
+Floors after #371: app lines 72 / branches 54 (74.50 / 56.41 %, Activities now
+counted), backend 93 (95.47 %; 95.54 % with the emulator tier), console lines 53
+(55.32 %, counted per page load: TD-203). TD-199–TD-204 hold the gaps left open.
+
+#371 (`f0a5e367`) was deployed with `scripts/deploy-console.sh` and the live check
+passed: the live `console/roster.js` takes the path before asking, and
+`/finishReset/` loads `/finishReset/reset.js` (200) with no inline script.
+
 ## 2026-10-08 — Hosting deploys: every wait explained, and the dashboards on every screen size (#369, #372)
 
 #369 (`676762b2`, merged at 16:09 IST) and #372 (`04c74669`, 16:18 IST) were each
