@@ -28,16 +28,8 @@
       font-weight: 600;
     }
   </style>
-  <script>
-    // App-not-installed fallback: forward the same query to Firebase's default
-    // action handler so a browser can still complete the reset.
-    (function () {
-      var q = location.search || "";
-      if (q.indexOf("mode=") !== -1) {
-        location.replace("/__/auth/action" + q);
-      }
-    })();
-  </script>
+  <!-- Absolute: the page is served at /finishReset and /auth/finishReset. -->
+  <script src="/finishReset/reset.js"></script>
 </head>
 <body>
   <div class="card">
@@ -54,8 +46,5 @@
       <a class="button" id="continueLink" href="#">Continue in browser</a>
     </p>
   </div>
-  <script>
-    document.getElementById("continueLink").href = "/__/auth/action" + (location.search || "");
-  </script>
 </body>
 </html>

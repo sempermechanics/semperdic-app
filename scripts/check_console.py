@@ -43,12 +43,17 @@ runtime, and a person only discovers in production:
 Checks 2, 3, 7 and 8 read every module a page runs: its `<script src>` and,
 transitively, what those import by relative path, including on demand.
 
-Run: `python scripts/check_console.py`. Exit 1 on the first failure found,
-after reporting all of them.
+Checks 1-3 also cover the auth continue-URL pages (`finishSignIn`,
+`finishReset`).
+
+Run: `python scripts/check_console.py [--root <repo>]`. Exit 1 on the first
+failure found, after reporting all of them. `backend/tests/test_check_console.py`
+plants each failure in a small tree and runs this against it.
 """
 
 from __future__ import annotations
 
+import argparse
 import glob
 import json
 import os
@@ -57,22 +62,44 @@ import shutil
 import subprocess
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HOSTING = os.path.join(ROOT, "firebase-hosting")
-PUBLIC = os.path.join(HOSTING, "public")
-CONSOLE = os.path.join(PUBLIC, "console")
-GATEWAY = os.path.join(ROOT, "backend", "gateway", "openapi.yaml")
-ERRORS = os.path.join(ROOT, "backend", "app", "errors.py")
-RECONCILE = os.path.join(ROOT, "backend", "app", "repo", "reconcile.py")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# The pages that carry a dashboard. `finishSignIn` and `finishReset` are auth
-# continue-URLs served under the strict global policy and are not consoles.
-PAGES = [
-    os.path.join(CONSOLE, "index.html"),
-    os.path.join(CONSOLE, "account", "index.html"),
-    os.path.join(CONSOLE, "institution", "index.html"),
-    os.path.join(CONSOLE, "operator", "index.html"),
-]
+# Set by `set_root`: the tree checked is the repository unless `--root` names
+# another (backend/tests/test_check_console.py plants failures in a copy).
+ROOT = HOSTING = PUBLIC = CONSOLE = GATEWAY = ERRORS = RECONCILE = ""
+PAGES: list[str] = []
+AUTH_PAGES: list[str] = []
+
+
+def set_root(root: str) -> None:
+    """Point every check at the tree under `root`."""
+    global ROOT, HOSTING, PUBLIC, CONSOLE, GATEWAY, ERRORS, RECONCILE, PAGES, AUTH_PAGES
+    ROOT = os.path.abspath(root)
+    HOSTING = os.path.join(ROOT, "firebase-hosting")
+    PUBLIC = os.path.join(HOSTING, "public")
+    CONSOLE = os.path.join(PUBLIC, "console")
+    GATEWAY = os.path.join(ROOT, "backend", "gateway", "openapi.yaml")
+    ERRORS = os.path.join(ROOT, "backend", "app", "errors.py")
+    RECONCILE = os.path.join(ROOT, "backend", "app", "repo", "reconcile.py")
+    # The pages that carry a dashboard: every check below.
+    PAGES = [
+        os.path.join(CONSOLE, "index.html"),
+        os.path.join(CONSOLE, "account", "index.html"),
+        os.path.join(CONSOLE, "institution", "index.html"),
+        os.path.join(CONSOLE, "operator", "index.html"),
+    ]
+    # The auth continue-URLs. Not consoles — they call no API and load no
+    # Firebase, so checks 4-9 have nothing to read — but checks 1-3 hold:
+    # their scripts are files (the global CSP still allows inline code; the
+    # pages do not rely on it, so it can be dropped), present and parsing,
+    # and the ids they ask for exist.
+    AUTH_PAGES = [
+        os.path.join(PUBLIC, "finishSignIn", "index.html"),
+        os.path.join(PUBLIC, "finishReset", "index.html"),
+    ]
+
+
+set_root(REPO_ROOT)
 
 failures: list[str] = []
 
@@ -88,10 +115,19 @@ _REMOTE_IMPORT = re.compile(
 )
 
 
+def resolve_src(page: str, src: str) -> str:
+    """The file a page's `src` names: under public/ when the path is absolute
+    (the auth pages are served at two addresses, so a relative path would
+    break at one of them), else beside the page."""
+    if src.startswith("/"):
+        return os.path.normpath(os.path.join(PUBLIC, src.lstrip("/")))
+    return os.path.normpath(os.path.join(os.path.dirname(page), src))
+
+
 def page_scripts(page: str) -> list[str]:
     """The modules a page names in `<script src>`."""
     return [
-        os.path.normpath(os.path.join(os.path.dirname(page), src))
+        resolve_src(page, src)
         for src in re.findall(r'<script\b[^>]*\bsrc="([^"]+)"', read(page))
     ]
 
@@ -136,19 +172,24 @@ def check_scripts() -> None:
         print("note: node not on PATH — module syntax not checked", file=sys.stderr)
 
     parsed: set[str] = set()
-    for page in PAGES:
+    for page in PAGES + AUTH_PAGES:
         html = read(page)
 
         for match in re.finditer(r"<script\b([^>]*)>(.*?)</script>", html, re.S):
             attrs, body = match.group(1), match.group(2)
-            if body.strip():
+            if body.strip() and page in AUTH_PAGES:
+                fail(page, "inline <script> body — the auth pages keep their "
+                           "code in files, so the global CSP can lose "
+                           "'unsafe-inline'; move it to a file beside the page "
+                           "and load it with an absolute src=")
+            elif body.strip():
                 fail(page, "inline <script> body — the console CSP is "
                            "script-src 'self', so this never runs in production; "
                            "move it to a module file and load it with src=")
             src = re.search(r'src="([^"]+)"', attrs)
             if not src:
                 continue
-            module = os.path.normpath(os.path.join(os.path.dirname(page), src.group(1)))
+            module = resolve_src(page, src.group(1))
             if not os.path.isfile(module):
                 fail(page, f"loads {src.group(1)}, which does not exist")
 
@@ -250,7 +291,7 @@ def check_preloads() -> None:
 
 
 def check_element_ids() -> None:
-    for page in PAGES:
+    for page in PAGES + AUTH_PAGES:
         html = read(page)
         declared = set(re.findall(r'\bid="([^"]+)"', html))
 
@@ -441,13 +482,25 @@ def check_codes() -> None:
                          f"declare — a renamed code leaves this sentence unreachable")
 
 
-def main() -> int:
+def run(root: str = REPO_ROOT) -> list[str]:
+    """Every check against the tree under `root`; returns the failures."""
+    set_root(root)
+    failures.clear()
     check_scripts()
     check_element_ids()
     check_placeholders(check_hosting())
     check_gateway()
     check_codes()
     check_preloads()
+    return list(failures)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
+    parser.add_argument("--root", default=REPO_ROOT,
+                        help="repository root to check (default: this checkout)")
+    args = parser.parse_args(argv)
+    run(args.root)
 
     if failures:
         print("Console checks failed:\n", file=sys.stderr)
