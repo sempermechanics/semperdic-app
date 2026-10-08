@@ -42,6 +42,10 @@ runtime, and a person only discovers in production:
 10. Every page starts as "checking your sign-in": `<body data-auth="pending">`
    (console.css keeps Sign in hidden until auth.js knows) and a `#status`
    that is a polite live region, so each step of a load is read out.
+11. No Hosting CSP lets inline script run: no `'unsafe-inline'` or
+   `'unsafe-eval'` in any `script-src`. Every other page under `public/`
+   (the legal pages, anything added later) has no inline script or handler,
+   so the strict default policy cannot break it.
 
 Checks 2, 3, 7 and 8 read every module a page runs: its `<script src>` and,
 transitively, what those import by relative path, including on demand.
@@ -93,9 +97,8 @@ def set_root(root: str) -> None:
     ]
     # The auth continue-URLs. Not consoles — they call no API and load no
     # Firebase, so checks 4-9 have nothing to read — but checks 1-3 hold:
-    # their scripts are files (the global CSP still allows inline code; the
-    # pages do not rely on it, so it can be dropped), present and parsing,
-    # and the ids they ask for exist.
+    # their scripts are files (the global CSP is script-src 'self', check 11),
+    # present and parsing, and the ids they ask for exist.
     AUTH_PAGES = [
         os.path.join(PUBLIC, "finishSignIn", "index.html"),
         os.path.join(PUBLIC, "finishReset", "index.html"),
@@ -181,10 +184,9 @@ def check_scripts() -> None:
         for match in re.finditer(r"<script\b([^>]*)>(.*?)</script>", html, re.S):
             attrs, body = match.group(1), match.group(2)
             if body.strip() and page in AUTH_PAGES:
-                fail(page, "inline <script> body — the auth pages keep their "
-                           "code in files, so the global CSP can lose "
-                           "'unsafe-inline'; move it to a file beside the page "
-                           "and load it with an absolute src=")
+                fail(page, "inline <script> body — the global CSP is "
+                           "script-src 'self', so it never runs; move it to a "
+                           "file beside the page and load it with an absolute src=")
             elif body.strip():
                 fail(page, "inline <script> body — the console CSP is "
                            "script-src 'self', so this never runs in production; "
@@ -222,6 +224,35 @@ def check_scripts() -> None:
             line = html[: match.start()].count("\n") + 1
             fail(page, f"line {line}: inline event handler — blocked by the "
                        "console CSP; use addEventListener in the module")
+
+
+_INLINE_HANDLER = re.compile(r"\son[a-z]+\s*=", re.I)
+
+
+def check_script_policy() -> None:
+    path = os.path.join(HOSTING, "firebase.json")
+    for block in json.loads(read(path))["hosting"].get("headers", []):
+        for header in block.get("headers", []):
+            if header["key"] != "Content-Security-Policy":
+                continue
+            directive = re.search(r"script-src\s+([^;]+)", header["value"])
+            sources = directive.group(1).split() if directive else []
+            for loose in ("'unsafe-inline'", "'unsafe-eval'"):
+                if loose in sources:
+                    fail(path, f"the {block['source']} CSP's script-src allows "
+                               f"{loose}; no page needs it, and it is what turns "
+                               "an injected <script> into running code")
+
+    checked = set(PAGES + AUTH_PAGES)
+    for page in sorted(glob.glob(os.path.join(PUBLIC, "**", "*.html"), recursive=True)):
+        if page in checked or os.path.commonpath([page, CONSOLE]) == CONSOLE:
+            continue
+        html = read(page)
+        inline = any(body.strip() for body in re.findall(r"<script\b[^>]*>(.*?)</script>", html, re.S))
+        if inline or _INLINE_HANDLER.search(html) or "javascript:" in html.lower():
+            fail(page, "inline script, handler or javascript: URL — the global "
+                       "CSP is script-src 'self', so it never runs; move it to "
+                       "a file beside the page")
 
 
 # ---------------- 9: each page preloads exactly what it runs --------------
@@ -514,6 +545,7 @@ def run(root: str = REPO_ROOT) -> list[str]:
     check_codes()
     check_preloads()
     check_pending()
+    check_script_policy()
     return list(failures)
 
 

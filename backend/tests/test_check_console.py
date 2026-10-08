@@ -75,6 +75,9 @@ def _write(path: Path, text: str) -> None:
     path.write_bytes(text.encode("utf-8"))
 
 
+_GLOBAL_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'"
+
+
 @pytest.fixture
 def tree(tmp_path: Path) -> Path:
     """A tree every check passes."""
@@ -87,6 +90,7 @@ def tree(tmp_path: Path) -> Path:
             {"source": "/finishReset", "destination": "/finishReset/index.html"},
         ],
         "headers": [
+            {"source": "**", "headers": [{"key": "Content-Security-Policy", "value": _GLOBAL_CSP}]},
             {"source": "/console/**", "headers": [{"key": "Content-Security-Policy", "value": _CSP}]},
             {"source": "{/login,/account}", "headers": [{"key": "Content-Security-Policy", "value": _CSP}]},
         ],
@@ -98,6 +102,7 @@ def tree(tmp_path: Path) -> Path:
     for sub, up in _CONSOLE_DIRS.items():
         _write(console / sub / "index.html", _page(up))
         _write(console / sub / "page.js", _PAGE_JS.format(up=up))
+    _write(public / "terms" / "index.html", "<!doctype html><title>Terms</title><p>The terms.</p>\n")
     _write(public / "finishSignIn" / "index.html", "<!doctype html><title>Finish</title><p>Open it on your phone.</p>\n")
     _write(public / "finishReset" / "index.html",
            '<!doctype html><head><script src="/finishReset/reset.js"></script></head>\n'
@@ -162,7 +167,7 @@ def test_an_inline_handler_fails_with_its_line(checker, tree):
 
 def test_an_inline_script_on_an_auth_page_fails(checker, tree):
     _edit(tree / "firebase-hosting/public/finishReset/index.html", "</body>", "<script>x()</script></body>")
-    _one_failure(checker, tree, "finishReset", "auth pages keep their code in files")
+    _one_failure(checker, tree, "finishReset", "global CSP is script-src 'self'")
 
 
 # ---------------- 2: modules exist and parse ----------------
@@ -316,3 +321,20 @@ def test_a_console_page_not_born_pending_fails(checker, tree):
 def test_a_status_line_that_is_not_a_live_region_fails(checker, tree):
     _edit(_console(tree, "account", "index.html"), ' aria-live="polite"', "")
     _one_failure(checker, tree, "account", 'lacks aria-live="polite"')
+
+
+# ---------------- 11: no CSP runs inline script ----------------
+def test_a_global_csp_that_allows_inline_script_fails(checker, tree):
+    _edit(tree / "firebase-hosting/firebase.json", "script-src 'self'; style-src",
+          "script-src 'self' 'unsafe-inline'; style-src")
+    _one_failure(checker, tree, "the ** CSP's script-src allows 'unsafe-inline'")
+
+
+def test_inline_script_on_a_legal_page_fails(checker, tree):
+    _edit(tree / "firebase-hosting/public/terms/index.html", "<p>", "<script>track()</script><p>")
+    _one_failure(checker, tree, "terms", "inline script, handler or javascript: URL")
+
+
+def test_an_inline_handler_on_a_legal_page_fails(checker, tree):
+    _edit(tree / "firebase-hosting/public/terms/index.html", "<p>", '<p onclick="go()">')
+    _one_failure(checker, tree, "terms", "inline script, handler or javascript: URL")
