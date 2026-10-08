@@ -9,7 +9,7 @@
  * or remembered in the browser, so an account that changes hands routes
  * correctly the first time.
  */
-import { requireSignIn, api, setStatus, esc } from "./auth.js";
+import { requireSignIn, api, setStatus, esc, whileWaiting } from "./auth.js";
 import { licencesAdministered } from "./roles.js";
 
 const $ = (id) => document.getElementById(id);
@@ -38,12 +38,11 @@ const DESTINATIONS = {
 
 requireSignIn(async () => {
   $("signedOut").hidden = true;
-  setStatus("Finding your dashboard…");
   try {
-    const [me, administered] = await Promise.all([
-      api("/v1/me"),
-      licencesAdministered(),
-    ]);
+    const [me, administered] = await whileWaiting(
+      Promise.all([api("/v1/me"), licencesAdministered()]),
+      "Finding your dashboard…",
+    );
     route(me, administered);
   } catch (e) {
     // /v1/me failing is the one thing this page cannot work around: with

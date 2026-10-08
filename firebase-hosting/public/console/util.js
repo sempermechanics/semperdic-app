@@ -316,3 +316,23 @@ export function licenceEditPatch(lic, form, now = Date.now()) {
   if (!Object.keys(patch).length) return fail("Nothing changed.");
   return { patch, shortens, error: "" };
 }
+
+/**
+ * Grey placeholder rows for a table that is loading: `count` rows of
+ * `columns` cells, the shape of what is coming, so the page does not sit
+ * empty or jump when the answer lands. Hidden from screen readers, which
+ * hear the status line ("Loading licences…") instead.
+ */
+export function placeholderRows(columns, count = 3) {
+  const row = '<td><span class="skeleton"></span></td>'.repeat(columns);
+  return `<tr class="placeholder" aria-hidden="true">${row}</tr>`.repeat(count);
+}
+
+/**
+ * The row a table shows when its load failed: what went wrong, and a Retry
+ * button (`data-retry`) the page wires to that one load.
+ */
+export function retryRow(columns, message) {
+  return `<tr><td colspan="${columns}" class="err">${esc(message)} ` +
+    '<button class="secondary" data-retry>Retry</button></td></tr>';
+}

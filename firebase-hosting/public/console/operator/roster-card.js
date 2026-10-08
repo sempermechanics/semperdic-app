@@ -1,8 +1,8 @@
 /* The roster card: one institution licence's members, through the shared
  * roster component (`../roster.js`) on the staff routes.
  */
-import { esc } from "../auth.js";
 import { wireRoster, fetchRoster } from "../roster.js";
+import { placeholderRows, retryRow } from "../util.js";
 import { $, labelOf } from "./state.js";
 import { refreshLicence } from "./licences.js";
 
@@ -29,6 +29,7 @@ const renderRoster = wireRoster({
     await loadRoster();
     refreshLicence(id);
   },
+  retry: () => loadRoster(),
 });
 
 $("rosterClose").addEventListener("click", closeRoster);
@@ -52,11 +53,15 @@ export async function openRoster(id) {
 
 async function loadRoster() {
   if (!roster) return;
+  const open = roster;
+  // Another licence's members must not stay on screen under this one's name.
+  $("rosterRows").innerHTML = placeholderRows(5, 3);
   try {
     const data = await fetchRoster(rosterBase());
+    if (roster !== open) return; // closed, or another roster opened meanwhile
     renderRoster(data.seats, data.invites);
   } catch (e) {
-    $("rosterRows").innerHTML =
-      `<tr><td colspan="5" class="err">${esc(`Could not load the roster: ${e.message}`)}</td></tr>`;
+    if (roster !== open) return;
+    $("rosterRows").innerHTML = retryRow(5, `Could not load the roster: ${e.message}`);
   }
 }

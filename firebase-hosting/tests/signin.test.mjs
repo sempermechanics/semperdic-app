@@ -6,7 +6,7 @@
 import { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
-  test, fake, FakeUser, readyUser, reset, settle, storage, prompts, codes, page, $, loadAuth,
+  test, fake, FakeUser, readyUser, reset, settle, storage, prompts, codes, page, $, loadAuth, until,
 } from "./harness.mjs";
 
 const auth = await loadAuth();
@@ -34,6 +34,44 @@ function returningFromRevokeStepUp(resume = { action: "revoke", id: "L1" }) {
   storage.setItem(RESUME, JSON.stringify(resume));
   return resume;
 }
+
+test("before the sign-in state is known, the page says it is checking, and offers no Sign in", () => {
+  assert.equal(page.body.dataset.auth, "pending", "console.css hides Sign in while pending");
+  assert.equal($("status").textContent, "Checking your sign-in…");
+  assert.equal($("status").getAttribute("role"), "status");
+  assert.equal($("status").getAttribute("aria-live"), "polite");
+});
+
+test("signed out, the page says so: data-auth out, and the checking line cleared", async () => {
+  await start(null);
+  assert.equal(page.body.dataset.auth, "out");
+  assert.equal($("status").textContent, "");
+  assert.equal("pending" in $("status").dataset, false);
+});
+
+test("a message from the return leg replaces the checking line and stays", async () => {
+  storage.setItem(AFTER_REAUTH, "Re-authenticated.");
+  fake.redirectResult = { user: readyUser() };
+  await start(readyUser());
+  assert.equal(page.body.dataset.auth, "in");
+  assert.equal($("status").textContent, "Re-authenticated.");
+});
+
+test("signed in, the checking line is cleared before the page starts", async () => {
+  const ready = await start(readyUser());
+  assert.equal(ready.length, 1);
+  assert.equal(page.body.dataset.auth, "in");
+  assert.equal($("status").textContent, "");
+});
+
+test("showApp: false leaves the dashboard hidden for the page to show", async () => {
+  fake.auth.currentUser = readyUser();
+  const ready = [];
+  auth.requireSignIn((u) => ready.push(u), { showApp: false });
+  await settle();
+  assert.equal(ready.length, 1);
+  assert.equal($("app").hidden, true);
+});
 
 test("a signed-out visitor sees Sign in and no dashboard", async () => {
   const ready = await start(null);
@@ -169,8 +207,19 @@ test("a sign-in that timed out before a code was accepted says to sign in again"
   assert.equal($("status").className, "muted err");
 });
 
+test("enrolling fetches the QR code library then, and draws the code", async () => {
+  await start(new FakeUser());
+  await until(() => page.inserted.some((e) => e.className === "card enrol"), "the enrolment card");
+  const card = page.inserted.find((e) => e.className === "card enrol");
+  assert.match(card.querySelector(".qr").innerHTML, /^<svg/);
+  assert.ok(!card.querySelector(".qr").hidden, "the picture is shown");
+  card.querySelector(".cancel").click();
+  await settle();
+});
+
 test("declining to enrol signs the account out: every dashboard needs 2FA", async () => {
   const ready = await start(new FakeUser());
+  await until(() => page.inserted.some((e) => e.className === "card enrol"), "the enrolment card");
   const card = page.inserted.find((e) => e.className === "card enrol");
   card.querySelector(".cancel").click();
   await settle();

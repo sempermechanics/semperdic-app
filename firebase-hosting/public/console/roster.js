@@ -80,10 +80,11 @@ const ACT_ERRORS = {
 /**
  * Wire a roster table. `base()` is the open licence's path, "" when none is;
  * `report(message, isError)` shows what happened; `reload()` reads the
- * licence again after a change (the page re-renders through `render`).
+ * licence again after a change (the page re-renders through `render`), and
+ * `retry()` (default `reload`) answers the Retry of a failed load.
  * Returns `render(seats, invites)`, which fills `rows`.
  */
-export function wireRoster({ rows, email, add, base, report, reload }) {
+export function wireRoster({ rows, email, add, base, report, reload, retry = reload }) {
   async function act(action, uid) {
     const spec = ACTIONS[action];
     if (action === "remove" && !(await confirmInPage({
@@ -153,6 +154,7 @@ export function wireRoster({ rows, email, add, base, report, reload }) {
     if (!btn) return;
     if (btn.dataset.act) act(btn.dataset.act, btn.dataset.uid);
     else if (btn.dataset.invite) withdraw(btn.dataset.invite);
+    else if ("retry" in btn.dataset) retry();
   });
   add.addEventListener("click", addMember);
   email.addEventListener("keydown", (e) => { if (e.key === "Enter") addMember(); });

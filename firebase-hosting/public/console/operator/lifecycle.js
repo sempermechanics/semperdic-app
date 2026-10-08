@@ -4,7 +4,7 @@
 import {
   api, setStatus, esc, askInPage, confirmInPage, confirmByTyping, stepUpForRevoke, ERR_CANCELLED,
 } from "../auth.js";
-import { day, daysLeft } from "../util.js";
+import { day, daysLeft, placeholderRows, retryRow } from "../util.js";
 import { explain } from "../messages.js";
 import { $, desk, findLicence, labelOf } from "./state.js";
 import { showLicence, renderLicences } from "./licences.js";
@@ -162,6 +162,8 @@ $("loadDeleted").addEventListener("click", loadDeleted);
 async function loadDeleted() {
   $("loadDeleted").textContent = "Refresh";
   $("deletedWrap").hidden = false;
+  $("deletedRows").innerHTML = placeholderRows(7, 2);
+  $("loadDeleted").disabled = true;
   try {
     const data = await api("/v1/admin/deleted-licenses?limit=50");
     const rows = data.licenses || [];
@@ -169,8 +171,9 @@ async function loadDeleted() {
       ? rows.map(deletedRow).join("")
       : '<tr><td colspan="7" class="muted">Nothing deleted in the last 30 days.</td></tr>';
   } catch (e) {
-    $("deletedRows").innerHTML =
-      `<tr><td colspan="7" class="err">Could not load: ${esc(e.message)}</td></tr>`;
+    $("deletedRows").innerHTML = retryRow(7, `Could not load: ${e.message}`);
+  } finally {
+    $("loadDeleted").disabled = false;
   }
 }
 
@@ -190,6 +193,7 @@ function deletedRow(lic) {
 }
 
 $("deletedRows").addEventListener("click", async (ev) => {
+  if (ev.target.closest("button[data-retry]")) return loadDeleted();
   const btn = ev.target.closest("button[data-restore]");
   if (!btn) return;
   const id = btn.dataset.restore;

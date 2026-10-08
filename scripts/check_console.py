@@ -31,9 +31,20 @@ runtime, and a person only discovers in production:
    `backend/app/errors.py`, or a reconciliation reason. A renamed code
    otherwise leaves the page's sentence for it unreachable, and the user sees
    the raw code. `tests/test_error_codes.py` holds the same line for the app.
+9. Every page preloads exactly the modules it runs, so the browser fetches
+   them in one wave instead of one wave per level of imports: a
+   `<link rel="modulepreload">` for each module its scripts import, directly
+   or not, by relative path or from www.gstatic.com, and none for a module
+   only imported on demand (`import("./qr.js")`). Plus the preload of
+   `/__/firebase/init.json` in the mode auth.js fetches it, and no preload
+   that sends credentials. A missing preload costs a round trip; one too
+   many downloads code the page never runs.
+10. Every page starts as "checking your sign-in": `<body data-auth="pending">`
+   (console.css keeps Sign in hidden until auth.js knows) and a `#status`
+   that is a polite live region, so each step of a load is read out.
 
 Checks 2, 3, 7 and 8 read every module a page runs: its `<script src>` and,
-transitively, what those import by relative path.
+transitively, what those import by relative path, including on demand.
 
 Run: `python scripts/check_console.py`. Exit 1 on the first failure found,
 after reporting all of them.
@@ -72,26 +83,41 @@ _RELATIVE_IMPORT = re.compile(
     r"""^\s*(?:import|export)\b[^;]*?\bfrom\s*["'](\.{1,2}/[^"']+)["']|^\s*import\s*["'](\.{1,2}/[^"']+)["']""",
     re.M,
 )
+#: `import("./qr.js")`: a module fetched on demand, not when the page loads.
+_DYNAMIC_IMPORT = re.compile(r"""\bimport\(\s*["'](\.{1,2}/[^"']+)["']\s*\)""")
+#: A module imported from another origin (the Firebase SDK).
+_REMOTE_IMPORT = re.compile(
+    r"""^\s*(?:import|export)\b[^;]*?\bfrom\s*["'](https://[^"']+)["']""", re.M,
+)
 
 
-def page_modules(page: str) -> list[str]:
-    """Every module a page runs: each `<script src>` and, transitively, every
-    module those import by relative path. A page module split into parts
-    keeps every check below; reading only the entry script would let a moved
-    `$("id")` or `/v1` path escape them."""
-    html = read(page)
-    queue = [
+def page_scripts(page: str) -> list[str]:
+    """The modules a page names in `<script src>`."""
+    return [
         os.path.normpath(os.path.join(os.path.dirname(page), src))
-        for src in re.findall(r'<script\b[^>]*\bsrc="([^"]+)"', html)
+        for src in re.findall(r'<script\b[^>]*\bsrc="([^"]+)"', read(page))
     ]
+
+
+def page_modules(page: str, *, on_demand: bool = True) -> list[str]:
+    """Every module a page runs: each `<script src>` and, transitively, every
+    module those import by relative path — and, unless `on_demand` is false,
+    those imported on demand. A page module split into parts keeps every
+    check below; reading only the entry script would let a moved `$("id")`
+    or `/v1` path escape them."""
+    queue = page_scripts(page)
     seen: list[str] = []
     while queue:
         module = queue.pop(0)
         if module in seen or not os.path.isfile(module):
             continue
         seen.append(module)
-        for a, b in _RELATIVE_IMPORT.findall(read(module)):
-            queue.append(os.path.normpath(os.path.join(os.path.dirname(module), a or b)))
+        code = read(module)
+        targets = [a or b for a, b in _RELATIVE_IMPORT.findall(code)]
+        if on_demand:
+            targets += _DYNAMIC_IMPORT.findall(code)
+        for target in targets:
+            queue.append(os.path.normpath(os.path.join(os.path.dirname(module), target)))
     return seen
 
 
@@ -155,6 +181,90 @@ def check_scripts() -> None:
             line = html[: match.start()].count("\n") + 1
             fail(page, f"line {line}: inline event handler — blocked by the "
                        "console CSP; use addEventListener in the module")
+
+
+# ---------------- 9: each page preloads exactly what it runs --------------
+
+_LINK = re.compile(r"<link\b([^>]*)>")
+
+
+def _attr(attrs: str, name: str) -> str | None:
+    found = re.search(r"\b" + name + r'="([^"]*)"', attrs)
+    return found.group(1) if found else None
+
+
+def _href(module: str, page: str) -> str:
+    """`module` as the page would write it in an href."""
+    return os.path.relpath(module, os.path.dirname(page)).replace(os.sep, "/")
+
+
+def check_preloads() -> None:
+    for page in PAGES:
+        html = read(page)
+        links = [m.group(1) for m in _LINK.finditer(html)]
+        preloaded, remote = set(), set()
+        init_json = False
+        for attrs in links:
+            rel = _attr(attrs, "rel")
+            href = _attr(attrs, "href") or ""
+            if rel not in ("modulepreload", "preload"):
+                continue
+            if _attr(attrs, "crossorigin") == "use-credentials":
+                fail(page, f"preloads {href} with credentials — every request "
+                           "these pages make is anonymous, so the browser "
+                           "would fetch it a second time")
+            if rel == "preload":
+                if href == "/__/firebase/init.json":
+                    init_json = (_attr(attrs, "as") == "fetch"
+                                 and _attr(attrs, "crossorigin") == "anonymous")
+                continue
+            if href.startswith("https://"):
+                remote.add(href)
+            else:
+                preloaded.add(os.path.normpath(os.path.join(os.path.dirname(page), href)))
+
+        if not init_json:
+            fail(page, 'no <link rel="preload" href="/__/firebase/init.json" '
+                       'as="fetch" crossorigin="anonymous"> — auth.js waits for '
+                       "that file before anything else can start, and a preload "
+                       "in another mode is not reused")
+
+        static = page_modules(page, on_demand=False)
+        on_demand = set(page_modules(page)) - set(static)
+        wanted = set(static) - set(page_scripts(page))
+        for module in sorted(wanted - preloaded):
+            fail(page, f"does not preload {_href(module, page)}, which it runs — "
+                       f'add <link rel="modulepreload" href="{_href(module, page)}">')
+        for module in sorted(preloaded - wanted):
+            why = ("is only imported on demand" if module in on_demand
+                   else "is a <script src> of the page already" if module in page_scripts(page)
+                   else "is not imported by this page")
+            fail(page, f"preloads {_href(module, page)}, which {why}")
+
+        imported = {url for module in static for url in _REMOTE_IMPORT.findall(read(module))}
+        for url in sorted(imported - remote):
+            fail(page, f'does not preload {url}, which it imports — add '
+                       f'<link rel="modulepreload" href="{url}">')
+        for url in sorted(remote - imported):
+            fail(page, f"preloads {url}, which no module it runs imports")
+
+
+# ---------------- 10: pages start pending, with a live status line --------
+
+
+def check_pending() -> None:
+    for page in PAGES:
+        html = read(page)
+        if not re.search(r'<body\b[^>]*\bdata-auth="pending"', html):
+            fail(page, '<body> lacks data-auth="pending" — a signed-in visitor '
+                       "is offered Sign in until auth.js has checked")
+        status = re.search(r'<p\b[^>]*\bid="status"[^>]*>', html)
+        attrs = status.group(0) if status else ""
+        for want in ('role="status"', 'aria-live="polite"', "data-pending"):
+            if want not in attrs:
+                fail(page, f"#status lacks {want} — the status line is how "
+                           "every wait is explained, and a screen reader "
+                           "hears it only from a live region")
 
 
 # ---------------- 3: every id a module asks for, its page defines ---------
@@ -358,6 +468,8 @@ def main() -> int:
     check_placeholders(check_hosting())
     check_gateway()
     check_codes()
+    check_preloads()
+    check_pending()
 
     if failures:
         print("Console checks failed:\n", file=sys.stderr)
