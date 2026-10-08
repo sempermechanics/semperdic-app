@@ -75,6 +75,9 @@ non-modal `TransferBannerController` strip.
 
 - **Bit-exact fields.** Do not change `.dat` packing, ZNSSD threshold, or DatCodec
   oracles unless the engine contract major-bumps. GIF bytes are pinned 0-delta.
+  The golden files that hold both are `app/src/test/resources/oracles/`
+  (`results/DatFieldOracleTest`, `results/SummaryGifOracleTest`); regenerating
+  one (`-PupdateGoldens`) is a reviewed decision, never a fix for a red build.
 - **JNI buffer is bounded.** Allocate to the ROI grid; a point count over capacity
   is an engine failure, never a read past the buffer.
 - **Hot loops stay fused.** VisualizationEngine pixel loops, GifEncoder LZW, the

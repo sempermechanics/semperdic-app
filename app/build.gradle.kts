@@ -286,6 +286,12 @@ android {
                 // own state and the Kover agent's data make up most of the
                 // rest. 2 GB is headroom for the suite to grow, not a need.
                 test.maxHeapSize = "2g"
+                // Golden oracles (fixtures/Goldens.kt): `-PupdateGoldens`
+                // rewrites the committed files under src/test/resources/oracles
+                // instead of comparing against them. Never in CI.
+                test.systemProperty("semper.goldens.dir", file("src/test/resources/oracles").absolutePath)
+                test.systemProperty("semper.goldens.update", project.hasProperty("updateGoldens").toString())
+                if (project.hasProperty("updateGoldens")) test.outputs.upToDateWhen { false }
             }
         }
     }
@@ -413,9 +419,9 @@ kover {
             }
         }
         verify {
-            // Two points under the measured coverage (2026-10-08: lines 75.84 %,
-            // branches 60.03 %), so churn does not fail unrelated PRs while a real
-            // drop does. Every PR that adds tests re-measures (`koverXmlReport`,
+            // Two points under the measured coverage (2026-10-08, after the golden
+            // oracles: lines 75.88 %, branches 60.08 %), so churn does not fail
+            // unrelated PRs while a real drop does. Every PR that adds tests re-measures (`koverXmlReport`,
             // the totals in build/reports/kover/report.xml) and raises both to
             // measured − 2; never lower them. The line floor sat at 49 while
             // coverage climbed past 75, so a 26-point drop would have passed.
