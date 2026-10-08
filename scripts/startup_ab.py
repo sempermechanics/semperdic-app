@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import statistics
 import subprocess
@@ -126,7 +127,10 @@ def analyse(out: Path, ab_margin: float) -> int:
             continue
         median_a, median_b = statistics.median(a), statistics.median(b)
         change = median_b / median_a - 1
-        verdict = "FAIL" if change > ab_margin else "ok"
+        # Only more than the margin fails. 110 / 100 - 1 is 0.10000000000000009
+        # in floating point, so a B exactly at the limit needs the tolerance.
+        over = change > ab_margin and not math.isclose(change, ab_margin, abs_tol=1e-9)
+        verdict = "FAIL" if over else "ok"
         line = (
             f"{test} {METRIC}: A {median_a:.1f} ms (n={len(a)}), B {median_b:.1f} ms (n={len(b)}), "
             f"B {change:+.1%} (limit +{ab_margin:.0%})"
