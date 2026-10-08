@@ -12,6 +12,40 @@ Decisions that outlive their PR are recorded in
 [CLOUD_ARCHITECTURE_GCP.md](../backend/CLOUD_ARCHITECTURE_GCP.md) §20,
 [ARCHITECTURE.md](../app/ARCHITECTURE.md) and [../adr/](../adr/).
 
+## 2026-10-08 — Hosting and backend deploys: a page-not-found page, and the CORS preflight cached for two hours (#375)
+
+Hosting and staging from `cfa057c8` (`main` after #375). Production from `b6ee1544`:
+the commits between them, #377 and #378, change only Hosting and docs, so production
+ran the same backend code as staging.
+
+**Hosting**, with `scripts/deploy-console.sh` against `semper-gw`: one file uploaded,
+`public/404.html`, and the script's live check found the gateway filled in.
+- `/nope-xyz` and `/console/operator/nope` on `app.sempermechanics.com` now answer
+  404 with "This page doesn't exist". Before, they got Firebase's stock page.
+- The page goes to `/login` after 5 s, with a bar and a Go there now link. It uses
+  no script, so it works under the `/console/**` policy too.
+- `/console/config.js` and the CSP on `/login` carry no `__API_…` placeholder.
+
+**Staging backend**, `deploy-backend.yml` run 37773100006, gateway `dry-run`:
+- The candidate passed the `/readyz` smoke (`firestore: ok`, `drive: ok`).
+  `semper-api-staging-37773100006-1` took 100 %, and the serving and rollback images
+  were re-pinned.
+- `semper-gw-staging` answers the dashboards' preflight with
+  `access-control-max-age: 7200`. The origin, methods and headers are unchanged.
+- **Gateway:** the dry-run diff against the live `v202610070547-manual` config
+  showed 29 changed lines. All are `—` and `→` in description text, which the live
+  config holds mis-encoded (`â€”`, `â†’`) since the 2026-10-07 hand deploy. There is no
+  route or security change, so no gateway update is needed for #375.
+
+**Production backend**, `deploy-backend.yml` run 37774012180, gateway `dry-run`,
+started by the operator:
+- The candidate passed the same smoke. `semper-api-37774012180-1` took 100 %, and the
+  serving and rollback images were re-pinned.
+- `semper-gw` answers the preflight with `access-control-max-age: 7200`; it answered
+  `600` before the run.
+- The dry-run against `v202610070628-manual` showed the same 29 encoding-only lines,
+  so `semper-gw` is unchanged.
+
 ## 2026-10-08 — Hosting deploy: the default CSP runs no inline script (#377, TD-204)
 
 #377 (`05f71c58`) was deployed with `scripts/deploy-console.sh` and the live check
