@@ -93,6 +93,17 @@ hooks.inserted = (card) => {
     answerAskCard(card);
     return;
   }
+  if (card.className === "card confirm") {
+    answerConfirmCard(card);
+    return;
+  }
+  if (card.className === "card tell") {
+    // Read and closed, as window.alert was: `alerts` keeps the message.
+    alerts.push(cardMessage(card));
+    confirms.cards.push(card);
+    setImmediate(() => { if (!card.removed) card.querySelector(".confirm").click(); });
+    return;
+  }
   if (card.className !== "card code") return;
   codes.asked += 1;
   codes.cards.push(card);
@@ -138,9 +149,14 @@ hooks.inserted = (card) => {
   step();
 };
 
+/** A card's message as auth.js was given it: its paragraphs, a blank line apart. */
+function cardMessage(card) {
+  return card.querySelectorAll(".line").map((p) => p.textContent).join("\n\n");
+}
+
 /** Answer an ask card from `prompts`, once auth.js has wired its buttons. */
 function answerAskCard(card) {
-  prompts.asked.push(card.querySelectorAll(".line").map((p) => p.textContent).join("\n\n"));
+  prompts.asked.push(cardMessage(card));
   prompts.cards.push(card);
   const generation = prompts.generation;
   let idle = 0;
@@ -165,6 +181,29 @@ function answerAskCard(card) {
   step();
 }
 
+/**
+ * Answer a confirm card (auth.js `confirmInPage`) from `confirms`, once
+ * auth.js has wired its buttons: true presses the confirm button, false
+ * presses Cancel. An unscripted card fails the test.
+ */
+function answerConfirmCard(card) {
+  confirms.asked.push(cardMessage(card));
+  confirms.cards.push(card);
+  const generation = confirms.generation;
+  let idle = 0;
+  const step = () => setImmediate(() => {
+    if (card.removed || generation !== confirms.generation) return;
+    if (!confirms.answers.length) {
+      idle += 1;
+      if (idle < 200) step();
+      else throw new Error(`unscripted confirm card: ${confirms.asked.at(-1)}`);
+      return;
+    }
+    card.querySelector(confirms.answers.shift() ? ".confirm" : ".cancel").click();
+  });
+  step();
+}
+
 export const location = {
   host: "console.test",
   search: "",
@@ -174,9 +213,17 @@ export const location = {
   },
 };
 
-/** Scripted answers for window.confirm, in order; `alerts` records window.alert. */
+/**
+ * Scripted answers for the in-page confirm card (auth.js `confirmInPage`), in
+ * order: true confirms, false presses Cancel. `asked` records each card's
+ * message. `alerts` records each `tellInPage` card's message, which is closed
+ * at once. The consoles no longer call window.confirm or window.alert; the
+ * fakes below refuse them, as they do window.prompt.
+ */
 export const confirms = {
+  generation: 0,
   asked: [],
+  cards: [],
   answers: [],
   answer(...values) {
     this.answers.push(...values);
@@ -193,16 +240,15 @@ globalThis.window = {
     throw new Error(`window.prompt is not used by the consoles: ${message}`);
   },
   confirm(message) {
-    confirms.asked.push(message);
-    if (!confirms.answers.length) throw new Error(`unscripted confirm: ${message}`);
-    return confirms.answers.shift();
+    throw new Error(`window.confirm is not used by the consoles: ${message}`);
   },
   alert(message) {
-    alerts.push(message);
+    throw new Error(`window.alert is not used by the consoles: ${message}`);
   },
 };
-// The pages call confirm() bare as well as window.confirm().
+// A bare confirm() / alert() is refused the same way.
 globalThis.confirm = (message) => window.confirm(message);
+globalThis.alert = (message) => window.alert(message);
 globalThis.location = location;
 
 /* ---------------------------------------------------------------- fetch */
@@ -304,7 +350,9 @@ export function reset() {
   codes.retries = 0;
   codes.cards = [];
   codes.answers = [];
+  confirms.generation += 1;
   confirms.asked = [];
+  confirms.cards = [];
   confirms.answers = [];
   alerts.length = 0;
   net.requests = [];

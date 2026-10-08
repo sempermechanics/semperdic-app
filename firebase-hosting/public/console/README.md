@@ -138,6 +138,17 @@ card's buttons are `type="button"` and Enter is handled by the card, so it
 never submits the Edit form. In the tests, `prompts` answers these cards, and
 the fake `window.prompt` fails the test if anything calls it.
 
+`window.confirm` and `window.alert` are gone too, for the same reason. Every
+yes / no question is a `confirmInPage` card (the same card with no box,
+resolving true or false): the desk's who-is-affected step before a revoke or
+delete and the one after the return from Google, New device, the roster's
+Remove and Withdraw (on the desk and the institution page), and the account
+page's give-a-seat-back and move-a-device. Device history is a `tellInPage`
+card with one Close button; the card keeps single line breaks, one move a
+line. In the tests, `confirms` answers the yes / no cards and `alerts` records
+each tell card, and the fake `window.confirm` / `window.alert` fail the test
+if anything calls them.
+
 ## Confirming destructive actions
 
 Revoking a licence drops a whole institution to demo, so the page asks more

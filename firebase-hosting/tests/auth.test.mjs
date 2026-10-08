@@ -6,7 +6,7 @@ import { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   test, fake, FakeUser, readyUser, reset, settle, stillPending, rejection,
-  net, json, storage, prompts, codes, page, $, loadAuth,
+  net, json, storage, prompts, codes, confirms, alerts, page, $, loadAuth,
 } from "./harness.mjs";
 
 // Dynamic, so that these load after harness.mjs registered its hooks.
@@ -548,6 +548,40 @@ test("the ask card sits under the status line, its text never markup, and goes o
   assert.equal(card.querySelector("input").focused, true);
   assert.equal(card.querySelector(".confirm").getAttribute("type"), "button", "never submits a surrounding form");
   assert.equal(card.removed, true);
+});
+
+/* ------------------------------------------- confirmInPage, tellInPage */
+
+test("a confirm card answers yes or no, its text never markup, and goes once answered", async () => {
+  confirms.answer(true, false);
+  assert.equal(await auth.confirmInPage({ title: "Revoke <b>X</b>", message: "Sure?\n\nReally?" }), true);
+  assert.equal(await auth.confirmInPage({ title: "Revoke X", message: "Again?", confirm: "Revoke" }), false);
+  assert.deepEqual(confirms.asked, ["Sure?\n\nReally?", "Again?"]);
+  const [first, second] = confirms.cards;
+  assert.equal(first.anchor, $("status"));
+  assert.equal(first.querySelector("h2").textContent, "Revoke <b>X</b>", "the title went in as text");
+  assert.equal(first.querySelector("h2").querySelectorAll("b").length, 0);
+  assert.equal(first.querySelector("input"), null, "a yes / no card has no box");
+  assert.equal(first.querySelector(".confirm").textContent, "Continue");
+  assert.equal(first.querySelector(".confirm").focused, true);
+  assert.equal(second.querySelector(".confirm").textContent, "Revoke");
+  assert.equal(second.querySelector(".cancel").textContent, "Cancel");
+  assert.equal(first.removed && second.removed, true);
+});
+
+test("a tell card shows its message with one Close button and goes once closed", async () => {
+  await auth.tellInPage({ title: "Device history", message: "Device history for X\n\na\nb" });
+  assert.deepEqual(alerts, ["Device history for X\n\na\nb"]);
+  const [card] = confirms.cards;
+  assert.equal(card.querySelector(".cancel"), null);
+  assert.equal(card.querySelector(".confirm").textContent, "Close");
+  assert.equal(card.removed, true);
+});
+
+test("the browser's own dialogs are refused: some browsers show none", () => {
+  assert.throws(() => window.confirm("x"), /window.confirm is not used/);
+  assert.throws(() => window.alert("x"), /window.alert is not used/);
+  assert.throws(() => window.prompt("x"), /window.prompt is not used/);
 });
 
 test("the revoke password is asked for in a password box", async () => {

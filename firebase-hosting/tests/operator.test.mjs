@@ -7,7 +7,7 @@
 import { beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
-  test, reset, settle, openPage, json, net, confirms, prompts, codes, sent, storage, fake,
+  test, reset, settle, openPage, json, net, confirms, alerts, prompts, codes, sent, storage, fake,
   readyUser, FakeUser, $, loadAuth,
 } from "./harness.mjs";
 
@@ -565,6 +565,23 @@ test("New device asks, then clears the lock and says the next device takes it", 
   await settle();
   assert.deepEqual(JSON.parse(net.requests.find((r) => r.method === "PATCH").body), { clearDeviceLock: true });
   assert.deepEqual(status(), ["SEMP-IND1 unbound — the next device to sign in takes it.", "muted"]);
+});
+
+test("Device history is shown in the page, one move a line", async () => {
+  await open({ routes: {
+    [`GET /v1/admin/licenses/${IND.id}/device-history`]: () => json(200, { events: [
+      { ts: "2026-10-07T11:23Z", action: "bind", uid: "u1", detail: { deviceId: "dev-2", app: "semper" } },
+      { ts: "2026-10-07T11:21Z", action: "clear", uid: "staff", detail: { previousDeviceId: "dev-1" } },
+    ] }),
+  } });
+  rowButton("history", IND.id).click();
+  await settle();
+  assert.deepEqual(alerts, [
+    "Device history for SEMP-IND1\n\n" +
+    "2026-10-07T11:23Z  bind  by u1 (semper)  → dev-2\n" +
+    "2026-10-07T11:21Z  clear  by staff  left dev-1",
+  ]);
+  assert.equal(confirms.cards[0].removed, true);
 });
 
 /* --------------------------------------------------------------- roster */
