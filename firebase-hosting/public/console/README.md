@@ -361,6 +361,56 @@ Each page marks `semper:auth-ready` (sign-in and the second factor settled)
 and `semper:first-data` (its first loaded data shown) with the Performance
 API, so a load can be timed with `performance.getEntriesByType("mark")`.
 
+### Waiting
+
+A load is never a blank page or a silent one:
+
+- **Before the sign-in state is known** a page says "Checking your sign-in…"
+  and does not offer Sign in: `<body data-auth="pending">` and a pending
+  `#status` in the markup, and `console.css` keeps `#signIn` / `#signedOut`
+  hidden until `auth.js` sets `data-auth` to `in` or `out`. If the scripts
+  never run, a CSS animation shows them after 8 s.
+- **Restricted pages stay hidden until allowed.** The operator desk and the
+  institution page call `requireSignIn(onReady, { showApp: false })` and show
+  `#app` only once `/v1/me` (or the licence list) says the account may see it.
+- **Each step is named** on the status line by `whileWaiting` (`auth.js`):
+  "Checking your access…", "Loading licences…", "Loading the roster…",
+  "Loading your analyses…", "Finding your dashboard…". After 4 s it adds
+  "Still working — the server can take a few seconds to start.": the API
+  scales to zero, and its first answer after idling was measured at 10.7 s.
+  `#status` is a polite live region, so a screen reader hears each step.
+- **Tables show their shape while they load** (`placeholderRows` in
+  `util.js`; the account's licence card has them in its markup), pulsing only
+  without `prefers-reduced-motion`.
+- **A failed table says so in the table, with Retry** (`retryRow`), which
+  reruns that one load.
+- **No double loads, no stale answers.** A list's Refresh / Show more / Open /
+  Re-check is disabled while it loads (two clicks on Show more listed a page
+  twice), and each load takes a ticket so an older answer arriving late is
+  dropped rather than drawn over a newer one.
+
+### Screen sizes
+
+Phone up to 600px, tablet 601–1024px, desktop beyond, the same in every
+media query in `console.css`.
+
+- **Phone:** every table in a `.wrap` becomes a stack of cards, its first
+  cell as the heading and the rest as "label value" lines. `chrome.js`
+  copies each column's heading onto its cells (`data-label`) whenever a
+  table's rows change. The header keeps to two rows: brand, page, the
+  signed-in address (cut short; the whole of it on hover), Sign out; then
+  the dashboard switch, full width.
+- **Tablet and desktop:** tables stay tables and scroll sideways inside
+  their card, the first column pinned.
+- **Touch screens** (`pointer: coarse`): every control at least 44px high,
+  and text boxes at 16px so iOS does not zoom when one is tapped.
+- **Keyboard:** a visible accent outline on whatever has focus.
+
+On the desk, the licence table comes first and **Issue a licence** opens its
+card from the table's toolbar. Each licence row keeps Edit (and Roster) in
+view; the rest is under **More**, a `<details>` that opens in place, Revoke
+and Delete last.
+
 ## Checking them
 
 There is no compiler here, so nothing else in the repository fails when a
@@ -380,6 +430,7 @@ that reads them instead, and runs as the **Console pages** CI job:
 | Every `/v1` path a console calls is in `gateway/openapi.yaml` | ESPv2 is an allowlist; an undeclared route 404s in production |
 | Every refusal code a page matches (`e.code === "…"`, or a key of a sentence map) is declared in `backend/app/errors.py` | A renamed code leaves the page's sentence unreachable, and the page shows the raw code instead |
 | Every page preloads exactly the modules it imports (not those imported on demand), and `init.json` as `fetch`/`anonymous` | A missing preload costs a round trip per level of imports; a wrong mode or an extra one downloads twice or for nothing |
+| Every page starts `<body data-auth="pending">`, its `#status` a polite live region marked pending | Without them a signed-in visitor is offered Sign in first, and a screen reader hears none of the loading steps |
 
 Run it directly with `python scripts/check_console.py`. Node is used for the
 syntax check when it is on `PATH` and skipped with a note when it is not.

@@ -168,6 +168,44 @@ test("each member row offers only what applies to that seat", async () => {
   assert.equal($("rows").querySelectorAll('[data-uid="u3"]').length, 0, "nothing to act on for a removed member");
 });
 
+test("the seat manager stays hidden until the licence list names this address", async () => {
+  const list = deferred();
+  await open({ routes: { "GET /v1/institutions/licenses": () => list.promise } });
+  assert.equal($("app").hidden, true);
+  assert.equal($("status").textContent, "Checking your access…");
+  list.resolve(json(200, { licenses: [{ id: "L1" }] }));
+  await settle();
+  assert.equal($("app").hidden, false);
+});
+
+test("opening another licence while one loads shows the one asked for last", async () => {
+  const slow = deferred();
+  await open({ routes: {
+    [`GET ${SEATS}`]: () => slow.promise,
+    "GET /v1/institutions/licenses/L2/seats": () => json(200, {
+      ...assigned, license: { ...assigned.license, keyPrefix: "SEMP-UNI2" } }),
+  } });
+  assert.equal($("rows").querySelectorAll("tr.placeholder").length, 3, "placeholders, not the last roster");
+  $("licenseId").value = "L2";
+  $("load").disabled = false; // a person can also press Enter in the box
+  $("licenseId").dispatch("keydown", { key: "Enter" });
+  await settle();
+  assert.match(summary(), /^SEMP-UNI2/);
+  slow.resolve(json(200, assigned));
+  await settle();
+  assert.match(summary(), /^SEMP-UNI2/, "L1 answered late and was dropped");
+});
+
+test("a roster that fails to load offers Retry", async () => {
+  let fail = true;
+  await open({ routes: { [`GET ${SEATS}`]: () => (fail ? json(500, { detail: "boom" }) : json(200, assigned)) } });
+  assert.deepEqual(status(), ["Could not load: boom", "muted err"]);
+  fail = false;
+  $("rows").querySelector("button[data-retry]").click();
+  await settle();
+  assert.match(summary(), /^SEMP-UNI1/);
+});
+
 test("a licence that is not yours reads as not found, and the old roster goes", async () => {
   await open();
   net.routes[`GET ${SEATS}`] = () => json(404, { detail: "license_not_found" });

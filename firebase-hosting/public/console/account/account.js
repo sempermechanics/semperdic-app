@@ -7,8 +7,9 @@
  */
 import {
   requireSignIn, api, apiBlob, saveBlob, setStatus, esc, when, day, confirmInPage, markFirstData,
+  whileWaiting,
 } from "../auth.js";
-import { errorDetail, holdsLicence } from "../util.js";
+import { errorDetail, holdsLicence, placeholderRows, retryRow } from "../util.js";
 import { explain as refusalText } from "../messages.js";
 import { mountSwitcher } from "../switcher.js";
 import { licencesAdministered } from "../roles.js";
@@ -62,6 +63,9 @@ async function loadAccount() {
   } catch (e) {
     accountError = `Could not read your account: ${e.message}`;
     setStatus(accountError, true);
+    // The placeholders would otherwise read as still loading.
+    $("pills").innerHTML = "";
+    $("explain").textContent = "The licence could not be read. Reload the page to try again.";
   }
 }
 
@@ -231,14 +235,24 @@ function unbindError(e) {
 
 $("more").addEventListener("click", () => loadSessions({ reset: false }));
 
+let sessionsLoad = 0; // the latest list load; an older answer is dropped
+
 async function loadSessions({ reset }) {
-  if (reset) { sessions = []; nextToken = ""; }
-  setStatus("Loading your analyses…");
+  const ticket = ++sessionsLoad;
+  if (reset) {
+    sessions = [];
+    nextToken = "";
+    $("rows").innerHTML = placeholderRows(6, 3);
+  }
+  // One page at a time: a second click on Show more while the first was in
+  // flight asked for the same page again and listed it twice.
+  $("more").disabled = true;
   try {
     // Every app's analyses: a browser sends no X-App-Id, and without
     // `app=all` the backend would list only Semper's (ADR-014).
     const page = nextToken ? `&page_token=${encodeURIComponent(nextToken)}` : "";
-    const data = await api(`/v1/sessions?app=all${page}`);
+    const data = await whileWaiting(api(`/v1/sessions?app=all${page}`), "Loading your analyses…");
+    if (ticket !== sessionsLoad) return;
     sessions = sessions.concat(data.sessions || []);
     nextToken = (data.page || {}).nextPageToken || "";
     $("more").hidden = !nextToken;
@@ -247,7 +261,12 @@ async function loadSessions({ reset }) {
     renderSessions();
     setStatus(accountError, Boolean(accountError));
   } catch (e) {
-    setStatus(`Could not list your analyses: ${e.message}`, true);
+    if (ticket !== sessionsLoad) return;
+    const message = `Could not list your analyses: ${e.message}`;
+    setStatus(message, true);
+    if (!sessions.length) $("rows").innerHTML = retryRow(6, message);
+  } finally {
+    if (ticket === sessionsLoad) $("more").disabled = false;
   }
 }
 
@@ -316,6 +335,7 @@ function sessionRow(s) {
 // One listener on the body rather than one per row: the table is rebuilt
 // on every page load, and re-binding each time leaks handlers.
 $("rows").addEventListener("click", (e) => {
+  if (e.target.closest("button[data-retry]")) return loadSessions({ reset: true });
   const sid = e.target?.dataset?.download;
   if (sid) download(sid, e.target);
 });

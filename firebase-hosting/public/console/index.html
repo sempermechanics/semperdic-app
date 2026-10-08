@@ -29,7 +29,7 @@
   <link rel="modulepreload" href="util.js" />
   <link rel="modulepreload" href="roles.js" />
 </head>
-<body>
+<body data-auth="pending">
   <header>
     <a class="brand" href="https://sempermechanics.com/"><img src="semper-mark.webp" alt="" width="28" height="28" />semper</a>
     <h1>Sign in</h1>
@@ -41,8 +41,9 @@
 
   <main>
     <!-- Outside #app: enrolment, step-up and sign-in errors report here while
-         the dashboard is still hidden. -->
-    <p id="status" class="muted"></p>
+         the dashboard is still hidden. A live region, so each step of a load
+         is read out; it says it is checking the sign-in until auth.js knows. -->
+    <p id="status" class="muted" role="status" aria-live="polite" data-pending>Checking your sign-in…</p>
     <div id="app" hidden>
       <!-- Shown only when the account can open more than one dashboard, or
            when we could not establish which it should be. -->

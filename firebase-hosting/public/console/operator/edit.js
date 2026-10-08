@@ -6,7 +6,7 @@ import { day, isoDay, emailList, licenceEditPatch } from "../util.js";
 import { explain } from "../messages.js";
 import { $, findLicence, labelOf, demoCapNote } from "./state.js";
 import { showLicence, refreshLicence } from "./licences.js";
-import { kindRadios, syncKind } from "./mint.js";
+import { kindRadios, syncKind, openIssue } from "./mint.js";
 
 // ------------------------------------------------------------------ edit
 
@@ -68,6 +68,7 @@ $("editDemoIssue").addEventListener("click", () => {
   $("editDialog").close();
   for (const radio of kindRadios()) radio.checked = radio.value === "individual";
   syncKind();
+  openIssue();
   $("emailLock").value = email;
   $("emailLock").focus();
   setStatus(`Choose the term, then Issue licence: it attaches to ${email} and replaces the Demo key.`);

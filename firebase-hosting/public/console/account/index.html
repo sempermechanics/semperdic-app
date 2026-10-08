@@ -31,7 +31,7 @@
   <link rel="modulepreload" href="../switcher.js" />
   <link rel="modulepreload" href="../roles.js" />
 </head>
-<body>
+<body data-auth="pending">
   <header>
     <a class="brand" href="https://sempermechanics.com/"><img src="../semper-mark.webp" alt="" width="28" height="28" />semper</a>
     <h1>Your account</h1>
@@ -46,14 +46,16 @@
 
   <main>
     <!-- Outside #app: enrolment, step-up and sign-in errors report here while
-         the dashboard is still hidden. -->
-    <p id="status" class="muted"></p>
+         the dashboard is still hidden. A live region, so each step of a load
+         is read out; it says it is checking the sign-in until auth.js knows. -->
+    <p id="status" class="muted" role="status" aria-live="polite" data-pending>Checking your sign-in…</p>
     <div id="app" hidden>
       <!-- ---------------------------------------------------- licence -->
       <section class="card">
         <h2>Licence</h2>
-        <div id="pills"></div>
-        <p class="muted" id="explain"></p>
+        <!-- Placeholders until /v1/me answers; renderLicence replaces them. -->
+        <div id="pills" aria-hidden="true"><span class="skeleton pill"></span> <span class="skeleton pill"></span></div>
+        <p class="muted" id="explain"><span class="skeleton line"></span></p>
         <p class="muted" id="quota"></p>
         <div class="row">
           <button id="release" class="secondary" hidden>Give up my seat</button>

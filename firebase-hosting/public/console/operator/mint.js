@@ -16,6 +16,18 @@ export function syncKind() {
 
 for (const radio of kindRadios()) radio.addEventListener("change", syncKind);
 
+/** Show the Issue card and bring it into view, the first field focused. */
+export function openIssue() {
+  $("issueCard").hidden = false;
+  if ($("issueCard").scrollIntoView) $("issueCard").scrollIntoView({ block: "start" });
+}
+$("openIssue").addEventListener("click", () => {
+  openIssue();
+  const individual = [...kindRadios()].find((r) => r.checked)?.value !== "institution";
+  $(individual ? "emailLock" : "domainLock").focus();
+});
+$("closeIssue").addEventListener("click", () => { $("issueCard").hidden = true; });
+
 $("duration").addEventListener("change", () => {
   const timed = $("duration").value === "timed";
   $("expiresAt").disabled = !timed;

@@ -281,6 +281,51 @@ test("Show more fetches the next page and appends it", async () => {
   assert.equal($("more").hidden, true);
 });
 
+test("Show more is held while a page loads, so no page is listed twice", async () => {
+  const next = deferred();
+  await open({
+    sessions: { sessions: [{ sessionId: "a", status: "COMPLETED", completedCount: 1, totalBytes: 10 }],
+      page: { nextPageToken: "t/1" }, quota: { used: 2, max: 25 } },
+    routes: { "GET /v1/sessions?app=all&page_token=t%2F1": () => next.promise },
+  });
+  $("more").click();
+  $("more").click();
+  await settle();
+  assert.equal(sent(/page_token/).length, 1, "the second click did nothing");
+  next.resolve(json(200, {
+    sessions: [{ sessionId: "b", status: "COMPLETED", completedCount: 1, totalBytes: 10 }],
+    page: {}, quota: { used: 2, max: 25 },
+  }));
+  await settle();
+  assert.deepEqual(rowTexts().map((r) => r[0]), ["a a", "b b"]);
+});
+
+test("the licence card and the analyses show placeholders until they load", async () => {
+  const me = deferred();
+  const list = deferred();
+  await open({ routes: { "GET /v1/me": () => me.promise, "GET /v1/sessions": () => list.promise } });
+  assert.equal($("pills").querySelectorAll(".skeleton").length, 2);
+  assert.equal($("rows").querySelectorAll("tr.placeholder").length, 3);
+  assert.equal($("status").textContent, "Loading your analyses…");
+  me.resolve(json(200, { email: "user@example.com", license: { mode: "licensed", held: true } }));
+  list.resolve(json(200, { sessions: [], quota: { used: 0, max: 25 } }));
+  await settle();
+  assert.equal($("pills").querySelectorAll(".skeleton").length, 0);
+  assert.equal($("rows").textContent.trim(), "Nothing backed up yet.");
+});
+
+test("a failed analyses list offers Retry", async () => {
+  let fail = true;
+  await open({ routes: { "GET /v1/sessions": () => (fail
+    ? json(503, { detail: "unavailable" })
+    : json(200, { sessions: [], quota: { used: 0, max: 25 } })) } });
+  assert.match($("rows").textContent, /Could not list your analyses: unavailable/);
+  fail = false;
+  $("rows").querySelector("button[data-retry]").click();
+  await settle();
+  assert.equal($("rows").textContent.trim(), "Nothing backed up yet.");
+});
+
 test("a failed analyses list is reported", async () => {
   await open({ routes: { "GET /v1/sessions": () => json(503, { detail: "unavailable" }) } });
   assert.deepEqual(status(), ["Could not list your analyses: unavailable", "muted err"]);
