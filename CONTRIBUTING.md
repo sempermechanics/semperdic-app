@@ -41,7 +41,7 @@ checkout so unused `doc/`, `samples/`, `data/`, and `apps/` trees are dropped
 (~100+ MB). The script lives in the engine submodule and is run from there:
 
 ```bash
-cd native
+cd engine
 ./scripts/sparse-opencv.sh          # Git Bash / macOS / Linux
 .\scripts\sparse-opencv.ps1         # Windows PowerShell
 cd ..
@@ -54,12 +54,12 @@ It is safe to re-run. Eigen stays a normal submodule (headers only, small).
 Changing the pinned engine commit is a normal PR in this repo:
 
 ```bash
-cd native && git fetch && git checkout <commit-or-tag> && cd ..
-git add native && git commit -m "Bump engine to <tag>"
+cd engine && git fetch && git checkout <commit-or-tag> && cd ..
+git add engine && git commit -m "Bump engine to <tag>"
 ```
 
-That gitlink change is what triggers CI tiers 3 and 5 **on push to `main`** (or
-on a PR labeled `e2e` / `release` / `full-ci`). The engine's own tests ran in its
+That gitlink change is what triggers CI tiers 3 (emulator) and 5 (arm64
+release) on the PR itself, and again on the push to `main`. The engine's own tests ran in its
 repository before that commit existed; this repo only proves the pinned version
 still links and behaves. If the bump changes numeric results, declare it against
 the tiers in
@@ -120,14 +120,16 @@ cmake --build build/engine-tests -j
 
 On Windows use `gradlew.bat` instead of `./gradlew`.
 
-### Three gates that run on every PR
+### Gates that run on every PR
 
 None is path-filtered, so a documentation-only change is still subject to all
 of them, and each blocks `ci-ok`:
 
 ```bash
 python scripts/render_legal_pages.py --check   # legal pages match docs/legal/
+python scripts/check_doc_paths.py              # docs reference files that exist
 python scripts/check_console.py                # console wiring, CSP, gateway paths
+node --test "firebase-hosting/tests/*.test.mjs"  # console module tests
 gitleaks detect --config .gitleaks.toml        # secrets (full history; human PRs)
 ```
 
@@ -156,13 +158,17 @@ CI is defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 See [docs/ops/CI.md](docs/ops/CI.md) for the tier map and required checks.
 The single required status check is `CI OK` (`ci-ok`).
 
-- PRs into **`main`**: gates + path-filtered Tier 1 / Tier 4. Add label `e2e`,
-  `release`, or `full-ci` for Tier 3 / Tier 5 on the PR.
-- Push to **`main`**: full matrix.
+- PRs into **`main`**: gates + path-filtered tiers. App code runs Tier 1,
+  backend Tier 4; an engine bump or JNI change adds Tier 3 (emulator) and
+  Tier 5 (arm64 release); keep rules or the app's build script add Tier 5.
+  Label `e2e`, `release`, or `full-ci` to force Tier 3 / Tier 5.
+- Push to **`main`**: Tier 1 and Tier 4 always; Tier 3 / Tier 5 as the diff.
+- Weekly (Monday): the full matrix.
 - Dependabot: cheap path (actions = gates only; pip = Tier 4; gradle = Tier 1).
 
 Warm full-matrix wall clock is ~45–60 min (emulator and signed release run in
-parallel). Kotlin/docs-only PRs run ~10–15 min via path filters.
+parallel). A Kotlin PR takes ~10–15 min (Tier 1); a docs-only PR runs only the
+always-on gates, a couple of minutes.
 
 ## Where to change what
 

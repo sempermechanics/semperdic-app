@@ -491,7 +491,7 @@ app), and the rest of `backend/tests/`.
 
 | Id | Workflow | File | Trigger |
 |---|---|---|---|
-| D1 | CI gate | `.github/workflows/ci.yml` | PR to `main`, push to `main`, or `workflow_dispatch` (`full_ci` runs every tier on any branch). Path filters pick the tiers; `full-ci` / `e2e` / `release` / `benchmark` labels widen them |
+| D1 | CI gate | `.github/workflows/ci.yml` | PR to `main`, push to `main`, weekly `schedule` (full matrix), or `workflow_dispatch` (`full_ci` runs every tier on any branch). Path filters pick the tiers on PRs and `main` pushes alike; `full-ci` / `e2e` / `release` / `benchmark` labels widen them |
 | D2 | Secret scan | same, `secret-scan` job | Every run, full history, `.gitleaks.toml` |
 | D3 | Legal pages match source, and docs point at real files | same, `legal-pages` job | Every run: `python scripts/render_legal_pages.py --check` (edit `docs/legal/`, never `firebase-hosting/public/`) and `python scripts/check_doc_paths.py` (§E3) |
 | D4 | Backend deploy | `.github/workflows/deploy-backend.yml` | Manual |

@@ -58,7 +58,8 @@ jobs:
       - uses: ./.github/actions/setup-android-build
 
       # Tier 1's checks, not just its tests: a release must not sign what CI
-      # would have stopped (TD-43).
+      # would have stopped (TD-43). compileReleaseKotlin is left to
+      # build-release, whose R8 build compiles it anyway.
       - name: Android unit tests and quality gates
         run: >
           ./gradlew --continue --console=plain
@@ -66,6 +67,11 @@ jobs:
           spotlessCheck
           :app:detekt
           :app:lintDebug
+          :app:compileDebugAndroidTestKotlin
+          :benchmark:compileBenchmarkKotlin
+
+      - name: Kotlin coverage floor
+        run: ./gradlew --console=plain :app:koverVerify
 
   verify-backend:
     name: Verify backend
