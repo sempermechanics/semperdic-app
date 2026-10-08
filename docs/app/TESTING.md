@@ -31,6 +31,29 @@ chunk own?" here.
 - **JVM tests** own Kotlin orchestration and data contracts. Do not add JVM
   tests that re-assert displacement accuracy.
 
+## Wire contracts (`contracts/`)
+
+The JSON the app and the backend exchange is pinned once, in the top-level
+`contracts/` directory: one realistic body per request the app sends
+(`*_request.json`) and per response it reads (`*_response.json`). Two suites
+read the same files:
+
+- `cloud/ApiDtosContractTest` (app): a request fixture decodes into its DTO
+  and re-encodes unchanged, so the DTO sends exactly those keys; a response
+  fixture decodes, and every field its DTO reads is a key the fixture has (a
+  renamed field would otherwise decode to its default). Gradle gets the
+  directory through the `semper.contracts.dir` system property and tracks it
+  as a test input.
+- `backend/tests/test_wire_contracts.py`: each request validates against the
+  pydantic model its route takes, with no key the model would drop; each
+  response is compared, keys and JSON types both ways, with what the real
+  routes return when driven from device registration to a finished backup.
+
+A backend response that grows a field fails the backend test until the fixture
+has it. A field removed or renamed on either side fails one of the two suites;
+change the client first, since installed builds keep reading the old name. The
+`app` and `backend` CI filters both include `contracts/**`.
+
 ## Shared fixtures
 
 Reach for these before writing a local helper; each replaced several
