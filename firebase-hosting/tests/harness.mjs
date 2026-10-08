@@ -320,13 +320,18 @@ export function deferred() {
   return { promise, resolve };
 }
 
-/** Wait until `check()` is true, for a bounded number of turns; fail otherwise. */
-export async function until(check, what = "the condition") {
-  for (let i = 0; i < 200; i += 1) {
-    if (check()) return;
-    await new Promise((r) => setImmediate(r));
+/**
+ * Wait until `check()` is true, for up to `ms`; fail otherwise. Bounded by
+ * time, not turns: what it waits for may be a module read from disk (auth.js
+ * imports qr.js on demand), which on a slow CI runner outlasts any number of
+ * quick turns.
+ */
+export async function until(check, what = "the condition", ms = 3000) {
+  const deadline = Date.now() + ms;
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error(`gave up waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 1));
   }
-  throw new Error(`gave up waiting for ${what}`);
 }
 
 /**
