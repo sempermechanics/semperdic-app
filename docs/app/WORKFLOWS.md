@@ -156,7 +156,7 @@ The session list and the only entry point to a new analysis.
 | [ ] 3.2b | Relaunch after answering it | It does not reappear; the choice is mirrored by the Settings toggle (§4, Your data) |
 | [ ] 3.2c | Signed out (a debug build with no API URL): acknowledge, then relaunch and after a process kill; then sign in to an account that has not seen it | Signed out, the notice does not reappear; the account is asked once, since each account acks for itself |
 | [ ] 3.3 | First visit | A coach mark points at the **+** button; Skip and Got it both dismiss it |
-| [ ] 3.4 | Look at a session row | A flat row on one surface, rows split by a thin divider (also under force-dark). Thumbnail, name, then "N frames · 96.3% converged · Oct 5" (a sweep: "Parameter sweep · its headline · date"), and a cloud state icon at the end. The convergence is the first frame's, from its engine stats; under 85% the figure is amber. A row from before engine stats were kept shows its stored headline instead |
+| [ ] 3.4 | Look at a session row | A flat row on one surface, rows split by a thin divider (also under force-dark). Thumbnail, name, then "N frames · 96.3% converged · Oct 5" (a sweep: "9 of 9 solved · subset 15–35 px · date", from its own combination lists; the title names it a sweep), and a cloud state icon at the end. The convergence is the first frame's, from its engine stats; under 85% the figure is amber. A row from before engine stats were kept shows its stored headline instead |
 | [ ] 3.4a | Look at the thumbnail of a row whose frames are on the phone | The last frame's U-displacement heatmap, cropped to the field. The reference shows until it is drawn; a cloud-only row keeps the reference. Re-run the analysis and the thumbnail is drawn again from the new frames |
 | [ ] 3.4b | Make two analyses from the same reference image | The first is named after the image ("steel_00"), the second "steel_00 (2)" — no date in the name. Rows named before this change keep their names |
 | [ ] 3.4c | Read each cloud state icon with TalkBack | Cloud with tick "Backed up", up arrow "Upload pending", crossed out "Not backed up" (red when the backup failed), down arrow "Only in cloud" |
@@ -756,7 +756,7 @@ and the lattice's **Save graph** (§7.3.4, straight to the system chooser).
 | [ ] 8.6.2 | Press Back on a single-setting result | Wherever you came from |
 | [ ] 8.6.3 | Press Back on a sweep combination | The Lattice |
 | [ ] 8.6.4 | Leave a single-setting result and look at its Home row | The headline is unchanged by viewing — still the first frame's convergence (§3.4), whatever frame or field was on screen |
-| [ ] 8.6.5 | Leave a sweep and look at its Home row | The sweep caption is kept, not overwritten |
+| [ ] 8.6.5 | Leave a sweep and look at its Home row | The row still reads "K of N solved · subset … px"; nothing in the viewer rewrites it |
 | [ ] 8.6.6 | Look for rename or delete in the viewer | Neither exists — both live on Home |
 
 ---

@@ -190,11 +190,13 @@ class SessionListAdapterTest {
     }
 
     @Test
-    fun `a parameter sweep is named as one with its headline, not counted in frames`() {
-        submit(record("a", frameCount = 9, sweep = true, headline = "plate · 9 of 9 solved", convergence = 50f))
+    fun `a parameter sweep counts its solved combinations and subset span, not frames`() {
+        val sweep = record("a", frameCount = 2, sweep = true, headline = "plate · 2 of 3 solved", convergence = 50f)
+            .copy(sweepSubsets = listOf(15, 25), sweepSkipSubsets = listOf(35))
+        submit(sweep)
         val subtitle = bind(0).subtitle.text.toString()
 
-        assertEquals("${activity.getString(R.string.session_sweep_kind)} · plate · 9 of 9 solved · $date", subtitle)
+        assertEquals("2 of 3 solved · subset 15–35 px · $date", subtitle)
     }
 
     // ── State icon and transfer bar ──────────────────────────────────────────

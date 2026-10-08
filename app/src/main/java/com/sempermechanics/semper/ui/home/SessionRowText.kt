@@ -32,9 +32,9 @@ internal object SessionRowText {
      * Size · result · why it stopped · [date]: "40 frames · 96.3% converged · Oct 5".
      *
      * A run cut short reads "39 of 50 frames" and ends with its stop reason:
-     * the count alone cannot tell a short run from a shorter test. A sweep is
-     * named as one, with its stored headline. A convergence under
-     * [CONVERGENCE_WARN_BELOW] is amber.
+     * the count alone cannot tell a short run from a shorter test. A sweep
+     * reads "9 of 9 solved · subset 15–35": its title already names it a sweep
+     * and its image. A convergence under [CONVERGENCE_WARN_BELOW] is amber.
      */
     fun subtitle(context: Context, r: SessionRecord, date: String): CharSequence {
         val out = SpannableStringBuilder(size(context, r))
@@ -62,9 +62,9 @@ internal object SessionRowText {
         }
     }
 
-    /** "40 frames", "39 of 50 frames" for a run cut short, or "Parameter sweep". */
+    /** "40 frames", "39 of 50 frames" for a run cut short, or a sweep's "9 of 9 solved · subset 15–35". */
     private fun size(context: Context, r: SessionRecord): String = when {
-        r.isSweep -> context.getString(R.string.session_sweep_kind)
+        r.isSweep -> sweepSize(context, r)
         r.stoppedEarly && r.plannedFrameCount > r.frameCount -> context.resources.getQuantityString(
             R.plurals.session_frames_of_fmt,
             r.plannedFrameCount,
@@ -74,12 +74,28 @@ internal object SessionRowText {
         else -> context.resources.getQuantityString(R.plurals.session_frames_fmt, r.frameCount, r.frameCount)
     }
 
+    /** Solved of planned combinations and the subset span, from the record's own sweep lists. */
+    private fun sweepSize(context: Context, r: SessionRecord): String {
+        val solved = r.sweepSteps.size
+        val planned = solved + r.sweepSkipSubsets.size
+        val subsets = r.sweepSubsets + r.sweepSkipSubsets
+        return context.resources.getQuantityString(
+            R.plurals.session_sweep_row_fmt,
+            planned,
+            solved,
+            planned,
+            subsets.minOrNull() ?: r.subset,
+            subsets.maxOrNull() ?: r.subset,
+        )
+    }
+
     /**
-     * The run's convergence, from its engine stats; a sweep, or an older row
-     * without stats, keeps its stored headline instead.
+     * The run's convergence, from its engine stats; an older row without stats
+     * keeps its stored headline instead. A sweep's result is its [size].
      */
     private fun appendResult(context: Context, r: SessionRecord, out: SpannableStringBuilder) {
-        val convergence = if (r.isSweep) null else r.engineStats.getOrNull(EngineStats.SLOT_CONVERGENCE)
+        if (r.isSweep) return
+        val convergence = r.engineStats.getOrNull(EngineStats.SLOT_CONVERGENCE)
         when {
             convergence != null -> {
                 val percent = oneDecimal(convergence)
