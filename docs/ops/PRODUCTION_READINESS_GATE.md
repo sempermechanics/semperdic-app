@@ -13,7 +13,7 @@ Secrets / Environments reality: [ENVIRONMENTS.md](ENVIRONMENTS.md).
 |------|-----------------|-------|
 | PASS / improved to PASS | Security headers, deny-all rules (checked in), validation, erasure without silent 2k cap, readiness, structured logs, async notify, authz tests, pagination/export, deploy template, legal drafts, candidate smoke deploy, attested uploads pin, live assetlinks + legal Hosting | Repo + pilot |
 | PARTIAL | Distributed rate limit (gateway YAML + in-process), backups/PITR, Crashlytics, WorkManager, GitHub Environment *reviewers* on Free plan | Need console / plan upgrade |
-| UNKNOWN | Firebase API-key restrictions, App Check, Auth abuse limits, vendor retention, cookie inventory, branch ruleset if plan blocks it | External — see below |
+| UNKNOWN | Firebase API-key restrictions, App Check, Auth abuse limits, vendor retention, cookie inventory | External — see below |
 | FAIL remaining | None intended in security/data-integrity **repo** scope; remaining gaps are console / process | |
 
 Strict binary PASS against all applicable external controls is **not** claimed.
@@ -85,9 +85,9 @@ Strict binary PASS against all applicable external controls is **not** claimed.
       variables (`staging`, `production` and `production-backup` hold a few of their
       own). No environment has protection rules or a branch policy (checked
       2026-10-08). Still open: required reviewers. See [ENVIRONMENTS.md](ENVIRONMENTS.md).
-- [ ] Branch ruleset / protection with required `CI OK`. The repo is public, so
-      the plan allows it, but on 2026-10-08 `main` had neither (protection answers
-      404 and there are no rulesets); enforced by process until it is set.
+- [x] Branch ruleset with required `CI OK`: ruleset `main` (id 24720948, set
+      2026-10-08) on the default branch requires `CI OK` and blocks force-push
+      and deletion (`gh api repos/sempermechanics/semperdic-app/rules/branches/main`).
 - [x] Staging candidate smoke before traffic shift
       (`deploy-backend.yml`: tagged revision + ID-token `/readyz`). Record a
       deliberate rollback drill when convenient.
@@ -460,7 +460,7 @@ no isolation and no retries):
 | Firebase MCP / active project | Confirm in console |
 | GitHub Environments | All five exist (`staging`, `production`, `release`, `production-backup`, `restore-drill`); none has reviewers or a branch policy, and `restore-drill` has no variables (2026-10-08) |
 | Secrets / vars | Prefer **repo-level** on Free private orgs; Environment names still select workflow targets |
-| Branch protection / ruleset | None on `main` (2026-10-08: protection 404, no rulesets); process-only until set |
+| Branch protection / ruleset | Ruleset `main` (id 24720948, 2026-10-08): requires `CI OK`, no force-push, no deletion; no bypass actors |
 
 ## Risk acceptance
 

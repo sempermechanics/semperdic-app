@@ -104,9 +104,6 @@ Priority = (Impact + Risk) × (6 − Effort).
 These are read with `gh` or `gcloud`, not from the code. On 2026-10-08 none of
 them held:
 
-- **Branch protection requiring `CI OK`:** `main` is not protected
-  (`gh api repos/sempermechanics/semperdic-app/branches/main/protection` answers
-  404) and the repo has no rulesets.
 - **API-key restrictions:** the Firebase keys on both projects are limited to a
   list of APIs, but have no Android package / SHA or referrer limits.
 - **GitHub Environment branch rules:** no environment, `production` included, has
