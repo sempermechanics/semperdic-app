@@ -273,7 +273,7 @@ Three suites are gated on coverage, each two points under what it measured:
 | App JVM (Kover, branches) | 56.41 % | 54 | same |
 | Backend (pytest-cov, lines) | 95.47 % | 93 | `.github/actions/backend-gate/action.yml` |
 | Backend + Firestore emulator tier | 95.54 % | 93 | `ci.yml` tier 4, `--cov-append` |
-| Console modules (`node --test`, lines; per load, TD-203) | 55.32 % | 53 | `ci.yml` `console-pages` |
+| Console JS (`scripts/console_coverage.mjs`, lines merged by file) | 98.30 % | 96 | `ci.yml` `console-pages` |
 
 **Every PR that adds tests re-measures and raises the floors it moved** to
 measured − 2 (rounded down), in the same PR, with the date in the comment
@@ -286,9 +286,18 @@ Measuring:
 ```bash
 ./gradlew :app:testDebugUnitTest :app:koverXmlReport   # totals: app/build/reports/kover/report.xml
 cd backend && pytest tests/ -q --cov=app               # TOTAL line
-node --test --experimental-test-coverage --test-coverage-exclude="firebase-hosting/tests/**" \
-  --test-coverage-exclude="**/vendor/**" "firebase-hosting/tests/*.test.mjs"
+NODE_V8_COVERAGE=/tmp/console-cov node --test "firebase-hosting/tests/*.test.mjs"
+node scripts/console_coverage.mjs /tmp/console-cov     # a row per file, then the total
 ```
+
+The console figure comes from `scripts/console_coverage.mjs`, not Node's
+`--experimental-test-coverage`. The harness opens each page as `page.js?load=N`,
+and Node keeps every URL apart: a file's row showed one copy, and the total fell
+as tests opened pages more often (55 % for code that is 98 % covered). The script
+reads the raw V8 coverage, merges a file's copies, takes each line from the
+innermost range that holds it, and counts every `.js` under `public/` except
+`vendor/`, loaded or not. `console/chrome.js` shows 0 %: pages load it from its own
+`<script>` tag, and no test does.
 
 Kover leaves out only the generated bindings (`app/build.gradle.kts`
 `kover.reports.filters`). Activities, Adapters and Dialogs were excluded until
