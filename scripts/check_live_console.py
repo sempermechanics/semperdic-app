@@ -27,10 +27,10 @@ a deploy, so a failing read is retried before it counts.
 from __future__ import annotations
 
 import argparse
+import http.client
 import re
 import sys
 import time
-import urllib.error
 import urllib.request
 
 PAGES_WITH_CONSOLE_CSP = ("/login", "/account", "/console/")
@@ -44,11 +44,16 @@ def fetch(url: str) -> tuple[str, str]:
         return resp.read().decode("utf-8", "replace"), resp.headers.get("Content-Security-Policy", "")
 
 
+# What a read can fail with: URLError and timeouts are OSErrors, and so is a
+# connection reset while the body streams; a body cut short is IncompleteRead.
+_UNREADABLE = (OSError, http.client.HTTPException)
+
+
 def problems(origin: str, api: str | None) -> list[str]:
     found: list[str] = []
     try:
         config, _ = fetch(f"{origin}/console/config.js")
-    except (urllib.error.URLError, TimeoutError) as e:
+    except _UNREADABLE as e:
         return [f"/console/config.js: could not read it ({e})"]
     m = re.search(r'API_BASE_URL\s*=\s*"([^"]*)"', config)
     served = m.group(1) if m else None
@@ -62,7 +67,7 @@ def problems(origin: str, api: str | None) -> list[str]:
     for path in PAGES_WITH_CONSOLE_CSP:
         try:
             _, csp = fetch(f"{origin}{path}")
-        except (urllib.error.URLError, TimeoutError) as e:
+        except _UNREADABLE as e:
             found.append(f"{path}: could not read it ({e})")
             continue
         if not csp:
