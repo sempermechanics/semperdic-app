@@ -135,7 +135,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
 
     <!-- Result viewer: summary animation and frame jump -->
     <string name="summary_title">Summary</string>
-    <string name="summary_gif">Summary GIF</string>
     <!-- The scale bar's colour mapping is clamped to the 2nd/98th percentile
          (VisualizationEngine.computeSigmaClampedRange), not the field's true
          extrema: measured on real sessions, that clamp discards real signal
@@ -256,7 +255,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="download_analysis_failed">Couldn\'t download this analysis. Check your connection and try again.</string>
     <string name="viewer_details_desc">Frame stats and settings used</string>
     <string name="viewer_details_title">Details</string>
-    <string name="viewer_edge_title_fmt">%1$s · %2$s</string>
+    <string name="viewer_sweep_title_fmt">Subset %1$d · window %2$d</string>
     <string name="settings_used_title">Settings used</string>
     <string name="settings_used_subset">Subset size</string>
     <string name="settings_used_step">Step size</string>
