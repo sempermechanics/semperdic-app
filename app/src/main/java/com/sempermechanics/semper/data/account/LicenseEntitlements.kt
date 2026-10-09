@@ -54,7 +54,11 @@ object LicenseEntitlements {
      */
     fun licenseKind(context: Context): String = AppRemoteConfig.licenseKind(context)
 
-    /** Key prefix shown for support (never the full key). Empty on demo. */
+    /**
+     * Key prefix shown for support (never the full key). Not proof of a
+     * licence: a backend older than the licensed-only prefix sends one for a
+     * held key that is not active, so check [isLicensed] before showing it.
+     */
     fun licensePrefix(context: Context): String = AppRemoteConfig.licensePrefix(context)
 
     /**

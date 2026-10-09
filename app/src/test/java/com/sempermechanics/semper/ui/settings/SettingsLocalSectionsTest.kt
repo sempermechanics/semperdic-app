@@ -109,6 +109,16 @@ class SettingsLocalSectionsTest {
     }
 
     @Test
+    fun `a held licence that is not active shows no licence row`() {
+        // An older backend sends the prefix of a revoked, lapsed or unseated
+        // key while the account runs as demo (TD-145).
+        AppRemoteConfig.apply(context, AppConfigDto(mode = "demo", maxSessions = 5, licensePrefix = "SEMP-DEMO"))
+        open()
+
+        assertEquals(View.GONE, view<View>(R.id.tvAccountLicense).visibility)
+    }
+
+    @Test
     fun `a licensed admin sees the licence prefix and the admin entry, which opens the admin screen`() {
         licensed(prefix = "SM-7F3A")
         AccountCache.setRole(context, "admin")

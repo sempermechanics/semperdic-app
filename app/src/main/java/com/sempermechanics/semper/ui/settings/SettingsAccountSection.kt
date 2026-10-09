@@ -23,12 +23,13 @@ class SettingsAccountSection(
         views.tvAccountDevice.text = activity.getString(R.string.account_device_id_fmt, deviceId)
 
         // The prefix is the only part of a key the app is ever told, and it is
-        // what support asks for. Empty on demo, and on any backend that
-        // predates the field, so the row is hidden rather than showing
-        // "Licensed as" with nothing after it.
+        // what support asks for. Shown only while the account runs licensed:
+        // older backends send the prefix of any key the account holds, a
+        // revoked, lapsed or unseated one included, and "Licensed as" beside
+        // demo's limits is wrong. Empty on a backend that predates the field.
         val prefix = LicenseEntitlements.licensePrefix(activity)
         views.tvAccountLicense.apply {
-            isVisible = prefix.isNotEmpty()
+            isVisible = prefix.isNotEmpty() && LicenseEntitlements.isLicensed(activity)
             text = activity.getString(R.string.account_license_prefix_fmt, prefix)
         }
 
