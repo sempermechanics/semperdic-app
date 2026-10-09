@@ -604,9 +604,9 @@ and a note; single-setting field GIFs still export.)
 **Frames.** Prev / Next step through. The title at the top names what is on
 screen — *Summary*, the frame's file name without its extension, or a video
 frame's time in its clip (`0:01.25`) — and the
-field button beside it names the field. The pill under the frame counts:
-`i / N` on a frame, `5 frames` on the summary. Type a number in the small field
-under it and press Go to jump straight to that frame — useful at 150 frames.
+field button beside it names the field. Between the arrows, a frame shows
+`i / N`, and the summary `5 frames`. Tap the frame number, type another and
+press Go to jump straight to that frame — useful at 150 frames.
 Anything out of range leaves you where you are. On a sweep each frame is a
 parameter combination, titled like `Subset 15 · window 3` (the strain window in
 data points; the step is always the subset divided by the sweep's N).
