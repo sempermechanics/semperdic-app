@@ -225,7 +225,8 @@ top to bottom:
 - **Region of interest** — a thumbnail of the reference with the region drawn on
   it, and the points the engine solves in it at the current step: "Full image ·
   30,968 points", or "1100 × 800 px · 8,800 points" once you draw one. The count
-  follows the step and the region. **Edit** opens the editor
+  follows the step and the region. In Sweep the row names the region alone:
+  each combination solves at its own step. **Edit** opens the editor
   ([§6](#6-region-of-interest)).
 - **Correlation** (Single) — subset size, step and strain window, then a closed
   **Advanced** section with overlap and interpolation ([§5](#5-parameters)),

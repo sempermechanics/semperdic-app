@@ -58,6 +58,8 @@ class SweepModeToggleTest {
 
         assertEquals(1, bed.host.count("clearRunStatus"))
         assertTrue(bed.viewModel.sweepMode)
+        // The re-check redraws the ROI row, which drops its point count in sweep mode.
+        assertTrue(bed.host.count("checkReady") >= 1)
     }
 
     @Test
@@ -65,5 +67,6 @@ class SweepModeToggleTest {
         stepsAfterLeavingSweepMode(on = WizardStep.SETTINGS)
 
         assertTrue(bed.host.count("clearRunStatus") >= 1)
+        assertTrue(bed.host.count("checkReady") >= 1)
     }
 }

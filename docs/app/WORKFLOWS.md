@@ -398,7 +398,7 @@ vendor decoders and camera AVIs.
 | [ ] 5.2.2 | Read the ROI row before editing | A thumbnail of the reference shaded green, and "Full image · N points": the points the engine solves at this step, over the frame inset by half a subset plus 10 px a side |
 | [ ] 5.2.3 | Tap **Edit** → draw an ROI → save | The thumbnail shows the region (holes in red) and the line becomes "w × h px · N points" |
 | [ ] 5.2.4 | Tap **Edit** → cancel | Falls back to full image; any mask is cleared |
-| [ ] 5.2.5 | Switch to **Parameter sweep** | The correlation section hides; the frame field (multi-frame only) and the **Planned lattice** appear, no range controls. Toolbar reads "Sweep setup" with three dots. Bottom nav reads **Next** |
+| [ ] 5.2.5 | Switch to **Parameter sweep** | The correlation section hides; the frame field (multi-frame only) and the **Planned lattice** appear, no range controls. Toolbar reads "Sweep setup" with three dots. Bottom nav reads **Next**. The ROI row drops its point count ("Full image", "w × h px"): each combination has its own step; **Single** brings the count back |
 | [ ] 5.2.5a | Run a single analysis ("✅ Computed N frames" under the page), then switch to **Parameter sweep** | The status line clears; switching back to **Single** does not bring it back |
 | [ ] 5.2.6 | Type **step size** as subset ÷ N on step 3 | N is 2–9 (default 3); the overlap under **Advanced** is `1 − 1/N`; each subset uses `step = round(subset / N)` |
 | [ ] 5.2.7 | Tap the ⓘ next to the mode toggle | Explains single setting vs sweep |

@@ -70,7 +70,13 @@ class AnalysisReadyGate(
         }
     }
 
-    /** The ROI row's line: the region, "Full image" or "w × h px", then its [points] once there are any. */
+    /**
+     * The ROI row's line: the region, "Full image" or "w × h px", then its
+     * [points] once there are any. A sweep solves at a step per combination
+     * (subset ÷ N), not the single step the count assumes, so in sweep mode
+     * the row names the region alone. The mode toggle re-checks readiness,
+     * so the line follows it both ways.
+     */
     private fun showRoi(points: Int) {
         val res = binding.root.resources
         val region = if (viewModel.hasCustomRoi) {
@@ -78,6 +84,7 @@ class AnalysisReadyGate(
         } else {
             res.getString(R.string.roi_full_image)
         }
-        settings.tvInstruction.text = if (points > 0) RunEstimate.regionLabel(res, region, points) else region
+        val counted = points > 0 && !viewModel.sweepMode
+        settings.tvInstruction.text = if (counted) RunEstimate.regionLabel(res, region, points) else region
     }
 }
