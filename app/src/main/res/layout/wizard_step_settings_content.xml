@@ -492,7 +492,9 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Sweep settings (sweep mode). Id kept from the card it replaced. -->
+        <!-- Sweep setup (sweep mode): the frame the sweep solves and the lattice
+             its ranges plan. The ranges are on the next page. Id kept from the
+             card it replaced. -->
         <LinearLayout
             android:id="@+id/sweepSettingsCard"
             android:layout_width="match_parent"
@@ -500,291 +502,201 @@
             android:orientation="vertical"
             android:visibility="gone">
 
+            <!-- Multi-frame only: which frame the sweep solves. -->
+            <LinearLayout
+                android:id="@+id/sweepFrameBlock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
                 <LinearLayout
-                    android:id="@+id/sweepSettingsHeader"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_12"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <ImageView
+                        android:id="@+id/imgSweepFrame"
+                        android:layout_width="72dp"
+                        android:layout_height="48dp"
+                        android:background="@color/surface_outline"
+                        android:contentDescription="@string/sweep_frame_enlarge"
+                        android:foreground="?attr/selectableItemBackground"
+                        android:scaleType="centerCrop" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilSweepFrame"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:text="@string/sweep_settings"
-                        android:textAppearance="@style/TextAppearance.Semper.SectionHeader"
-                        android:textColor="@color/viewer_chrome_text" />
+                        android:layout_marginStart="@dimen/space_12"
+                        android:layout_weight="1"
+                        android:hint="@string/sweep_frame"
+                        app:boxStrokeColor="@color/input_box_stroke"
+                        app:endIconContentDescription="@string/sweep_frame"
+                        app:endIconDrawable="@drawable/ic_expand_more"
+                        app:endIconMode="custom"
+                        app:helperTextEnabled="true"
+                        app:hintTextColor="@color/viewer_chrome_muted">
+
+                        <!-- Looks like a dropdown; a tap opens the frame dialog with its preview. -->
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/ddSweepFrame"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:cursorVisible="false"
+                            android:ellipsize="middle"
+                            android:focusable="false"
+                            android:importantForAutofill="no"
+                            android:inputType="none"
+                            android:maxLines="1"
+                            android:textSize="14sp"
+                            tools:text="steel_23.tif" />
+                    </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/sweepBody"
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingTop="8dp"
-                    android:visibility="visible">
+                    android:layout_marginTop="@dimen/space_4"
+                    android:text="@string/sweep_frame_hint"
+                    android:textAppearance="@style/TextAppearance.Semper.Caption" />
 
-                    <!-- Subset size range: min text | range slider | max text -->
-                    <LinearLayout
-                        android:id="@+id/subsetRangeBlock"
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="@dimen/space_12"
+                    android:background="@color/surface_outline" />
+            </LinearLayout>
+
+            <!-- The planned lattice: one node per analysis. The coach mark points here. -->
+            <LinearLayout
+                android:id="@+id/sweepSettingsHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_12"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/planned_lattice_heading"
+                    android:textAppearance="@style/TextAppearance.Semper.SectionHeader"
+                    android:textColor="@color/viewer_chrome_text" />
+
+                <!-- bg_chrome_ghost, not a borderless ripple: a standalone
+                     40dp icon-only button, same role as the toolbar buttons
+                     it matches (activity_result_viewer.xml, activity_vsg_lattice.xml). -->
+                <ImageButton
+                    android:id="@+id/btnLatticeSamples"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/bg_chrome_ghost"
+                    android:contentDescription="@string/lattice_samples_settings"
+                    android:padding="8dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_settings_gear"
+                    app:tint="@color/viewer_chrome_text" />
+            </LinearLayout>
+
+            <!-- How many values each range is sampled at; the gear shows it. -->
+            <LinearLayout
+                android:id="@+id/latticeSamplesBody"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_8"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <ImageButton
+                    android:id="@+id/btnSamplesInfo"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/info"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_info_min"
+                    app:tint="@color/viewer_chrome_muted" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilSubsetSamples"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:hint="@string/subset_samples"
+                    app:boxStrokeColor="@color/input_box_stroke"
+                    app:hintTextColor="@color/viewer_chrome_muted">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etSubsetSamplesValue"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:orientation="vertical">
+                        android:imeOptions="actionDone"
+                        android:importantForAutofill="no"
+                        android:inputType="number"
+                        android:maxLength="1"
+                        android:textColor="@color/viewer_chrome_text"
+                        tools:text="3" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                    <LinearLayout
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilVsgSamples"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="@string/vsg_samples"
+                    app:boxStrokeColor="@color/input_box_stroke"
+                    app:hintTextColor="@color/viewer_chrome_muted">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etVsgSamplesValue"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+                        android:imeOptions="actionDone"
+                        android:importantForAutofill="no"
+                        android:inputType="number"
+                        android:maxLength="1"
+                        android:textColor="@color/viewer_chrome_text"
+                        tools:text="3" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/subset_range"
-                            android:textColor="@color/viewer_chrome_text"
-                            android:textStyle="bold" />
+            <!-- Matches the result lattice's height (compact=true set in
+                 SweepSetupController.setup()) so the planned and solved lattices
+                 read as the same element at two points in the flow. -->
+            <com.sempermechanics.semper.ui.analysis.sweep.SweepLatticeView
+                android:id="@+id/sweepLatticePreview"
+                android:layout_width="match_parent"
+                android:layout_height="136dp"
+                android:layout_marginTop="@dimen/space_8" />
 
-                        <ImageButton
-                            android:id="@+id/btnSubsetRangeInfo"
-                            android:layout_width="18dp"
-                            android:layout_height="18dp"
-                            android:layout_marginStart="6dp"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:contentDescription="@string/info"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/ic_info_min"
-                            app:tint="@color/viewer_chrome_muted" />
-                    </LinearLayout>
+            <TextView
+                android:id="@+id/tvSweepPlan"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_8"
+                android:textAppearance="@style/TextAppearance.Semper.Caption"
+                tools:text="9 analyses · subset 21–41 px · window 3–11 points" />
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <EditText
-                            android:id="@+id/etSubsetMinValue"
-                            android:layout_width="46dp"
-                            android:layout_height="wrap_content"
-                            android:background="@android:color/transparent"
-                            android:gravity="center"
-                            android:hint="@string/subset_min"
-                            android:imeOptions="actionDone"
-                            android:importantForAutofill="no"
-                            android:inputType="number"
-                            android:maxLength="3"
-                            android:paddingTop="0dp"
-                            android:paddingBottom="0dp"
-                            android:textColor="@color/sky_primary"
-                            android:textStyle="bold"
-                            tools:text="41" />
-
-                        <com.google.android.material.slider.RangeSlider
-                            android:id="@+id/rangeSubset"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:stepSize="2"
-                            android:valueFrom="15"
-                            android:valueTo="121"
-                            app:values="@array/subset_range_default" />
-
-                        <EditText
-                            android:id="@+id/etSubsetMaxValue"
-                            android:layout_width="46dp"
-                            android:layout_height="wrap_content"
-                            android:background="@android:color/transparent"
-                            android:gravity="center"
-                            android:hint="@string/subset_max"
-                            android:imeOptions="actionDone"
-                            android:importantForAutofill="no"
-                            android:inputType="number"
-                            android:maxLength="3"
-                            android:paddingTop="0dp"
-                            android:paddingBottom="0dp"
-                            android:textColor="@color/sky_primary"
-                            android:textStyle="bold"
-                            tools:text="61" />
-                    </LinearLayout>
-                    </LinearLayout>
-
-                    <!-- Strain window range: titled and full-width, the
-                         twin of the subset range above it. -->
-                    <LinearLayout
-                        android:id="@+id/strainWinRangeBlock"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:orientation="vertical">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/strain_win_range"
-                                android:textColor="@color/viewer_chrome_text"
-                                android:textStyle="bold" />
-
-                            <ImageButton
-                                android:id="@+id/btnVsgMaxInfo"
-                                android:layout_width="18dp"
-                                android:layout_height="18dp"
-                                android:layout_marginStart="6dp"
-                                android:background="?attr/selectableItemBackgroundBorderless"
-                                android:contentDescription="@string/info"
-                                android:scaleType="fitCenter"
-                                android:src="@drawable/ic_info_min"
-                                app:tint="@color/viewer_chrome_muted" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <EditText
-                                android:id="@+id/etStrainWinMinValue"
-                                android:layout_width="46dp"
-                                android:layout_height="wrap_content"
-                                android:background="@android:color/transparent"
-                                android:gravity="center"
-                                android:hint="@string/strain_win_min"
-                                android:imeOptions="actionDone"
-                                android:importantForAutofill="no"
-                                android:inputType="number"
-                                android:maxLength="3"
-                                android:paddingTop="0dp"
-                                android:paddingBottom="0dp"
-                                android:textColor="@color/sky_primary"
-                                android:textStyle="bold"
-                                tools:text="3" />
-
-                            <com.google.android.material.slider.RangeSlider
-                                android:id="@+id/rangeStrainWin"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:stepSize="2"
-                                android:valueFrom="3"
-                                android:valueTo="31"
-                                app:values="@array/strain_window_range_default" />
-
-                            <EditText
-                                android:id="@+id/etStrainWinMaxValue"
-                                android:layout_width="46dp"
-                                android:layout_height="wrap_content"
-                                android:background="@android:color/transparent"
-                                android:gravity="center"
-                                android:hint="@string/strain_win_max"
-                                android:imeOptions="actionDone"
-                                android:importantForAutofill="no"
-                                android:inputType="number"
-                                android:maxLength="3"
-                                android:paddingTop="0dp"
-                                android:paddingBottom="0dp"
-                                android:textColor="@color/sky_primary"
-                                android:textStyle="bold"
-                                tools:text="11" />
-                        </LinearLayout>
-                    </LinearLayout>
-
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="10dp">
-
-                        <ImageButton
-                            android:id="@+id/btnStepDepthInfo"
-                            android:layout_width="18dp"
-                            android:layout_height="18dp"
-                            android:layout_marginEnd="4dp"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:contentDescription="@string/info"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/ic_info_min"
-                            app:tint="@color/viewer_chrome_muted" />
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/tilStepDepth"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:hint="@string/step_depth"
-                            app:boxStrokeColor="@color/input_box_stroke"
-                            app:hintTextColor="@color/viewer_chrome_muted"
-                            app:prefixText="@string/step_depth_prefix">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etStepDepthValue"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:imeOptions="actionDone"
-                                android:importantForAutofill="no"
-                                android:inputType="number"
-                                android:maxLength="1"
-                                android:textColor="@color/viewer_chrome_text"
-                                tools:text="3" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/tilSweepOverlap"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:hint="@string/overlap"
-                            app:boxStrokeColor="@color/input_box_stroke"
-                            app:hintTextColor="@color/viewer_chrome_muted">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etSweepOverlapValue"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:imeOptions="actionDone"
-                                android:importantForAutofill="no"
-                                android:inputType="numberDecimal"
-                                android:maxLength="4"
-                                android:textColor="@color/viewer_chrome_text"
-                                tools:text="0.67" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <ImageButton
-                            android:id="@+id/btnSweepOverlapInfo"
-                            android:layout_width="18dp"
-                            android:layout_height="18dp"
-                            android:layout_marginStart="4dp"
-                            android:background="?attr/selectableItemBackgroundBorderless"
-                            android:contentDescription="@string/info"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/ic_info_min"
-                            app:tint="@color/viewer_chrome_muted" />
-                    </LinearLayout>
-                    <!-- Multi-frame only: collapsed summary (preview while picking) -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnPickSweepFrame"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:textColor="@color/sky_primary"
-                        android:visibility="gone"
-                        tools:text="img.png · Frame 3 of 12"
-                        tools:visibility="visible" />
-                </LinearLayout>
+            <include
+                android:id="@+id/sweepPlanWarnRow"
+                layout="@layout/view_warn_chip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_8"
+                android:visibility="gone" />
         </LinearLayout>
-
 
         <!-- Results chrome (Compute is in bottomNav) -->
 

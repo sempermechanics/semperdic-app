@@ -441,12 +441,20 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     
     <string name="sweep_plan_empty">No combination fits this ceiling — raise Max strain window or lower the subset range.</string>
     <string name="sweep_plan_subset_too_big_fmt">Subset range starts above what this image and ROI can hold (max %1$d px). Lower the minimum subset, or draw a larger region of interest.</string>
-    <string name="next_sweep">Next: Summary →</string>
+    <string name="next_sweep">Next: sweep settings</string>
     <string name="sweep_settings">Sweep settings</string>
     <string name="lattice_samples_settings">Sample counts</string>
-    <string name="sweep_frame_summary_fmt">%1$s · Frame %2$d of %3$d</string>
+    <string name="preview_enlarge_fmt">%1$s, tap to enlarge</string>
+    <string name="preview_shrink_fmt">%1$s, tap to shrink</string>
     <string name="sweep_frame_out_of_fmt">out of %1$d</string>
-    <string name="line_cut_preview_heading">Line cut</string>
+    <string name="sweep_frame_enlarge">Frame to sweep, tap to enlarge</string>
+    <string name="sweep_frame_overlay_close">Tap to close</string>
+    <string name="sweep_frame_overlay_caption_fmt">%1$s · %2$s</string>
+    <string name="sweep_frame_position_fmt">Frame %1$d of %2$d</string>
+    <string name="sweep_frame_hint">Pick the frame with the most deformation; the sweep solves only this one.</string>
+    <string name="line_cut_along_x">Along X</string>
+    <string name="line_cut_along_y">Along Y</string>
+    <string name="strain_win_vsg_range_fmt">Fits planes over %1$d–%2$d px (VSG)</string>
     <string name="planned_lattice_heading">Planned lattice</string>
     <string name="run_sweep_legend">Filled: solved · grey: waiting · red: skipped</string>
     <string name="sweep_running_fmt">Solving subset %1$d · step %2$d · %3$d-point window</string>
@@ -650,6 +658,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="coach_sweep_line_cut">Strain will be read along this centre line of the region of interest.</string>
     <string name="coach_sweep_graph">Each node is one combination: subset size across, strain window up. Filled nodes solved — tap one to focus its curve, double-tap to open it. Hollow ones failed; tap for the reason.</string>
     <string name="coach_sweep_scrub">Drag across the plot to read the focused curve\'s value at any position — it\'s marked with a dot in its own colour.</string>
+    <string name="coach_sweep_ranges">Set the ranges the sweep covers; each pair of subset and strain window is one analysis.</string>
     <string name="coach_sweep_run">Run the sweep when the plan looks right.</string>
     
     <string name="roi_full_fmt">Full image · %1$d × %2$d px</string>
@@ -982,6 +991,14 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <plurals name="frames_size_mismatch_and_more_fmt">
         <item quantity="one">%1$s, and %2$d more</item>
         <item quantity="other">%1$s, and %2$d more</item>
+    </plurals>
+    <plurals name="run_sweep_fmt">
+        <item quantity="one">Run %1$d analysis</item>
+        <item quantity="other">Run %1$d analyses</item>
+    </plurals>
+    <plurals name="run_sweep_eta_fmt">
+        <item quantity="one">Run %1$d analysis · %2$s</item>
+        <item quantity="other">Run %1$d analyses · %2$s</item>
     </plurals>
     <plurals name="sweep_plan_grid_fmt">
         <item quantity="one">1 analysis · subset %2$d–%3$d px · window %4$d–%5$d points</item>

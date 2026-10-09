@@ -86,7 +86,7 @@ class AnalysisWizardSmokeTest {
     }
 
     @Test
-    fun wizardShowsSingleAndSweepSettingsOnStep2AndSummaryOnStep3() {
+    fun wizardShowsSingleAndSweepSetupOnStep2AndSweepSettingsOnStep3() {
         goToWizardStep(WizardStep.SETTINGS)
         onView(withId(R.id.rgAnalysisMode)).check(matches(isDisplayed()))
         onView(withId(R.id.etOverlapValue)).check(matches(isDisplayed()))
@@ -100,7 +100,9 @@ class AnalysisWizardSmokeTest {
         scenarioRule.scenario.onActivity { activity ->
             assertFalse(activity.findViewById<View>(R.id.advancedParamsCard).isVisible)
             assertTrue(activity.findViewById<View>(R.id.sweepSettingsCard).isVisible)
-            assertTrue(activity.findViewById<View>(R.id.tilStepDepth).isVisible)
+            // Step 2 in sweep mode plans the lattice; the ranges are on step 3.
+            assertTrue(activity.findViewById<View>(R.id.sweepLatticePreview).isShown)
+            assertFalse(activity.findViewById<View>(R.id.tilStepDepth).isShown)
             val toolbar = activity.findViewById<MaterialToolbar>(R.id.toolbar)
             assertEquals(activity.getString(R.string.wizard_title_sweep_setup), toolbar.title)
             val dots = activity.findViewById<TextView>(R.id.tvStepDots)
@@ -110,8 +112,11 @@ class AnalysisWizardSmokeTest {
 
         goToWizardStep(WizardStep.SWEEP)
         scenarioRule.scenario.onActivity { activity ->
-            assertTrue(activity.findViewById<View>(R.id.plannedLatticeCard).isShown)
+            assertTrue(activity.findViewById<View>(R.id.subsetRangeBlock).isShown)
+            assertTrue(activity.findViewById<View>(R.id.tilStepDepth).isShown)
             assertTrue(activity.findViewById<View>(R.id.lineCutPreviewCard).isShown)
+            val toolbar = activity.findViewById<MaterialToolbar>(R.id.toolbar)
+            assertEquals(activity.getString(R.string.sweep_settings), toolbar.title)
         }
         captureWizardShot("step3-summary.png")
     }
