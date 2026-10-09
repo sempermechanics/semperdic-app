@@ -91,7 +91,9 @@ def functions(path, text):
         d = 0
         n = 0
         has = bool(params_txt.strip())
-        for ch in params_txt:
+        for pos, ch in enumerate(params_txt):
+            if ch == ">" and params_txt[pos - 1:pos] == "-":
+                continue  # the arrow of a lambda type, `() -> Unit`, closes nothing
             if ch in "(<[{":
                 d += 1
             elif ch in ")>]}":
@@ -109,6 +111,9 @@ def functions(path, text):
         expr_body = False
         while k < len(lines):
             s = strip_strings(lines[k])
+            if not opened and not expr_body and k > j and FUN_RE.match(lines[k]):
+                end = j  # no body (interface or abstract); the next fun is its own
+                break
             if k == j and "=" in s.split(")")[-1] and "{" not in s.split(")")[-1]:
                 expr_body = True
             for ch in s:
@@ -169,7 +174,7 @@ def main():
     total_code_lines = 0
     for p in files:
         t = read(p)
-        n = t.count("\n") + (0 if t.endswith("\n") else 1)
+        n = t.count("\n") + (0 if not t or t.endswith("\n") else 1)
         r = rel(p)
         sizes[r] = n
         pkg = os.path.dirname(r) or "(root)"
