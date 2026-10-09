@@ -139,10 +139,7 @@ def roster_router(tier: Tier) -> APIRouter:
         if body.clearDeviceLock:
             cleared = repo.clear_device_lock(license_id, uid, actor=tier.actor)
         if body.enabled is not None:
-            # A seat on a revoked licence is a roster conflict here (409); on
-            # the member's own routes it is "you may not use it" (403).
-            with errors.restatus({errors.LICENSE_REVOKED: 409}):
-                repo.set_seat_enabled(license_id, uid, body.enabled)
+            repo.set_seat_enabled(license_id, uid, body.enabled)
         audit.record(
             admin.user["uid"], action=f"{tier.audit}_SEAT_PATCH",
             target={"type": "seat", "id": f"{license_id}/{uid}"},

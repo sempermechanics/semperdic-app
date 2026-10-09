@@ -7,6 +7,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.ui.auth.TermsActivity
 import com.sempermechanics.semper.ui.settings.SettingsActivity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -56,6 +57,16 @@ class SignOutRunTest {
         assertEquals(SignOutRun.State.Done(TermsActivity::class.java), SignOutRun.state.value)
         assertTrue(SignOutRun.consume(TermsActivity::class.java))
         assertEquals(SignOutRun.State.Idle, SignOutRun.state.value)
+    }
+
+    @Test
+    fun `a cancelled task inside the sign-out is a failure, not a stop`() {
+        // A cancelled Firebase Task's await throws this while the run is still active;
+        // rethrowing it would end the run silently and leave it Running for good.
+        assertTrue(SignOutRun.start(TermsActivity::class.java) { throw CancellationException("task cancelled") })
+        idle()
+
+        assertEquals(SignOutRun.State.Done(TermsActivity::class.java), SignOutRun.state.value)
     }
 
     @Test
