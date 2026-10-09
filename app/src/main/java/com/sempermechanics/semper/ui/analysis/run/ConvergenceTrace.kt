@@ -36,7 +36,4 @@ object ConvergenceTrace {
         }
         return last.takeIf { strikes > 1 && streak == strikes - 1 }
     }
-
-    /** The most recently solved frame's convergence, or null before the first. */
-    fun latest(values: FloatArray): Float? = values.lastOrNull { !it.isNaN() && it >= 0f }
 }

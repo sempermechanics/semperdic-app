@@ -241,24 +241,29 @@ settings**.
 
 <img src="images/running.png" width="300" alt="Progress dialog">
 
-The card shows the percentage, the time left (once a few seconds of progress
-give a steady rate), seconds per frame and elapsed time. **Convergence per frame**
-is a line across all planned frames with a dashed line at 50%; frames under it
-get a red dot. Under the graph, the status reads *Correlating frame 23 · 40%*,
-then *Completed 40 of 40 frames · saving* while the run writes the analysis.
-After one low frame an amber line warns that one more stops the run.
+The card's header reads *Frame 23 of 40* with the whole run's percentage at its
+end, then the time left (once a few seconds of progress give a steady rate).
+Under it, one bin per planned frame shows **convergence per frame**: a finished
+frame is a blue bar as tall as its convergence, red under the dashed line at
+50%; the frame being solved is a pale outlined bar rising with its progress;
+frames still to come are empty slots. Over 100 frames, neighbouring frames share
+a bin that shows the lowest of them, so a low frame is never hidden. Once every
+frame is solved the header reads *Completed 40 of 40 frames · saving* while the
+run writes the analysis. After one low frame an amber line warns that one more
+stops the run.
 **Cancel** stops the run
 where it is, within a moment — it does not wait out the frame being solved.
 Nothing is kept. Back is blocked. Cancelling a parameter sweep abandons the whole
 sweep, not just the combination in flight.
 
 The same overlay covers importing frames and extracting video, but there it
-counts frames instead: the convergence graph is hidden, because nothing is being
-solved yet. A parameter sweep shows *Analysis 7 of 9*, the percentage and time
-left, and its planned lattice in place of the graph: every combination starts
-as a grey ring, fills when it solves, turns into a red ring if it is skipped,
-and the one being solved is circled. The status under it names that
-combination, then *Solved 9 of 9 analyses · saving*. Cancelling an import asks for confirmation and leaves nothing behind.
+shows a progress bar and counts frames instead: the convergence bins are hidden,
+because nothing is being solved yet. A parameter sweep's header reads *Analysis
+7 of 9* with the percentage, then the time left, and its planned lattice takes
+the bins' place: every combination starts as a grey ring, fills when it solves,
+turns into a red ring if it is skipped, and the one being solved is circled. The
+status under it names that combination; at the end the header reads *Solved 9
+of 9 analyses · saving*. Cancelling an import asks for confirmation and leaves nothing behind.
 
 **A run stops itself if the images decorrelate.** Two consecutive frames below
 50% convergence end it — the frames after them would be no better, and the

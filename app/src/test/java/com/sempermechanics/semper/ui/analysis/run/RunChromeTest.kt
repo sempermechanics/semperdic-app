@@ -5,7 +5,6 @@ import android.os.Looper
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
-import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -45,11 +44,9 @@ class RunChromeTest {
         cancel = Button(activity)
         val helper = ComputeOverlayController(
             overlay = overlay,
-            title = TextView(activity),
-            progress = ProgressBar(activity),
+            header = TextView(activity),
             percent = TextView(activity),
             status = TextView(activity),
-            elapsed = TextView(activity),
             eta = TextView(activity),
         )
         chrome = RunChrome(activity, helper, cancel)

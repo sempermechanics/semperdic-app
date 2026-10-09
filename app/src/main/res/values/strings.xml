@@ -172,11 +172,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="result">Result: --</string>
     <string name="back">Back</string>
     <string name="next_settings">Next: Settings →</string>
-    <string name="computing_strain_field">Computing strain field</string>
     <string name="initializing_engine">Initializing engine…</string>
-    <string name="elapsed_0s">0:00 elapsed</string>
-    <string name="run_elapsed_fmt">%1$s elapsed</string>
-    <string name="please_keep_the_app_open">Keep Semper open until it finishes</string>
     <string name="text">—</string>
     <string name="extraction_frame_rate">Extraction frame rate</string>
     <string name="time_segment">Time segment</string>
@@ -574,12 +570,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="line_cut_axis_strain">Strain (mε)</string>
 
     <string name="run_frame_of_fmt">Frame %1$d of %2$d</string>
-    <string name="run_pace_fmt">%1$.1f s a frame</string>
-    <string name="run_convergence_per_frame">Convergence per frame</string>
-    <string name="run_convergence_latest_fmt">%1$.1f%%</string>
-    <string name="run_convergence_cd">Convergence per frame, latest %1$.1f%%</string>
-    <string name="run_correlating_fmt">Correlating frame %1$d · %2$d%%</string>
-    <string name="run_correlating_single_fmt">Correlating · %1$d%%</string>
+    <plurals name="run_bins_cd">
+        <item quantity="one">Frame %1$d of %2$d, %3$d converged above %4$d%%</item>
+        <item quantity="other">Frame %1$d of %2$d, %3$d converged above %4$d%%</item>
+    </plurals>
     <plurals name="run_completed_fmt">
         <item quantity="one">Completed %1$d of %2$d frame · saving</item>
         <item quantity="other">Completed %1$d of %2$d frames · saving</item>
