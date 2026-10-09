@@ -162,6 +162,21 @@ object PrefFiles {
         val SHOWN_OUTCOMES = PrefKey.stringSet("shown_outcomes")
     }
 
+    /**
+     * [AccountDeletionMarker]: an account erase that was sent, and how far it
+     * got, so a deletion the process did not live to finish ends at the next start.
+     * Outlives sign-out and the local wipe on purpose.
+     */
+    object AccountDeletion {
+        const val NAME = "semper_account_deletion"
+
+        /** An [AccountDeletionMarker.Stage] name, or absent when nothing is owed. */
+        val STAGE = PrefKey.string("stage")
+
+        /** The account the erase was sent for (`AccountCache.cachedUid`), "" when unknown. */
+        val UID = PrefKey.string("uid", "")
+    }
+
     /** Every file name above, for a test or a wipe that must not miss one. */
     val ALL_NAMES: List<String> = listOf(
         Settings.NAME,
@@ -176,5 +191,6 @@ object PrefFiles {
         RestoreOutcomes.NAME,
         EmailLink.NAME,
         SessionDeletesPrefs.NAME,
+        AccountDeletion.NAME,
     )
 }

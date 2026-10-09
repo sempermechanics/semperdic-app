@@ -8,7 +8,6 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.workDataOf
 import com.sempermechanics.semper.data.DicUploadWorker
-import com.sempermechanics.semper.data.account.AuthRepository
 import com.sempermechanics.semper.data.account.LicenseEntitlements
 import com.sempermechanics.semper.data.cloud.CloudErase.accountGone
 import com.sempermechanics.semper.data.cloud.CloudErase.toEraseResult
@@ -246,16 +245,32 @@ object CloudSync {
         context: Context,
         api: CloudApi = SemperApi.get(context),
         tokens: TokenSource = TokenProvider,
-    ): AccountDeletion = withContext(Dispatchers.IO) {
-        val appContext = context.applicationContext
-        val auth = AuthRepository(appContext, api, tokens)
-        CloudErase.deleteAccount(
-            eraseCloud = { CloudErase.eraseAccountInCloud(api, tokens).accountGone },
-            deleteIdentity = { auth.deleteIdentity().isSuccess },
-            wipeLocal = { SessionStore.deleteAll(appContext) },
-            signOut = { auth.signOut() },
-        )
+    ): AccountDeletion = CloudErase.deleteAccount(context, api, tokens) {
+        CloudErase.eraseAccountInCloud(api, tokens).accountGone
     }
+
+    /** Whether an account whose erase went unanswered is gone ([CloudErase.probeErasedAccount]). */
+    enum class AccountProbe {
+        /** Erased: the phone's half of the deletion is owed. */
+        GONE,
+
+        /** The erase never landed: nothing is owed. */
+        STILL_THERE,
+
+        /** No answer (offline, a 5xx, no token): ask again later. */
+        UNKNOWN,
+    }
+
+    /**
+     * The phone's half of a deletion whose cloud erase already landed, for a
+     * process that died before finishing it: the same identity delete, wipe
+     * and sign-out as [deleteAccount], without sending the erase again.
+     */
+    suspend fun finishAccountDeletion(
+        context: Context,
+        api: CloudApi = SemperApi.get(context),
+        tokens: TokenSource = TokenProvider,
+    ): AccountDeletion = CloudErase.deleteAccount(context, api, tokens) { true }
 
     /** Delete only this device's heavy artifacts; the cloud backup and index row stay. */
     suspend fun eraseLocalOnly(context: Context, localSessionId: String) = withContext(Dispatchers.IO) {
