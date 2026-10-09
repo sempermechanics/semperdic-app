@@ -67,7 +67,7 @@ _CODE = re.compile(r"`([^`]+)`")
 # not a new one. These documents wrap their bullets across lines.
 _BULLET = re.compile(r"^[-*]\s+")
 _NUMBERED = re.compile(r"^\d+\.\s+")
-_BLOCK_START = re.compile(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\|)")
+_BLOCK_START = re.compile(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||```)")
 
 
 def _emit_list(lines: list[str], i: int, marker: re.Pattern, tag: str, out: list[str]) -> int:
@@ -107,7 +107,9 @@ def _href(target: str) -> str | None:
 
 def _link(match: re.Match) -> str:
     label, target = match.group(1), match.group(2)
-    href = _href(target)
+    # The text arrives escaped by _inline; unescape the target so the href
+    # is escaped once (`&` as `&amp;`, not `&amp;amp;`).
+    href = _href(html.unescape(target))
     if href is None:
         return label  # internal repo path: keep the words, drop the dead link
     return f'<a href="{html.escape(href, quote=True)}">{label}</a>'
@@ -116,10 +118,17 @@ def _link(match: re.Match) -> str:
 def _inline(text: str) -> str:
     """Escape first, then re-introduce only the markup we recognise."""
     out = html.escape(text, quote=False)
-    out = _CODE.sub(lambda m: f"<code>{m.group(1)}</code>", out)
+    # A code span is literal: set it aside so bold and links do not reach in.
+    spans: list[str] = []
+
+    def stash(m: re.Match) -> str:
+        spans.append(m.group(1))
+        return f"\x00{len(spans) - 1}\x00"
+
+    out = _CODE.sub(stash, out)
     out = _BOLD.sub(lambda m: f"<strong>{m.group(1)}</strong>", out)
     out = _LINK.sub(_link, out)
-    return out
+    return re.sub(r"\x00(\d+)\x00", lambda m: f"<code>{spans[int(m.group(1))]}</code>", out)
 
 
 def _is_table_divider(line: str) -> bool:
@@ -180,16 +189,17 @@ def render(markdown: str) -> str:
                     "acceptable"
                 )
             # Paragraph: consume until a blank line or the start of another block.
+            # Its first line is taken whatever it starts with: everything this
+            # renderer knows was tried above, so a line that only looks like a
+            # block start (a `|` with no divider under it) is text, and skipping
+            # it would drop legal wording.
             para = []
-            while i < len(lines) and lines[i].strip() and not _BLOCK_START.match(lines[i]) and not (
+            while i < len(lines) and lines[i].strip() and (not para or not _BLOCK_START.match(lines[i])) and not (
                 lines[i].strip().startswith("---") and set(lines[i].strip()) == {"-"}
             ):
                 para.append(lines[i].strip())
                 i += 1
-            if para:
-                out.append(f"<p>{_inline(' '.join(para))}</p>")
-            else:
-                i += 1
+            out.append(f"<p>{_inline(' '.join(para))}</p>")
         continue
 
     return "\n".join(out)
