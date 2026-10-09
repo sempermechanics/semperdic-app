@@ -81,7 +81,8 @@ internal object CloudErase {
             eraseCloud = eraseCloud,
             deleteIdentity = { auth.deleteIdentity().isSuccess },
             wipeLocal = { SessionStore.deleteAll(appContext) },
-            signOut = { auth.signOut() },
+            // No seat release: the erase gave the seat back (TD-206).
+            signOut = { auth.signOut(releaseSeat = false) },
         )
     }
 

@@ -90,7 +90,7 @@ object AccountDeletionRun {
 
     /** Seam for tests: the sign-out a deletion that failed after the erase still owes. */
     @VisibleForTesting
-    internal var signOut: suspend (Context) -> Unit = { AuthRepository(it).signOut() }
+    internal var signOut: suspend (Context) -> Unit = { AuthRepository(it).signOut(releaseSeat = false) }
 
     /** Seam for tests: whether an erase that never answered landed. */
     @VisibleForTesting
@@ -273,7 +273,7 @@ object AccountDeletionRun {
         _state.value = State.Idle
         delete = { context, api -> CloudSync.deleteAccount(context, api) }
         cloudApi = { SemperApi.get(it) }
-        signOut = { AuthRepository(it).signOut() }
+        signOut = { AuthRepository(it).signOut(releaseSeat = false) }
         probe = { _, api -> CloudErase.probeErasedAccount(api, TokenProvider) }
         finish = { context, api -> CloudSync.finishAccountDeletion(context, api) }
     }
