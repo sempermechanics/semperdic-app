@@ -426,11 +426,12 @@ kover {
             // narrower set, whose floors were 73 / 58 — the reset is the wider
             // measure, not lost coverage). The line floor once sat at 49 while
             // coverage climbed past 75, so a 26-point drop would have passed.
+            // 2026-10-09: lines 76.36 %, branches 59.14 %.
             rule("Line coverage") {
-                minBound(72)
+                minBound(74)
             }
             rule("Branch coverage") {
-                minBound(54, kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH)
+                minBound(57, kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH)
             }
         }
     }

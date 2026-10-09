@@ -26,8 +26,8 @@ import com.sempermechanics.semper.ui.analysis.recommend.RunEstimate
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.BatchAnalysisOutcome
 import com.sempermechanics.semper.ui.analysis.wizard.BatchProgressUpdate
+import com.sempermechanics.semper.ui.analysis.wizard.openRunSession
 import com.sempermechanics.semper.ui.analysis.wizard.repointDeformedPathsOnMain
-import com.sempermechanics.semper.ui.analysis.wizard.resolveLocalSessionId
 import com.sempermechanics.semper.ui.analysis.wizard.sessionLimitOutcome
 import kotlinx.coroutines.ensureActive
 import timber.log.Timber
@@ -56,7 +56,7 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     onProgress: (BatchProgressUpdate) -> Unit,
 ): BatchAnalysisOutcome {
     val spec = run.spec
-    val limited = sessionLimitOutcome(appContext, defFilePaths.size)
+    val limited = sessionLimitOutcome(appContext, defFilePaths.size, sweep = false)
     if (limited != null) {
         SemperAnalytics.event(
             appContext,
@@ -67,12 +67,12 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     }
 
     // Results live in app-private persistent storage (NOT cacheDir, which
-    // the OS may evict): one directory per Home-list session.
-    val localSessionId = resolveLocalSessionId()
-    val batchDir = SessionStore.dirFor(appContext, localSessionId)
-    // The Home row this run replaces, if it is a re-run. Its frames go next.
+    // the OS may evict): one directory per Home-list session, never a sweep's.
+    val session = openRunSession(appContext, sweep = false)
+    val localSessionId = session.id
+    val batchDir = session.dir
+    // The Home row this run replaces, if it is a re-run; its frames are gone.
     val previous = SessionStore.get(appContext, localSessionId)
-    batchDir.listFiles { f -> f.extension == "dat" }?.forEach { it.delete() }
 
     // Start every run from a clean result snapshot carrying its spec. Fields
     // below (engineStats, refPath, settings, stopCode, plannedFrames) are only
@@ -118,7 +118,8 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     // reopened sessions) can bundle them. They are MOVED in from the import
     // cache, not copied, so one set of images exists on disk instead of two —
     // which makes this directory the run's own input on a re-run. Stale frames
-    // are therefore pruned after the loop, never wiped before it.
+    // are therefore pruned after the loop, never wiped before it. (A frame in
+    // a sweep's session is copied instead: keepDeformedFrame.)
     val rawDeformedDir = File(batchDir, SessionPaths.RAW_DEFORMED_SUBDIR).apply { mkdirs() }
 
     // The filenames actually written into raw_deformed/, index-aligned with
@@ -182,19 +183,7 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
                 // Persist the untouched original under the user's own filename
                 // so exports keep default names.
                 val rawName = defOriginalNames.originalNameOr(frameIndex, source.name).baseName()
-                // Keep the default name; only index-prefix if it would collide.
-                val target = File(rawDeformedDir, rawName).let {
-                    if (it.exists()) {
-                        File(rawDeformedDir, String.format(Locale.US, "%04d_%s", frameIndex, rawName))
-                    } else {
-                        it
-                    }
-                }
-                // Both directories are app-private storage, so this is a rename
-                // rather than a second multi-megabyte write. The fallback writes
-                // the bytes already read for JNI rather than AtomicFiles.promote's
-                // copy, which would read the file a second time.
-                if (!source.renameTo(target)) target.writeBytes(defBytes)
+                val target = keepDeformedFrame(source, defBytes, rawDeformedDir, rawName, frameIndex)
                 // Record the name we ACTUALLY wrote: the session index (and the
                 // cloud upload) must be able to find these files again.
                 persistedRawNames[frameIndex] = target.name
@@ -479,6 +468,32 @@ internal fun batchEndEvent(appContext: Context, outcome: BatchAnalysisOutcome, s
             ),
         )
     }
+}
+
+/**
+ * Keeps frame [frameIndex]'s deformed image [source], whose [bytes] the run
+ * has already read, in [rawDeformedDir] under [rawName], index-prefixed only
+ * if that name is taken; returns the file it is kept as. An image from the
+ * import cache is moved: both directories are app-private storage, so that
+ * is a rename rather than a second multi-megabyte write, and the fallback
+ * writes [bytes] rather than read the file a second time. One in another
+ * session's directory (the sweep this wizard saved before) is copied and
+ * left where it is: it is that session's own image.
+ */
+internal fun keepDeformedFrame(
+    source: File,
+    bytes: ByteArray,
+    rawDeformedDir: File,
+    rawName: String,
+    frameIndex: Int,
+): File {
+    val target = File(rawDeformedDir, rawName).let {
+        if (it.exists()) File(rawDeformedDir, String.format(Locale.US, "%04d_%s", frameIndex, rawName)) else it
+    }
+    val sessionDir = rawDeformedDir.absoluteFile.parentFile
+    val copyOnly = sessionDir != null && SessionPaths.isInOtherSession(source, sessionDir)
+    if (copyOnly || !source.renameTo(target)) target.writeBytes(bytes)
+    return target
 }
 
 /** Persists [ranges], one entry per written frame, for [indices]; best-effort. */

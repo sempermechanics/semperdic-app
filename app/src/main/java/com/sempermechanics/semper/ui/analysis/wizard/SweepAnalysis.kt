@@ -58,7 +58,7 @@ private fun AnalysisViewModel.runSweepBody(
     val bytes = refBytes ?: error("Reference missing")
     val startedAt = System.currentTimeMillis()
 
-    val limited = sessionLimitOutcome(appContext, plan.size)
+    val limited = sessionLimitOutcome(appContext, plan.size, sweep = true)
     if (limited != null) {
         sweepEvent(appContext, SemperAnalytics.ANALYSIS_FAILED, "reason" to "session_limit")
         return limited
@@ -76,9 +76,10 @@ private fun AnalysisViewModel.solveSweep(
 ): BatchAnalysisOutcome {
     val sweep = checkNotNull(spec.sweep)
     val plan = sweep.plan
-    val localSessionId = resolveLocalSessionId()
-    val batchDir = SessionStore.dirFor(appContext, localSessionId)
-    batchDir.listFiles { f -> f.extension == "dat" }?.forEach { it.delete() }
+    // Its own session, never a single run's: a sweep after one is a new record.
+    val session = openRunSession(appContext, sweep = true)
+    val localSessionId = session.id
+    val batchDir = session.dir
     // A clean snapshot, as the batch path takes: a sweep used to inherit the
     // previous run's stop code, reference and planned-frame count.
     resetRunResult(batchDir.absolutePath, spec)
@@ -209,7 +210,9 @@ private fun AnalysisViewModel.persistSweepSession(
 
     val frameIndex = sweep.frameIndex
     val rawName = sessions.persistRawDeformed(run.batchDir, frameIndex, defFilePaths, defOriginalNames)
-    if (rawName.isNotBlank()) {
+    // Followed only when it moved: one copied out of a single run's session
+    // stays where it is, that run's input for its next re-run.
+    if (rawName.isNotBlank() && !File(defFilePaths[frameIndex]).exists()) {
         val moved = File(run.batchDir, SessionPaths.RAW_DEFORMED_SUBDIR).resolve(rawName)
         repointDeformedPathsOnMain(
             defFilePaths.toMutableList().also { it[frameIndex] = moved.absolutePath },
@@ -277,9 +280,10 @@ private fun sweepSummary(
     val solvedLabels = result.runs.map { labelByPoint[it.point].orEmpty() }
     val totalPlanned = sweep.plan.size
     val existing = SessionStore.get(appContext, localSessionId)
-    // Regenerate the sweep auto-name each run unless the user renamed the
-    // session — so a single re-run that becomes a sweep now reads as a sweep,
-    // and vice-versa. No date: the Home row shows it; a clash gets " (2)".
+    // Regenerate the sweep auto-name each re-run unless the user renamed the
+    // session. A sweep after a single run is a new session (resolveLocalSessionId),
+    // so it is named as a sweep from the start and the single run keeps its
+    // name. No date: the Home row shows it; a clash gets " (2)".
     val name = if (existing?.renamedByUser == true) {
         existing.name
     } else {
