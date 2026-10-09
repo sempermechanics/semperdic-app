@@ -31,7 +31,7 @@ class AppIdHeaderTest {
 
     @Test
     fun `a backend call names the app`() {
-        call(AppIdHeader(server.hostName, "com.indicvision.semper.materialtesting"))
+        call(AppIdHeader("${server.hostName}:${server.port}", "com.indicvision.semper.materialtesting"))
         assertEquals(
             "com.indicvision.semper.materialtesting",
             server.takeRequest().headers["X-App-Id"],
@@ -40,7 +40,7 @@ class AppIdHeaderTest {
 
     @Test
     fun `the default is this build's application id`() {
-        call(AppIdHeader(server.hostName))
+        call(AppIdHeader("${server.hostName}:${server.port}"))
         assertEquals(BuildConfig.APPLICATION_ID, server.takeRequest().headers["X-App-Id"])
     }
 
