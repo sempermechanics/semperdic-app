@@ -32,6 +32,15 @@ object SessionPaths {
 
     fun frameDat(sessionDir: File, index: Int): File = File(sessionDir, frameDatName(index))
 
+    /**
+     * Home's result thumbnail: the last frame's U field, rendered once and
+     * cached here. Derived, never uploaded or restored, and stale once a frame
+     * `.dat` is newer than it (a re-run or a restore rewrote the frames).
+     */
+    const val RESULT_THUMB_PNG = "thumb_result.png"
+
+    fun resultThumb(sessionDir: File): File = File(sessionDir, RESULT_THUMB_PNG)
+
     private val FRAME_DAT_NAME = Regex("""frame_(\d+)\.dat""")
 
     /**

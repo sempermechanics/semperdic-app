@@ -122,13 +122,16 @@ class SessionRepository {
         val settings = input.settings
         val metrics = outcome.metrics
         val convergence = metrics.engineStats.getOrNull(EngineStats.SLOT_CONVERGENCE) ?: 0f
-        // Regenerate the auto-name for THIS run's kind (single here), keyed to the
-        // original createdAt so re-runs don't churn the timestamp — but never
-        // override a name the user set themselves.
+        // Regenerate the auto-name for THIS run's kind (single here) — but never
+        // override a name the user set themselves. It never collides with
+        // another session's name, but may keep this session's own.
         val autoName = if (existing?.renamedByUser == true) {
             existing.name
         } else {
-            SessionNaming.defaultSessionName(input.reference.name, createdAt)
+            SessionNaming.defaultSessionName(
+                input.reference.name,
+                SessionStore.namesOtherThan(appContext, input.localSessionId),
+            )
         }
         return SessionRecord(
             id = input.localSessionId,

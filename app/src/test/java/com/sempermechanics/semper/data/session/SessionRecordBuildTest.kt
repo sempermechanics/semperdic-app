@@ -45,11 +45,11 @@ class SessionRecordBuildTest {
     /**
      * Every field the run fills, as literals: [input] and [outcome] carry a
      * different value per field, so a swapped or dropped one shows. The clock
-     * and the auto-name derived from it are taken from [built].
+     * is taken from [built]; the auto-name is the reference's base name.
      */
     private fun expectedRow(built: SessionRecord, syncState: SessionRecord.SyncState) = SessionRecord(
         id = "s1",
-        name = SessionNaming.defaultSessionName("plate.tif", built.createdAt),
+        name = "plate",
         createdAt = built.createdAt,
         updatedAt = built.updatedAt,
         frameCount = 2,
@@ -115,5 +115,17 @@ class SessionRecordBuildTest {
 
         assertEquals("Mine", rerun.name)
         assertEquals(first.createdAt, rerun.createdAt)
+    }
+
+    @Test
+    fun `a new auto-name steps around another session's name but keeps its own on a re-run`() {
+        val other = repository.buildSessionRecord(context, input.copy(localSessionId = "s0"), outcome, false)
+        SessionStore.upsert(context, other)
+        val second = repository.buildSessionRecord(context, input, outcome, cloudEnabled = false)
+        assertEquals("plate (2)", second.name)
+
+        SessionStore.upsert(context, second)
+        val rerun = repository.buildSessionRecord(context, input, outcome, cloudEnabled = false)
+        assertEquals("its own name is no clash", "plate (2)", rerun.name)
     }
 }

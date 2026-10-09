@@ -1,9 +1,6 @@
 package com.sempermechanics.semper.data.session
 
 import com.sempermechanics.semper.util.Digests
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /** The names an analysis is given: its auto-name, and its name inside file and archive names. */
 object SessionNaming {
@@ -21,13 +18,20 @@ object SessionNaming {
     private const val CACHE_ID_HEX = 12
 
     /**
-     * The name a run gives its session: the reference's base name and the
-     * session's creation time, e.g. `specimen · Sep 30, 14:02:11`.
+     * The name a run gives its session: the reference's base name, e.g.
+     * `specimen`. The Home row already shows the date, so the name does not
+     * repeat it; a name another session already has ([taken]) gets the first
+     * free ` (2)`, ` (3)`, … suffix ([uniqueName]).
      */
-    fun defaultSessionName(refFileName: String, createdAt: Long): String {
-        val base = refFileName.substringBeforeLast('.').ifBlank { "Analysis" }
-        val stamp = SimpleDateFormat("MMM d, HH:mm:ss", Locale.US).format(Date(createdAt))
-        return "$base · $stamp"
+    fun defaultSessionName(refFileName: String, taken: Collection<String>): String =
+        uniqueName(refFileName.substringBeforeLast('.').ifBlank { "Analysis" }, taken)
+
+    /** [base] itself when no name in [taken] is it, else `base (n)` for the first free n ≥ 2. */
+    fun uniqueName(base: String, taken: Collection<String>): String {
+        if (base !in taken) return base
+        var n = 2
+        while ("$base ($n)" in taken) n++
+        return "$base ($n)"
     }
 
     /**

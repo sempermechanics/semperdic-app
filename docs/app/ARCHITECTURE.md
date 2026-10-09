@@ -42,7 +42,7 @@ on 2026-10-03.
 | Package | Files | Role |
 |---|---|---|
 | `ui/auth/` | 11 | Splash, sign-in (`AuthActivity` with `AuthTotpController` and `AuthPasswordReset`), pending approval, terms, `AccessRouter`, `GoogleSignInHelper`, `PasswordPolicy` |
-| `ui/home/` | 11 | `HomeActivity` and its parts: session list and selection, `HomeQuotaCard`, `CloudBackupsCard`, `FirstRunPrompts`, `HomeFabLayout`, `HomeTransferWatch` (backup and restore jobs), `BackupBadgeActions` |
+| `ui/home/` | 14 | `HomeActivity` and its parts: session list and selection (rows painted by `SessionRowText`, `SessionStateIcon` and `SessionThumbs`, the last caching the last frame's U heatmap as `SessionPaths.resultThumb`), `HomeQuotaCard`, `CloudBackupsCard`, `FirstRunPrompts`, `HomeFabLayout`, `HomeTransferWatch` (backup and restore jobs), `BackupBadgeActions` |
 | `ui/analysis/` | 3 | The three analysis Activities only: `StaticAnalysisActivity` (the wizard), `RoiDrawActivity`, `VsgLatticeActivity` |
 | `ui/analysis/wizard/` | 22 | `AnalysisViewModel` with `RunChannels` (launch batch and sweep) and `SweepAnalysis`; `WizardStep`, `AnalysisWizardChrome.applyStep`, `AnalysisWizardHost`; `WizardState` / `WizardDraftBinding` (process death, [ADR-005](../adr/ADR-005-wizard-process-death.md)); slots, coach, nav, ready / cancel / leave gates; parameter fields and sliders; settings sheet |
 | `ui/analysis/run/` | 19 | `BatchAnalysis.kt` (`runBatchAnalysisBody`, the one JNI loop, and `afterSave`) + `DicFieldIo`; `RunRecordSave` (`saveRunRecord`); `BatchRunController`, `WizardRunLauncher`, `WizardRunOutcomes`, `RunStatusLine`, `RunChrome`; the run overlay `ComputeOverlayController` with its wording (`RunOverlayText`) and convergence graph (`ConvergenceLineView`, `ConvergenceTrace`, which warns one strike before `ConvergenceGate` stops a run); `RunSpec` ([ADR-004](../adr/ADR-004-runspec.md)); `EngineFailure`, `ConvergenceGate`, `UnsavedRerun`, `SemperEngine` |
@@ -265,11 +265,11 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
   when the native solve emitted faster than the UI collected, stalling the bar.
 - **Transfer failures are surfaced, not swallowed.** Terminal worker failures carry
   a human reason in their `WorkInfo` output, read through `TransferWorkObserver`:
-  Home (`HomeTransferWatch`) follows **both** backups (badge dialog + snackbar) and
+  Home (`HomeTransferWatch`) follows **both** backups (cloud icon dialog + snackbar) and
   restores (snackbar), and Settings (`SettingsAnalysesSection`) follows restores and
   Save-to-Files downloads. Quota-full is the one exclusion —
   it routes to its own screen. Progress from the same `WorkInfo` drives the
-  per-row badge and progress bar on Home, for downloads as well as uploads.
+  per-row state icon, progress text and bar on Home, for downloads as well as uploads.
 - **Cancelling a sweep abandons the sweep.** `SweepStudyRunner` checks the cancel
   token *between* combinations as well as inside a solve, so Cancel does not merely
   skip to the next parameter set.

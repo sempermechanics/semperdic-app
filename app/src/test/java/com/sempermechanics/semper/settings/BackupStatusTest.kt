@@ -26,7 +26,7 @@ class BackupStatusTest {
 
     @Test
     fun `pending uploads read as pending`() {
-        assertEquals("upload pending", BackupStatus.text(res, listOf(SyncState.SYNCED, SyncState.PENDING)))
+        assertEquals("Upload pending", BackupStatus.text(res, listOf(SyncState.SYNCED, SyncState.PENDING)))
     }
 
     @Test

@@ -36,7 +36,9 @@ import com.sempermechanics.semper.ui.limit.SessionLimitActivity
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -106,9 +108,9 @@ class HomeControllersTest {
         AppRemoteConfig.apply(context, AppConfigDto(maxSessions = 5))
         AccountCache.setQuota(context, used = 2)
 
-        card.render(localSessionCount = 3)
+        card.render(localSessionCount = 4)
         assertEquals(View.VISIBLE, quotaView.visibility)
-        assertEquals(activity.resources.getQuantityString(R.plurals.home_quota_fmt, 3, 3, 5), quotaView.text)
+        assertEquals(activity.resources.getQuantityString(R.plurals.home_quota_fmt, 4, 4, 5), quotaView.text)
         assertEquals(activity.getColor(R.color.text_secondary), quotaView.currentTextColor)
 
         card.render(localSessionCount = 5)
@@ -116,9 +118,32 @@ class HomeControllersTest {
     }
 
     @Test
+    fun `the quota line shows only from eighty percent of the ceiling`() {
+        AppRemoteConfig.apply(context, AppConfigDto(maxSessions = 100))
+
+        card.render(localSessionCount = 79)
+        assertEquals("79%", View.GONE, quotaView.visibility)
+
+        card.render(localSessionCount = 80)
+        assertEquals("80%", View.VISIBLE, quotaView.visibility)
+
+        card.render(localSessionCount = 3)
+        assertEquals("hidden again under it", View.GONE, quotaView.visibility)
+    }
+
+    @Test
+    fun `near the ceiling means at least eighty percent of it`() {
+        assertFalse(HomeQuotaCard.nearCeiling(used = 799, max = 999))
+        assertTrue(HomeQuotaCard.nearCeiling(used = 800, max = 999))
+        assertTrue(HomeQuotaCard.nearCeiling(used = 4, max = 5))
+        assertFalse(HomeQuotaCard.nearCeiling(used = 3, max = 5))
+        assertFalse("no ceiling", HomeQuotaCard.nearCeiling(used = 10, max = 0))
+    }
+
+    @Test
     fun `a tap on the quota line opens Settings under the limit and the limit screen at it`() {
         AppRemoteConfig.apply(context, AppConfigDto(maxSessions = 5))
-        card.render(localSessionCount = 1)
+        card.render(localSessionCount = 4)
 
         quotaView.performClick()
         assertEquals(1, settingsOpened)
