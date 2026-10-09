@@ -404,7 +404,8 @@ Step 2 (**Sweep setup**) picks what is swept and shows the plan:
   a thumbnail beside it. It starts on the middle frame. Tap the field to open
   the frame picker: a scrolling list of the frames, a frame-number field, and a
   preview of the frame you are on; **OK** makes it the swept frame. Tap the
-  thumbnail to see the frame at full width; tap it again to close it. Pick the
+  thumbnail to see the frame large over the dimmed page; tap anywhere to close
+  it. Pick the
   frame with the most deformation; the sweep solves only that one. With a
   single deformed frame there is nothing to pick and the row is hidden.
 - **Planned lattice** — one node per analysis, subset across and VSG up, with

@@ -414,7 +414,7 @@ vendor decoders and camera AVIs.
 | [ ] 5.2.19 | Edit a parameter field and tap **Compute** without pressing Done | The typed value is committed and used |
 | [ ] 5.2.20 | Open step 2 for the first time | Coach marks point at the analysis-mode toggle, the ROI row, then the Correlation section (Single) or the planned lattice (Sweep) |
 | [ ] 5.2.21 | Tap the **Frame to sweep** field (sweep, multi-frame) | The frame picker opens on the picked frame: a radio list, a frame-number field and a live preview. **OK** updates the name, "Frame n of N" and the thumbnail; **Cancel** changes nothing. With one deformed frame the row is hidden |
-| [ ] 5.2.21a | Tap the frame thumbnail, then the large frame | The frame opens at full width under the row, then closes; TalkBack reads "tap to enlarge" / "tap to shrink" |
+| [ ] 5.2.21a | Tap the frame thumbnail, then anywhere | The frame shows large over the dimmed page with "name · Frame n of N" and "Tap to close" under it; a tap anywhere or Back closes it |
 | [ ] 5.2.23 | Drag the subset range handles (step 3) | Both ends stay odd; min never crosses max |
 | [ ] 5.2.24 | Type a subset min above the max | Clamped so min ≤ max |
 | [ ] 5.2.25 | Drag the strain window range (step 3) | Two handles like the subset's, in points (3–31, default 3–11); the min and max boxes track it, and the line under it reads "Fits planes over a–b px (VSG)" for the plan's smallest and largest VSG |

@@ -30,7 +30,7 @@ import org.robolectric.shadows.ShadowDialog
 /**
  * The sweep's two pages: step 2 picks the frame in a dialog and shows the
  * planned lattice, the sample counts under its gear, and a frame thumbnail
- * that opens at full width; step 3 holds the ranges, says the VSG span they
+ * that opens over the page; step 3 holds the ranges, says the VSG span they
  * cover, opens its line-cut strip on a tap, and its run button counts the
  * analyses and, once this phone has a rate, the time.
  */
@@ -138,18 +138,24 @@ class SweepStepsTest {
     }
 
     @Test
-    fun `a tap on the frame thumbnail opens the frame at full width, a tap on it closes it`() {
+    fun `a tap on the frame thumbnail shows the frame over the page, a tap closes it`() {
         open(frames = 40)
-        val large = view<ImageView>(R.id.imgSweepFrameLarge)
-        large.setImageDrawable(ColorDrawable(Color.GRAY))
+        val thumb = view<ImageView>(R.id.imgSweepFrame)
+        thumb.setImageDrawable(ColorDrawable(Color.GRAY))
 
-        view<View>(R.id.imgSweepFrame).performClick()
-        assertEquals(View.VISIBLE, large.visibility)
-        assertEquals("Frame to sweep, tap to shrink", view<View>(R.id.imgSweepFrame).contentDescription)
+        thumb.performClick()
+        bed.idle()
+        val overlay = ShadowDialog.getLatestDialog()
+        assertTrue(overlay.isShowing)
+        assertEquals(
+            "steel_20.tif · Frame 21 of 40",
+            overlay.findViewById<TextView>(R.id.tvSweepFrameOverlay).text.toString(),
+        )
+        assertTrue(overlay.findViewById<ImageView>(R.id.imgSweepFrameOverlay).drawable != null)
 
-        large.performClick()
-        assertEquals(View.GONE, large.visibility)
-        assertEquals("Frame to sweep, tap to enlarge", view<View>(R.id.imgSweepFrame).contentDescription)
+        (overlay.findViewById<View>(R.id.tvSweepFrameOverlay).parent as View).performClick()
+        bed.idle()
+        assertTrue(!overlay.isShowing)
     }
 
     @Test

@@ -447,6 +447,9 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="preview_enlarge_fmt">%1$s, tap to enlarge</string>
     <string name="preview_shrink_fmt">%1$s, tap to shrink</string>
     <string name="sweep_frame_out_of_fmt">out of %1$d</string>
+    <string name="sweep_frame_enlarge">Frame to sweep, tap to enlarge</string>
+    <string name="sweep_frame_overlay_close">Tap to close</string>
+    <string name="sweep_frame_overlay_caption_fmt">%1$s · %2$s</string>
     <string name="sweep_frame_position_fmt">Frame %1$d of %2$d</string>
     <string name="sweep_frame_hint">Pick the frame with the most deformation; the sweep solves only this one.</string>
     <string name="line_cut_along_x">Along X</string>

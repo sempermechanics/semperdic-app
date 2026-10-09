@@ -1,10 +1,15 @@
 package com.sempermechanics.semper.ui.analysis.sweep
 
+import android.app.Dialog
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
+import android.view.WindowManager
 import android.widget.EditText
 import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
@@ -17,10 +22,10 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.SemperNativeLib
 import com.sempermechanics.semper.data.session.originalNameOr
 import com.sempermechanics.semper.databinding.DialogSweepFramePickBinding
+import com.sempermechanics.semper.databinding.SweepFrameOverlayBinding
 import com.sempermechanics.semper.imaging.BitmapDecoder
 import com.sempermechanics.semper.imaging.RawRgba
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
-import com.sempermechanics.semper.ui.common.Motion
 import com.sempermechanics.semper.ui.common.SerialJob
 import com.sempermechanics.semper.ui.common.commitOnDone
 import com.sempermechanics.semper.ui.common.dp
@@ -34,8 +39,8 @@ import java.util.Locale
  * "Frame 23 of 40" under it, and a thumbnail beside it. A tap on the field
  * opens the frame dialog -- a scrolling list of the frames, a typed frame
  * number, and a preview of the one picked -- whose OK hands the index to
- * [onPicked]. A tap on the thumbnail shows the frame at full width under the
- * row; a tap on that closes it. The block hides for a sequence of one frame.
+ * [onPicked]. A tap on the thumbnail shows the frame large over the dimmed
+ * page; a tap anywhere closes it. The block hides for a sequence of one frame.
  */
 internal class SweepFramePicker(
     private val activity: AppCompatActivity,
@@ -52,7 +57,6 @@ internal class SweepFramePicker(
     private lateinit var field: TextInputLayout
     private lateinit var name: EditText
     private lateinit var thumb: ImageView
-    private lateinit var large: ImageView
 
     /** The frame the field shows; the dialog opens on it. */
     private var picked = 0
@@ -71,12 +75,9 @@ internal class SweepFramePicker(
         field = activity.findViewById(R.id.tilSweepFrame)
         name = activity.findViewById(R.id.ddSweepFrame)
         thumb = activity.findViewById(R.id.imgSweepFrame)
-        large = activity.findViewById(R.id.imgSweepFrameLarge)
         name.setOnClickListener { openDialog(picked) }
         field.setEndIconOnClickListener { openDialog(picked) }
-        thumb.setOnClickListener { showLarge(!large.isVisible) }
-        large.setOnClickListener { showLarge(false) }
-        showLarge(false)
+        thumb.setOnClickListener { showOverlay() }
     }
 
     /** Shows frame [index] as the one picked. */
@@ -95,14 +96,32 @@ internal class SweepFramePicker(
         showThumb(viewModel.defFilePaths.getOrNull(picked))
     }
 
-    /** Opens or closes the full-width view of the picked frame; TalkBack hears what a tap will do. */
-    private fun showLarge(open: Boolean) {
-        (block as? ViewGroup)?.let(Motion::animateExpandCollapse)
-        large.isVisible = open && large.drawable != null
-        val label = activity.getString(R.string.sweep_frame)
-        val fmt = if (large.isVisible) R.string.preview_shrink_fmt else R.string.preview_enlarge_fmt
-        thumb.contentDescription = activity.getString(fmt, label)
-        large.contentDescription = activity.getString(R.string.preview_shrink_fmt, label)
+    /**
+     * The picked frame large over the darkened page, with its
+     * name and position under it. A tap anywhere, or Back, closes it.
+     */
+    private fun showOverlay() {
+        val image = thumb.drawable ?: return
+        val dialog = Dialog(activity)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val content = SweepFrameOverlayBinding.inflate(LayoutInflater.from(activity))
+        content.imgSweepFrameOverlay.setImageDrawable(image)
+        content.imgSweepFrameOverlay.contentDescription = name.text
+        content.tvSweepFrameOverlay.text = activity.getString(
+            R.string.sweep_frame_overlay_caption_fmt,
+            name.text,
+            field.helperText,
+        )
+        content.root.setOnClickListener { dialog.dismiss() }
+        dialog.setContentView(content.root)
+        dialog.setCanceledOnTouchOutside(true)
+        dialog.window?.apply {
+            // The layout's own scrim darkens the page; the window adds none.
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        }
+        dialog.show()
     }
 
     /** Decodes the frame at [path] into the thumbnail; a result for a frame no longer picked is dropped. */
@@ -111,11 +130,7 @@ internal class SweepFramePicker(
         thumbPath = path
         thumbDecode.cancel()
         thumb.setImageDrawable(null)
-        large.setImageDrawable(null)
-        if (path.isNullOrBlank()) {
-            showLarge(false)
-            return
-        }
+        if (path.isNullOrBlank()) return
         thumbDecode.launch(activity.lifecycleScope) {
             val bmp = decodeFramePreview(path, viewModel.defFrameSizes[path])
             if (path != thumbPath) {
@@ -123,8 +138,6 @@ internal class SweepFramePicker(
                 return@launch
             }
             thumb.setImageBitmap(bmp)
-            large.setImageBitmap(bmp)
-            if (bmp == null) showLarge(false)
         }
     }
 
@@ -245,7 +258,7 @@ internal class SweepFramePicker(
     }
 
     private companion object {
-        /** Longest edge of a decoded frame: enough for the full-width view and the dialog preview. */
+        /** Longest edge of a decoded frame: enough for the overlay and the dialog preview. */
         const val PREVIEW_MAX_EDGE = 1080
 
         /** A frame row in the pick dialog: vertical padding and touch-target height. */

@@ -523,7 +523,7 @@
                         android:layout_width="72dp"
                         android:layout_height="48dp"
                         android:background="@color/surface_outline"
-                        android:contentDescription="@string/sweep_frame"
+                        android:contentDescription="@string/sweep_frame_enlarge"
                         android:foreground="?attr/selectableItemBackground"
                         android:scaleType="centerCrop" />
 
@@ -557,19 +557,6 @@
                             tools:text="steel_23.tif" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
-
-                <!-- The picked frame at full width: the thumbnail opens it, a tap closes it. -->
-                <ImageView
-                    android:id="@+id/imgSweepFrameLarge"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_8"
-                    android:adjustViewBounds="true"
-                    android:contentDescription="@string/sweep_frame"
-                    android:foreground="?attr/selectableItemBackground"
-                    android:maxHeight="@dimen/sweep_frame_large_max"
-                    android:scaleType="fitCenter"
-                    android:visibility="gone" />
 
                 <TextView
                     android:layout_width="match_parent"
