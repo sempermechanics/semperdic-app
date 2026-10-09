@@ -82,17 +82,19 @@ class BatchAnalysisLimitTest {
     @Test
     fun `the stop is for new sessions only`() {
         AccountCache.setQuota(ctx, used = 1)
-        assertNotNull(vm.sessionLimitOutcome(ctx, 3))
+        assertNotNull(vm.sessionLimitOutcome(ctx, 3, sweep = false))
         vm.workingLocalId = "existing_row"
-        assertNull("a re-run reuses its Home row and costs nothing", vm.sessionLimitOutcome(ctx, 3))
+        assertNull("a re-run reuses its Home row and costs nothing", vm.sessionLimitOutcome(ctx, 3, sweep = false))
+        assertNotNull("a sweep after a single run is a new row", vm.sessionLimitOutcome(ctx, 3, sweep = true))
+        assertEquals("a blocked sweep keeps the single run's id", "existing_row", vm.workingLocalId)
     }
 
     @Test
     fun `before the config arrives a demo account is held to the demo cap`() {
         AccountCache.clear(ctx)
         AccountCache.setQuota(ctx, used = LicenseEntitlements.DEMO_MAX_ANALYSES - 1)
-        assertNull(vm.sessionLimitOutcome(ctx, 3))
+        assertNull(vm.sessionLimitOutcome(ctx, 3, sweep = false))
         AccountCache.setQuota(ctx, used = LicenseEntitlements.DEMO_MAX_ANALYSES)
-        assertNotNull(vm.sessionLimitOutcome(ctx, 3))
+        assertNotNull(vm.sessionLimitOutcome(ctx, 3, sweep = false))
     }
 }

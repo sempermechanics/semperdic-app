@@ -4,9 +4,11 @@ import android.content.Context
 import android.os.Trace
 import androidx.annotation.AnyThread
 import androidx.annotation.MainThread
+import androidx.annotation.WorkerThread
 import androidx.lifecycle.viewModelScope
 import com.sempermechanics.semper.SemperNativeLib
 import com.sempermechanics.semper.data.net.AccountCache
+import com.sempermechanics.semper.data.session.SessionLayout
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.diagnostics.SemperAnalytics
 import com.sempermechanics.semper.field.RunStop
@@ -188,11 +190,17 @@ fun AnalysisViewModel.launchSweep(appContext: Context, spec: RunSpec) {
 
 /**
  * Hard stop before any native work: a new session cannot exceed the account
- * quota. Re-runs over an existing [AnalysisViewModel.workingLocalId] are still
- * allowed. Returns the outcome to abort with, or null when the run may proceed.
+ * quota. Re-runs of the same kind over an existing
+ * [AnalysisViewModel.workingLocalId] are still allowed; a run of the other
+ * kind, a sweep when [sweep], is a new session ([resolveLocalSessionId]).
+ * Returns the outcome to abort with, or null when the run may proceed.
  */
-internal fun AnalysisViewModel.sessionLimitOutcome(appContext: Context, plannedFrames: Int): BatchAnalysisOutcome? {
-    if (!wouldCreateNewSession()) return null
+internal fun AnalysisViewModel.sessionLimitOutcome(
+    appContext: Context,
+    plannedFrames: Int,
+    sweep: Boolean,
+): BatchAnalysisOutcome? {
+    if (!wouldCreateNewSession(sweep)) return null
     AccountCache.refreshSessionLimit(appContext, SessionStore.list(appContext).size)
     // Before the config is fetched a demo account is held to the demo cap
     // (LicenseEntitlements.analysisCap); a licensed one has no local cap.
@@ -211,18 +219,50 @@ internal fun AnalysisViewModel.sessionLimitOutcome(appContext: Context, plannedF
     }
 }
 
-/** The working session's id, taking a new one when there is none. */
-internal fun AnalysisViewModel.resolveLocalSessionId(): String =
-    workingLocalId ?: UUID.randomUUID().toString().take(SESSION_ID_LENGTH).also { workingLocalId = it }
+/**
+ * The working session's id for a run, a sweep when [sweep]: the one the last
+ * run saved under when it was of the same kind, otherwise a new one. A single
+ * run and a sweep never share a session: switching kinds is like new inputs,
+ * a new record, and the earlier one keeps its row, `.dat` files and images.
+ */
+internal fun AnalysisViewModel.resolveLocalSessionId(sweep: Boolean): String {
+    workingLocalId?.takeIf { workingIsSweep == sweep }?.let { return it }
+    return UUID.randomUUID().toString().take(SESSION_ID_LENGTH).also {
+        workingLocalId = it
+        workingIsSweep = sweep
+    }
+}
+
+/**
+ * The session a run, a sweep when [sweep], writes ([resolveLocalSessionId]),
+ * its directory cleared of the results a previous run of the same kind left
+ * there: the `.dat` files and the summary's field-range sidecar, which
+ * `SummaryAnimation.globalRanges` would otherwise take for a new run with as
+ * many frames. The deformed images stay; they may be this run's own inputs,
+ * and each run prunes them once it is done with them.
+ */
+@WorkerThread
+internal fun AnalysisViewModel.openRunSession(appContext: Context, sweep: Boolean): RunSession {
+    val id = resolveLocalSessionId(sweep)
+    val dir = SessionStore.dirFor(appContext, id)
+    dir.listFiles { f -> f.extension == "dat" }?.forEach { it.delete() }
+    SessionLayout(dir).fieldRanges.delete()
+    return RunSession(id, dir)
+}
+
+/** A run's session: its Home-list id and its directory. */
+internal class RunSession(val id: String, val dir: File)
 
 /** Characters of a random UUID a new working session's id keeps. */
 private const val SESSION_ID_LENGTH = 12
 
 /**
  * Follows the deformed images to wherever a run left them. They are moved
- * into the session directory rather than copied, so the staged cache paths
- * this view model was handed at import time go stale the moment a run
- * finishes; a re-run reading them would find nothing.
+ * from the import cache into the session directory rather than copied, so the
+ * staged cache paths this view model was handed at import time go stale the
+ * moment a run finishes; a re-run reading them would find nothing. An image
+ * in another session's directory is copied, never moved: it is that
+ * session's own input.
  * [AnalysisViewModel.defFrameSizes] is keyed by path, so it is re-keyed alongside.
  *
  * Main thread only, like every wizard input field; a run on the native

@@ -397,14 +397,19 @@ class AnalysisViewModel(private val saved: SavedStateHandle) : ViewModel() {
     }
 
     /**
-     * Identity of the working session on the Home list. Every re-run reuses it,
-     * so the exploration loop keeps updating one row instead of leaving a trail
-     * of near-identical ones. New inputs reset it via [clearPreviousResults].
+     * Identity of the working session on the Home list. Every re-run of the
+     * same kind reuses it, so the exploration loop keeps updating one row
+     * instead of leaving a trail of near-identical ones. New inputs reset it
+     * via [clearPreviousResults]; a run of the other kind (single ↔ sweep)
+     * takes a new one ([resolveLocalSessionId]), so the earlier record is kept.
      */
     var workingLocalId: String? = null
 
-    /** True when the next completed run would create a new Home-list row. */
-    fun wouldCreateNewSession(): Boolean = workingLocalId == null
+    /** Whether [workingLocalId] names a sweep's record; meaningless while that is null. */
+    var workingIsSweep: Boolean = false
+
+    /** True when the next completed run, a sweep when [sweep], would create a new Home-list row. */
+    fun wouldCreateNewSession(sweep: Boolean): Boolean = workingLocalId == null || workingIsSweep != sweep
 
     /**
      * Cooperative cancel: checked between frames here, and forwarded to the

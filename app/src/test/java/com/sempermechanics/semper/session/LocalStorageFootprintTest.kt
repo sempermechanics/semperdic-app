@@ -137,6 +137,26 @@ class LocalStorageFootprintTest {
         assertTrue(File(rawDir, "new.png").exists())
     }
 
+    @Test
+    fun `a frame in another session's folder is copied and left in place`() {
+        // The single run this wizard saved before the sweep: its five frames.
+        val singleRaw = File(SessionStore.dirFor(ctx, "single"), SessionPaths.RAW_DEFORMED_SUBDIR).apply { mkdirs() }
+        val frames = (0 until 5).map { File(singleRaw, "f$it.png").apply { writeText("image $it") } }
+        val sweepDir = SessionStore.dirFor(ctx, "sweep")
+
+        val name = SessionRepository().persistRawDeformed(
+            sweepDir,
+            frameIndex = 2,
+            defFilePaths = frames.map { it.absolutePath },
+            defOriginalNames = frames.map { it.name },
+        )
+
+        assertEquals("f2.png", name)
+        assertEquals("image 2", File(File(sweepDir, SessionPaths.RAW_DEFORMED_SUBDIR), name).readText())
+        // The sweep used to move it out, and delete the other four as leftovers.
+        assertTrue("the single run's frames must all survive", frames.all { it.isFile })
+    }
+
     // ── Cache leftovers ─────────────────────────────────────────────────
 
     @Test

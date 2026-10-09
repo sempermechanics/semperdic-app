@@ -290,7 +290,9 @@ gone.
 Re-running the same inputs updates the same analysis. Different inputs make a
 new one, which counts towards your quota. Picking the reference again counts as
 different inputs, even when it is the same image, and so does importing the
-frames again.
+frames again. So does switching between **Single setting** and **Parameter
+sweep**: a sweep after a single run (or a single run after a sweep) is a new
+analysis, and the earlier one is kept as it was.
 
 ---
 
@@ -728,7 +730,8 @@ up again with it is licensed straight away.
 **Quota.** From 80% of the cap, a chip under the Home title reads
 `N / M analyses used`; it turns red at the cap. Below 80% it is hidden.
 Only a run that makes a new analysis is checked against it: a re-run of the
-same inputs is not, but one after picking a new reference or new frames is.
+same inputs is not, but one after picking a new reference or new frames, or
+after switching between a single run and a sweep, is.
 Not a paywall — email support from the limit screen, or delete something and
 tap **Re-check**.
 

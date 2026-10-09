@@ -99,6 +99,7 @@ class WizardStateTest {
         lineCutHorizontal = false
         sweepFrameIndex = 1
         workingLocalId = "abc123"
+        workingIsSweep = true
     }
 
     /** What the system hands back after the kill, with the draft the stop wrote. */
@@ -136,6 +137,8 @@ class WizardStateTest {
         assertEquals(1, after.sweepFrameIndex)
         // The re-run keeps its Home row instead of making a second one.
         assertEquals("abc123", after.workingLocalId)
+        // ...and its kind, so a single run after the sweep still makes its own.
+        assertTrue(after.workingIsSweep)
         // Not yet: the heavy inputs wait for restoreDraft.
         assertNull(after.refBytes)
         assertTrue(after.defFilePaths.isEmpty())

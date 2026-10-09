@@ -43,7 +43,7 @@ class WizardRunLauncher(
         // Hard stop: do not start a new analysis when the session quota is full.
         // Re-runs that update an existing Home row are still allowed.
         activity.lifecycleScope.launch {
-            if (!AnalysisNavHelper.ensureCanStart(activity, viewModel)) return@launch
+            if (!AnalysisNavHelper.ensureCanStart(activity, viewModel, sweep = false)) return@launch
 
             chrome.beginRun { viewModel.cancelRequested = true }
             checkReady()
@@ -78,7 +78,7 @@ class WizardRunLauncher(
         )
 
         activity.lifecycleScope.launch {
-            if (!AnalysisNavHelper.ensureCanStart(activity, viewModel)) return@launch
+            if (!AnalysisNavHelper.ensureCanStart(activity, viewModel, sweep = true)) return@launch
 
             chrome.beginRun(activity.getString(R.string.mode_sweep), sweep.planSummary(plan), plan) {
                 viewModel.cancelRequested = true

@@ -77,6 +77,9 @@ class SessionRepository {
      * else under `raw_deformed/` is left over from an earlier run. The source
      * itself may already be in there (a re-run, since runs move their images in
      * rather than copying), so it is resolved before the directory is pruned.
+     * A source in another session's directory (the single run this wizard
+     * saved before the sweep) is copied and left in place: it is that
+     * session's image ([SessionPaths.isInOtherSession]).
      */
     fun persistRawDeformed(
         batchDir: File,
@@ -96,10 +99,14 @@ class SessionRepository {
         return runCatching {
             rawDir.listFiles()?.forEach { it.delete() }
             val target = File(rawDir, name)
-            // Both directories are app-private storage, so this is a rename
-            // rather than a second multi-megabyte write; the copy is the
-            // fallback for the rare cross-volume case.
-            AtomicFiles.promote(source, target)
+            if (SessionPaths.isInOtherSession(source, batchDir)) {
+                source.copyTo(target, overwrite = true)
+            } else {
+                // Both directories are app-private storage, so this is a rename
+                // rather than a second multi-megabyte write; the copy is the
+                // fallback for the rare cross-volume case.
+                AtomicFiles.promote(source, target)
+            }
             target.name
         }.onFailure { Timber.w(it, "Could not persist the sweep's deformed frame") }.getOrDefault("")
     }
