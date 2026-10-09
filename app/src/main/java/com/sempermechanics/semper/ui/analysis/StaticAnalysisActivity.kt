@@ -59,7 +59,6 @@ import com.sempermechanics.semper.ui.common.Insets
 import com.sempermechanics.semper.ui.common.Motion
 import com.sempermechanics.semper.ui.common.dialog.FaqRedirect
 import com.sempermechanics.semper.ui.common.dialog.WarnChip
-import com.sempermechanics.semper.ui.common.onButtonChecked
 import com.sempermechanics.semper.ui.common.showUnlessEditing
 import kotlinx.coroutines.launch
 
@@ -161,8 +160,8 @@ class StaticAnalysisActivity :
             .apply { setFaq(getString(R.string.url_faq_jpeg)) }
         frameOrder = FrameOrderController(this, viewModel, binding, onReordered = { wizardSlots.refreshDefSlot() })
         subsets = SubsetRecommendationController(this, viewModel, binding, settings, host = this)
-        settings.rgInterpolator.onButtonChecked { clearRunStatus() }
-        params = WizardParamFields(this, viewModel, settings, subsets, host = this).also { it.bind() }
+        params = WizardParamFields(this, viewModel, settings, subsets, host = this, onGeometryChanged = ::checkReady)
+            .also { it.bind() }
 
         wizardChrome = AnalysisWizardChrome(this, binding, settingsPage, sweepPage)
         wizardCoach = AnalysisWizardCoach(this, CoachMarkController(this), binding, settings, sweepPage)

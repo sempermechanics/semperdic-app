@@ -318,8 +318,10 @@ bundle downloads, **Export my data** and **Download my cloud account data**.
 ## 5. Analysis
 
 `StaticAnalysisActivity` is a three-page wizard in one Activity. Page 3 exists
-only in sweep mode, so the toolbar reads "Step N of 2" or "of 3" depending on the
-mode chosen on page 2.
+only in sweep mode, so the toolbar shows two or three dots, the current page in
+blue, depending on the mode chosen on page 2. The toolbar title names the page:
+"New analysis", then "Parameters" (single) or "Sweep setup" (sweep), then
+"Sweep settings".
 
 **Entry:** the Home FAB, after picking a source. **Exit:** Result viewer,
 Lattice, Session limit, or back to Home.
@@ -339,8 +341,8 @@ Lattice, Session limit, or back to Home.
 | [ ] 5.1.8 | Include one frame of a different pixel size | **Compute** stays disabled. On step 2 a warning chip says the image resolution isn't matching the reference (W×H) and lists the mismatched filename(s); its info icon asks first whether to leave the app, then opens the frame-size FAQ |
 | [ ] 5.1.9 | Load JPEGs | A non-blocking accuracy warning chip appears; its info icon asks first whether to leave the app, then opens the JPEG FAQ |
 | [ ] 5.1.10 | Load a poorly speckled reference | A low-texture warning names a suggested subset size; its info icon opens the speckle FAQ behind the same leave-the-app confirm |
-| [ ] 5.1.11 | Load any speckled reference and open step 2 | While the speckle is measured (past ~0.3 s) the muted line under the subset slider reads "Measuring speckle…". Then the slider slides to the recommendation (~250 ms) and the line reads "Set to N px from speckle D px. Good practice asks for 3–9 px." |
-| [ ] 5.1.11a | Move the subset slider after 5.1.11 | The line reads "Speckle measures about D px across. Good practice asks for 3–9 px." **Reset** brings back "Set to …" |
+| [ ] 5.1.11 | Load any speckled reference and open step 2 | While the speckle is measured (past ~0.3 s) the muted line under the subset slider reads "Measuring speckle…". Then the slider slides to the recommendation (~250 ms), a "Speckle D px" chip appears beside **Subset size** (amber outside 3–9 px), a band is shaded behind the track from the smallest size that holds enough speckle, and the line reads "Set to N px · shaded: M px and up hold enough speckle" |
+| [ ] 5.1.11a | Move the subset slider after 5.1.11 | The line reads "Shaded: M px and up hold enough speckle". **Reset** brings back "Set to …" |
 | [ ] 5.1.11b | Turn animations off (Developer options, Animator duration scale off) and repeat 5.1.11 | The slider jumps to the recommendation instead of sliding |
 | [ ] 5.1.12 | Load a reference shot far back, so the dots are 1–2 px | A chip **on step 1** says the speckle is below the 3 px minimum and to shoot closer or use a coarser pattern |
 | [ ] 5.1.13 | Load a close-up whose dots span more than 9 px | The step 1 chip says the pattern is over-resolved — correlates fine, but a finer pattern would give more points. No span chip appears on step 2: the size verdict suppresses it |
@@ -384,26 +386,28 @@ vendor decoders and camera AVIs.
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 5.2.1 | Arrive on step 2 | Analysis mode is at the top; there is no inputs-summary card |
-| [ ] 5.2.2 | Read the ROI line before editing | "Full image W × H" |
-| [ ] 5.2.3 | Tap **Edit** → draw an ROI → save | The line becomes "W × H at (x, y)" |
+| [ ] 5.2.1 | Arrive on step 2 | Toolbar reads "Parameters" with two dots, the second blue. Single / Sweep is at the top; the page is one flat list split by dividers, no cards |
+| [ ] 5.2.2 | Read the ROI row before editing | A thumbnail of the reference shaded green, and "Full image · W × H px" |
+| [ ] 5.2.3 | Tap **Edit** → draw an ROI → save | The thumbnail shows the region (holes in red) and the line becomes "w × h of W × H px" |
 | [ ] 5.2.4 | Tap **Edit** → cancel | Falls back to full image; any mask is cleared |
-| [ ] 5.2.5 | Switch to **Parameter sweep** | Advanced parameters hide; sweep settings appear. Bottom nav reads **Next: Summary →** |
+| [ ] 5.2.5 | Switch to **Parameter sweep** | The correlation section hides; sweep settings appear. Toolbar reads "Sweep setup" with three dots. Bottom nav reads **Next: Summary →** |
 | [ ] 5.2.6 | Type **step size** as subset ÷ N in sweep settings | N is 2–9 (default 3); overlap on the same row is `1 − 1/N`; each subset uses `step = round(subset / N)` |
 | [ ] 5.2.7 | Tap the ⓘ next to the mode toggle | Explains single setting vs sweep |
-| [ ] 5.2.8 | Switch back to **Single setting** | Advanced parameters return with their previous values |
+| [ ] 5.2.8 | Switch back to **Single** | The correlation section returns with its previous values |
 | [ ] 5.2.9 | Drag the **subset size** slider | Only odd values between 15 and 121; the field mirrors it; overlap updates from the current step |
 | [ ] 5.2.10 | Type an even subset size and press Done | Snapped to the nearest valid odd value |
 | [ ] 5.2.11 | Type nonsense in a parameter field | Reverts to the previous value on commit |
-| [ ] 5.2.12 | Drag **step size** | Max is `min(30, subset/2)` so overlap stays ≥ 0.5; the overlap field mirrors it |
-| [ ] 5.2.12a | Type **overlap** on the step-size row | 0.50–0.99; step size rewrites to `round(subset × (1 − overlap))` |
-| [ ] 5.2.13 | Drag **strain window** | Odd values 3–31, in **points**; the field mirrors it and the line under the slider reads "VSG N px at step S px", N = (window − 1) × step + 1. It starts at 5 |
-| [ ] 5.2.13a | Open step 2 having never copied params from a lattice | No **Paste params** chip — it only appears when the clipboard holds a set |
-| [ ] 5.2.13b | Copy params from a sweep lattice (§7.3), then return here | The chip appears beside **Reset**; tapping it fills subset, step and strain window (overlap follows step) and scrolls them into view. The window is the one whose VSG at the pasted step matches the node's |
-| [ ] 5.2.13c | Change the **step** with the window fixed | The VSG line follows: window 5 reads VSG 21 px at step 5, 41 px at step 10 |
+| [ ] 5.2.12 | Drag **step** | Max is `min(30, subset/2)` so overlap stays ≥ 0.5; the overlap field mirrors it; the line under the slider counts "N points in the region" = (ROI w ÷ step) × (ROI h ÷ step) |
+| [ ] 5.2.12a | Type **overlap** under the step slider | 0.50–0.99; step rewrites to `round(subset × (1 − overlap))` |
+| [ ] 5.2.12b | Read **Compute** before any run on this phone | "Compute", no time |
+| [ ] 5.2.12c | Run once, come back to step 2 | The button reads "Compute · about S s" (minutes past 90 s), from the points per second this phone's runs reached, frames × points; the text shrinks to stay on one line |
+| [ ] 5.2.13 | Drag **strain window** | Odd values 3–31, in **points**; the field mirrors it and the line under the slider reads "Fits a plane over N px (VSG)", N = (window − 1) × step + 1. It starts at 5 |
+| [ ] 5.2.13a | Open step 2 having never copied params from a lattice | No paste icon beside **Reset** — it only appears when the clipboard holds a set |
+| [ ] 5.2.13b | Copy params from a sweep lattice (§7.3), then return here | The paste icon appears beside **Reset**; tapping it fills subset, step and strain window (overlap follows step) and scrolls them into view. The window is the one whose VSG at the pasted step matches the node's |
+| [ ] 5.2.13c | Change the **step** with the window fixed | The VSG line follows: window 5 reads 21 px at step 5, 41 px at step 10 |
 | [ ] 5.2.14 | Tap each ⓘ | Subset, step, overlap and strain window each explain themselves |
-| [ ] 5.2.15 | Switch the interpolator to **Keys 6×6** | Selection sticks; the run uses it |
-| [ ] 5.2.16 | Change several parameters, then tap **Reset** | Subset returns to the recommended value, step to 5, overlap follows step, strain window to 5 points, interpolator to Bicubic |
+| [ ] 5.2.15 | Pick **6×6 Keys** in the **Interpolation** dropdown | Selection sticks; the run uses it |
+| [ ] 5.2.16 | Change several parameters, then tap **Reset** (the circular-arrow icon) | Subset returns to the recommended value, step to 5, overlap follows step, strain window to 5 points, interpolation to 4×4 bicubic |
 | [ ] 5.2.16a | After a failed run leaves an ❌ line on step 2, change subset / paste params / replace frames | The run-status line clears; the frame-size chip (if any) only shows when sizes still mismatch |
 | [ ] 5.2.17 | Load a well-speckled reference and watch the subset | It is pre-seeded from the SSSIG recommendation — until you touch it |
 | [ ] 5.2.18 | Draw an ROI smaller than the subset and tap **Compute** | "ROI too small" snackbar with a **Why?** action; that asks first whether to leave the app, then opens the ROI FAQ. The run does not start |
@@ -418,7 +422,7 @@ vendor decoders and camera AVIs.
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 5.3.1 | Arrive on step 3 | Toolbar reads "Step 3 of 3"; planned lattice is first, line cut below it |
+| [ ] 5.3.1 | Arrive on step 3 | Toolbar reads "Sweep settings" with the third of three dots blue; planned lattice is first, line cut below it |
 | [ ] 5.3.6 | Tap each ⓘ | Line-cut axis and samples each explain themselves |
 | [ ] 5.3.6a | Open the summary page for the first time | Three coach marks in order: the planned lattice, the line cut, then the **Compute** button |
 | [ ] 5.3.6f | Toggle the line-cut axis X ↔ Y | The preview redraws the cut line through the ROI centre |

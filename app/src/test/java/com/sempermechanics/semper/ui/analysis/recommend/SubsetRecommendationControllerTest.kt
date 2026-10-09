@@ -126,18 +126,32 @@ class SubsetRecommendationControllerTest {
     }
 
     @Test
-    fun `the readout says what the measurement set, and only the measurement once the user sets a size`() {
+    fun `the caption gives the size set and the shaded band, then the band alone once the user sets one`() {
         recommend(31, speckle = 4.3)
         subsets.apply()
         assertEquals(
-            "Set to 31 px from speckle 4.3 px. Good practice asks for 3–9 px.",
+            "Set to 31 px · shaded: 31 px and up hold enough speckle",
             bed.settings.tvSpeckleReadout.text.toString(),
+        )
+        assertEquals("Speckle 4.3 px", bed.settings.chipSpeckle.text.toString())
+        assertEquals(
+            "Speckle measures about 4.3 px across. Good practice asks for 3–9 px.",
+            bed.settings.chipSpeckle.contentDescription.toString(),
         )
 
         bed.viewModel.subsetUserModified = true
         subsets.showSpeckleFeedback()
+        assertEquals("Shaded: 31 px and up hold enough speckle", bed.settings.tvSpeckleReadout.text.toString())
+    }
+
+    @Test
+    fun `the band starts at the three-speckle span when that asks for more than SSSIG`() {
+        // 9 px speckle: three of them need 27 px, above the 21 px SSSIG size.
+        recommend(21, speckle = 9.0)
+        subsets.apply()
+
         assertEquals(
-            "Speckle measures about 4.3 px across. Good practice asks for 3–9 px.",
+            "Set to 21 px · shaded: 27 px and up hold enough speckle",
             bed.settings.tvSpeckleReadout.text.toString(),
         )
     }

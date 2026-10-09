@@ -26,6 +26,17 @@
         app:navigationIconTint="@color/viewer_chrome_text"
         app:titleCentered="false"
         android:elevation="0dp">
+
+        <!-- One dot per wizard page; the toolbar title names the page. -->
+        <TextView
+            android:id="@+id/tvStepDots"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="@dimen/space_16"
+            android:letterSpacing="0.1"
+            android:textSize="12sp"
+            tools:text="● ● ○" />
     </com.google.android.material.appbar.MaterialToolbar>
 
     <!-- ===================== Pages ===================== -->
@@ -383,6 +394,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
+        android:baselineAligned="false"
         android:background="@color/viewer_canvas"
         android:elevation="0dp"
         android:padding="12dp">
@@ -405,6 +417,10 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCalculateFullField"
             style="@style/Widget.Semper.Button.Cta"
+            android:maxLines="1"
+            app:autoSizeMaxTextSize="16sp"
+            app:autoSizeMinTextSize="12sp"
+            app:autoSizeTextType="uniform"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_marginStart="6dp"
@@ -421,6 +437,10 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRunSweep"
             style="@style/Widget.Semper.Button.Cta"
+            android:maxLines="1"
+            app:autoSizeMaxTextSize="16sp"
+            app:autoSizeMinTextSize="12sp"
+            app:autoSizeTextType="uniform"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_marginStart="6dp"

@@ -22,6 +22,9 @@ object PrefFiles {
         val DIAGNOSTICS_ENABLED = PrefKey.boolean("diagnostics_enabled")
         val DIAGNOSTICS_ASKED = PrefKey.boolean("diagnostics_asked")
 
+        /** Running mean of grid points solved per second on this phone; 0 before the first run. */
+        val RUN_POINTS_PER_SECOND = PrefKey.int("run_points_per_second")
+
         /** Retired; [AppSettings.migrate] removes it. */
         val KEEP_EVERY_RERUN = PrefKey.boolean("keep_every_rerun")
     }

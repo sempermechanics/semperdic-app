@@ -102,7 +102,9 @@ class AnalysisWizardSmokeTest {
             assertTrue(activity.findViewById<View>(R.id.sweepSettingsCard).isVisible)
             assertTrue(activity.findViewById<View>(R.id.tilStepDepth).isVisible)
             val toolbar = activity.findViewById<MaterialToolbar>(R.id.toolbar)
-            assertEquals(activity.getString(R.string.step_of_fmt, 2, 3), toolbar.subtitle)
+            assertEquals(activity.getString(R.string.wizard_title_sweep_setup), toolbar.title)
+            val dots = activity.findViewById<TextView>(R.id.tvStepDots)
+            assertEquals(activity.getString(R.string.step_of_fmt, 2, 3), dots.contentDescription)
         }
         captureWizardShot("step2-sweep.png")
 
