@@ -61,6 +61,13 @@ Engine tests are **not** this CI. From the submodule: see [docs/engine/TESTING.m
   `__` placeholder; run it by hand after any other Hosting deploy.
 - PRs target `main`. No force-push to `main`. No `--no-verify`.
 
+## Working
+
+- Use subagents to multitask as much as possible whenever it is clearly safe: independent
+  searches, reads and reviews, and edits to disjoint files or in separate worktrees, launched
+  together. Keep in one agent anything that shares files, a device or emulator, or the same
+  checkout's Gradle build (`app/build/`), and anything outward-facing (deploys, Firestore, pushes).
+
 ## Docs to update in the same PR
 
 Auth, quotas, deploy env, CI modes, or architecture extracts → matching file under
