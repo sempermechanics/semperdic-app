@@ -25,7 +25,7 @@ from .routers import (
     sessions,
 )
 
-logging.basicConfig(level=logging.INFO)
+obs.configure_logging(structured=settings.ON_CLOUD_RUN)
 log = logging.getLogger("semper")
 _access_log = logging.getLogger("semper.access")
 

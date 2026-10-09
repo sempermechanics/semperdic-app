@@ -1095,9 +1095,14 @@ Signing.
   `com.indicvision.*` ids included), `none` without one, and `unknown` for
   anything else, so caller text never reaches the log
   (`apps.logged_application_id`); a refused `unknown_app` call is logged too.
-  The line goes to stderr behind the default `logging` prefix
-  (`INFO:semper.access:{...}`, `backend/app/main.py:28`), so Cloud Logging
-  keeps it as `textPayload`, not `jsonPayload`.
+  On Cloud Run every log line, this one included, is one JSON object
+  (`observability.JsonLineFormatter`, set by `configure_logging` from
+  `backend/app/main.py:28`): an event keeps its fields and gains `severity`,
+  plain text becomes `{severity, message, logger}`, and a traceback goes in
+  `stack_trace`. Cloud Logging stores it as `jsonPayload`, so filter on
+  `jsonPayload.appId`, `jsonPayload.outcome`, and so on. Lines written before
+  that change are `textPayload` behind an `INFO:semper.access:` prefix. Locally
+  the lines stay plain text.
   `routeTemplate` is the route's **declared** path with every parameter as
   `{id}` (`/v1/licenses/{id}/revoke`), registered from the routers at startup;
   only an undeclared path (a 404) falls back to collapsing long segments.
@@ -1119,7 +1124,7 @@ dedicated rotation exists.
 
 | Signal | How to wire | Threshold (starting point) | Action |
 |---|---|---|---|
-| Unhandled / reported errors | Error Reporting ingests `@type` ReportedErrorEvent lines and Cloud Run stderr | New error group or >5 events / 5 min | Page on-call; check `/readyz` and recent deploys |
+| Unhandled / reported errors | Error Reporting ingests the `@type` ReportedErrorEvent lines (`jsonPayload`) and the `stack_trace` of a logged exception | New error group or >5 events / 5 min | Page on-call; check `/readyz` and recent deploys |
 | `outcome=server_error` access lines | Log-based metric on `jsonPayload.outcome="server_error"` | >10 / 5 min | Investigate revision; consider traffic rollback |
 | `errorCode=firestore_unreachable` or `drive_*` | Log-based metric on `jsonPayload.errorCode` | Any sustained >2 min | Dependency outage — do not roll app code first |
 | `AUTH_DENIED` audit / auth warnings | Metric on audit action or `invalid_token` spike | >50 / 5 min from many IPs | Possible attack; tighten gateway quota |
