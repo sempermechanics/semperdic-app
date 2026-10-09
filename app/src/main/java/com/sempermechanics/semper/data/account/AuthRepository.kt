@@ -249,9 +249,15 @@ class AuthRepository(
      * sees the slot free immediately rather than waiting for the lease TTL.
      * Call from a coroutine — the release needs the ID token that this method
      * then discards.
+     *
+     * [releaseSeat] is false after an account erase. The erase has already
+     * given the seat back (the backend's `_give_back_license`), and a release
+     * sent with a token that still works would only re-create the erased
+     * account's profile on the backend, mailing support when it is pending
+     * (TD-206).
      */
-    suspend fun signOut() = withContext(Dispatchers.IO) {
-        SeatLease.releaseBestEffort(appContext)
+    suspend fun signOut(releaseSeat: Boolean = true) = withContext(Dispatchers.IO) {
+        if (releaseSeat) SeatLease.releaseBestEffort(appContext, api, tokens)
         LicenseConfigWorker.cancel(appContext)
         auth.signOut()
         AccountCache.clear(appContext)
