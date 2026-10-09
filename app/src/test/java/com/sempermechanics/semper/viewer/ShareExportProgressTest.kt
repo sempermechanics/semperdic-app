@@ -38,6 +38,7 @@ class ShareExportProgressTest {
         const val FRAMES = 3
         const val GRID = 4
         const val STEP = 4
+        const val DENSE_GRID = 70
     }
 
     @Before
@@ -80,8 +81,29 @@ class ShareExportProgressTest {
         assertEquals("Frame 1 of 3 · field statistics", statuses.first())
         assertTrue(statuses.toString(), "Frame 2 of 3 · point rows" in statuses)
         assertEquals("Frame 3 of 3 · point rows", statuses.last())
-        // The statistics pass is the first fifth of the bar.
-        assertEquals(20.0, seen.last { it.second.endsWith("field statistics") }.first, 1e-9)
+        // The statistics pass is the first tenth of the bar.
+        assertEquals(10.0, seen.last { it.second.endsWith("field statistics") }.first, 1e-9)
+    }
+
+    @Test
+    fun `the CSV moves inside a dense frame's point rows`() {
+        // Past one report interval of rows a frame (70 x 70 = 4900 points).
+        val dense = temp.newFolder("dense")
+        writeGridBatch(dense, 2, DENSE_GRID, STEP)
+        val activity = launchViewer(viewerArgs(dense, DENSE_GRID, STEP)).also { viewer ->
+            idleUntil("the dense viewer") { viewer.frameSetLoaded && viewer.rawData != null }
+        }
+        val seen = activity.reports(ShareKind.CSV)
+
+        assertClimbsToDone(seen)
+        // Frame boundaries of the point rows sit at 10, 55 and 100 %; each frame
+        // has one report strictly inside it, under that frame's label.
+        val inside = seen.filter { (percent, _) -> percent !in listOf(10.0, 55.0, 100.0) && percent > 10.0 }
+        assertEquals(seen.toString(), 2, inside.size)
+        assertEquals("Frame 1 of 2 · point rows", inside[0].second)
+        assertTrue(inside[0].first in 10.0..55.0)
+        assertEquals("Frame 2 of 2 · point rows", inside[1].second)
+        assertTrue(inside[1].first in 55.0..100.0)
     }
 
     @Test

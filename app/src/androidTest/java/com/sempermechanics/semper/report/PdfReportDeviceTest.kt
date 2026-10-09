@@ -76,7 +76,7 @@ class PdfReportDeviceTest {
             PdfReportGenerator.generateBatch(frames.size, { frames[it] }, out, resources = resources).toList()
         }
         assertEquals(Progress.Complete, events.last())
-        assertEquals(listOf(2, 32, 63, 96), percents(events))
+        assertEquals(listOf(2, 32, 63, 96, 98), percents(events))
         // Two readable frames of cover + three field pages, then one telemetry page.
         assertEquals(2 * (SINGLE_PAGES - 1) + 1, pageCount(out.toByteArray()))
         frames.filterNotNull().forEach { d ->

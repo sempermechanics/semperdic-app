@@ -75,7 +75,9 @@ internal class DataExport(
      * its settings columns; an ordinary analysis leads with the image name.
      *
      * [report] hears each frame of both of the writer's passes: the field
-     * statistics (the first [CSV_STATS_SHARE] percent), then the point rows.
+     * statistics (the first [CSV_STATS_SHARE] percent), then the point rows,
+     * which also move inside each frame every
+     * [AnalysisCsvWriter.ROWS_PER_REPORT] rows: one frame's rows can take seconds.
      */
     fun batchCsv(report: ExportReport = NO_REPORT): File {
         val sweep = s.isSweep
@@ -108,13 +110,22 @@ internal class DataExport(
         val f = File(outDir, "${s.baseName}_data.csv")
         val stats = report.within(0.0, CSV_STATS_SHARE)
         val points = report.within(CSV_STATS_SHARE, FULL)
-        AnalysisCsvWriter.write(f, sweep, frames, metadata) { pointRows, done ->
-            if (pointRows) {
-                points.step(resources, done, frames.size, R.string.share_progress_csv_points_fmt)
-            } else {
-                stats.step(resources, done, frames.size, R.string.share_progress_csv_stats_fmt)
-            }
-        }
+        AnalysisCsvWriter.write(
+            f,
+            sweep,
+            frames,
+            metadata,
+            onFrame = { pointRows, done ->
+                if (pointRows) {
+                    points.step(resources, done, frames.size, R.string.share_progress_csv_points_fmt)
+                } else {
+                    stats.step(resources, done, frames.size, R.string.share_progress_csv_stats_fmt)
+                }
+            },
+            onRows = { done, fraction ->
+                points.stepPartway(resources, done, fraction, frames.size, R.string.share_progress_csv_points_fmt)
+            },
+        )
         return f
     }
 
@@ -165,8 +176,12 @@ internal class DataExport(
     }
 
     private companion object {
-        /** The CSV's statistics pass only decodes each frame; the point rows are most of the work. */
-        const val CSV_STATS_SHARE = 20.0
+        /**
+         * The CSV's statistics pass decodes each frame and scans it five times;
+         * the point rows decode it again and run six `DecimalFormat` calls per
+         * solved point, so they are nearly all of the work.
+         */
+        const val CSV_STATS_SHARE = 10.0
         const val FULL = 100.0
     }
 }

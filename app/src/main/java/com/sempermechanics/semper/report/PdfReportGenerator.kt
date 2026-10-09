@@ -46,6 +46,7 @@ object PdfReportGenerator {
     private const val FRAMES_PROGRESS_START = 2
     private const val FRAMES_PROGRESS_SPAN = 92
     private const val TELEMETRY_PROGRESS = 96
+    private const val FINALIZING_PROGRESS = 98
 
     /** Raster width for the vector wordmark; PDF draws it at [PdfLayoutEngine.BRAND_LOGO_WIDTH]. */
     private const val BRAND_LOGO_RASTER_WIDTH = 1040
@@ -117,15 +118,16 @@ object PdfReportGenerator {
         currentCoroutineContext().ensureActive()
         emit(Progress.Status("Compiling Engine Telemetry...", 90))
         drawTelemetryPage(layout, data, TelemetrySummary.single(data))
-
-        emit(Progress.Status("Finalizing PDF...", 98))
     }.flowOn(Dispatchers.IO)
 
     /**
      * One PDF document into [outputStream]: [draw] lays its pages out on a
      * [PdfLayoutEngine] (the wordmark from [resources] heads each page), then
-     * the document is written and [Progress.Complete] follows. A failure is
-     * emitted as [Progress.Error] rather than thrown; cancellation is not caught.
+     * the document is written under a "Finalizing PDF..." status at
+     * [FINALIZING_PROGRESS] (one call over every page, so a batch is not left
+     * under its telemetry status while every frame's pages are written) and
+     * [Progress.Complete] follows. A failure is emitted as [Progress.Error]
+     * rather than thrown; cancellation is not caught.
      */
     private fun renderPdf(
         outputStream: OutputStream,
@@ -137,6 +139,7 @@ object PdfReportGenerator {
         val layout = PdfLayoutEngine(pdfDocument, brandLogo)
         try {
             draw(layout)
+            emit(Progress.Status("Finalizing PDF...", FINALIZING_PROGRESS))
             // Finish the still-open page before writing — PdfDocument rejects
             // writeTo()/close() while any page is unfinished.
             layout.finishCurrentPage()
