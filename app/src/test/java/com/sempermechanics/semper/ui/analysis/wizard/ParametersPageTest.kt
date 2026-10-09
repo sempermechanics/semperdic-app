@@ -76,6 +76,24 @@ class ParametersPageTest {
     }
 
     @Test
+    fun `in sweep mode the ROI row names the region without a count, and single brings it back`() {
+        loadRun()
+
+        bed.viewModel.sweepMode = true
+        gate.apply(isProcessing = false, sweepController = null)
+        assertEquals("1100 × 800 px", bed.settings.tvInstruction.text.toString())
+
+        bed.viewModel.sweepMode = false
+        gate.apply(isProcessing = false, sweepController = null)
+        assertEquals("1100 × 800 px · 8,800 points", bed.settings.tvInstruction.text.toString())
+
+        bed.viewModel.hasCustomRoi = false
+        bed.viewModel.sweepMode = true
+        gate.apply(isProcessing = false, sweepController = null)
+        assertEquals("Full image", bed.settings.tvInstruction.text.toString())
+    }
+
+    @Test
     fun `once this phone has a rate Compute gives the time`() {
         loadRun()
         AppSettings.setRunPointsPerSecond(bed.activity, 5000)
@@ -113,6 +131,7 @@ class ParametersPageTest {
 
         chrome.updateBottomNav(WizardStep.SETTINGS, sweepMode = true)
         assertEquals("Sweep setup", bed.binding.toolbar.title.toString())
+        assertEquals("Next", bed.binding.btnNext.text.toString())
         assertEquals("● ● ●", bed.binding.tvStepDots.text.toString())
         assertEquals("Step 2 of 3", bed.binding.tvStepDots.contentDescription.toString())
 

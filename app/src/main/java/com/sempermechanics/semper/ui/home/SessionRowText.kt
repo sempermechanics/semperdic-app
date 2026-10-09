@@ -7,6 +7,7 @@ import android.text.style.ForegroundColorSpan
 import androidx.annotation.StringRes
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.session.SessionRecord
+import com.sempermechanics.semper.imaging.video.VideoFrameExtractor
 import com.sempermechanics.semper.report.EngineStats
 import com.sempermechanics.semper.ui.analysis.run.EngineFailure
 import com.sempermechanics.semper.ui.common.transfer.TransferWorkObserver
@@ -32,6 +33,8 @@ internal object SessionRowText {
     /**
      * Size · result · why it stopped: "40 frames · 96.3%".
      *
+     * A video analysis says so, with the span of its frames in the clip:
+     * "Video · 40 frames, 0:00–0:12 · 91.2%".
      * A run cut short reads "39 of 50 frames" and ends with its stop reason:
      * the count alone cannot tell a short run from a shorter test. A sweep
      * reads "9 of 9 solved": its title already names it a sweep and its image.
@@ -73,18 +76,33 @@ internal object SessionRowText {
     /**
      * "40 frames", "39 of 50 frames" for a run cut short, or a sweep's
      * "9 of 9 solved": solved of planned combinations, from its own sweep lists.
+     * A video's reads "Video · 40 frames, 0:00–0:12": its first and last
+     * frame's times in the clip, when it kept them.
      */
-    private fun size(context: Context, r: SessionRecord): String = when {
-        r.isSweep -> (r.sweepSteps.size + r.sweepSkipSubsets.size).let { planned ->
-            context.resources.getQuantityString(R.plurals.session_sweep_row_fmt, planned, r.sweepSteps.size, planned)
+    private fun size(context: Context, r: SessionRecord): String {
+        val frames = when {
+            r.isSweep -> (r.sweepSteps.size + r.sweepSkipSubsets.size).let { planned ->
+                val solved = r.sweepSteps.size
+                context.resources.getQuantityString(R.plurals.session_sweep_row_fmt, planned, solved, planned)
+            }
+            r.stoppedEarly && r.plannedFrameCount > r.frameCount -> context.resources.getQuantityString(
+                R.plurals.session_frames_of_fmt,
+                r.plannedFrameCount,
+                r.frameCount,
+                r.plannedFrameCount,
+            )
+            else -> context.resources.getQuantityString(R.plurals.session_frames_fmt, r.frameCount, r.frameCount)
         }
-        r.stoppedEarly && r.plannedFrameCount > r.frameCount -> context.resources.getQuantityString(
-            R.plurals.session_frames_of_fmt,
-            r.plannedFrameCount,
-            r.frameCount,
-            r.plannedFrameCount,
-        )
-        else -> context.resources.getQuantityString(R.plurals.session_frames_fmt, r.frameCount, r.frameCount)
+        if (r.isSweep || !r.isVideo) return frames
+        val span = r.frameTimesMs?.takeIf { it.isNotEmpty() }?.let { times ->
+            context.getString(
+                R.string.session_video_span_fmt,
+                frames,
+                VideoFrameExtractor.formatClock(times.first()),
+                VideoFrameExtractor.formatClock(times.last()),
+            )
+        }
+        return context.getString(R.string.session_video_row_fmt, span ?: frames)
     }
 
     /**

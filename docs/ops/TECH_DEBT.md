@@ -17,7 +17,7 @@ TD-3, 24–28, 33–35, 37–44, 46–64, 66–68, 70–77, 79–88, 90, 97, 133
 times on one emulator.
 
 TD numbers are shared with material_testing; check both registers before taking
-one ([FORK_SYNC.md](FORK_SYNC.md)). The next free in both is TD-207. Its only own
+one ([FORK_SYNC.md](FORK_SYNC.md)). The next free in both is TD-208. Its only own
 open row is TD-135, which is not listed here; TD-29, TD-30, TD-36, TD-45, TD-69,
 TD-139 and TD-145 are open in both (checked against its `main` @ `12f2e7d` on
 2026-10-08). TD-199 means two things: here it was the unit-test heap, fixed by
@@ -77,6 +77,7 @@ Priority = (Impact + Risk) × (6 − Effort).
 | TD-197 | Backend / perf | No Firestore call on a request path passes a timeout, so the client's defaults apply: 60 s for a get or commit and 300 s for a query or `get_all` (google-cloud-firestore GAPIC defaults). The JSON routes' gateway deadline is 60 s, so a hung query holds a threadpool thread for up to four minutes after the client has gone (e.g. `backend/app/repo/_base.py:266-288`, `repo/sessions.py:281`) | 1 | 2 | 2 | **10** | Open. Adding a timeout reaches every repo call site and `tests/fake_firestore.py`; do it with one `_base` helper per call kind, not per site |
 | TD-198 | Backend / perf | Small items from the 2026-10-05 performance pass, not taken: ECDSA verification and the body hash run on the event loop in `verified_device` (`backend/app/deps.py:311-327`), about 0.1 ms for the signature and up to a few ms for a 4 MiB body; listings read whole documents where `select()` would do (`repo/sessions.py:281`, `repo/reconcile.py:101`, `:108`); `observability.classify_route` re-matches a path Starlette already routed (`backend/app/observability.py:77`, `:85`); `_search_licenses` runs its three queries one after another (`backend/app/repo/license_admin.py:79`) | 1 | 1 | 1 | **5** | Open, by choice. Each is under the 5 % floor of `docs/perf/request-volume.md`; `select()` also needs projection support in `tests/fake_firestore.py` |
 | TD-205 | App / copy | The PDF generator's progress statuses are hard-coded English, most of them title case (`report/PdfReportGenerator.kt:85`, `:100`, `:111`–`:119`, `:142`: "Compiling Engine Telemetry...", "Frame N of M…", "Finalizing PDF..."), and the export dialog and banner show them as they are, beside the string-resource statuses of the other kinds (`ui/viewer/share/DataExport.kt` `allFramesPdf`) | 1 | 1 | 1 | **10** | Open. Move them to string resources in sentence case; status text only, the PDF bytes do not change |
+| TD-207 | Video | A video frame's clip time (Home's `Video · 40 frames, 0:00–0:12`, the viewer's `0:01.25`) is the time the frame was asked for, not the decoded frame's own. The hardware rung records the planned sample (`imaging/video/VideoFrameExtractor.kt:202`) while `HardwareVideoDecoder.decodeFrameAt` returns the first frame at or after it (`imaging/video/HardwareVideoDecoder.kt:130`), so a fixed-interval time can read up to one frame early; the retriever records its sample too (`VideoFrameExtractor.kt:276`) and gets the closest frame (`:305`). Keyframe plans and the AVI rung (each frame's own start) are exact | 1 | 1 | 2 | **8** | Open. Return the decoded frame's presentation time with its luma; the extracted pixels do not change |
 
 ## Deferred by design
 

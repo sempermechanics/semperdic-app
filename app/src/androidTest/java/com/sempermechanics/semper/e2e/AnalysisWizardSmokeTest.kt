@@ -112,6 +112,8 @@ class AnalysisWizardSmokeTest {
             assertEquals(activity.getString(R.string.wizard_title_sweep_setup), toolbar.title)
             val dots = activity.findViewById<TextView>(R.id.tvStepDots)
             assertEquals(activity.getString(R.string.step_of_fmt, 2, 3), dots.contentDescription)
+            val next = activity.findViewById<TextView>(R.id.btnNext)
+            assertEquals(activity.getString(R.string.next_sweep), next.text.toString())
         }
         captureWizardShot("step2-sweep.png")
 
@@ -120,6 +122,8 @@ class AnalysisWizardSmokeTest {
             assertTrue(activity.findViewById<View>(R.id.subsetRangeBlock).isShown)
             assertTrue(activity.findViewById<View>(R.id.tilStepDepth).isShown)
             assertTrue(activity.findViewById<View>(R.id.lineCutPreviewCard).isShown)
+            // The overlap waits under Advanced.
+            assertFalse(activity.findViewById<View>(R.id.tilSweepOverlap).isShown)
             val toolbar = activity.findViewById<MaterialToolbar>(R.id.toolbar)
             assertEquals(activity.getString(R.string.sweep_settings), toolbar.title)
         }

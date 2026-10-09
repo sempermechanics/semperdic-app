@@ -54,6 +54,7 @@ internal object WizardState {
     private const val ORDER_DIRECTION = "orderDirection"
     private const val FRAME_SIZE_ERROR = "frameSizeError"
     private const val FROM_VIDEO = "fromVideo"
+    private const val VIDEO_NAME = "videoName"
     private const val SWEEP_MODE = "sweepMode"
     private const val SWEEP_RANGES = "sweepRanges"
     private const val SUBSET_OVERLAP = "subsetOverlap"
@@ -62,7 +63,11 @@ internal object WizardState {
     private const val WORKING_LOCAL_ID = "workingLocalId"
     private const val WORKING_IS_SWEEP = "workingIsSweep"
 
-    /** Index-aligned lists behind the deformed-frames card; `-1` = size not measured. */
+    /**
+     * Index-aligned lists behind the deformed-frames card; `-1` = size not
+     * measured. [timesMs] is each video frame's time in its clip: empty for
+     * picked images, and for a draft an older app saved.
+     */
     @Serializable
     data class Frames(
         val paths: List<String> = emptyList(),
@@ -70,6 +75,7 @@ internal object WizardState {
         val dates: List<Long> = emptyList(),
         val widths: List<Int> = emptyList(),
         val heights: List<Int> = emptyList(),
+        val timesMs: List<Long> = emptyList(),
     )
 
     /** What [readInputs] read back from the draft. */
@@ -94,6 +100,7 @@ internal object WizardState {
         putString(ORDER_DIRECTION, viewModel.defOrderDirection.name)
         putString(FRAME_SIZE_ERROR, viewModel.frameSizeError)
         putBoolean(FROM_VIDEO, viewModel.defFromVideo)
+        putString(VIDEO_NAME, viewModel.defVideoName)
         putBoolean(SWEEP_MODE, viewModel.sweepMode)
         putIntArray(SWEEP_RANGES, viewModel.sweepRanges.toIntArray())
         putDouble(SUBSET_OVERLAP, viewModel.subsetOverlap)
@@ -119,6 +126,7 @@ internal object WizardState {
             ?.let { viewModel.defOrderDirection = it }
         viewModel.frameSizeError = b.getString(FRAME_SIZE_ERROR)
         viewModel.defFromVideo = b.getBoolean(FROM_VIDEO)
+        viewModel.defVideoName = b.getString(VIDEO_NAME)
         viewModel.sweepMode = b.getBoolean(SWEEP_MODE)
         SweepRanges.fromIntArray(b.getIntArray(SWEEP_RANGES))?.let { viewModel.sweepRanges = it }
         viewModel.subsetOverlap = b.getDouble(SUBSET_OVERLAP, viewModel.subsetOverlap)

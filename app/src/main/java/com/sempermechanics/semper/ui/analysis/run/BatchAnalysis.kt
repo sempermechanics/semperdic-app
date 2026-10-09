@@ -85,6 +85,9 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     EngineDebug.attach(spec.debugDir)
 
     val plannedFrames = defFilePaths.size
+    // A video's frame times, one per planned frame, as the session row keeps them.
+    val frameTimesMs = defFrameTimesMs?.takeIf { it.size == plannedFrames }
+    val videoName = defVideoName
     val refBytes = refBytes ?: error("Reference missing")
 
     var firstFrameValidPoints = 0
@@ -361,6 +364,8 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
             dir = batchDir,
             reference = RunReference(refPngPath, refName, refSize),
             settings = spec.recordSettings().also { recordRunSettings(it) },
+            videoName = videoName,
+            frameTimesMs = frameTimesMs,
         )
         val outcome = RunOutcome(
             frameCount = solvedFrames,
@@ -383,7 +388,15 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
         val framesOnDisk = batchDir.listFiles { f -> f.extension == "dat" }?.size ?: 0
         val after = afterUnsavedRerun(
             previous,
-            UnsavedRerun(framesOnDisk, stop.wireCode, plannedFrames, spec.recordSettings(), defNames),
+            UnsavedRerun(
+                framesOnDisk,
+                stop.wireCode,
+                plannedFrames,
+                spec.recordSettings(),
+                defNames,
+                videoName,
+                frameTimesMs,
+            ),
         )
         when {
             after == null -> SessionStore.forget(appContext, localSessionId)

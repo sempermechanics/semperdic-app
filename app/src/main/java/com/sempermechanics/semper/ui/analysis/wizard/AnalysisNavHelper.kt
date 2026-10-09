@@ -140,6 +140,7 @@ object AnalysisNavHelper {
             },
             defPath = run.defPath,
             defFilePaths = viewModel.defFilePaths,
+            frameTimesMs = viewModel.defFrameTimesMs.takeUnless { sweep },
         )
     }
 }

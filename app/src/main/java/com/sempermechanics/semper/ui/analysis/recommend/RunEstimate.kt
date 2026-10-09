@@ -55,8 +55,29 @@ object RunEstimate {
         if (seconds <= SECONDS_LABEL_MAX) {
             res.getString(R.string.run_estimate_seconds_fmt, seconds)
         } else {
-            res.getString(R.string.run_estimate_minutes_fmt, (seconds / SECONDS_PER_MINUTE).roundToLong())
+            res.getString(R.string.run_estimate_minutes_fmt, minutes(seconds))
         }
+
+    /** [duration] without "about": "33 s", "2 min", for a button with little room. */
+    fun shortDuration(res: Resources, seconds: Long): String =
+        if (seconds <= SECONDS_LABEL_MAX) {
+            res.getString(R.string.run_estimate_seconds_short_fmt, seconds)
+        } else {
+            res.getString(R.string.run_estimate_minutes_short_fmt, minutes(seconds))
+        }
+
+    /** [duration] as TalkBack reads it: "about 33 seconds", "about 2 minutes". */
+    fun spokenDuration(res: Resources, seconds: Long): String {
+        val count = if (seconds <= SECONDS_LABEL_MAX) seconds else minutes(seconds)
+        val plural = if (seconds <= SECONDS_LABEL_MAX) {
+            R.plurals.run_estimate_seconds_spoken_fmt
+        } else {
+            R.plurals.run_estimate_minutes_spoken_fmt
+        }
+        return res.getQuantityString(plural, count.toInt(), count)
+    }
+
+    private fun minutes(seconds: Long): Long = (seconds / SECONDS_PER_MINUTE).roundToLong()
 
     private fun grouped(value: Int): String = String.format(Locale.getDefault(), "%,d", value)
 }

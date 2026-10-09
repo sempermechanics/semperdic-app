@@ -21,6 +21,7 @@ import com.sempermechanics.semper.ui.analysis.recommend.RunEstimate
 import com.sempermechanics.semper.ui.analysis.wizard.WizardStep
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,11 +29,12 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowDialog
 
 /**
- * The sweep's two pages: step 2 picks the frame in a dialog and shows the
- * planned lattice, the sample counts under its gear, and a frame thumbnail
- * that opens over the page; step 3 holds the ranges, says the VSG span they
- * cover, opens its line-cut strip on a tap, and its run button counts the
- * analyses and, once this phone has a rate, the time.
+ * The sweep's two pages: step 2 picks the frame in a dialog, says which frame
+ * to pick behind an ⓘ, and shows the planned lattice with its run count, the
+ * sample counts under its gear, and a frame thumbnail that opens over the
+ * page; step 3 holds the ranges, says the VSG span they cover, keeps the
+ * overlap under a closed Advanced, opens its line-cut strip on a tap, and its
+ * run button counts the analyses and, once this phone has a rate, the time.
  */
 @RunWith(RobolectricTestRunner::class)
 class SweepStepsTest {
@@ -63,7 +65,28 @@ class SweepStepsTest {
 
         assertEquals(View.VISIBLE, view<View>(R.id.sweepFrameBlock).visibility)
         assertEquals("steel_20.tif", view<EditText>(R.id.ddSweepFrame).text.toString())
-        assertEquals("Frame 21 of 40", view<TextInputLayout>(R.id.tilSweepFrame).helperText.toString())
+        val field = view<TextInputLayout>(R.id.tilSweepFrame)
+        assertEquals("21 / 40", field.suffixText.toString())
+        assertEquals(null, field.helperText)
+        assertFalse("no box label", field.isHintEnabled)
+        assertEquals("Frame to sweep", view<EditText>(R.id.ddSweepFrame).hint.toString())
+    }
+
+    @Test
+    fun `the info beside the frame field says which frame to pick`() {
+        open(frames = 40)
+
+        view<View>(R.id.btnSweepFrameInfo).performClick()
+        bed.idle()
+        val dialog = ShadowDialog.getLatestDialog() as AlertDialog
+        assertEquals(
+            bed.activity.getString(R.string.sweep_frame_hint),
+            dialog.findViewById<TextView>(android.R.id.message)?.text.toString(),
+        )
+        assertEquals(
+            "Frame to sweep",
+            dialog.findViewById<TextView>(androidx.appcompat.R.id.alertTitle)?.text.toString(),
+        )
     }
 
     @Test
@@ -83,7 +106,7 @@ class SweepStepsTest {
 
         assertEquals(22, bed.viewModel.sweepFrameIndex)
         assertEquals("steel_22.tif", view<EditText>(R.id.ddSweepFrame).text.toString())
-        assertEquals("Frame 23 of 40", view<TextInputLayout>(R.id.tilSweepFrame).helperText.toString())
+        assertEquals("23 / 40", view<TextInputLayout>(R.id.tilSweepFrame).suffixText.toString())
     }
 
     @Test
@@ -94,23 +117,46 @@ class SweepStepsTest {
     }
 
     @Test
-    fun `the strain window caption spans the plan's VSGs`() {
+    fun `the strain window title row spans the plan's VSGs`() {
         open(frames = 40)
         val plan = controller.currentPlan()
 
         assertTrue(plan.isNotEmpty())
         assertEquals(
-            "Fits planes over ${plan.minOf { it.vsg }}–${plan.maxOf { it.vsg }} px (VSG)",
+            "${plan.minOf { it.vsg }}–${plan.maxOf { it.vsg }} px VSG",
             view<TextView>(R.id.tvStrainWinVsg).text.toString(),
         )
+    }
+
+    @Test
+    fun `the planned lattice heading counts the runs`() {
+        open(frames = 40)
+        val plan = controller.currentPlan()
+
+        val count = view<TextView>(R.id.tvSweepRunCount)
+        assertEquals(View.VISIBLE, count.visibility)
+        assertEquals("${plan.size} runs", count.text.toString())
+    }
+
+    @Test
+    fun `a plan with nothing to run hides the count`() {
+        open(frames = 40)
+        bed.viewModel.subsetMin = 121
+        bed.viewModel.subsetMax = 121
+        controller.refreshSweepPlan()
+
+        assertTrue(controller.currentPlan().isEmpty())
+        assertEquals(View.GONE, view<TextView>(R.id.tvSweepRunCount).visibility)
     }
 
     @Test
     fun `the run button counts the analyses, and adds the time once this phone has a rate`() {
         open(frames = 40)
         val plan = controller.currentPlan()
+        val run = bed.binding.btnRunSweep
 
-        assertEquals("Run ${plan.size} analyses", bed.binding.btnRunSweep.text.toString())
+        assertEquals("Run ${plan.size}", run.text.toString())
+        assertEquals("Run ${plan.size} analyses", run.contentDescription.toString())
 
         AppSettings.setRunPointsPerSecond(bed.activity, 5000)
         controller.refreshSweepPlan()
@@ -118,10 +164,39 @@ class SweepStepsTest {
         // Each analysis solves the one frame at its own step over the drawn region.
         val points = plan.sumOf { RunEstimate.gridPoints(1100, 800, it.step) }
         val seconds = RunEstimate.seconds(points, 1, 5000)!!
-        assertEquals(
-            "Run ${plan.size} analyses · about $seconds s",
-            bed.binding.btnRunSweep.text.toString(),
-        )
+        assertEquals("Run ${plan.size} · $seconds s", run.text.toString())
+        assertEquals("Run ${plan.size} analyses, about $seconds seconds", run.contentDescription.toString())
+    }
+
+    @Test
+    fun `the overlap sits under a closed Advanced that its header opens`() {
+        open(frames = 40)
+        val body = view<View>(R.id.sweepAdvancedBody)
+        val header = view<View>(R.id.sweepAdvancedHeader)
+        val chevron = header.findViewById<View>(R.id.imgAdvancedChevron)
+        assertEquals(View.GONE, body.visibility)
+        assertTrue(view<View>(R.id.tilSweepOverlap).parent === body)
+
+        header.performClick()
+        assertEquals(View.VISIBLE, body.visibility)
+        assertEquals(180f, chevron.rotation)
+        // The parameters page's own Advanced stays as it was.
+        assertEquals(View.GONE, bed.settings.advancedBody.visibility)
+
+        header.performClick()
+        assertEquals(View.GONE, body.visibility)
+    }
+
+    @Test
+    fun `the line cut toggle reads X and Y, and Along X and Along Y to TalkBack`() {
+        open(frames = 40)
+        val x = view<TextView>(R.id.rbAxisX)
+        val y = view<TextView>(R.id.rbAxisY)
+
+        assertEquals("X", x.text.toString())
+        assertEquals("Y", y.text.toString())
+        assertEquals("Along X", x.contentDescription.toString())
+        assertEquals("Along Y", y.contentDescription.toString())
     }
 
     @Test

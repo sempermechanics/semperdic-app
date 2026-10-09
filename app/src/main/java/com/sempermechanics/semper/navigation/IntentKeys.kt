@@ -37,6 +37,9 @@ object IntentKeys {
     const val BATCH_DIR_PATH = "BATCH_DIR_PATH"
     const val DEF_FILE_NAMES = "DEF_FILE_NAMES"
 
+    /** A video's frame times in its clip (ms), index-aligned with [DEF_FILE_NAMES]; absent otherwise. */
+    const val FRAME_TIMES_MS = "FRAME_TIMES_MS"
+
     /** Full paths to the raw deformed images (transient cache copies) — best-effort
      *  source for the export's "raw photos" folder; absent when reopened from Home. */
     const val DEF_FILE_PATHS = "DEF_FILE_PATHS"

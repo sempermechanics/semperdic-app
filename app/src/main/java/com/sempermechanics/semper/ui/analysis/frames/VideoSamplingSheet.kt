@@ -14,6 +14,7 @@ import com.sempermechanics.semper.imaging.video.VideoFrameExtractor
 import com.sempermechanics.semper.imaging.video.VideoKeyframeHelper
 import com.sempermechanics.semper.imaging.video.VideoMeta
 import com.sempermechanics.semper.ui.common.dialog.FaqRedirect
+import com.sempermechanics.semper.ui.common.media.displayNameOrNull
 import com.sempermechanics.semper.ui.common.onButtonChecked
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -38,11 +39,18 @@ class VideoSamplingSheet(
     private val busy: ReferenceSlotBusy? = null,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    /** Reads [uri]'s metadata on [io], then offers the sampling sheet; a video it cannot read gets a snackbar. */
+    /**
+     * Reads [uri]'s metadata and display name on [io], then offers the sampling
+     * sheet; a video it cannot read gets a snackbar.
+     */
     fun open(uri: Uri) {
         activity.lifecycleScope.launch {
             val read = suspend { withContext(io) { VideoFrameExtractor.readMeta(activity, uri) } }
             val meta = busy?.readingVideo(read) ?: read()
+            // The clip's name names the analysis; a provider that will not say leaves it "Video".
+            val clipName = withContext(io) {
+                runCatching { displayNameOrNull(activity.contentResolver, uri) }.getOrNull()
+            }
             // An AVI we could demux but not decode can say which codec it is,
             // which beats "could not read this video" by a mile.
             val unsupported = meta.unsupportedCodec
@@ -54,13 +62,13 @@ class VideoSamplingSheet(
                 )
                 meta.durationMs <= 0L ->
                     FaqRedirect.snackbar(activity, R.string.video_read_failed, R.string.url_faq_video_read)
-                else -> show(uri, meta)
+                else -> show(uri, meta, clipName)
             }
         }
     }
 
-    /** Sampling by extraction frame rate + time segment, with a metadata summary. */
-    internal fun show(uri: Uri, meta: VideoMeta): BottomSheetDialog {
+    /** Sampling by extraction frame rate + time segment, with a metadata summary. [clipName] names the analysis. */
+    internal fun show(uri: Uri, meta: VideoMeta, clipName: String? = null): BottomSheetDialog {
         val form = SheetVideoSamplingBinding.inflate(activity.layoutInflater)
         val sampling = VideoSampling(meta, AppSettings.maxFrames(activity, AppRemoteConfig.maxFrames(activity)))
         form.tvVideoInfo.text = infoLine(meta)
@@ -109,6 +117,7 @@ class VideoSamplingSheet(
                     maxFrames = sampling.maxFrames,
                     preferKeyframes = form.rgExtractMode.checkedButtonId == R.id.btnModeKeyframes,
                     rotationDegrees = meta.rotationDegrees,
+                    clipName = clipName,
                 ),
             )
         }

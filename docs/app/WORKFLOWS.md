@@ -162,6 +162,8 @@ The session list and the only entry point to a new analysis.
 | [ ] 3.4f | Scroll to the end of a long list | Cards are about 68dp tall (12dp around a 44dp thumbnail); the last card scrolls clear above the **+** button (the list's bottom padding follows the button's spot, nine tenths down), and earlier cards pass under it |
 | [ ] 3.4a | Look at the thumbnail of a row whose frames are on the phone | The last frame's U-displacement heatmap, cropped to the field. The reference shows until it is drawn; a cloud-only row keeps the reference. Re-run the analysis and the thumbnail is drawn again from the new frames |
 | [ ] 3.4b | Make two analyses from the same reference image | The first is named after the image ("steel_00"), the second "steel_00 (2)" — no date in the name. Rows named before this change keep their names |
+| [ ] 3.4g | Look at the row of an analysis made from a video | "Video · 40 frames, 0:00–0:12 · 91.2%": the first and last frame's times in the clip, then the convergence, amber under 85% as on any row. TalkBack reads "… 91.2% converged". The same analysis restored from the cloud reads like a photo row ("40 frames · 91.2%"): the clip's times are not backed up |
+| [ ] 3.4h | Run a parameter sweep on frame `steel_24` | The new row is named "steel_24 sweep" (a second one "steel_24 sweep (2)"); sweeps named before this change keep "Parameter sweep · …" |
 | [ ] 3.4c | Read each cloud state icon with TalkBack | Cloud with tick "Backed up", up arrow "Upload pending", crossed out "Not backed up" (red when the backup failed), down arrow "Only in cloud" |
 | [ ] 3.5 | Tap a normal session | Result viewer opens on frame 1 |
 | [ ] 3.6 | Tap a sweep session | **Lattice** opens, not the viewer |
@@ -385,6 +387,8 @@ Reached whenever the file picked — from the grid or through Files — is a vid
 | [ ] 5.1a.9 | Pick an `.avi` that is truncated or not a video at all | The ordinary "could not read this video" snackbar — no crash |
 | [ ] 5.1a.10 | **Fixed interval**, whole clip, the source's own rate, then **Extract** | The deformed count is exactly the sheet's estimate minus the reference — a 20-frame clip gives 1 + 19, not a promised 21 |
 | [ ] 5.1a.11 | Read the codec snackbar from 5.1a.8 | The whole message shows — both remedies, not cut after two lines — and it stays up long enough to read (about 9 s) |
+| [ ] 5.1a.12 | Extract from `tensile_03.mp4`, then run | The reference card reads "tensile_03" and the analysis is named "tensile_03" ("tensile_03 (2)" for a second); a clip whose name the picker cannot give is "Video" |
+| [ ] 5.1a.13 | Extract, then kill the app on step 2 (Developer options, or `am kill`) and reopen | The wizard comes back with the frames, and after the run the row and the viewer still show the frames' clip times (3.4g, 8.2.1c) |
 
 `VideoFrameExtractionDeviceTest` (instrumented) covers the extraction itself on an
 emulator: it encodes MP4 and AVI (Y800, MJPG, H.264) clips whose frames are stamped
@@ -401,8 +405,9 @@ vendor decoders and camera AVIs.
 | [ ] 5.2.2 | Read the ROI row before editing | A thumbnail of the reference shaded green, and "Full image · N points": the points the engine solves at this step, over the frame inset by half a subset plus 10 px a side |
 | [ ] 5.2.3 | Tap **Edit** → draw an ROI → save | The thumbnail shows the region (holes in red) and the line becomes "w × h px · N points" |
 | [ ] 5.2.4 | Tap **Edit** → cancel | Falls back to full image; any mask is cleared |
-| [ ] 5.2.5 | Switch to **Parameter sweep** | The correlation section hides; **Frame to sweep** (multi-frame only) and the **Planned lattice** appear, no range controls. Toolbar reads "Sweep setup" with three dots. Bottom nav reads **Next: sweep settings** |
-| [ ] 5.2.6 | Type **step size** as subset ÷ N on step 3 | N is 2–9 (default 3); overlap on the same row is `1 − 1/N`; each subset uses `step = round(subset / N)` |
+| [ ] 5.2.5 | Switch to **Parameter sweep** | The correlation section hides; the frame field (multi-frame only) and the **Planned lattice** appear, no range controls. Toolbar reads "Sweep setup" with three dots. Bottom nav reads **Next**. The ROI row drops its point count ("Full image", "w × h px"): each combination has its own step; **Single** brings the count back |
+| [ ] 5.2.5a | Run a single analysis ("✅ Computed N frames" under the page), then switch to **Parameter sweep** | The status line clears; switching back to **Single** does not bring it back |
+| [ ] 5.2.6 | Type **step size** as subset ÷ N on step 3 | N is 2–9 (default 3); the overlap under **Advanced** is `1 − 1/N`; each subset uses `step = round(subset / N)` |
 | [ ] 5.2.7 | Tap the ⓘ next to the mode toggle | Explains single setting vs sweep |
 | [ ] 5.2.8 | Switch back to **Single** | The correlation section returns with its previous values |
 | [ ] 5.2.9 | Drag the **subset size** slider | Only odd values between 15 and 121; the field mirrors it; overlap updates from the current step |
@@ -425,27 +430,29 @@ vendor decoders and camera AVIs.
 | [ ] 5.2.18 | Draw an ROI smaller than the subset and tap **Compute** | "ROI too small" snackbar with a **Why?** action; that asks first whether to leave the app, then opens the ROI FAQ. The run does not start |
 | [ ] 5.2.19 | Edit a parameter field and tap **Compute** without pressing Done | The typed value is committed and used |
 | [ ] 5.2.20 | Open step 2 for the first time | Coach marks point at the analysis-mode toggle, the ROI row, then the Correlation section (Single) or the planned lattice (Sweep) |
-| [ ] 5.2.21 | Tap the **Frame to sweep** field (sweep, multi-frame) | The frame picker opens on the picked frame: a radio list, a frame-number field and a live preview. **OK** updates the name, "Frame n of N" and the thumbnail; **Cancel** changes nothing. With one deformed frame the row is hidden |
+| [ ] 5.2.21 | Tap the frame field (sweep, multi-frame) | It has no box label; it shows the frame's name with "n / N" at its end. The frame picker opens on the picked frame: a radio list, a frame-number field and a live preview. **OK** updates the name, "n / N" and the thumbnail; **Cancel** changes nothing. With one deformed frame the row is hidden |
+| [ ] 5.2.21b | Tap the ⓘ after the frame field | A dialog titled "Frame to sweep" says to pick the frame with the most deformation, since the sweep solves only that one; no sentence sits under the field |
 | [ ] 5.2.21a | Tap the frame thumbnail, then anywhere | The frame shows large over the dimmed page with "name · Frame n of N" and "Tap to close" under it; a tap anywhere or Back closes it |
 | [ ] 5.2.23 | Drag the subset range handles (step 3) | Both ends stay odd; min never crosses max |
 | [ ] 5.2.24 | Type a subset min above the max | Clamped so min ≤ max |
-| [ ] 5.2.25 | Drag the strain window range (step 3) | Two handles like the subset's, in points (3–31, default 3–11); the min and max boxes track it, and the line under it reads "Fits planes over a–b px (VSG)" for the plan's smallest and largest VSG |
+| [ ] 5.2.25 | Drag the strain window range (step 3) | Two handles like the subset's, in points (3–31, default 3–11); the min and max boxes track it, and the muted text at the end of the **Strain window** title row reads "a–b px VSG" for the plan's smallest and largest VSG |
 
 ### 5.3 Step 3 — Sweep settings `[sweep]`
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 5.3.1 | Arrive on step 3 | Toolbar reads "Sweep settings" with the third of three dots blue; the ranges come first, then **Line cut axis**; no lattice on this page |
-| [ ] 5.3.6 | Tap each ⓘ | The ranges, step and line-cut axis each explain themselves |
+| [ ] 5.3.1 | Arrive on step 3 | Toolbar reads "Sweep settings" with the third of three dots blue; **Subset** and **Strain window** come first, then the step, a closed **Advanced**, then **Line cut axis**; no lattice on this page |
+| [ ] 5.3.6 | Tap each ⓘ | The ranges, step, overlap (open **Advanced** first) and line-cut axis each explain themselves |
+| [ ] 5.3.6b | Tap **Advanced** on step 3, then tap it again | It opens on the **Overlap** field with its ⓘ, the chevron turned up, and closes again; the parameters page's own Advanced is unaffected |
 | [ ] 5.3.6a | Open step 3 for the first time | Three coach marks in order: the subset range, the line cut axis, then the run button |
-| [ ] 5.3.6f | Toggle the line-cut axis **Along X** ↔ **Along Y**, then tap the strip twice | The strip redraws the cut line through the ROI centre; a tap opens it in the reference's aspect, 240dp tall at least and at most 60% of the screen. A reference too wide for that scrolls sideways, starting centred. A second tap closes it |
+| [ ] 5.3.6f | Toggle the line-cut axis **X** ↔ **Y** (TalkBack reads "Along X" / "Along Y"), then tap the strip twice | The strip redraws the cut line through the ROI centre; a tap opens it in the reference's aspect, 240dp tall at least and at most 60% of the screen. A reference too wide for that scrolls sideways, starting centred. A second tap closes it |
 | [ ] 5.3.11 | Look at the planned lattice on step 2 | Grid of nodes, subset across, VSG up; taps do nothing (it's a preview) |
-| [ ] 5.3.12 | On step 2 tap the gear on **Planned lattice** and set 4 × 4 | The sample counts show under the heading (hidden until the gear); the plan summary reads 16 analyses and the lattice redraws; on step 3 the run button reads "Run 16 analyses" |
-| [ ] 5.3.12a | Read the run button before and after a run on this phone | "Run N analyses", then "Run N analyses · about S s" once a run has finished; it follows the ranges as they change |
+| [ ] 5.3.12 | On step 2 tap the gear on **Planned lattice** and set 4 × 4 | The sample counts show under the heading (hidden until the gear); the heading's count reads "16 runs" and the lattice redraws; on step 3 the run button reads "Run 16" |
+| [ ] 5.3.12a | Read the run button before and after a run on this phone | "Run N", then "Run N · S s" once a run has finished (minutes past 90 s); TalkBack reads "Run N analyses, about S seconds". It follows the ranges as they change |
 | [ ] 5.3.13 | Set samples to 9 | Clamped to 8 |
 | [ ] 5.3.14 | Set the subset min above what the ROI can hold | Warning chip under the lattice on step 2: "Subset range starts above what this image and ROI can hold"; info icon opens the sweep-subset FAQ behind the leave-the-app confirm. The run button is disabled |
 | [ ] 5.3.15 | Set a strain window range that no subset can satisfy | Warning chip under the lattice on step 2: "No combination fits this ceiling — raise Max strain window or lower the subset range"; info icon opens the empty-plan FAQ behind the same confirm. The run button is disabled |
-| [ ] 5.3.16 | Read a valid plan summary | "N analyses · subset a–b px · window c–d points"; a one-combination plan reads "1 analysis" with its real subset and window, not "1–1" |
+| [ ] 5.3.16 | Read the count beside **Planned lattice**, then start the sweep | "N runs" ("1 run" for one combination); no summary line sits under the lattice. The run overlay opens on "N analyses · subset a–b px · window c–d points"; a one-combination plan reads "1 analysis" with its real subset and window, not "1–1" |
 
 ### 5.4 Running
 
@@ -656,6 +663,7 @@ node. **Exit:** Home, or back to the Lattice.
 | # | Action | Expected |
 |---|---|---|
 | [ ] 8.2.1 | Read the edge title and the counter pill | The title is the frame's original filename without its extension ("steel_03"; "Frame 3" when unnamed); the pill under the frame reads "i / N" alone |
+| [ ] 8.2.1c | Open an analysis made from a video and step through it | The title is each frame's time in the clip, "0:01.25" (m:ss.cc), not "frame_0003". One restored from the cloud is titled by its frame names |
 | [ ] 8.2.1b | Open a sweep node | The title reads "Subset 15 · window 3": the node's subset and its strain window in data points (the step is left out). A sweep from before windows were counted in points keeps its stored label |
 | [ ] 8.2.1a | Open a batch the run skipped a frame of (one kept no points or would not read) | Every later frame keeps its own filename — in the edge title, the share CSV's `image` column, each PDF page title and the ZIP's `results/NNN_<name>/` folders, numbered as planned (frame 3 stays `003_…`) — matching the cloud backup's CSV and `Frame_N` folders |
 | [ ] 8.2.2 | Tap **Next** | Advances one frame; the heatmap and stats update |

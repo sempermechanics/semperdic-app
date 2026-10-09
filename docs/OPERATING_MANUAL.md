@@ -103,9 +103,13 @@ the frames are not on the phone), the name, and a line such as
 `40 frames · 96.3%`: the frame count and the share of points that converged.
 A convergence under 85% is amber. A run that stopped early reads
 `39 of 50 frames` and ends with why it stopped; a parameter sweep reads
-`9 of 9 solved`. A selected card turns light blue.
+`9 of 9 solved`. A video analysis says so, with where its frames sit in the
+clip: `Video · 40 frames, 0:00–0:12 · 91.2%`. A selected card turns light blue.
 A new analysis is named after its reference image, `steel_00`;
-a second one from the same image becomes `steel_00 (2)`. The cloud icon at the
+a second one from the same image becomes `steel_00 (2)`. A video analysis is
+named after the clip, `tensile_03` from `tensile_03.mp4` (`Video` when the
+clip's name cannot be read), and a sweep after its frame, `steel_24 sweep`.
+Analyses named before keep their names. The cloud icon at the
 row's end says where the backup stands:
 
 | Icon | Means |
@@ -139,7 +143,8 @@ warning naming a bigger subset size. Treat it as a comment on the pattern, not
 just a setting.
 
 **Video.** Pick a video and a sampling sheet opens: frame rate, time segment,
-live frame-count estimate. Frame 0 becomes the reference. While the video's
+live frame-count estimate. Frame 0 becomes the reference, named after the
+clip, and each frame keeps its time in the clip. While the video's
 length and frame rate are read, the reference slot shows a small spinner and
 **Reading video…**.
 
@@ -231,7 +236,8 @@ top to bottom:
 - **Region of interest** — a thumbnail of the reference with the region drawn on
   it, and the points the engine solves in it at the current step: "Full image ·
   30,968 points", or "1100 × 800 px · 8,800 points" once you draw one. The count
-  follows the step and the region. **Edit** opens the editor
+  follows the step and the region. In Sweep the row names the region alone:
+  each combination solves at its own step. **Edit** opens the editor
   ([§6](#6-region-of-interest)).
 - **Correlation** (Single) — subset size, step and strain window, then a closed
   **Advanced** section with overlap and interpolation ([§5](#5-parameters)),
@@ -244,8 +250,9 @@ top to bottom:
 
 Once this phone has finished a run, **Compute** reads "Compute · about 1 min":
 a running mean of the points per second your own runs reached, never a guess.
-Before that it reads **Compute**. In Sweep the button is **Next: sweep
-settings**.
+Before that it reads **Compute**. In Sweep the button is **Next**, to the
+sweep settings. Switching between Single and Sweep clears the last run's
+status line.
 
 ### While it runs
 
@@ -433,33 +440,34 @@ A sweep uses **one** deformed frame.
 
 Step 2 (**Sweep setup**) picks what is swept and shows the plan:
 
-- **Frame to sweep** — the picked frame's name, "Frame 23 of 40" under it, and
-  a thumbnail beside it. It starts on the middle frame. Tap the field to open
-  the frame picker: a scrolling list of the frames, a frame-number field, and a
-  preview of the frame you are on; **OK** makes it the swept frame. Tap the
-  thumbnail to see the frame large over the dimmed page; tap anywhere to close
-  it. Pick the
-  frame with the most deformation; the sweep solves only that one. With a
-  single deformed frame there is nothing to pick and the row is hidden.
+- **Frame to sweep** — a field with the picked frame's name and "23 / 40" at its
+  end, a thumbnail before it and an ⓘ after it. It starts on the middle frame.
+  Tap the field to open the frame picker: a scrolling list of the frames, a
+  frame-number field, and a preview of the frame you are on; **OK** makes it the
+  swept frame. Tap the thumbnail to see the frame large over the dimmed page;
+  tap anywhere to close it. The ⓘ says which frame to pick: the one with the
+  most deformation, since the sweep solves only that one. With a single
+  deformed frame there is nothing to pick and the row is hidden.
 - **Planned lattice** — one node per analysis, subset across and VSG up, with
-  the summary "9 analyses · subset 21–41 px · window 3–11 points" under it. The
-  gear on its heading shows **No. of subsets** and **No. of strain windows**,
-  the samples per range.
+  the count beside the heading ("9 runs"). The gear on its heading shows **No.
+  of subsets** and **No. of strain windows**, the samples per range.
 
 Step 3 (**Sweep settings**) sets the ranges. The lattice on step 2 follows any
 change, so **Back** shows the new plan:
 
-- **Subset size range** and **Strain window range**, the latter with "Fits
-  planes over 15–101 px (VSG)", the span of VSGs the plan covers.
-- **Step size** as subset ÷ N, with the overlap beside it.
-- **Line cut axis** — **Along X** or **Along Y**, over a strip preview of the
+- **Subset** and **Strain window**, the ranges; the latter's title row ends
+  with "15–101 px VSG", the span of VSGs the plan covers.
+- **Step size** as subset ÷ N, and under a closed **Advanced** the overlap that
+  gives.
+- **Line cut axis** — **X** or **Y**, over a strip preview of the
   reference with the region and the cut through its centre. Tap the strip to
   open it larger, in the reference's own shape; a wide reference then runs past
   the screen edge and scrolls sideways. Tap again to close it.
 
-The run button reads "Run 9 analyses", and "Run 9 analyses · about 33 s" once
-this phone has finished a run: each analysis solves the one frame at its own
-step, timed at the points per second your runs reached.
+The run button reads "Run 9", and "Run 9 · 33 s" once this phone has finished
+a run (TalkBack reads "Run 9 analyses, about 33 seconds"): each analysis solves
+the one frame at its own step, timed at the points per second your runs
+reached.
 
 <img src="images/step3-sweep.png" width="300" alt="Sweep summary, step 3">
 
@@ -469,8 +477,8 @@ step, timed at the points per second your runs reached.
 | Subset range | 15–121, odd (step 3) |
 | Strain window range | 3–31 points, odd, default 3–11 — min and max (step 3) |
 | Samples | 1–8 per axis (step 2, lattice gear) |
-| Step size | subset ÷ N, N 2–9, default 3. Overlap on the same row is `1 − 1/N`. Pixel step is `round(subset / N)` (step 3) |
-| Line cut axis | Along X / Along Y (step 3) |
+| Step size | subset ÷ N, N 2–9, default 3. The overlap under **Advanced** is `1 − 1/N`. Pixel step is `round(subset / N)` (step 3) |
+| Line cut axis | X / Y (step 3) |
 
 Runtime is the product of the two sample counts. 8 × 8 is 64 solves. Start at
 3 × 3.
@@ -594,7 +602,8 @@ the lattice onto one combination instead; there is no overview slot.
 and a note; single-setting field GIFs still export.)
 
 **Frames.** Prev / Next step through. The title at the top names what is on
-screen — *Summary*, or the frame's file name without its extension — and the
+screen — *Summary*, the frame's file name without its extension, or a video
+frame's time in its clip (`0:01.25`) — and the
 field button beside it names the field. The pill under the frame counts:
 `i / N` on a frame, `5 frames` on the summary. Type a number in the small field
 under it and press Go to jump straight to that frame — useful at 150 frames.
