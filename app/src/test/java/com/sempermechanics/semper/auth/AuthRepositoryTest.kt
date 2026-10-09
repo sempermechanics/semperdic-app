@@ -1,7 +1,12 @@
 package com.sempermechanics.semper.auth
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.work.impl.WorkManagerImpl
+import androidx.work.testing.WorkManagerTestInitHelper
 import com.sempermechanics.semper.cloud.FakeCloudApi
 import com.sempermechanics.semper.cloud.FakeTokens
 import com.sempermechanics.semper.data.account.AccessStatus
@@ -20,10 +25,12 @@ import com.sempermechanics.semper.data.net.NotApprovedException
 import com.sempermechanics.semper.data.net.TermsDto
 import com.sempermechanics.semper.data.net.TermsVersionMismatchException
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -44,6 +51,21 @@ class AuthRepositoryTest {
     private var signedIn = true
 
     private val repo = AuthRepository(context, api, tokens, signedIn = { signedIn })
+
+    @Before
+    fun startWorkManager() = WorkManagerTestInitHelper.initializeTestWorkManager(context)
+
+    // Robolectric keeps statics between test classes, and other tests rely on
+    // WorkManager not being started; the helper set it through setDelegate.
+    @SuppressLint("RestrictedApi")
+    @After
+    fun stopWorkManager() {
+        WorkManagerTestInitHelper.closeWorkDatabase()
+        WorkManagerImpl.setDelegate(null)
+    }
+
+    private fun licenceRefresh(): List<WorkInfo> =
+        WorkManager.getInstance(context).getWorkInfosForUniqueWork("license-config-refresh").get()
 
     private fun approved(terms: TermsDto? = null, consent: Boolean? = null) =
         MeResponse(uid = "u1", role = "admin", accessStatus = "APPROVED", terms = terms, improvementConsent = consent)
@@ -82,6 +104,25 @@ class AuthRepositoryTest {
 
         assertEquals(AccessStatus.APPROVED, repo.refreshStatus().getOrThrow())
         assertTrue("config still fetched", "getConfig" in api.calls)
+    }
+
+    @Test
+    fun `a status check that records a config schedules the licence refresh`() = runBlocking {
+        serverUp()
+        api.onGetConfig = { AppConfigDto(maxSessions = 25, mode = "demo") }
+
+        assertEquals(AccessStatus.APPROVED, repo.refreshStatus().getOrThrow())
+
+        assertEquals(WorkInfo.State.ENQUEUED, licenceRefresh().single().state)
+    }
+
+    @Test
+    fun `a status check whose config read failed schedules no refresh`() = runBlocking {
+        serverUp()
+
+        assertEquals(AccessStatus.APPROVED, repo.refreshStatus().getOrThrow())
+
+        assertEquals(emptyList<WorkInfo>(), licenceRefresh())
     }
 
     @Test
