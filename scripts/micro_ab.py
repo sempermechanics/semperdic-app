@@ -9,8 +9,8 @@ A B B A order, so drift hits both equally, and judges B by its difference from A
 A hot path that gets slower fails the job; how fast the emulator is does not
 matter.
 
-Run mode installs each build's app and androidTest APKs over the last (``adb
-install -r``), runs the benchmark class with ``am instrument`` and pulls each
+Run mode uninstalls the app and its test package, installs one build's app and
+androidTest APKs, runs the benchmark class with ``am instrument`` and pulls each
 round's ``*-benchmarkData.json`` into ``OUT/<n>-<A|B>/``. Method tracing is off
 (``profiling.mode none``): it costs seconds a test and no number comes from it.
 
@@ -147,6 +147,11 @@ def adb(prefix: list[str], *args: str, check: bool = True) -> str:
 def run_round(prefix: list[str], number: int, build: str, apk_dir: Path, package: str, out: Path) -> None:
     round_dir = out / f"{number}-{build}"
     round_dir.mkdir(parents=True, exist_ok=True)
+    # Uninstall first: a build signed with another debug key (CI's smoke run
+    # installs through Gradle) refuses to install over this one, and every round
+    # starts from the same clean install.
+    for installed in (f"{package}.test", package):
+        adb(prefix, "uninstall", installed, check=False)
     for apk in APKS:
         adb(prefix, "install", "-r", "-t", str(apk_dir / apk))
     media = [f"/sdcard/Android/media/{package}", f"/sdcard/Android/media/{package}.test"]

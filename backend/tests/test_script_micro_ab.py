@@ -244,6 +244,11 @@ def test_main_run_mode_installs_abba_and_gates_the_result(ab, tmp_path, monkeypa
     installs = [Path(c[-1]) for c in device.calls if "install" in c]
     assert [p.parent.name for p in installs] == ["A", "A", "B", "B", "B", "B", "A", "A"]
     assert [p.name for p in installs[:2]] == ["app-debug.apk", "app-debug-androidTest.apk"]
+    # Each round uninstalls both packages before installing its build.
+    steps = [c[3] if c[3] in ("uninstall", "install") else None for c in device.calls]
+    assert steps[:4] == ["uninstall", "uninstall", "install", "install"]
+    assert [c[-1] for c in device.calls if "uninstall" in c][:2] == ["org.example.test", "org.example"]
+    assert steps.count("uninstall") == 8
     instrument = next(c[-1] for c in device.calls if "am instrument" in c[-1])
     assert instrument == (
         "am instrument -w -e class com.sempermechanics.semper.benchmark.HotPathMicroBenchmark "
