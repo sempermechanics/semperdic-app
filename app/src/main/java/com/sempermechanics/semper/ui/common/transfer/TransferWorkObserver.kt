@@ -42,8 +42,17 @@ class TransferWorkObserver(
         val isFinished: Boolean get() = info.state.isFinished
     }
 
-    /** A running job's progress on its analysis's row. */
-    data class RowProgress(val phase: TransferPhase, val percent: Int)
+    /**
+     * A running job's progress on its analysis's row. [bytesDone] and
+     * [bytesTotal] are null until the job reports byte counts; the row then
+     * says "4.2 of 12 MB" instead of a percent.
+     */
+    data class RowProgress(
+        val phase: TransferPhase,
+        val percent: Int,
+        val bytesDone: Long? = null,
+        val bytesTotal: Long? = null,
+    )
 
     /**
      * The latest list: every [jobs] entry, and [newlyFinished], the finished

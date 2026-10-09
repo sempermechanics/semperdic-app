@@ -118,8 +118,8 @@ HomeActivity ─┬─ beta notice + diagnostics prompt (first run) ......... B1
               ├─ session list ...... ui/home/SessionListAdapter → ui/home/SessionOpenHelper → A7 / A8
               ├─ selection mode .... ui/home/SessionSelectionController → B4 / B12
               ├─ pull to refresh ... data/cloud/CloudSync.reconcile(deep = true) ....... B7
-              ├─ row badges ........ WorkInfo from B1 / B2
-              ├─ quota chip ........ data/net/AccountCache + AppRemoteConfig → A9
+              ├─ row state icons ... WorkInfo from B1 / B2
+              ├─ quota chip ........ data/net/AccountCache + AppRemoteConfig → A9 (shown from 80% of the cap)
               └─ FAB ............... ui/common/media/MediaPickerSheet (A3a) → A5
 ```
 
@@ -128,7 +128,7 @@ HomeActivity ─┬─ beta notice + diagnostics prompt (first run) ......... B1
 | Entry | `ui/home/HomeActivity` |
 | Chain | `data/session/SessionStore.list` (local index) ⋈ `data/cloud/CloudSync.reconcile` (cloud) |
 | Writes | Session index (rename, delete, sync state), coach-mark flags in `data/prefs/CoachPrefs` |
-| Fails as | Message pill + a "why + retry" dialog on the sync badge, fed by the worker's `IntentKeys.UPLOAD_FAIL_REASON` / `DicRestoreWorker.KEY_ERROR` |
+| Fails as | Message pill + a "why + retry" dialog on the row's cloud icon, fed by the worker's `IntentKeys.UPLOAD_FAIL_REASON` / `DicRestoreWorker.KEY_ERROR` |
 | Tests | `session/SessionStoreAtomicTest`, `cloud/QuotaGateTest` |
 
 ### A3a New-analysis media picker
@@ -279,10 +279,10 @@ CloudSync.enqueueUpload → DicUploadWorker.doWork → backUp
 
 | Field | Value |
 |---|---|
-| Triggered by | `saveRunRecord` after a run, the Home badge retry, Settings **Back up now**, turning **Save to cloud** on, and each reconcile that lists the cloud, for rows still PENDING (`CloudSync.reconcile`) |
+| Triggered by | `saveRunRecord` after a run, the Home cloud icon retry, Settings **Back up now**, turning **Save to cloud** on, and each reconcile that lists the cloud, for rows still PENDING (`CloudSync.reconcile`) |
 | Decisions | `data/cloud/UploadWorkOutcomes` — HTTP → retry/fail, resume classification, staging reuse, verified `Session.zip`, incomplete staging (`classifyIncompleteStaging`: retry while the reference/`.dat` inputs exist, the row was saved < 15 min ago, or they have been missing < 10 min by the `<sessionDir>/upload_inputs_missing_since` marker; else terminal `inputs_missing`) |
 | Writes | `<sessionDir>/upload_staging/`, sync state + `cloudSessionId` on the index row; `StorageBudget.enforce` runs at the end |
-| Fails as | Terminal: `IntentKeys.UPLOAD_FAIL_REASON` in the worker output → Home pill + badge dialog. Retryable: `Result.retry()` with a Timber `Upload RETRY` line |
+| Fails as | Terminal: `IntentKeys.UPLOAD_FAIL_REASON` in the worker output → Home pill + cloud icon dialog. Retryable: `Result.retry()` with a Timber `Upload RETRY` line |
 | Signals | `data/cloud/TransferNotifications` foreground notification (bar, bytes, rate, percent, time left); `data/cloud/TransferResultNotifications` "… is backed up" / failure reason with Retry (`TransferRetryReceiver`); `IntentKeys.UPLOAD_PHASE` / `UPLOAD_PERCENT` progress, plus `TRANSFER_BYTES_*` while bytes go to Drive; `SemperAnalytics` cloud_upload_* buckets; the backend's `X-Request-Id` appended by `UploadWorkOutcomes.withRef` |
 | Tests | `cloud/UploadResumableTest`, `cloud/DicUploadWorkerOutcomesTest`, `cloud/UploadChunkSizingTest`, `cloud/BackupSplitTest`, `cloud/SessionZipTest`, `cloud/WaitingUploadsTest` |
 
@@ -427,9 +427,11 @@ backup or a restore, a Retry that `TransferRetryReceiver` turns into the same un
 work again. A failure without a reason (the upload's quota stop) and a retry post
 nothing. Outcomes need the notification permission, which the app declares but never
 asks for, so from Android 13 on they show only once the user allows notifications.
-Per-row badges and bars on Home; the `TransferBannerController` strip in Settings and
-the viewer. Tests: `data/cloud/TransferNotificationTextTest`,
-`data/cloud/TransferRetryReceiverTest`, `data/cloud/TransferMeterTest`.
+On Home each row has its state icon, and while a transfer runs a progress line and bar
+fed by the same byte counts (`TransferWorkObserver.RowProgress`, "Backing up · 4.2 of
+12 MB"); the `TransferBannerController` strip in Settings and the viewer. Tests:
+`data/cloud/TransferNotificationTextTest`, `data/cloud/TransferRetryReceiverTest`,
+`data/cloud/TransferMeterTest`.
 
 ---
 
@@ -530,7 +532,7 @@ Details and failure triage: [ops/CI.md](ops/CI.md).
 | A wrong number in the viewer or ⓘ sheet | The extras it was opened with: `AnalysisNavHelper.openResults` (fresh run) or `ui/home/SessionOpenHelper.intentFor` (reopen) → read in `ResultViewerActivity` / `SettingsUsedSheet` / `ViewerReportFactory`. **Check which of the two packed it** — see E2.1 |
 | A wrong number in an export | `report/ReportBuilder` (fusion), `report/AnalysisCsvWriter`, `report/VisualizationEngine`; the source of truth is `DicResult.decodeDatFile` over `frame_%04d.dat` |
 | "Analysis failed" wording | `ui/analysis/run/EngineFailure` (code → string) + `field/RunStop` (the stop codes); the code itself comes from the engine or `ConvergenceGate` |
-| A backup that failed | Home badge dialog text = `IntentKeys.UPLOAD_FAIL_REASON` from `UploadRun.failure` → `UploadWorkOutcomes` for the decision. `adb logcat -s Semper` shows `Upload RETRY`/reject lines in release too |
+| A backup that failed | Home cloud icon dialog text = `IntentKeys.UPLOAD_FAIL_REASON` from `UploadRun.failure` → `UploadWorkOutcomes` for the decision. `adb logcat -s Semper` shows `Upload RETRY`/reject lines in release too |
 | A restore that failed | `DicRestoreWorker.KEY_ERROR` (the `ApiException` message) → `CloudRestore` → `RestoreDownloadOutcomes` for retry vs terminal |
 | Any cloud 4xx/5xx | The reason carries `(ref: <id>)` — that is the backend's `X-Request-Id`. Search the Cloud Run log for `requestId="<id>"` to get the exact access line (`opClass`, `routeTemplate`, `errorCode`, latency) |
 | A cloud call that is rejected consistently | `backend/app/errors.py` names the `detail` code; the client's branch is in `data/net/ApiErrors.kt` + `SemperApi.failSigned` |

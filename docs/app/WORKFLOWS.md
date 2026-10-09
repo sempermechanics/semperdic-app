@@ -126,7 +126,7 @@ The session list and the only entry point to a new analysis.
    │   └── Hide ...................... until a new backup appears
    ├── Session list
    │   ├── open a session ............ → 8. Result viewer, or 7. Lattice for sweeps
-   │   ├── sync badge tap ............ retry backup / open Settings
+   │   ├── cloud state icon tap ...... retry backup / open Settings
    │   ├── "Only in cloud" row ....... "Restore this analysis?" → background restore
    │   ├── live row progress ......... backup (prepare/upload) and restore/download
    │   └── "session data gone" dialog  (local frames deleted, no cloud copy either)
@@ -135,7 +135,7 @@ The session list and the only entry point to a new analysis.
    │   ├── rename                      (only with exactly one selected)
    │   └── delete → phone / cloud backup / everywhere when every row has both;
    │                otherwise one Delete that removes every copy
-   ├── Quota chip ...................... → 9. Session limit / 4. Settings
+   ├── Quota chip (from 80% of cap) .... → 9. Session limit / 4. Settings
    ├── Pull-to-refresh                  (deep cloud reconcile, repairs blobs)
    ├── Empty state → "Start analysis"   (same as the FAB — no longer Settings)
    ├── Start new analysis (FAB)
@@ -156,30 +156,33 @@ The session list and the only entry point to a new analysis.
 | [ ] 3.2b | Relaunch after answering it | It does not reappear; the choice is mirrored by the Settings toggle (§4, Your data) |
 | [ ] 3.2c | Signed out (a debug build with no API URL): acknowledge, then relaunch and after a process kill; then sign in to an account that has not seen it | Signed out, the notice does not reappear; the account is asked once, since each account acks for itself |
 | [ ] 3.3 | First visit | A coach mark points at the **+** button; Skip and Got it both dismiss it |
-| [ ] 3.4 | Look at a session row | Thumbnail, name, "date · N frames" (or "Parameter sweep"), headline value, sync badge. A single-setting headline is the first frame's convergence — "97.5% converged", or "97.5% converged on frame 1" when the run has several frames |
+| [ ] 3.4 | Look at a session row | A flat row on one surface, rows split by a thin divider (also under force-dark). Thumbnail, name, then "N frames · 96.3% converged · Oct 5" (a sweep: "9 of 9 solved · subset 15–35 px · date", from its own combination lists; the title names it a sweep), and a cloud state icon at the end. The convergence is the first frame's, from its engine stats; under 85% the figure is amber. A row from before engine stats were kept shows its stored headline instead |
+| [ ] 3.4a | Look at the thumbnail of a row whose frames are on the phone | The last frame's U-displacement heatmap, cropped to the field. The reference shows until it is drawn; a cloud-only row keeps the reference. Re-run the analysis and the thumbnail is drawn again from the new frames |
+| [ ] 3.4b | Make two analyses from the same reference image | The first is named after the image ("steel_00"), the second "steel_00 (2)" — no date in the name. Rows named before this change keep their names |
+| [ ] 3.4c | Read each cloud state icon with TalkBack | Cloud with tick "Backed up", up arrow "Upload pending", crossed out "Not backed up" (red when the backup failed), down arrow "Only in cloud" |
 | [ ] 3.5 | Tap a normal session | Result viewer opens on frame 1 |
 | [ ] 3.6 | Tap a sweep session | **Lattice** opens, not the viewer |
-| [ ] 3.7 | Tap a row whose local files were deleted but which has a cloud backup | It carries an **"Only in cloud"** badge; tapping raises a **"Restore this analysis?"** dialog with a **Restore** button, which queues a background restore and **leaves you on Home** — it does not open the analysis when it lands |
+| [ ] 3.7 | Tap a row whose local files were deleted but which has a cloud backup | Its icon is the **"Only in cloud"** cloud-download; tapping raises a **"Restore this analysis?"** dialog with a **Restore** button, which queues a background restore and **leaves you on Home** — it does not open the analysis when it lands |
 | [ ] 3.7a | Tap a row with no local files *and* no cloud copy | "Session data gone" dialog — this is now the only case that reaches it |
-| [ ] 3.7b | Watch a row during a backup | The badge and an inline progress bar track the prepare and upload phases |
-| [ ] 3.7c | Watch a row during a restore or download | Same row progress. The bundle phase is deliberately **indeterminate** until the backend reports a percentage |
+| [ ] 3.7b | Watch a row during a backup | The icon turns to the blue up arrow, a 2dp bar under the text fills, and the line reads "Preparing backup · 12.0%" then "Backing up · 35.0%" (or "Backing up · 4.2 of 12 MB" once the job reports bytes) |
+| [ ] 3.7c | Watch a row during a restore or download | Same row progress, with a down arrow and "Restoring". The bundle phase is deliberately **indeterminate** (and the line just "Restoring") until the backend reports a percentage |
 | [ ] 3.7d | Let a restore fail terminally while on Home | A message pill names the reason here too, not only in Settings |
 | [ ] 3.7e | After 3.7d, reopen Home, then open Settings | The same failure is **not** announced again on either screen |
 | [ ] 3.7f | Sign in on a phone that has none of the account's backups (a new phone, or after a reinstall) | Once the cloud check finishes, a card above the list reads "4 analyses in your cloud backup aren't on this phone." with **Hide** and **Restore**. With no rows, the empty state's title reads **No analyses on this phone** instead of "No analyses yet". Demo accounts never see the card |
 | [ ] 3.7g | Tap **Restore** on that card | A **Restore to this phone** checklist, every backup ticked, each named with its size. Untick all and **Restore** greys out. Restore queues the ticked ones, toasts once, and each lands as a row with its own progress; the card counts down to what is left |
 | [ ] 3.7h | Tap **Hide** | The card goes, with a message saying Settings can still restore them. It stays gone across relaunches until the account gains a backup it has not seen, which brings the card back for that one only |
 | [ ] 3.7i | Delete a backup from Settings, or sign out and in as another account | The card stops offering the deleted backup at once; the other account starts with nothing hidden and nothing offered until its own cloud check |
-| [ ] 3.8 | Tap a "Pending" sync badge | Upload is retried / queued |
-| [ ] 3.8a | Tap a "Failed" sync badge | A dialog names *why* the last backup failed (device conflict, too large, render ran out of memory, result files no longer on the device) with a **Try again** action — not a silent re-queue |
+| [ ] 3.8 | Tap an "Upload pending" cloud icon | Upload is retried / queued |
+| [ ] 3.8a | Tap a red crossed-out cloud (a failed backup) | A dialog names *why* the last backup failed (device conflict, too large, render ran out of memory, result files no longer on the device) with a **Try again** action — not a silent re-queue |
 | [ ] 3.8b | Let a background backup fail terminally while on Home | A message pill surfaces the reason once (quota-full is excluded — it has its own screen) |
-| [ ] 3.9 | Tap a badge with cloud backup switched off | Settings opens |
+| [ ] 3.9 | Tap a "Not backed up" cloud icon with cloud backup switched off | Settings opens |
 | [ ] 3.10 | Long-press a row | Selection bar with count, select-all, rename, delete, close |
 | [ ] 3.10a | Select several **Only in cloud** rows | A **Restore** (cloud-download) button joins the bar; tapping it queues one restore per row, shows "Restoring 3 analyses…" once, and each row shows its own progress. Add a row that is on the phone and the button goes away. Demo accounts never see it |
 | [ ] 3.11 | Select two rows | Rename disappears; delete still offered |
 | [ ] 3.12 | Rename a single selection | Text dialog; the new name persists after leaving and returning |
 | [ ] 3.12a | Rename a backed-up analysis, then restore it on another phone (or after a reinstall) | It restores under the new name: the rename re-sends the backup's metadata.json (ADR-013) |
 | [ ] 3.13 | Delete one session that exists **both** on the phone and in the cloud | Choice of **Delete from this phone**, **Delete the cloud backup** and **Delete everywhere**, plus Cancel |
-| [ ] 3.13a | Choose **Delete from this phone** | Message pill: "Removed from this phone. Tap the row to restore it from the cloud." The row stays, now badged "Only in cloud" |
+| [ ] 3.13a | Choose **Delete from this phone** | Message pill: "Removed from this phone. Tap the row to restore it from the cloud." The row stays, its icon now "Only in cloud" |
 | [ ] 3.13b | Delete a row that is already cloud-only, on device only | No-op branch — there is nothing local left to remove |
 | [ ] 3.14 | Delete several sessions | Same three choices when every row is on both, with the count in the message. A selection with no cloud copy gets one plural confirm; a mixed selection or cloud-only stubs get one Delete that removes every copy |
 | [ ] 3.14a | Choose **Delete everywhere** for ten rows | The rows disappear at once; a message pill offers **Undo** for 5 s, then reads "Deleting 4 of 10…", then "10 analyses deleted." Production logs show ten DELETEs and no 404 |
@@ -188,12 +191,13 @@ The session list and the only entry point to a new analysis.
 | [ ] 3.15 | Press Back in selection mode | Selection clears; the app does not exit |
 | [ ] 3.16 | Tap the quota chip below the cap | Settings (or the limit screen at the cap) |
 | [ ] 3.17 | Reach the quota cap | The chip turns red |
-| [ ] 3.17a | Finish one analysis under a cap above 1 | The chip reads "1 / M analyses used" with the real cap M, in the secondary colour — not "1 / 1" |
+| [ ] 3.17a | Use 79% of the cap, then 80% | Hidden at 79%; at 80% a chip under the title reads "N / M analyses used" with the real cap M, in the secondary colour |
+| [ ] 3.17b | Look at the title row | "Analyses" (20sp) and the gear on one line; the quota and licence chips, when shown, sit under it. Selection mode's bar keeps the same 20sp heading |
 | [ ] 3.18 | Pull to refresh | Cloud reconcile runs; a repair or failure is reported by toast |
 | [ ] 3.19 | Open Home with no sessions | Empty state reading "Import photos or a video to start an analysis." with a **Start analysis** button — it does what the FAB does; it no longer opens Settings |
 | [ ] 3.20 | Tap **+** below the quota | The **New analysis** sheet (§3a) opens straight away — there is no intermediate menu |
 | [ ] 3.21 | Tap **+** at the quota cap | Session limit screen instead of the sheet |
-| [ ] 3.22 | Look for a transfer banner, feedback prompt or upgrade prompt on Home | There is none. Home's only progress surface is the per-row badge and bar; the transfer banner lives in Settings and the result viewer |
+| [ ] 3.22 | Look for a transfer banner, feedback prompt or upgrade prompt on Home | There is none. Home's only progress surface is the per-row icon, text and bar; the transfer banner lives in Settings and the result viewer |
 | [ ] 3.24 | Press Back on Home | "Exit app?" confirmation |
 
 ### 3a. New analysis — the media picker sheet
@@ -225,7 +229,7 @@ two-button footer. Long-running work here does **not** block the screen: restore
 downloads and the two data exports run behind a **transfer banner** pinned at the
 top of Settings (§4.0).
 
-**Entry:** the Home gear (also the quota chip and any sync badge).
+**Entry:** the Home gear (also the quota chip and any cloud state icon on a row).
 **Exit:** Home, Admin, a result, or Login.
 
 #### 4.0 The transfer banner
@@ -254,10 +258,10 @@ account data**.
 | [ ] 4.3 | Expand **Account** as a non-admin | No "Pending access requests" button |
 | [ ] 4.4 | Expand **Account** as an admin | The button appears and opens the admin list |
 | [ ] 4.5 | Turn **Save to cloud** on with local-only analyses present | A dialog offers to back up N of them |
-| [ ] 4.6 | Accept that offer | Uploads are queued; badges on Home move to "Pending" |
+| [ ] 4.6 | Accept that offer | Uploads are queued; the cloud icons on Home move to "Upload pending" |
 | [ ] 4.7 | Turn **Save to cloud** off | Subtitle changes; no new uploads are queued |
 | [ ] 4.8 | Toggle **Wi-Fi only uploads** on, then queue an upload on mobile data | The upload waits for Wi-Fi |
-| [ ] 4.9 | Read the sync status line | "Up to date" or a pending count, matching the badges on Home |
+| [ ] 4.9 | Read the sync status line | "Up to date" or a pending count, matching the cloud icons on Home |
 | [ ] 4.10 | Expand **Analyses data management** | Merged local + cloud list; each row shows a state line |
 | [ ] 4.11 | Same, while signed out or with no backend | An explanatory line instead of an empty list |
 | [ ] 4.12 | Tap a row that exists locally | That analysis opens (viewer or lattice) |
@@ -769,7 +773,7 @@ and the lattice's **Save graph** (§7.3.4, straight to the system chooser).
 | [ ] 8.6.2 | Press Back on a single-setting result | Wherever you came from |
 | [ ] 8.6.3 | Press Back on a sweep combination | The Lattice |
 | [ ] 8.6.4 | Leave a single-setting result and look at its Home row | The headline is unchanged by viewing — still the first frame's convergence (§3.4), whatever frame or field was on screen |
-| [ ] 8.6.5 | Leave a sweep and look at its Home row | The sweep caption is kept, not overwritten |
+| [ ] 8.6.5 | Leave a sweep and look at its Home row | The row still reads "K of N solved · subset … px"; nothing in the viewer rewrites it |
 | [ ] 8.6.6 | Look for rename or delete in the viewer | Neither exists — both live on Home |
 
 ---
@@ -800,7 +804,7 @@ sweep hitting the cap, or a background upload rejected with a quota error.
   saved analyses, this screen included. Demo analyses are still **recorded** —
   each finished analysis uploads silently (`CloudSync.uploadsEnabled` ignores
   the Save-to-cloud toggle, which demo is not shown) — but demo has no
-  backup/restore *feature*: Home shows no sync badge or row progress (3.4,
+  backup/restore *feature*: Home shows no cloud state icon or row progress (3.4,
   3.7, 3.8 do not apply), Settings has no **Cloud backup**, **Analyses data
   management**, **Free up space** or auto-free controls (4.5–4.18g do not
   apply), and a stored copy is never pulled back. The upload is what the cap
@@ -866,28 +870,29 @@ are `B1`–`B4` in [../WORKFLOWS.md](../WORKFLOWS.md#b-app--background-and-data-
 | `BackupDeleteWorker` | Run a queued `SessionDeletes` job after the undo window: one analysis at a time, progress per row, and the ids still in the cloud |
 
 They are **no longer silent about failure**: a terminal upload failure surfaces on
-Home (message pill + a "why + retry" dialog on the badge), and a terminal restore
+Home (message pill + a "why + retry" dialog on the row's cloud icon), and a terminal restore
 failure surfaces on **both** Home and Settings, each carrying a human reason.
 In the notification shade, a finished transfer says so ("steel_00 is backed up",
 "… is restored", "… is saved") and a failed one gives its reason, with **Retry** on a
 backup or a restore (Settings → Notifications must allow them from Android 13 on;
-the app does not ask).
+the app does not ask). On Home the row's cloud icon updates as well.
 
 Progress is visible in three places: the transfer's foreground notification while
 you are elsewhere in the system (bar, "4.2 of 12.0 MB · 1.1 MB/s", "34.6% · About
-35 s left"; an upload still staging says "Preparing the backup"); a live badge and progress bar on the Home row
+35 s left"; an upload still staging says "Preparing the backup"); a live icon,
+progress text ("Backing up · 4.2 of 12 MB") and bar on the Home row
 whenever Home is on screen, for downloads as well as uploads; and the **transfer
 banner** inside Settings (§4.0) and the result viewer (§8.5.8a), which is what
 carries exports and anything started from those screens.
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 10.1 | Finish an analysis with cloud backup on | Upload is queued; the Home badge moves Pending → Synced, with live progress on the row |
+| [ ] 10.1 | Finish an analysis with cloud backup on | Upload is queued; the Home cloud icon moves from "Upload pending" to "Backed up", with live progress on the row |
 | [ ] 10.2 | Queue an upload with no network | It retries and eventually succeeds once you reconnect |
-| [ ] 10.2a | Queue an upload for an analysis older than 15 min whose `.dat` files were deleted from its session folder | After about 15 minutes of retries the badge turns Failed ("not backed up") and its dialog says the results are no longer on the device — it does not sit on Pending forever |
+| [ ] 10.2a | Queue an upload for an analysis older than 15 min whose `.dat` files were deleted from its session folder | After about 15 minutes of retries the cloud icon turns red ("Not backed up") and its dialog says the results are no longer on the device — it does not sit on Pending forever |
 | [ ] 10.3 | Restore from Settings and leave the screen | It completes anyway; the analysis appears on Home / in the list |
-| [ ] 10.3a | Cause a terminal upload or restore failure | The reason is surfaced on return (Home message pill / badge dialog, or the same pill in Settings) — not swallowed |
-| [ ] 10.3b | Start a restore, then sit on Home while it runs | That row shows a progress bar and badge throughout — you are not left guessing |
+| [ ] 10.3a | Cause a terminal upload or restore failure | The reason is surfaced on return (Home message pill / cloud icon dialog, or the same pill in Settings) — not swallowed |
+| [ ] 10.3b | Start a restore, then sit on Home while it runs | That row shows a progress bar, "Restoring" text and the cloud-download icon throughout — you are not left guessing |
 | [ ] 10.3c | Start a Download from Settings and leave Settings | It finishes anyway and reports the outcome; it is a worker, not an Activity-scoped job |
 | [ ] 10.4 | Background the app during a transfer | Its foreground notification tracks it with bytes, rate, percent and time left; returning to Home picks the row progress back up |
 | [ ] 10.4a | With notifications allowed, let a backup finish, then make one fail | "<name> is backed up"; then "<name> was not backed up" with the reason and **Retry**, which queues the backup again (the row goes back to Pending) |

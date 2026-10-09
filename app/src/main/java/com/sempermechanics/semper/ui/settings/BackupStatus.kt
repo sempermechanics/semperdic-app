@@ -19,7 +19,7 @@ internal object BackupStatus {
         val local = states.count { it == SessionRecord.SyncState.LOCAL_ONLY }
         return when {
             failed > 0 -> resources.getQuantityString(R.plurals.sync_status_failed_fmt, failed, failed)
-            pending > 0 -> resources.getString(R.string.badge_pending)
+            pending > 0 -> resources.getString(R.string.sync_state_pending)
             local > 0 -> resources.getQuantityString(R.plurals.sync_status_local_fmt, local, local)
             else -> resources.getString(R.string.sync_status_up_to_date)
         }

@@ -75,7 +75,7 @@ File counts are main sources only; the first move's table is in this file's hist
 | `ui/common/auth/` | 6 | `AuthRoute`, `SignOutRun`, `SignOutConfirm`, `SupportMail`, `SupportMailContext`, `ExternalLinks` |
 | `ui/common/media/` | 6 | `MediaPickerSheet`, `MediaGridAdapter`, `MediaSourceChooser`, `MediaStoreBrowser`, `ThumbnailLoader`, `SquareFrameLayout` |
 | `ui/common/transfer/` | 4 | `TransferWorkObserver`, `TransferBannerController`, `DeleteFeedback`, `RestoreFailureNotice` |
-| `ui/home/`, `ui/settings/`, `ui/auth/`, `ui/admin/`, `ui/limit/` | 11, 15, 11, 1, 2 | One screen each, plus the parts each Activity was split into (`Home*`, `Settings*Section`, `Auth*`) |
+| `ui/home/`, `ui/settings/`, `ui/auth/`, `ui/admin/`, `ui/limit/` | 14, 15, 11, 1, 2 | One screen each, plus the parts each Activity was split into (`Home*`, `Settings*Section`, `Auth*`) |
 | `util/` | 12 | `AtomicFiles`, `Streams`, `Zips`, `Digests`, `Mime`, `CallerCancellation`, `SuspendRunCatching`, … |
 
 Eight packages are still over the ~15-file guide: `data/net/` (23),

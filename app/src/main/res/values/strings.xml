@@ -201,20 +201,29 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="transfer_restore_failed_fmt">%1$s was not restored</string>
     <string name="transfer_download_failed_fmt">%1$s was not saved</string>
     <string name="transfer_retry">Retry</string>
-    <string name="badge_synced">synced</string>
-    <string name="badge_pending">upload pending</string>
-    <string name="badge_preparing_fmt">preparing %1$d%%</string>
-    <string name="badge_uploading_fmt">uploading %1$d%%</string>
-    <string name="badge_downloading_fmt">downloading %1$d%%</string>
-    <string name="badge_local">Not backed up</string>
-    <string name="badge_cloud_only">Only in cloud</string>
-    
+    <!-- Where an analysis's backup stands: Home's row state icon (as its
+         description) and Settings' analysis rows. -->
+    <string name="sync_state_backed_up">Backed up</string>
+    <string name="sync_state_pending">Upload pending</string>
+    <string name="sync_state_not_backed_up">Not backed up</string>
+    <string name="sync_state_cloud_only">Only in cloud</string>
+    <!-- A Home row while its transfer runs: "Backing up · 4.2 of 12 MB" or "Backing up · 35.0%". -->
+    <string name="transfer_row_preparing">Preparing backup</string>
+    <string name="transfer_row_uploading">Backing up</string>
+    <string name="transfer_row_downloading">Restoring</string>
+    <string name="transfer_row_bytes_fmt">%1$s · %2$s of %3$s</string>
+    <string name="transfer_row_percent_fmt">%1$s · %2$s%%</string>
+    <string name="session_converged_fmt">%1$s%% converged</string>
+
     <plurals name="session_frames_of_fmt">
         <item quantity="one">%1$d of %2$d frame</item>
         <item quantity="other">%1$d of %2$d frames</item>
     </plurals>
-    <string name="session_sweep_kind">Parameter sweep</string>
-    <string name="session_sweep_name_fmt">Parameter sweep · %1$s · %2$s</string>
+    <plurals name="session_sweep_row_fmt">
+        <item quantity="one">%1$d of %2$d solved · subset %3$d–%4$d px</item>
+        <item quantity="other">%1$d of %2$d solved · subset %3$d–%4$d px</item>
+    </plurals>
+    <string name="session_sweep_name_fmt">Parameter sweep · %1$s</string>
     
     <string name="session_data_gone_title">Data no longer on this device</string>
     <string name="session_data_gone_body">This analysis was cleaned up locally. If it was synced, the files are still in your cloud folder.</string>
@@ -771,7 +780,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="error_generic">Something went wrong. Please try again.</string>
     
     <string name="cloud_check_failed_fmt">Couldn\'t check your cloud backups (%1$s). Backup status shown may be out of date.</string>
-    <string name="badge_not_backed_up">Not backed up</string>
     <string name="restore_action">Restore</string>
     <string name="restore_load_error_fmt">Couldn\'t load backups: %1$s</string>
     <string name="restore_background_note">Restore continues even if you leave this screen.</string>

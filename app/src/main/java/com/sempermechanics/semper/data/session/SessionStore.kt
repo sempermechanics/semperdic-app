@@ -86,6 +86,11 @@ object SessionStore {
     @WorkerThread
     fun get(context: Context, id: String): SessionRecord? = list(context).firstOrNull { it.id == id }
 
+    /** The names every session but [id] goes by: what a new auto-name must not repeat ([SessionNaming.uniqueName]). */
+    @WorkerThread
+    fun namesOtherThan(context: Context, id: String): Set<String> =
+        list(context).filter { it.id != id }.mapTo(HashSet()) { it.name }
+
     /** What [save] did with a row. */
     enum class UpsertOutcome {
         SAVED,

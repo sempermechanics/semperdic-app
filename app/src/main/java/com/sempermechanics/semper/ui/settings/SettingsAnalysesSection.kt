@@ -26,7 +26,7 @@ import com.sempermechanics.semper.ui.common.dialog.Feedback
 import com.sempermechanics.semper.ui.common.transfer.RestoreFailureNotice
 import com.sempermechanics.semper.ui.common.transfer.TransferBannerController
 import com.sempermechanics.semper.ui.common.transfer.TransferWorkObserver
-import com.sempermechanics.semper.ui.home.SessionListAdapter
+import com.sempermechanics.semper.ui.home.SessionStateIcon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -301,7 +301,7 @@ internal class SettingsAnalysesSection(
         // The cloud could not confirm this one: keep its badge rather than
         // claiming the backup is gone.
         AnalysisLocation.PHONE_SYNC_STATE ->
-            entry.record?.let { activity.getString(SessionListAdapter.syncStateLabel(it.syncState)) }.orEmpty()
+            entry.record?.let { activity.getString(SessionStateIcon.label(it.syncState)) }.orEmpty()
     }
 
     private companion object {
