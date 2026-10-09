@@ -71,6 +71,11 @@ class ComputeOverlayController(
 
     @Volatile private var pendingSweep: SweepStudyRunner.Progress? = null
 
+    // The run's latest convergence snapshot. Only frame starts and ends carry
+    // one; the engine's in-frame ticks between them do not, and each flush
+    // clears pendingRun, so the snapshot has to outlive it.
+    @Volatile private var lastConvergence: FloatArray? = null
+
     private var lastFlushUptimeMs = 0L
     private var flushScheduled = false
 
@@ -145,13 +150,8 @@ class ComputeOverlayController(
      */
     fun updateRun(tick: BatchProgressUpdate) {
         pendingPercent = tick.percent.coerceIn(0f, PERCENT)
-        // A tick without a snapshot keeps the last one: only frame ends carry it.
-        val previous = pendingRun
-        pendingRun = if (tick.perFrameConvergence == null && previous?.perFrameConvergence != null) {
-            tick.copy(perFrameConvergence = previous.perFrameConvergence)
-        } else {
-            tick
-        }
+        tick.perFrameConvergence?.let { lastConvergence = it }
+        pendingRun = tick
         scheduleFlush()
     }
 
@@ -209,7 +209,7 @@ class ComputeOverlayController(
 
     private fun applyRun(tick: BatchProgressUpdate) {
         header.text = RunOverlayText.header(res, tick)
-        val values = tick.perFrameConvergence
+        val values = tick.perFrameConvergence ?: lastConvergence
         bins?.setRun(tick.plannedFrames, tick.frameIndex, tick.framePercent, values)
         if (values != null) strikeWarn.showText(RunOverlayText.strikeWarning(res, values))
     }
@@ -220,6 +220,7 @@ class ComputeOverlayController(
         pendingTitle = null
         pendingRun = null
         pendingSweep = null
+        lastConvergence = null
     }
 
     companion object {

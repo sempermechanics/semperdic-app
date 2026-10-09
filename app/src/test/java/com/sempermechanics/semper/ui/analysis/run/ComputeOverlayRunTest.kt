@@ -136,6 +136,39 @@ class ComputeOverlayRunTest {
         assertEquals("Frame 2: 41% converged. One more low frame stops the run.", strike.text.toString())
     }
 
+    /**
+     * The ticks `runBatchAnalysisBody` sends, each flushed on its own as on a
+     * device: a frame's start (with the snapshot so far), the engine's in-frame
+     * callbacks (no snapshot; the solver reports 10–90%, then 100), and the
+     * frame's end (with its own value).
+     */
+    @Test
+    fun `finished frames keep their bins through in-frame ticks flushed on their own`() {
+        overlay.show()
+        val convergence = FloatArray(5) { Float.NaN }
+        val solved = floatArrayOf(96f, 93f, 91f, 88f, 90f)
+        overlay.updateRun(BatchProgressUpdate(0f, "Caching reference in engine…", plannedFrames = 5))
+        flush()
+        for (frame in 0 until 3) {
+            overlay.updateRun(tick(frame, 0f, convergence.copyOf(), planned = 5))
+            flush()
+            for (inFrame in listOf(10f, 55f, 90f)) {
+                overlay.updateRun(tick(frame, inFrame, planned = 5))
+                flush()
+            }
+            if (frame == 2) break
+            convergence[frame] = solved[frame]
+            overlay.updateRun(tick(frame, 100f, convergence.copyOf(), planned = 5))
+            flush()
+        }
+
+        assertEquals("Frame 3 of 5", header.text.toString())
+        assertEquals(ConvergenceBinsView.Bin(ConvergenceBinsView.State.DONE, 96f), bins.bins[0])
+        assertEquals(ConvergenceBinsView.Bin(ConvergenceBinsView.State.DONE, 93f), bins.bins[1])
+        assertEquals(ConvergenceBinsView.Bin(ConvergenceBinsView.State.RUNNING, 90f), bins.bins[2])
+        assertEquals(ConvergenceBinsView.State.WAITING, bins.bins[3].state)
+    }
+
     @Test
     fun `show clears the previous run's warning and bins`() {
         overlay.show()
