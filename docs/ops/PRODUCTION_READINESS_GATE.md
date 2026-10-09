@@ -46,9 +46,9 @@ Strict binary PASS against all applicable external controls is **not** claimed.
 - [ ] Run and record one **Firestore restore drill** (TD-156: it has never run). The drill is automated
       (`.github/workflows/firestore-restore-drill.yml`). Its **`restore-drill`
       GitHub Environment** (separate from `production-backup`) exists but has no
-      variables (checked 2026-10-08), and no drill project exists yet. Still owed: the
-      drill project and identity, the five variables the workflow checks first,
-      and one recorded RTO
+      variables, and no drill project exists yet (checked 2026-10-09). Still owed: a
+      run of `scripts/setup-restore-drill.sh` (the drill project and identity, the
+      five variables the workflow checks first), then one recorded RTO
       ([FIRESTORE_DATA_PROTECTION.md](../backend/FIRESTORE_DATA_PROTECTION.md),
       Configuring the `restore-drill` environment).
 - [x] Confirm PITR / scheduled export job actually scheduled in GCP. The export
