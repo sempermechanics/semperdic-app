@@ -322,7 +322,9 @@ class SweepLatticeView @JvmOverloads constructor(
                     canvas.drawCircle(x, y, radius, strokePaint)
                 }
             }
-            val selected = node.solved && !node.pending && selectedFrameIndex >= 0 &&
+            val selected = node.solved &&
+                !node.pending &&
+                selectedFrameIndex >= 0 &&
                 node.frameIndex == selectedFrameIndex
             if (selected || node.current) {
                 strokePaint.color = ring
