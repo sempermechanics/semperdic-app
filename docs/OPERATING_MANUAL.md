@@ -215,10 +215,9 @@ top to bottom:
   subset range, strain-window range, and step as subset ÷ N (default 3), with
   overlap shown at the end of that row.
 
-Above **Compute** a line says what the run solves: "8,800 points × 40 frames",
-then "· about 1 min" once this phone has finished a run — the time is a running
-mean of the points per second your own runs reached, never a guess. Then
-**Compute** (Single) or **Next: Summary →** (Sweep).
+Once this phone has finished a run, **Compute** reads "Compute · about 1 min":
+a running mean of the points per second your own runs reached, never a guess.
+Before that it reads **Compute**. In Sweep the button is **Next: Summary →**.
 
 ### While it runs
 

@@ -399,8 +399,8 @@ vendor decoders and camera AVIs.
 | [ ] 5.2.11 | Type nonsense in a parameter field | Reverts to the previous value on commit |
 | [ ] 5.2.12 | Drag **step** | Max is `min(30, subset/2)` so overlap stays ≥ 0.5; the overlap field mirrors it; the line under the slider counts "N points in the region" = (ROI w ÷ step) × (ROI h ÷ step) |
 | [ ] 5.2.12a | Type **overlap** under the step slider | 0.50–0.99; step rewrites to `round(subset × (1 − overlap))` |
-| [ ] 5.2.12b | Read the line above **Compute** before any run on this phone | "N points × F frames" (one frame: "N points"), no time |
-| [ ] 5.2.12c | Run once, come back to step 2 | The line adds "· about S s" (minutes past 90 s), from the points per second this phone's runs reached |
+| [ ] 5.2.12b | Read **Compute** before any run on this phone | "Compute", no time |
+| [ ] 5.2.12c | Run once, come back to step 2 | The button reads "Compute · about S s" (minutes past 90 s), from the points per second this phone's runs reached, frames × points; the text shrinks to stay on one line |
 | [ ] 5.2.13 | Drag **strain window** | Odd values 3–31, in **points**; the field mirrors it and the line under the slider reads "Fits a plane over N px (VSG)", N = (window − 1) × step + 1. It starts at 5 |
 | [ ] 5.2.13a | Open step 2 having never copied params from a lattice | No paste icon beside **Reset** — it only appears when the clipboard holds a set |
 | [ ] 5.2.13b | Copy params from a sweep lattice (§7.3), then return here | The paste icon appears beside **Reset**; tapping it fills subset, step and strain window (overlap follows step) and scrolls them into view. The window is the one whose VSG at the pasted step matches the node's |

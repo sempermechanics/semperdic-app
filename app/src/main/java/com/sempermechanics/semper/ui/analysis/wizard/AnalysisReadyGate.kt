@@ -49,9 +49,9 @@ class AnalysisReadyGate(
     }
 
     /**
-     * "8,800 points in the region" under the step slider, and "8,800 points ×
-     * 40 frames · about 1 min" above Compute on the single-setting page. The
-     * time comes from this phone's past runs; without any, points only.
+     * "8,800 points in the region" under the step slider, and "Compute · about
+     * 1 min" on the button. The time comes from this phone's past runs; without
+     * any, the button says Compute alone.
      */
     private fun showEstimate() {
         val subset = settings.sliderSubsetSize.value.toInt()
@@ -62,12 +62,12 @@ class AnalysisReadyGate(
         settings.tvStepPoints.isVisible = points > 0
         if (points > 0) settings.tvStepPoints.text = RunEstimate.regionLabel(res, points)
 
-        val frames = viewModel.defCount
-        val shown = points > 0 && frames > 0 && !viewModel.sweepMode && viewModel.step == WizardStep.SETTINGS
-        binding.tvRunEstimate.isVisible = shown
-        if (!shown) return
         val rate = AppSettings.runPointsPerSecond(binding.root.context)
-        val seconds = RunEstimate.seconds(points, frames, rate)
-        binding.tvRunEstimate.text = RunEstimate.runLabel(res, points, frames, seconds)
+        val seconds = RunEstimate.seconds(points, viewModel.defCount, rate)
+        binding.btnCalculateFullField.text = if (seconds != null) {
+            res.getString(R.string.run_compute_eta_fmt, RunEstimate.duration(res, seconds))
+        } else {
+            res.getString(R.string.run_analysis)
+        }
     }
 }

@@ -12,7 +12,7 @@ import kotlin.math.roundToLong
  *
  * The time comes only from runs this phone has finished: a running mean of
  * grid points solved per second ([nextRate]). With no history the estimate
- * gives the point count alone, never a made-up time.
+ * gives no time at all, never a made-up one.
  */
 object RunEstimate {
 
@@ -49,20 +49,6 @@ object RunEstimate {
     /** "8,800 points in the region": the caption under the step slider. */
     fun regionLabel(res: Resources, points: Int): String =
         res.getQuantityString(R.plurals.run_estimate_region_fmt, points, grouped(points))
-
-    /**
-     * The line above Compute: "8,800 points × 40 frames · about 1 min", the
-     * frames left out for one frame, and the time left out without [seconds].
-     */
-    fun runLabel(res: Resources, points: Int, frames: Int, seconds: Long?): String {
-        val work = if (frames > 1) {
-            res.getQuantityString(R.plurals.run_estimate_frames_fmt, frames, grouped(points), frames)
-        } else {
-            res.getQuantityString(R.plurals.run_estimate_points_fmt, points, grouped(points))
-        }
-        val time = seconds?.let { duration(res, it) } ?: return work
-        return res.getString(R.string.run_estimate_joined_fmt, work, time)
-    }
 
     /** "about 33 s" up to a minute and a half, then "about 2 min". */
     fun duration(res: Resources, seconds: Long): String =

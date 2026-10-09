@@ -46,11 +46,9 @@ class RunEstimateTest {
     }
 
     @Test
-    fun `the label names points and frames, and the time only when known`() {
-        assertEquals("8,800 points × 40 frames · about 70 s", RunEstimate.runLabel(res, 8800, 40, 70))
-        assertEquals("8,800 points × 40 frames", RunEstimate.runLabel(res, 8800, 40, null))
-        assertEquals("8,800 points · about 2 s", RunEstimate.runLabel(res, 8800, 1, 2))
+    fun `the step caption counts the region's points`() {
         assertEquals("8,800 points in the region", RunEstimate.regionLabel(res, 8800))
+        assertEquals("1 point in the region", RunEstimate.regionLabel(res, 1))
     }
 
     @Test

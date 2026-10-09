@@ -612,15 +612,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="one">%1$s point in the region</item>
         <item quantity="other">%1$s points in the region</item>
     </plurals>
-    <plurals name="run_estimate_points_fmt">
-        <item quantity="one">%1$s point</item>
-        <item quantity="other">%1$s points</item>
-    </plurals>
-    <plurals name="run_estimate_frames_fmt">
-        <item quantity="one">%1$s points × %2$d frame</item>
-        <item quantity="other">%1$s points × %2$d frames</item>
-    </plurals>
-    <string name="run_estimate_joined_fmt">%1$s · %2$s</string>
+    <string name="run_compute_eta_fmt">Compute · %1$s</string>
     <string name="run_estimate_seconds_fmt">about %1$d s</string>
     <string name="run_estimate_minutes_fmt">about %1$d min</string>
     <string name="reference_meta_fmt">Reference · %1$d × %2$d px</string>

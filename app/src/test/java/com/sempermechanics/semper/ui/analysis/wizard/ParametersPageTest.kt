@@ -19,9 +19,8 @@ import org.robolectric.annotation.Config
 
 /**
  * The parameters page's chrome: the toolbar names the page and shows a dot
- * per page; the step slider says how many points the region holds; the line
- * above Compute says what a run solves and, once this phone has run one,
- * about how long it takes.
+ * per page; the step slider says how many points the region holds; Compute
+ * says, once this phone has run one, about how long a run takes.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -50,37 +49,34 @@ class ParametersPageTest {
     }
 
     @Test
-    fun `the step caption counts the region's points and the line above Compute adds the frames`() {
+    fun `the step caption counts the region's points, and Compute stays plain before any run`() {
         loadRun()
 
         gate.apply(isProcessing = false, sweepController = null)
 
+        assertEquals(View.VISIBLE, bed.settings.tvStepPoints.visibility)
         assertEquals("8,800 points in the region", bed.settings.tvStepPoints.text.toString())
-        assertEquals(View.VISIBLE, bed.binding.tvRunEstimate.visibility)
-        assertEquals("8,800 points × 40 frames", bed.binding.tvRunEstimate.text.toString())
+        assertEquals("Compute", bed.binding.btnCalculateFullField.text.toString())
     }
 
     @Test
-    fun `once this phone has a rate the line gives the time too`() {
+    fun `once this phone has a rate Compute gives the time`() {
         loadRun()
         AppSettings.setRunPointsPerSecond(bed.activity, 5000)
 
         gate.apply(isProcessing = false, sweepController = null)
 
-        assertEquals("8,800 points × 40 frames · about 71 s", bed.binding.tvRunEstimate.text.toString())
+        assertEquals("Compute · about 71 s", bed.binding.btnCalculateFullField.text.toString())
     }
 
     @Test
-    fun `a sweep or another page shows no estimate above the buttons`() {
-        loadRun()
-        bed.viewModel.sweepMode = true
-        gate.apply(isProcessing = false, sweepController = null)
-        assertEquals(View.GONE, bed.binding.tvRunEstimate.visibility)
+    fun `without a region there is no point count and no time`() {
+        AppSettings.setRunPointsPerSecond(bed.activity, 5000)
 
-        bed.viewModel.sweepMode = false
-        bed.viewModel.step = WizardStep.IMAGES
         gate.apply(isProcessing = false, sweepController = null)
-        assertEquals(View.GONE, bed.binding.tvRunEstimate.visibility)
+
+        assertEquals(View.GONE, bed.settings.tvStepPoints.visibility)
+        assertEquals("Compute", bed.binding.btnCalculateFullField.text.toString())
     }
 
     @Test
