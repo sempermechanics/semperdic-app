@@ -12,6 +12,36 @@ Decisions that outlive their PR are recorded in
 [CLOUD_ARCHITECTURE_GCP.md](../backend/CLOUD_ARCHITECTURE_GCP.md) §20,
 [ARCHITECTURE.md](../app/ARCHITECTURE.md) and [../adr/](../adr/).
 
+## 2026-10-08 — Backend deploys with `gateway_mode: apply`: both gateways' configs re-encoded
+
+**Why:** the hand deploy of 2026-10-07 created `v202610070547-manual` (staging) and
+`v202610070628-manual` (production) with mis-encoded text. Every `—` and `→` in their
+description text read as `â€”` and `â†’`, the 29 lines the dry-runs of #375's deploys
+reported (entry below). Routes and security were not affected. Both runs below
+rendered `backend/gateway/openapi.yaml` and switched the gateway to a fresh config.
+No backend file changed after #375's deploy (`b6ee1544`), so each new revision runs
+the same code.
+
+**Staging**, run 37775762411 from `4dd18929`:
+- The candidate passed `/readyz` (`firestore: ok`, `drive: ok`).
+  `semper-api-staging-37775762411-1` took 100 %, and the images were re-pinned.
+- `semper-gw-staging` switched from `v202610070547-manual` to `v202610081220-89`.
+
+**Production**, run 37776947585 from `06c425bd`, started by the operator (#381, in
+between, changed only console tests and CI):
+- The same smoke passed. `semper-api-37776947585-1` took 100 %, and the images were
+  re-pinned.
+- `semper-gw` switched from `v202610070628-manual` to `v202610081230-90`.
+
+**Checked on both:**
+- **The workflow's outside check:** `GET /v1/config` answers 401 without a token,
+  and the preflight answers 200.
+- **The new configs**, read back with `gcloud api-gateway api-configs describe --view
+  FULL`: no mis-encoded sequence, and 28 `—` and one `→`, as in the source.
+- **The dashboards' preflight** still answers `access-control-max-age: 7200`.
+
+The `-manual` configs stay as each gateway's rollback target.
+
 ## 2026-10-08 — Hosting and backend deploys: a page-not-found page, and the CORS preflight cached for two hours (#375)
 
 Hosting and staging from `cfa057c8` (`main` after #375). Production from `b6ee1544`:
