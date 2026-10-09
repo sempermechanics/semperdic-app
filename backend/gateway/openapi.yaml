@@ -178,6 +178,12 @@ paths:
       description: Resolved product limits for the caller (per-user override or fleet default).
       responses:
         '200': { description: OK }
+  /v1/me/erasure:
+    get:
+      operationId: getErasureStatus
+      description: Whether this phone's account was erased; reads no profile, so asking does not re-create one.
+      responses:
+        '200': { description: OK }
   /v1/me/export:
     get:
       operationId: exportAccount

@@ -450,6 +450,7 @@ pieces are `deps.py` (auth), `repo/` (all Firestore access, one module per aggre
 | C1 | Identify the caller | `deps.current_user` | `google_auth.verify_id_token` → `repo.get_or_create_user` (auto-approve rules, device binding, `DeviceInUseError` → 409) → 403 unless APPROVED. First PENDING user triggers C19 |
 | C2 | Register a device | `POST /v1/devices/register` (`routers/devices.py`) | One account per device and one device per account: a different bound device is `device_conflict`, a device owned by another uid is `device_in_use` (audited). Re-registering the same id heals the stored public key |
 | C3 | Mint a nonce | `POST /v1/challenge` | `repo.issue_nonce(uid, deviceId)` — single-use, bound to the pair |
+| C1t | Token only | `deps.token_uid` | `google_auth.verify_id_token` (plus App Check when a device is named) and nothing else: no profile read or created. Only `GET /v1/me/erasure`, which must not bring back an erased account |
 | C4 | Verify a device-signed call | `deps.verified_device` | ACTIVE device → `consume_nonce` (replay = 401) → ECDSA P-256 over `(nonce ‖ METHOD ‖ path) ‖ SHA-256(body)` → `bad_signature` audited on failure |
 | C14 | Admin | `routers/admin.py` | Listing and **device-history** need only an admin ID token; **approve / revoke / config-patch / mint additionally require a step-up** — a device attestation, or a second factor plus a recent sign-in for the staff console — so a stolen ID token alone cannot change access. Whole-licence revoke uses a tighter freshness window. All audited |
 
@@ -460,6 +461,7 @@ pieces are `deps.py` (auth), `repo/` (all Firestore access, one module per aggre
 | C-me | `GET /v1/me` | C1 | uid, email, role, access_status. 409 = device conflict |
 | C-config | `GET /v1/config` | C1 | Resolved limits (per-user override → fleet default) — feeds B13 |
 | C12 | `GET /v1/me/export` 🔒 | C4 | GDPR Art. 20. **Streamed** — profile, devices, then each session with its file manifest, `"complete": true` written last so a truncated transfer is detectable. `Cache-Control: no-store`. Audited as DATA_EXPORT |
+| C13e | `GET /v1/me/erasure` | C1t | Whether this phone's device record is gone or someone else's, the app's check after an erase that never answered (`CloudErase.probeErasedAccount`). Rate-limited in the handler on the erase bucket |
 | C13 | `DELETE /v1/me` 🔒 | C4 | GDPR erasure. Drive subtree **first** (one call via the stored user-folder pointer, else per-session by stored id), Firestore second — never the other way round. Per-phase timings in the audit detail. Only the audit trail survives |
 
 ### Session and file routes

@@ -24,6 +24,12 @@ interface CloudApi {
 
     suspend fun getMe(idToken: String): MeResponse
 
+    /**
+     * Whether the account this phone was registered to was erased. Unlike every
+     * other call it never re-creates a profile for an erased account.
+     */
+    suspend fun getErasureStatus(idToken: String): ErasureStatus
+
     suspend fun getConfig(idToken: String): AppConfigDto
 
     suspend fun exportAccount(idToken: String, dest: File)

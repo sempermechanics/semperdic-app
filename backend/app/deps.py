@@ -120,6 +120,30 @@ def _require_app_check(token: str, uid: str) -> None:
             raise HTTPException(403, errors.APP_CHECK_REQUIRED) from e
 
 
+def _verified_claims(authorization: str, x_forwarded_authorization: str) -> dict:
+    """The claims of the caller's Firebase ID token, or 401: no profile is
+    touched. Shared by `_authenticate` and `token_uid`."""
+    bearer = _client_bearer(authorization, x_forwarded_authorization)
+    if not bearer.startswith("Bearer "):
+        log.warning("no bearer token: authorization=%s x_forwarded=%s",
+                    bool(authorization), bool(x_forwarded_authorization))
+        raise HTTPException(401, errors.MISSING_BEARER)
+    try:
+        claims = verify_id_token(bearer[7:])
+    except Exception as e:  # noqa: BLE001
+        log.warning("id_token verify FAILED (x_forwarded_present=%s): %s",
+                    bool(x_forwarded_authorization), e)
+        audit.record(action="AUTH_DENIED", outcome="DENIED", detail={"stage": "id_token"})
+        raise HTTPException(401, errors.INVALID_TOKEN)
+    try:
+        require_header_identifier(
+            str(claims.get("sub", "")), name="uid", maximum=128
+        )
+    except HTTPException as exc:
+        raise HTTPException(401, errors.INVALID_TOKEN) from exc
+    return claims
+
+
 def _authenticate(
     request: Request,
     authorization: str,
@@ -142,24 +166,7 @@ def _authenticate(
     if settings.DEV_INSECURE_AUTH:
         user = _DEV_USER
     else:
-        bearer = _client_bearer(authorization, x_forwarded_authorization)
-        if not bearer.startswith("Bearer "):
-            log.warning("no bearer token: authorization=%s x_forwarded=%s",
-                        bool(authorization), bool(x_forwarded_authorization))
-            raise HTTPException(401, errors.MISSING_BEARER)
-        try:
-            claims = verify_id_token(bearer[7:])
-        except Exception as e:  # noqa: BLE001
-            log.warning("id_token verify FAILED (x_forwarded_present=%s): %s",
-                        bool(x_forwarded_authorization), e)
-            audit.record(action="AUTH_DENIED", outcome="DENIED", detail={"stage": "id_token"})
-            raise HTTPException(401, errors.INVALID_TOKEN)
-        try:
-            require_header_identifier(
-                str(claims.get("sub", "")), name="uid", maximum=128
-            )
-        except HTTPException as exc:
-            raise HTTPException(401, errors.INVALID_TOKEN) from exc
+        claims = _verified_claims(authorization, x_forwarded_authorization)
         # Before get_or_create_user: a refused caller should not create an
         # account row or move a device lock on the way to being refused.
         if x_device_id:
@@ -225,6 +232,34 @@ def any_status_user(
     """
     return _authenticate(request, authorization, x_forwarded_authorization, x_device_id,
                          x_firebase_appcheck, x_app_id, require_approved=False)
+
+
+def token_uid(
+    request: Request,
+    authorization: str = Header(default=""),
+    x_forwarded_authorization: str = Header(default=""),
+    x_device_id: str = Header(default=""),
+    x_firebase_appcheck: str = Header(default=""),
+) -> str:
+    """The caller's uid from a verified ID token, and nothing more.
+
+    `current_user` re-creates a profile for a uid that has none, so it cannot
+    ask about an erased account without bringing it back (and, for a pending
+    profile, mailing support). This reads the token alone: no profile is read
+    or written, no access status is checked, no device lock is revalidated.
+    App Check is still asked of a caller that names a device, as there. Only
+    `GET /v1/me/erasure` uses it (TD-206); a route that serves account data
+    must not.
+    """
+    if settings.DEV_INSECURE_AUTH:
+        uid = _DEV_USER["uid"]
+    else:
+        uid = str(_verified_claims(authorization, x_forwarded_authorization)["sub"])
+        if x_device_id:
+            _require_app_check(x_firebase_appcheck, uid)
+    request.state.uid = uid
+    obs.bind_uid(uid)
+    return uid
 
 
 def rate_limited(bucket: rate_limit.TokenBucket):
