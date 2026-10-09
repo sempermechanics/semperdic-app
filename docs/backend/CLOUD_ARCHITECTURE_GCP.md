@@ -2288,7 +2288,11 @@ licence revoked out from under the account both still have a kind and a
 prefix, so the page shows licence details and "Move licence" only when `held`. Both were already in `license_summary`, and `/v1/config` already
 returned them — but `/v1/config` is the larger answer, and a browser asking
 "what am I?" should not have to fetch product limits to find out whether it
-holds a seat until 14:20.
+holds a seat until 14:20. The prefix is the one field the two answer
+differently: `/v1/config` sends `licensePrefix` only while the mode is
+`licensed` (`backend/app/repo/user_config.py:252`), because the app shows
+"Licensed as …" whenever it is set (TD-145); a held but inactive licence's
+prefix is on `/v1/me` alone.
 
 #### `GET /v1/sessions/{sid}/bundle`
 
