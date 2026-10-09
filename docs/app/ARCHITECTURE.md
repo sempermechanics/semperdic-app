@@ -239,8 +239,24 @@ goes to the system chooser directly.
 Long exports are not modal. The progress dialog (`ui/common/dialog/DeterminateProgressDialog`)
 shows the job's status, its percent to one decimal and the time left (`EtaEstimator`);
 every kind but the one-photo share reports as it goes (`ExportReport`, built in
-`ExportProgress.kt`; the ZIP gives each stage its share of the bar), from callbacks
-around the encoders, never inside their loops. Dismissing the dialog parks the job in
+`ExportProgress.kt`), from callbacks around the encoders, never inside their loops.
+The one report from inside a loop is the CSV's: `AnalysisCsvWriter.write` hears each
+frame, and its point-row loop (`writeFrame`, not one of the fused hot loops) also
+reports every `ROWS_PER_REPORT` (4096) rows, because one dense frame's rows take
+seconds. The CSV gives its statistics pass the first 10 % and its point rows the rest.
+The everything ZIP gives each stage its share of the bar (`ZipBudget` in
+`BundleExport.kt`):
+
+| Stage | Bar | Moves by |
+|---|---|---|
+| PDF | 0–45 % | frame, then "Finalizing PDF..." for `PdfDocument.writeTo` |
+| CSV | 45–62 % (sweep 45–72 %) | frame, and every 4096 point rows |
+| Animations (not on a sweep) | 62–72 % | frame of each field |
+| Raw photos and GIFs into the archive | 72–75 % | bytes copied |
+| Heatmaps | 75–96 % | frame |
+| CSV and PDF into the archive | 96–100 % | bytes deflated |
+
+Dismissing the dialog parks the job in
 `ui/common/transfer/TransferBannerController` — a non-modal strip with the same status,
 percent and time left, Cancel and prev/next paging — hosted by both
 `ResultViewerActivity` and `SettingsActivity`, where it also carries restores and
