@@ -1,6 +1,5 @@
 package com.sempermechanics.semper.ui.analysis.recommend
 
-import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.ColorFilter
 import android.graphics.Paint
@@ -111,15 +110,11 @@ class SubsetBand private constructor(private val slider: Slider) : Drawable() {
             chip.setTextColor(chip.context.getColor(color))
         }
 
-        /**
-         * The caption under the slider: "Set to 31 px · shaded: 25 px and up
-         * hold enough speckle" while it holds the recommendation ([setTo]),
-         * the band alone once the user has set a size of their own.
-         */
-        fun caption(res: Resources, band: IntRange, setTo: Int?): String = if (setTo != null) {
-            res.getString(R.string.speckle_band_set_fmt, setTo, band.first)
-        } else {
-            res.getString(R.string.speckle_band_fmt, band.first)
+        /** "Measuring speckle…" in the chip while a measurement outlasts 300 ms (InlineBusy shows it). */
+        fun showMeasuring(chip: Chip) {
+            chip.setText(R.string.speckle_measuring)
+            chip.contentDescription = null
+            chip.setTextColor(chip.context.getColor(R.color.viewer_chrome_text))
         }
     }
 }

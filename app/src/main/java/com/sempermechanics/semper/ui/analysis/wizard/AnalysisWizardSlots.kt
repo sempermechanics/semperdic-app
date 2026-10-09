@@ -5,21 +5,19 @@ import android.view.View
 import androidx.core.view.isVisible
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.databinding.ActivityStaticAnalysisBinding
-import com.sempermechanics.semper.databinding.WizardStepSettingsContentBinding
 import com.sempermechanics.semper.ui.analysis.frames.FrameOrderAdapter
 import com.sempermechanics.semper.ui.analysis.frames.FrameOrderMode
 import com.sempermechanics.semper.ui.common.dialog.WarnChip
 
 /**
  * Load-frames and confirm-settings slot chrome: dropzones vs filled cards,
- * lossy-format warning, ROI subtitle.
+ * lossy-format warning, ROI thumbnail.
  *
  * Readiness / Compute enablement stays in [AnalysisReadyGate].
  */
 class AnalysisWizardSlots(
     private val viewModel: AnalysisViewModel,
     private val binding: ActivityStaticAnalysisBinding,
-    private val settings: WizardStepSettingsContentBinding,
     private val formatChip: WarnChip,
     private val frameOrderAdapter: FrameOrderAdapter,
     private val onLineCutPreview: () -> Unit,
@@ -71,19 +69,12 @@ class AnalysisWizardSlots(
         updateFormatChip()
     }
 
-    /** The ROI row's size line, and the thumbnail and line cut drawn from the same region. */
-    fun updateRoiSummary() {
-        settings.tvInstruction.text = if (!viewModel.hasCustomRoi) {
-            activity.getString(R.string.roi_full_fmt, viewModel.realRefWidth, viewModel.realRefHeight)
-        } else {
-            activity.getString(
-                R.string.roi_custom_fmt,
-                viewModel.roiW,
-                viewModel.roiH,
-                viewModel.realRefWidth,
-                viewModel.realRefHeight,
-            )
-        }
+    /**
+     * The ROI row's thumbnail and the line cut, drawn from the same region. The
+     * row's text, with the points the region holds, is [AnalysisReadyGate]'s:
+     * it follows the step too.
+     */
+    fun updateRoiThumbnail() {
         onLineCutPreview()
     }
 

@@ -1,7 +1,9 @@
 package com.sempermechanics.semper.ui.analysis.wizard
 
 import android.app.Application
+import androidx.core.view.isVisible
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.prefs.ParamClipboard
 import com.sempermechanics.semper.field.DicParams
 import com.sempermechanics.semper.ui.analysis.WizardTestBed
 import com.sempermechanics.semper.ui.analysis.recommend.SubsetRecommendationController
@@ -19,7 +21,8 @@ import org.robolectric.annotation.Config
 
 /**
  * The settings page's sliders give the run its settings, typed values snap
- * onto the sliders, and Reset goes back to the recommended defaults.
+ * onto the sliders, Reset goes back to the recommended defaults, and the
+ * Advanced section opens on a tap or on a Paste that changes what it shows.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -94,5 +97,47 @@ class WizardParamFieldsTest {
         bed.settings.sliderSubsetSize.value = 61f
         fields.reset()
         assertEquals(DicParams.DEFAULT_SUBSET, bed.settings.sliderSubsetSize.value.toInt())
+    }
+
+    @Test
+    fun `Advanced starts closed and its header opens and closes it`() {
+        val body = bed.settings.advancedBody
+        val chevron = bed.settings.advancedHeader.imgAdvancedChevron
+        assertFalse(body.isVisible)
+        assertEquals(0f, chevron.rotation)
+
+        bed.settings.advancedHeader.root.performClick()
+        assertTrue(body.isVisible)
+        assertEquals(180f, chevron.rotation)
+
+        bed.settings.advancedHeader.root.performClick()
+        assertFalse(body.isVisible)
+        assertEquals(0f, chevron.rotation)
+    }
+
+    @Test
+    fun `a Paste that moves the overlap opens Advanced`() {
+        fields.reset() // subset 41, step 5
+        assertEquals("0.88", bed.settings.etOverlapValue.text.toString())
+        // Subset 41 at step 10: the overlap goes from 0.88 to 0.76.
+        ParamClipboard.copy(bed.activity, subset = 41, step = 10, vsg = 41)
+
+        fields.paste()
+
+        assertEquals("0.76", bed.settings.etOverlapValue.text.toString())
+        assertTrue(bed.settings.advancedBody.isVisible)
+    }
+
+    @Test
+    fun `a Paste that leaves the overlap and interpolation as shown keeps Advanced closed`() {
+        fields.reset()
+        val subset = bed.settings.sliderSubsetSize.value.toInt()
+        ParamClipboard.copy(bed.activity, subset = subset, step = DicParams.DEFAULT_STEP, vsg = 61)
+
+        fields.paste()
+
+        val window = bed.settings.sliderStrainWindow.value.toInt()
+        assertEquals(SweepStudy.nearestWindowPoints(61, DicParams.DEFAULT_STEP), window)
+        assertFalse(bed.settings.advancedBody.isVisible)
     }
 }
