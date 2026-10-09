@@ -7,6 +7,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.sempermechanics.semper.util.rethrowIfCallerCancelled
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -75,10 +76,14 @@ object SignOutRun {
         if (current == State.Running || !_state.compareAndSet(current, State.Running)) return false
         scope.launch {
             // The user asked to leave, so the local exit happens whatever this
-            // throws. [scope] is never cancelled, so nothing caught here is a
-            // real cancellation of this work.
-            runCatching { signOut() }.onFailure {
-                Timber.e(it, "Sign-out failed (%s); leaving locally anyway", it.javaClass.simpleName)
+            // throws. [scope] is never cancelled, so a CancellationException
+            // caught here (a cancelled Firebase Task, say) is a failure like any
+            // other; the check only rethrows a real cancellation (TD-171).
+            try {
+                signOut()
+            } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+                e.rethrowIfCallerCancelled()
+                Timber.e(e, "Sign-out failed (%s); leaving locally anyway", e.javaClass.simpleName)
             }
             finish(owner)
         }

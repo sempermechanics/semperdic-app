@@ -98,7 +98,9 @@ and the tests pin them (`HttpFailureTest`, `AuthedTest`, `AfterSaveTest`,
   (idempotent calls only) rather than `HttpFailure.SERVER`, which would change
   which calls retry.
 - detekt does not check cancellation handling: `SuspendFunSwallowedCancellation`
-  needs type resolution, which `:app:detekt` does not run (TD-171).
+  needs type resolution, which `:app:detekt` does not run, and detekt 1.23.8's
+  Kotlin 2.0 compiler cannot read the Kotlin 2.4 dependencies it would resolve
+  against (TD-171).
 
 ## Action items
 
