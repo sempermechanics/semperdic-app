@@ -114,7 +114,7 @@ emulator (`scripts/micro_ab.py`, [TESTING.md](docs/app/TESTING.md)); the phone-r
 [PERF_BASELINE_bd44af0.md](docs/engine/PERF_BASELINE_bd44af0.md)) is a manual reference.
 Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 
-## Current state (2026-10-08)
+## Current state (2026-10-09)
 
 - **Quality program (on `main`, #310–#332, 2026-10-05).** Bug fixes, the package layout
   ([ADR-015](docs/adr/ADR-015-package-layout.md)), ViewBinding and the `ui/common` kit
@@ -156,6 +156,11 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   ([TESTING.md](docs/app/TESTING.md#coverage-floors)), golden `.dat` / GIF files, shared
   `contracts/`; nothing left open. `main` requires `CI OK` (ruleset,
   2026-10-08).
+- **Security and data-loss fixes (on `main` 2026-10-09, #393–#397; not in a release yet).**
+  Drive uploads resume where Drive's `Range` says (TD-158); the API client matches the
+  backend by host and port and follows no redirects (TD-160, TD-161); an account deletion
+  the process died in is finished at the next start (TD-165, `AccountDeletionMarker`);
+  a wizard run's outcome waits for the screen (TD-168, `PendingOutcome`).
 - **Dependabot** opens monthly PRs for major versions only (pip, Gradle, Actions; #337);
   minor and patch fixes arrive as Dependabot security updates, which are on.
 - **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke
