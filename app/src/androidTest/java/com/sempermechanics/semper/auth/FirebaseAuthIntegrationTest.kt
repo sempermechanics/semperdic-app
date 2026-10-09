@@ -9,11 +9,18 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/**
+ * Real Firebase Auth: email/password sign-in, an ID token and its refresh, against
+ * the app's own project. CI's Tier 3 passes the CI test account from the
+ * `FIREBASE_TEST_EMAIL` / `FIREBASE_TEST_PASSWORD` secrets (TD-200); without them
+ * (a local run, a fork's PR) every case skips.
+ */
 @RunWith(AndroidJUnit4::class)
 class FirebaseAuthIntegrationTest {
 
@@ -31,6 +38,12 @@ class FirebaseAuthIntegrationTest {
             "Skipped — no test credentials (FIREBASE_TEST_EMAIL / FIREBASE_TEST_PASSWORD)",
             testEmail.isNotBlank() && testPassword.isNotBlank(),
         )
+    }
+
+    /** The rest of the suite runs on this emulator after it: leave no one signed in. */
+    @After
+    fun tearDown() {
+        auth.signOut()
     }
 
     @Test
