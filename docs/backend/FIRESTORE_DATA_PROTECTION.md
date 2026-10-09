@@ -77,46 +77,31 @@ Adding required reviewers to the environment is worth doing: it makes an
 on-demand drill a deliberate act rather than a button anyone can hit.
 
 The workflow checks these five first and fails naming the ones that are empty.
-Until 2026-10-01 no drill project existed and the environment had no variables, so
-every run had failed (TD-156). One-time setup, run by someone with owner rights on
-production and a billing account (the project id is a suggestion):
+No drill project exists yet and the environment has no variables (checked
+2026-10-09), so every run so far has failed (TD-156). The one-time setup is
+`scripts/setup-restore-drill.sh`, run by someone who can create projects, owns
+the billing account and the production backup bucket, and is a repo admin:
 
 ```bash
-DRILL=indicvision-dic-restore-drill
-PROD=indicvision-dic-app
-BUCKET=indicvision-dic-app-firestore-backups
-SA=restore-drill@${DRILL}.iam.gserviceaccount.com
-POOL=projects/641964711637/locations/global/workloadIdentityPools/github
-
-gcloud projects create "$DRILL"
-gcloud billing projects link "$DRILL" --billing-account=<account id>
-gcloud services enable firestore.googleapis.com --project="$DRILL"
-gcloud firestore databases create --location=asia-south1 --type=firestore-native --project="$DRILL"
-
-# The drill identity: owns Firestore in the throwaway project only.
-gcloud iam service-accounts create restore-drill --project="$DRILL"
-gcloud projects add-iam-policy-binding "$DRILL" --member="serviceAccount:$SA" --role=roles/datastore.owner
-gcloud iam service-accounts add-iam-policy-binding "$SA" --project="$DRILL" \
-  --role=roles/iam.workloadIdentityUser \
-  --member="principalSet://iam.googleapis.com/$POOL/attribute.repository/sempermechanics/semperdic-app"
-
-# Read-only on the exports: the drill lists them and reads manifest.json, and the
-# drill project's Firestore agent reads them for the import.
-DRILL_NUM=$(gcloud projects describe "$DRILL" --format='value(projectNumber)')
-gcloud beta services identity create --service=firestore.googleapis.com --project="$DRILL"
-for m in "serviceAccount:$SA" "serviceAccount:service-${DRILL_NUM}@gcp-sa-firestore.iam.gserviceaccount.com"; do
-  gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member="$m" --role=roles/storage.objectViewer
-done
-
-for kv in "GCP_WORKLOAD_IDENTITY_PROVIDER=$POOL/providers/github" \
-          "FIRESTORE_RESTORE_DRILL_SERVICE_ACCOUNT=$SA" \
-          "FIRESTORE_RESTORE_DRILL_PROJECT=$DRILL" \
-          "FIRESTORE_BACKUP_BUCKET=$BUCKET" "GCP_PROJECT=$PROD"; do
-  gh variable set "${kv%%=*}" --env restore-drill --body "${kv#*=}" -R sempermechanics/semperdic-app
-done
-
+scripts/setup-restore-drill.sh --dry-run                          # prints the steps
+scripts/setup-restore-drill.sh --billing-account <account id>     # gcloud billing accounts list
 gh workflow run firestore-restore-drill.yml -R sempermechanics/semperdic-app
 ```
+
+It creates the drill project `indicvision-dic-restore-drill` (`--project` to
+change it) and its `(default)` Firestore database in asia-south1, and the
+`restore-drill@` identity with `roles/datastore.owner` on that project only. It
+lets the repo's workflows act as that identity through the existing `github`
+Workload Identity pool on production, whose provider admits only this repo. It
+gives the identity and the drill project's Firestore agent `objectViewer` on the
+backup bucket, and sets the five variables above. Each step checks before it
+creates, so a rerun continues where a failed one stopped.
+
+Cost: about nothing. The database is a few thousand documents
+([backend-cost.md](../perf/backend-cost.md)), so a monthly import and purge stay
+inside the drill database's own free tier (20k writes and 20k deletes a day), and
+the export it reads is a few MB from the ASIA multi-region bucket. Billing must
+still be linked: the managed import needs it.
 
 Nothing here grants the drill identity any role on production: it can read the
 backup bucket and nothing else there.
