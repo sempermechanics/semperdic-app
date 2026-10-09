@@ -44,7 +44,11 @@ class WizardParamFields(
     /** Wires the sliders, their fields and the advanced card's buttons. */
     fun bind() = sheet.bind()
 
-    fun subsetSize(): Int = settings.sliderSubsetSize.value.toInt()
+    /** The subset size the slider holds, after landing a recommendation still gliding there. */
+    fun subsetSize(): Int {
+        subsets.settle()
+        return settings.sliderSubsetSize.value.toInt()
+    }
 
     private fun stepSize(): Int = settings.sliderStepSize.value.toInt()
 
