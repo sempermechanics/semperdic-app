@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- One Home row: a card on the list's surface; a selected row takes the
      sky fill and stroke (SessionListAdapter). Day headers between the cards
-     are item_session_header. -->
+     are item_session_header. The card's own 12dp contentPadding is the only
+     padding: the theme's card style would otherwise add 16dp around it. -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -12,6 +13,7 @@
     app:cardBackgroundColor="@color/surface_muted"
     app:cardCornerRadius="12dp"
     app:cardElevation="0dp"
+    app:contentPadding="@dimen/space_12"
     app:strokeColor="@color/surface_outline"
     app:strokeWidth="1dp">
 
@@ -19,8 +21,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="@dimen/space_12">
+        android:orientation="horizontal">
 
         <!-- The result heatmap covers the reference once it has rendered;
              until then, or with no frames on the phone, the reference shows

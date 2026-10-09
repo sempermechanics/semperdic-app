@@ -197,6 +197,26 @@ class HomeControllersTest {
         assertEquals(2000 * 9 / 10 - 50, params.topMargin)
     }
 
+    @Test
+    fun `the list is padded so its last row scrolls clear above the button`() {
+        val root = CoordinatorLayout(activity)
+        val list = View(activity).apply { setPadding(0, 0, 0, 7) }
+        val fab = View(activity)
+        root.addView(list, CoordinatorLayout.LayoutParams(1000, 2000))
+        root.addView(fab, CoordinatorLayout.LayoutParams(100, 100))
+        HomeFabLayout.pinAtNineTenths(root, fab, list)
+
+        root.measure(
+            MeasureSpec.makeMeasureSpec(1000, MeasureSpec.EXACTLY),
+            MeasureSpec.makeMeasureSpec(2000, MeasureSpec.EXACTLY),
+        )
+        root.layout(0, 0, 1000, 2000)
+
+        val fabTopFromBottom = 2000 - (2000 * 9 / 10 - 50)
+        val clearance = (16 * activity.resources.displayMetrics.density).toInt()
+        assertEquals(fabTopFromBottom + clearance, list.paddingBottom)
+    }
+
     // ── BackupBadgeActions ───────────────────────────────────────────────
 
     private val badge by lazy {
