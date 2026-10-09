@@ -68,10 +68,15 @@ Pick the home by how long the work must live and who must see its outcome.
 **The wizard is the exception, on purpose.** `StaticAnalysisActivity`
 absorbs every configuration change (`app/src/main/AndroidManifest.xml:154-158`),
 so rotation never recreates it. Its batch and sweep runs sit on
-`viewModelScope` (`ui/analysis/wizard/RunChannels.kt:74`, `:133`), but
-`onDestroy` cancels them (`ui/analysis/StaticAnalysisActivity.kt:243`): a
-solve belongs to the screen that shows it. Process death is covered by the
+`viewModelScope` (`ui/analysis/wizard/RunChannels.kt:112`, `:171`), but
+`onDestroy` raises the run's cancel flag on every destroy
+(`ui/analysis/StaticAnalysisActivity.kt:246`), and a destroy that is not a
+configuration change also clears the view model and its scope: a solve
+belongs to the screen that shows it. Process death is covered by the
 draft ([ADR-005](ADR-005-wizard-process-death.md)), not by keeping the run.
+A run's outcome is held in the view model until a started screen takes it,
+once (`PendingOutcome`, `ui/analysis/wizard/RunChannels.kt:73`), so a run
+that ends while the wizard is in the background is handled when it returns.
 
 **Rule for new code.**
 
@@ -134,9 +139,10 @@ time, a `StateFlow`, and a consume.
 - Application-lifetime runs still end with the process. Account deletion
   killed between the cloud erase and the local wipe leaves the phone's data
   in place (TD-165).
-- The wizard's run outcome is a `SharedFlow` with no replay, collected only
-  while the wizard is started, so an outcome emitted while it is in the
-  background is dropped (TD-168).
+- The wizard's run outcome was a `SharedFlow` with no replay, collected only
+  while the wizard was started, so an outcome emitted while it was in the
+  background was dropped (TD-168). It is now held until consumed
+  (`PendingOutcome`); test: `RunOutcomeDeliveryTest`.
 
 ## Action items
 
@@ -147,5 +153,5 @@ time, a `StateFlow`, and a consume.
 3. [x] `SignOutRun` with live-screen tracking and the `Unclaimed` outcome
    (#316, #329).
 4. [ ] TD-165: persist the deletion stage and finish the wipe at startup.
-5. [ ] TD-168: give the wizard's run outcome a replay, or hold it in the
-   ViewModel's state.
+5. [x] TD-168: the wizard's run outcome is held in the ViewModel until a
+   screen consumes it (`PendingOutcome`).

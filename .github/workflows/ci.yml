@@ -467,8 +467,15 @@ jobs:
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost || true
           df -h /
 
+      # FirebaseAuthIntegrationTest signs the CI test account in to the app's
+      # Firebase project (TD-200). Without the secrets (a fork's or Dependabot's
+      # PR) the arguments are left out and its cases skip. Through Gradle an
+      # argument is cut at its first comma (TD-86): the password has none.
       - name: Run instrumented tests on emulator
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        env:
+          FIREBASE_TEST_EMAIL: ${{ secrets.FIREBASE_TEST_EMAIL }}
+          FIREBASE_TEST_PASSWORD: ${{ secrets.FIREBASE_TEST_PASSWORD }}
         with:
           # API 34 still has dumpsys gfxinfo framestats; API 37 returns empty
           # and Macrobenchmark startActivityAndWait cannot confirm launch.
@@ -485,6 +492,8 @@ jobs:
             -PabiFilters=x86_64
             -PnativeCompilerLauncher=ccache
             -Pandroid.testInstrumentationRunnerArguments.notPackage=com.sempermechanics.semper.benchmark
+            ${FIREBASE_TEST_EMAIL:+"-Pandroid.testInstrumentationRunnerArguments.FIREBASE_TEST_EMAIL=$FIREBASE_TEST_EMAIL"}
+            ${FIREBASE_TEST_PASSWORD:+"-Pandroid.testInstrumentationRunnerArguments.FIREBASE_TEST_PASSWORD=$FIREBASE_TEST_PASSWORD"}
             --console=plain
 
       # Gradle names no failing test in the log; the report is in the build dir.

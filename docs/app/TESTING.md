@@ -375,8 +375,13 @@ starts no faster than `None` ([perf/startup.md](../perf/startup.md), which has t
   submodule and runs in the engine repo's CI, not here
   ([docs/engine/TESTING.md](../engine/TESTING.md))
 - Backend API → backend pytest (`backend/tests/`)
-- Real Firebase Auth → `auth/FirebaseAuthIntegrationTest`. These self-skip
-  (JUnit `assumeTrue`) unless `FIREBASE_TEST_EMAIL` / `FIREBASE_TEST_PASSWORD`
-  are passed as instrumentation args. CI does not supply them, so they are
-  skipped there today — to run them, provide the args locally or wire the
-  secrets into the emulator job.
+- Real Firebase Auth → `auth/FirebaseAuthIntegrationTest`: email/password
+  sign-in, an ID token and its refresh against the app's Firebase project, then
+  sign-out. Tier 3 passes the CI test account from the repo secrets
+  `FIREBASE_TEST_EMAIL` / `FIREBASE_TEST_PASSWORD` (TD-200). Without them (a local
+  run, a fork's or Dependabot's PR) the cases skip (JUnit `assumeTrue`); locally,
+  pass both with `-Pandroid.testInstrumentationRunnerArguments.FIREBASE_TEST_EMAIL=…`.
+  The password must have no comma: Gradle cuts an argument there (TD-86).
+  The account and both secrets come from `scripts/create_ci_firebase_account.sh`
+  (gcloud as an owner of `indicvision-dic-app-auth`, gh as a repo admin); `--rotate`
+  gives the account a new password and updates the secret.

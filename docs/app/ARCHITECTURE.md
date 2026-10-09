@@ -158,6 +158,15 @@ decision to refuse belongs to the backend, which is the side that knows whether
 it is in `monitor` or `enforce`. See
 [AUTH_SETUP.md §3.2](../backend/AUTH_SETUP.md).
 
+"The API host" is the base URL's host **and port** (`ApiHost`, `host:port` with
+the default port spelled out), for `AppCheckHeader`, `AppIdHeader` and
+`ClientNonce.ServerDateObserver` alike; the `SEMPER_API_CERT_PINS` pins are
+registered for the bare host name, the only pattern OkHttp's pinner accepts.
+The shared clients follow **no redirects** (`SemperApiClients`): OkHttp drops
+only `Authorization` on a cross-host hop, so a followed redirect would carry
+`X-App-Id`, `X-Firebase-AppCheck`, `X-Device-Id`, `X-Nonce` and `X-Signature`
+to the new host. A 30x reaches the caller as an unexpected status.
+
 ## Licensing & entitlements
 
 The app never decides its own plan — `data/account/LicenseEntitlements.kt` is the one

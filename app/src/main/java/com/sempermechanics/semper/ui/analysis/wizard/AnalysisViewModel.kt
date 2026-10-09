@@ -213,7 +213,9 @@ class AnalysisViewModel(private val saved: SavedStateHandle) : ViewModel() {
     /** The runs' channels; [progress] and the rest are their read-only faces. */
     internal val runs = RunChannels()
     val progress: SharedFlow<BatchProgressUpdate?> = runs.progress.asSharedFlow()
-    val batchOutcome: SharedFlow<Result<BatchAnalysisOutcome>> = runs.batchOutcome.asSharedFlow()
+
+    /** The batch run's end, held until the screen takes it ([PendingOutcome]). */
+    internal val batchOutcome: PendingOutcome<Result<BatchAnalysisOutcome>> get() = runs.batchOutcome
 
     var lastBatchDirPath: String?
         get() = _runResult.value.batchDirPath
@@ -353,7 +355,9 @@ class AnalysisViewModel(private val saved: SavedStateHandle) : ViewModel() {
     var sweepSkippedNodes: List<SkippedNode> = emptyList()
 
     val sweepProgress: SharedFlow<SweepStudyRunner.Progress?> = runs.sweepProgress.asSharedFlow()
-    val sweepOutcome: SharedFlow<Result<BatchAnalysisOutcome>> = runs.sweepOutcome.asSharedFlow()
+
+    /** The sweep's end, held until the screen takes it ([PendingOutcome]). */
+    internal val sweepOutcome: PendingOutcome<Result<BatchAnalysisOutcome>> get() = runs.sweepOutcome
 
     fun isReadyToCompute(): Boolean = refBytes != null && defFilePaths.isNotEmpty()
 

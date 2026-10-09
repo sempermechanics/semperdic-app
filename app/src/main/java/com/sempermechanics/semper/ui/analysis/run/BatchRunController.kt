@@ -22,7 +22,9 @@ import kotlinx.coroutines.launch
  * terminal results into UI callbacks owned by [StaticAnalysisActivity].
  *
  * Both runs live on the view model's scope, so this is the only place that
- * knows whether an Activity is still around to be told how they ended.
+ * knows whether an Activity is still around to be told how they ended. An
+ * outcome that arrives while the screen is stopped waits in the view model
+ * and is handled, once, when the screen starts again.
  */
 @SuppressLint("SetTextI18n") // same result strings as the former Activity handlers
 class BatchRunController(
@@ -68,7 +70,7 @@ class BatchRunController(
                     }
                 }
                 launch {
-                    viewModel.batchOutcome.collect { result ->
+                    viewModel.batchOutcome.consumeEach { result ->
                         handleBatchOutcome(result)
                     }
                 }
@@ -78,7 +80,7 @@ class BatchRunController(
                     }
                 }
                 launch {
-                    viewModel.sweepOutcome.collect { result ->
+                    viewModel.sweepOutcome.consumeEach { result ->
                         handleSweepOutcome(result)
                     }
                 }
