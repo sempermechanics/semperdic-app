@@ -16,6 +16,7 @@ import com.sempermechanics.semper.ui.common.auth.AuthRoute
 import com.sempermechanics.semper.ui.settings.AccountDeletionRun
 import com.sempermechanics.semper.ui.settings.AccountDeletionRun.Outcome
 import com.sempermechanics.semper.ui.settings.SettingsActivity
+import kotlinx.coroutines.CancellationException
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -143,6 +144,20 @@ class AccountDeletionStagesTest {
     @Test
     fun `a throw before the cloud erase answered says nothing was touched`() {
         assertEquals(Outcome.CLOUD_NOT_REACHED, outcomeOf { error("no token") })
+    }
+
+    @Test
+    fun `a cancelled task inside the deletion is a failure, not a stop`() {
+        // A cancelled Firebase Task's await throws this while the run is still active;
+        // rethrowing it would end the run silently and leave the dialog up for good.
+        api.onDeleteAccount = {}
+
+        val outcome = outcomeOf { cloud ->
+            cloud.deleteAccount("token")
+            throw CancellationException("task cancelled")
+        }
+
+        assertEquals(Outcome.PHONE_NOT_CLEARED, outcome)
     }
 
     @Test
