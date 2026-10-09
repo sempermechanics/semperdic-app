@@ -49,6 +49,7 @@ class HotPathMicroBenchmark {
     // ── One representative frame, and a 150-frame batch of them ──────────────
 
     private val oneFrame: FloatArray = syntheticFrame(seed = 1)
+    private val displacedFrame: FloatArray = moderatelyDisplacedFrame()
     private val batch150: List<FloatArray> = List(FRAMES_LARGE) { syntheticFrame(seed = it) }
 
     // ── Whole-frame value passes (summary pre-pass, A2) ──────────────────────
@@ -84,6 +85,25 @@ class HotPathMicroBenchmark {
     fun generateHeatmap_oneFrame() = benchmarkRule.measureRepeated {
         val (bmp, _, _) = VisualizationEngine.generateHeatmap(
             oneFrame,
+            IMG_W,
+            IMG_H,
+            DicResult.IDX_EXX,
+            STEP,
+            maxLongEdge = VisualizationEngine.DISPLAY_MAX_EDGE,
+        )
+        bmp.recycle()
+    }
+
+    /**
+     * The viewer's render for a frame shown on its own photo (ADR-011, TD-175):
+     * each cell drawn as the quad through its displaced corners. Timed on
+     * [displacedFrame], not [oneFrame], whose drift would warp most of the map
+     * off the canvas.
+     */
+    @Test
+    fun generateDeformedHeatmap_oneFrame() = benchmarkRule.measureRepeated {
+        val (bmp, _, _) = VisualizationEngine.generateDeformedHeatmap(
+            displacedFrame,
             IMG_W,
             IMG_H,
             DicResult.IDX_EXX,
@@ -209,6 +229,18 @@ class HotPathMicroBenchmark {
                 }
             }
             return out
+        }
+
+        /**
+         * [syntheticFrame] with a moderate, smooth displacement (u = 0.02·x, v = 0.01·y px,
+         * at most ~13 px), so the deformed render stays on the canvas. [syntheticFrame]'s
+         * own u and v drift by up to ~300 px.
+         */
+        private fun moderatelyDisplacedFrame(): FloatArray = syntheticFrame(seed = 1).also { frame ->
+            for (p in frame.indices step DicResult.STRIDE) {
+                frame[p + DicResult.IDX_U] = frame[p + DicResult.IDX_X] * 0.02f
+                frame[p + DicResult.IDX_V] = frame[p + DicResult.IDX_Y] * 0.01f
+            }
         }
     }
 }

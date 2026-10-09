@@ -142,8 +142,10 @@ need a device. CI's `tier-benchmark` job runs them on the `benchmark` label, a
 
 **Micro (`:app` androidTest) — "did this operation get cheaper?"**
 Measures median `timeNs` **and `allocationCount`** for the hot paths (`valueRanges`,
-`buildReport`, `generateHeatmap`, GIF encode, `computeFieldExtrema`, `decodeDatFile`,
-the spatial index). `allocationCount` is the honest memory signal: the workload is
+`buildReport`, `generateHeatmap`, `generateDeformedHeatmap`, GIF encode,
+`computeFieldExtrema`, `decodeDatFile`, the spatial index). `generateDeformedHeatmap_oneFrame`
+renders a frame moved by u = 0.02·x, v = 0.01·y px: the other cases' synthetic frame
+drifts by up to ~300 px, which would warp most of the deformed map off the canvas. `allocationCount` is the honest memory signal: the workload is
 fixed, so a change in allocations is caused by the code and nothing else.
 
 ```bash
@@ -167,6 +169,12 @@ Results land in logcat (`adb logcat -d -s Benchmark:I`).
 `Semper.viewer.decodeDat` trace section. The seeder also writes the `field_ranges.bin`
 sidecar a real batch run leaves, so the viewer's colour-scale pass reads it as it does
 on a phone; without it the benchmark measured the no-sidecar fallback instead (TD-87).
+`scrub10Frames` and `scrub150Frames` open frames with no photo of their own, so each is
+drawn on the reference. `scrub150FramesWithPhotos` passes the seeder `--ez framePhotos true`:
+a separate session whose frames move moderately and each have a flat grey PNG in
+`raw_deformed/`, so the viewer draws every frame over its photo with
+`generateDeformedHeatmap` ([ADR-011](../adr/ADR-011-viewer-deformed-frame.md)). It is
+report-only: `benchmark/gates.json` has no reference for it.
 
 ```bash
 ./gradlew :benchmark:connectedBenchmarkAndroidTest \
@@ -247,7 +255,8 @@ is over. Gates are keyed by the device the JSON records (`context.build.device`,
 reported and never gated, and CI does not pass `--gates`. Without `--gates` the script
 only reports and always exits 0. **The Pixel 6 (`oriole`)** has references from
 2026-10-05 for the tests that stayed in the reference state: Settings cold start and
-scroll, and both viewer scrubs. Startup cold and warm start and the wizard cold start
+scroll, and the two viewer scrubs without frame photos (`scrub150FramesWithPhotos` has
+none). Startup cold and warm start and the wizard cold start
 reached thermal status 1 and have none yet (TD-155). material_testing's were taken on
 its own app and are not copied. Microbenchmark times have no reference here: debuggable
 and not AOT-compiled, they are relative numbers, gated only against the PR's base in
