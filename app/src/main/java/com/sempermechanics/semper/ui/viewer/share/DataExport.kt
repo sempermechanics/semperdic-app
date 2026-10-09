@@ -1,6 +1,7 @@
 package com.sempermechanics.semper.ui.viewer.share
 
 import android.content.res.Resources
+import com.sempermechanics.semper.R
 import com.sempermechanics.semper.field.DicResult
 import com.sempermechanics.semper.report.AnalysisCsvWriter
 import com.sempermechanics.semper.report.FieldRangesStore
@@ -28,34 +29,55 @@ internal class DataExport(
      * that they are directly comparable, which only holds if you have them all.
      * Fields the viewer has not rendered yet are built here, so sharing works
      * the moment the screen opens.
+     *
+     * [report] hears each frame as it is encoded: every field is an equal part
+     * of the bar, and a range pass, when one is needed, one part more. A field
+     * whose GIF is already built reports nothing and the bar moves on to the
+     * next. Progress is read from [SummaryAnimation.build]'s own callback; the
+     * encode itself is untouched.
      */
-    suspend fun fieldAnimations(): List<File> {
+    suspend fun fieldAnimations(report: ExportReport = NO_REPORT): List<File> {
         val animation = s.summary ?: return emptyList()
-        val bounds = animationBounds()
-        return SummaryAnimation.FIELDS.mapNotNull { (label, index) ->
-            val fieldBounds = bounds[index] ?: return@mapNotNull null
-            animation.build(index, label, fieldBounds)
+        val fields = SummaryAnimation.FIELDS
+        // What the viewer knew when the job started: a fixed scale, else the sequence range.
+        val known = fields.all { it.second in s.summaryBounds }
+        val parts = fields.size + if (known) 0 else 1
+        val bounds = if (known) s.summaryBounds else readBounds(report.part(0, parts))
+        val firstField = parts - fields.size
+        val frames = s.batchFiles.size
+        return fields.mapIndexedNotNull { i, (label, index) ->
+            val fieldBounds = bounds[index] ?: return@mapIndexedNotNull null
+            val field = report.part(firstField + i, parts)
+            field.step(resources, 0, frames, R.string.share_progress_gif_fmt, label)
+            animation.build(index, label, fieldBounds) { done, total ->
+                field.step(resources, done, total, R.string.share_progress_gif_fmt, label)
+            }
         }
     }
 
     /**
-     * Each field's GIF scale: what the viewer knew when the job started (a fixed
-     * scale, else the sequence range). A job started before the viewer's range
-     * pass finished reads the ranges itself (from the sidecar when there is one),
-     * rather than leaving the fields out.
+     * Each field's GIF scale when the viewer did not know them all as the job
+     * started: a job started before the viewer's range pass finished reads the
+     * ranges itself (from the sidecar when there is one), rather than leaving
+     * the fields out.
      */
-    private suspend fun animationBounds(): Map<Int, Pair<Float, Float>> {
-        if (SummaryAnimation.FIELDS.all { it.second in s.summaryBounds }) return s.summaryBounds
+    private suspend fun readBounds(report: ExportReport): Map<Int, Pair<Float, Float>> {
         val rangesFile = s.batchFiles.firstOrNull()?.parentFile?.let { File(it, FieldRangesStore.FILE_NAME) }
-        return SummaryAnimation.globalRanges(s.batchFiles, rangesFile) + s.summaryBounds
+        report.step(resources, 0, s.batchFiles.size, R.string.share_progress_gif_ranges_fmt)
+        return SummaryAnimation.globalRanges(s.batchFiles, rangesFile) { done, total ->
+            report.step(resources, done, total, R.string.share_progress_gif_ranges_fmt)
+        } + s.summaryBounds
     }
 
     /**
      * One CSV covering every frame's solved points, via the shared
      * [AnalysisCsvWriter] the cloud upload uses too. A sweep leads each row with
      * its settings columns; an ordinary analysis leads with the image name.
+     *
+     * [report] hears each frame of both of the writer's passes: the field
+     * statistics (the first [CSV_STATS_SHARE] percent), then the point rows.
      */
-    fun batchCsv(): File {
+    fun batchCsv(report: ExportReport = NO_REPORT): File {
         val sweep = s.isSweep
         // A sweep ran every combination against the one image; a batch has one
         // image per frame.
@@ -84,7 +106,15 @@ internal class DataExport(
             roiH = roi.h,
         )
         val f = File(outDir, "${s.baseName}_data.csv")
-        AnalysisCsvWriter.write(f, sweep, frames, metadata)
+        val stats = report.within(0.0, CSV_STATS_SHARE)
+        val points = report.within(CSV_STATS_SHARE, FULL)
+        AnalysisCsvWriter.write(f, sweep, frames, metadata) { pointRows, done ->
+            if (pointRows) {
+                points.step(resources, done, frames.size, R.string.share_progress_csv_points_fmt)
+            } else {
+                stats.step(resources, done, frames.size, R.string.share_progress_csv_stats_fmt)
+            }
+        }
         return f
     }
 
@@ -93,7 +123,7 @@ internal class DataExport(
      * the same cover / field-pages structure a single-frame report has, and one
      * telemetry page closes the document.
      */
-    suspend fun allFramesPdf(report: (Int, String) -> Unit = { _, _ -> }): File {
+    suspend fun allFramesPdf(report: ExportReport = NO_REPORT): File {
         val f = File(outDir, "${s.baseName}_report.pdf")
         f.outputStream().use { out ->
             PdfReportGenerator.generateBatch(
@@ -108,7 +138,7 @@ internal class DataExport(
                     // throwing; surface it so the share job actually fails (and logs)
                     // instead of silently handing back an empty PDF.
                     is PdfReportGenerator.Progress.Error -> throw progress.ex
-                    is PdfReportGenerator.Progress.Status -> report(progress.percent, progress.message)
+                    is PdfReportGenerator.Progress.Status -> report(progress.percent.toDouble(), progress.message)
                     PdfReportGenerator.Progress.Complete -> Unit
                 }
             }
@@ -132,5 +162,11 @@ internal class DataExport(
         } else {
             "DIC Analysis Report — $name"
         }
+    }
+
+    private companion object {
+        /** The CSV's statistics pass only decodes each frame; the point rows are most of the work. */
+        const val CSV_STATS_SHARE = 20.0
+        const val FULL = 100.0
     }
 }

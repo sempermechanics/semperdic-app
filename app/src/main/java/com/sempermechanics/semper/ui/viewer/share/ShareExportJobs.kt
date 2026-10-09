@@ -54,7 +54,7 @@ internal class ShareExportJobs(
     data class Running(
         val id: String,
         val title: String,
-        val percent: Int = 0,
+        val percent: Double = 0.0,
         val status: String? = null,
         /** Sent to the banner (Back, or a tap outside the dialog) rather than watched in the dialog. */
         val background: Boolean = false,
@@ -104,7 +104,7 @@ internal class ShareExportJobs(
         title: String,
         destUri: Uri?,
         direct: Boolean,
-        produce: suspend (report: (Int, String) -> Unit) -> Pair<File, String>,
+        produce: suspend (report: ExportReport) -> Pair<File, String>,
     ) {
         _running.update { it + (id to Running(id, title)) }
         // Undispatched, so the body is already inside the try below when start
@@ -150,7 +150,7 @@ internal class ShareExportJobs(
         _running.update { all -> all[id]?.let { all + (id to it.copy(background = true)) } ?: all }
     }
 
-    private fun progress(id: String, percent: Int, status: String) {
+    private fun progress(id: String, percent: Double, status: String) {
         _running.update { all -> all[id]?.let { all + (id to it.copy(percent = percent, status = status)) } ?: all }
     }
 

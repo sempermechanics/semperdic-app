@@ -8,10 +8,14 @@ import androidx.work.workDataOf
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.account.LicenseErrors
 import com.sempermechanics.semper.data.cloud.TransferNotifications
+import com.sempermechanics.semper.data.cloud.TransferProgressUpdates
+import com.sempermechanics.semper.data.cloud.TransferResultNotifications
+import com.sempermechanics.semper.data.cloud.TransferRetryReceiver
 import com.sempermechanics.semper.data.cloud.restore.CloudRestore
 import com.sempermechanics.semper.data.cloud.restore.DownloadFailure
 import com.sempermechanics.semper.data.cloud.restore.DownloadProgress
 import com.sempermechanics.semper.data.cloud.restore.RestoreDownloadOutcomes
+import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.diagnostics.SemperAnalytics
 import com.sempermechanics.semper.navigation.IntentKeys
 import kotlinx.coroutines.CancellationException
@@ -56,13 +60,30 @@ class DicRestoreWorker internal constructor(
     override suspend fun getForegroundInfo(): ForegroundInfo =
         TransferNotifications.restoreForeground(applicationContext)
 
+    /** The running notification's reading and its once-a-second updates. */
+    private val updates = TransferProgressUpdates(applicationContext, TransferNotifications.Kind.RESTORE)
+
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val cloudSessionId = inputData.getString(CloudRestore.KEY_CLOUD_SESSION_ID)
             ?: return@withContext Result.failure()
         val targetLocalId = inputData.getString(CloudRestore.KEY_TARGET_LOCAL_ID)
             ?: return@withContext Result.failure()
+        // Read before the restore: a failed one clears what it wrote.
+        val name = SessionStore.get(applicationContext, targetLocalId)?.name.orEmpty()
+        restoreInto(cloudSessionId, targetLocalId).also { result ->
+            TransferResultNotifications.afterWork(
+                applicationContext,
+                TransferResultNotifications.Subject(TransferNotifications.Kind.RESTORE, targetLocalId, name),
+                result,
+                reason = result.outputData.getString(IntentKeys.DOWNLOAD_ERROR),
+                retry = TransferRetryReceiver.restoreIntent(applicationContext, cloudSessionId, targetLocalId, name),
+            )
+        }
+    }
 
-        try {
+    /** The restore itself: success, a terminal failure with its message, or a retry. */
+    private suspend fun restoreInto(cloudSessionId: String, targetLocalId: String): Result {
+        return try {
             clearPartialArtifacts(targetLocalId)
             publishProgress(targetLocalId, done = 0L, total = 0L)
             val localId = restorer.restore(
@@ -130,7 +151,9 @@ class DicRestoreWorker internal constructor(
         Result.failure(workDataOf(IntentKeys.DOWNLOAD_ERROR to message))
 
     private suspend fun publishProgress(localId: String, done: Long, total: Long) {
-        setProgress(DownloadProgress.data(done, total, localId))
+        val reading = updates.sample(done, total)
+        setProgress(DownloadProgress.data(done, total, localId, reading.bytesPerSecond))
+        updates.foregroundIfDue(reading)?.let { TransferProgressUpdates.post(this, it) }
     }
 
     private fun clearPartialArtifacts(localId: String) {

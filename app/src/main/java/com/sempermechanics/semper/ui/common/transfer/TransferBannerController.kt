@@ -2,46 +2,53 @@ package com.sempermechanics.semper.ui.common.transfer
 
 import android.app.Activity
 import android.os.Looper
+import android.os.SystemClock
 import android.view.View
-import android.widget.ImageButton
-import android.widget.TextView
 import androidx.annotation.MainThread
 import androidx.core.view.isVisible
-import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.databinding.ViewTransferBannerBinding
+import com.sempermechanics.semper.ui.common.EtaEstimator
+import com.sempermechanics.semper.ui.common.ProgressText
+import kotlin.math.roundToInt
 
 /**
  * Non-modal transfer strip: one progress page at a time, with left/right
  * navigation when multiple transfers are active. Does not block the host UI.
+ *
+ * A page reads like the export dialog: the status on the left ("Frame 12 of
+ * 40 · heatmaps", "4.2 of 12.0 MB · 1.1 MB/s"), the percent to one decimal on
+ * the right, the bar, and the time left under it once [EtaEstimator] has an
+ * answer. Each transfer keeps its own estimate.
+ *
+ * @param clock monotonic milliseconds for the time-left estimates; a test's to set.
  */
 class TransferBannerController(
     private val root: View,
+    private val clock: () -> Long = SystemClock::elapsedRealtime,
 ) {
 
+    /** One transfer's page. [percent] is 0–100; 0 shows a spinning bar. */
     data class Transfer(
         val id: String,
         val title: String,
-        val percent: Int = 0,
+        val percent: Double = 0.0,
         val status: String = "",
         val cancellable: Boolean = true,
         val onCancel: (() -> Unit)? = null,
+        val eta: EtaEstimator.Eta = EtaEstimator.Eta.Unknown,
     )
 
-    private val titleView: TextView = root.findViewById(R.id.tvTransferTitle)
-    private val statusView: TextView = root.findViewById(R.id.tvTransferStatus)
-    private val progress: LinearProgressIndicator = root.findViewById(R.id.transferProgress)
-    private val pageView: TextView = root.findViewById(R.id.tvTransferPage)
-    private val btnPrev: ImageButton = root.findViewById(R.id.btnTransferPrev)
-    private val btnNext: ImageButton = root.findViewById(R.id.btnTransferNext)
-    private val btnCancel: TextView = root.findViewById(R.id.btnTransferCancel)
+    private val views = ViewTransferBannerBinding.bind(root)
 
     private val transfers = linkedMapOf<String, Transfer>()
+    private val estimators = HashMap<String, EtaEstimator>()
     private var pageIndex = 0
 
     init {
-        btnPrev.setOnClickListener { moveBy(-1) }
-        btnNext.setOnClickListener { moveBy(1) }
-        btnCancel.setOnClickListener {
+        views.btnTransferPrev.setOnClickListener { moveBy(-1) }
+        views.btnTransferNext.setOnClickListener { moveBy(1) }
+        views.btnTransferCancel.setOnClickListener {
             current()?.onCancel?.invoke()
         }
         render()
@@ -56,19 +63,20 @@ class TransferBannerController(
         }
     }
 
-    fun updateProgress(id: String, percent: Int, status: String? = null) {
+    /** Moves transfer [id] to [percent] (0–100), with [status] when given. Safe from any thread. */
+    fun updateProgress(id: String, percent: Double, status: String? = null) {
         onMain {
             val existing = transfers[id] ?: return@onMain
-            transfers[id] = existing.copy(
-                percent = percent.coerceIn(0, PERCENT),
-                status = status ?: existing.status,
-            )
+            val clamped = percent.coerceIn(0.0, PERCENT)
+            val eta = estimators.getOrPut(id) { EtaEstimator() }.sample(clamped / PERCENT, clock())
+            transfers[id] = existing.copy(percent = clamped, status = status ?: existing.status, eta = eta)
             render()
         }
     }
 
     fun remove(id: String) {
         onMain {
+            estimators.remove(id)
             if (transfers.remove(id) == null) return@onMain
             if (pageIndex >= transfers.size) pageIndex = (transfers.size - 1).coerceAtLeast(0)
             render()
@@ -99,31 +107,37 @@ class TransferBannerController(
             return
         }
         root.isVisible = true
-        titleView.text = item.title
+        views.tvTransferTitle.text = item.title
         val multi = transfers.size > 1
-        btnPrev.isVisible = multi
-        btnNext.isVisible = multi
-        pageView.isVisible = multi
+        views.btnTransferPrev.isVisible = multi
+        views.btnTransferNext.isVisible = multi
+        views.tvTransferPage.isVisible = multi
         if (multi) {
-            pageView.text = root.context.getString(
+            views.tvTransferPage.text = root.context.getString(
                 R.string.transfer_banner_page_fmt,
                 pageIndex + 1,
                 transfers.size,
             )
         }
-        btnCancel.isVisible = item.cancellable && item.onCancel != null
-        if (item.percent <= 0) {
-            progress.isIndeterminate = true
-            statusView.text = item.status.ifBlank {
-                root.context.getString(R.string.transfer_banner_working)
-            }
-        } else {
-            progress.isIndeterminate = false
-            progress.setProgressCompat(item.percent, true)
-            statusView.text = item.status.ifBlank {
-                root.context.getString(R.string.transfer_banner_percent_fmt, item.percent)
-            }
+        views.btnTransferCancel.isVisible = item.cancellable && item.onCancel != null
+        renderProgress(item)
+    }
+
+    private fun renderProgress(item: Transfer) {
+        val res = root.resources
+        val started = item.percent > 0.0
+        views.transferProgress.isIndeterminate = !started
+        if (started) {
+            views.transferProgress.setProgressCompat((item.percent * BAR_PER_PERCENT).roundToInt(), true)
         }
+        views.tvTransferStatus.text = item.status.ifBlank {
+            if (started) "" else res.getString(R.string.transfer_banner_working)
+        }
+        views.tvTransferPercent.isVisible = started
+        views.tvTransferPercent.text = if (started) ProgressText.percent(res, item.percent) else null
+        val left = if (started) EtaEstimator.label(res, item.eta) else null
+        views.tvTransferEta.isVisible = left != null
+        views.tvTransferEta.text = left
     }
 
     /** Share jobs report progress off the main thread; hop UI writes here. */
@@ -141,6 +155,9 @@ class TransferBannerController(
     }
 
     private companion object {
-        const val PERCENT = 100
+        const val PERCENT = 100.0
+
+        /** The bar's max is 1000 (layout): it moves in tenths of a percent. */
+        const val BAR_PER_PERCENT = 10.0
     }
 }

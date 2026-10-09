@@ -90,6 +90,24 @@ class TransferWorkObserverTest {
     )
 
     @Test
+    fun `a row carries the job's byte counts once it reports them`() {
+        val list = listOf(
+            running(
+                IntentKeys.SESSION_LOCAL_ID to "a",
+                IntentKeys.UPLOAD_PERCENT to 35,
+                IntentKeys.TRANSFER_BYTES_DONE to 4_200_000L,
+                IntentKeys.TRANSFER_BYTES_TOTAL to 12_000_000L,
+            ),
+            running(IntentKeys.SESSION_LOCAL_ID to "b", IntentKeys.UPLOAD_PERCENT to 10),
+        )
+
+        val rows = TransferWorkObserver(TransferWork.Kind.UPLOAD).update(list).rowProgress()
+
+        assertEquals(TransferWorkObserver.RowProgress(TransferPhase.UPLOAD, 35, 4_200_000L, 12_000_000L), rows["a"])
+        assertEquals(TransferWorkObserver.RowProgress(TransferPhase.UPLOAD, 10), rows["b"])
+    }
+
+    @Test
     fun `upload rows read as Home read them`() {
         val expected = legacyUploadRows(progressCases).mapValues { (_, v) -> badgeOf(v.first) to v.second }
         assertEquals(expected, rows(TransferWork.Kind.UPLOAD, progressCases))

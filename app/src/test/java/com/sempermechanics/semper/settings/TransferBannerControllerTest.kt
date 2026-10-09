@@ -60,7 +60,7 @@ class TransferBannerControllerTest {
     @Test
     fun `single transfer shows progress without pager chrome`() {
         controller.upsert(
-            TransferBannerController.Transfer(id = "a", title = "Export my data", percent = 40),
+            TransferBannerController.Transfer(id = "a", title = "Export my data", percent = 40.0),
         )
         assertEquals(View.VISIBLE, root.visibility)
         assertEquals(View.GONE, root.findViewById<View>(R.id.btnTransferPrev).visibility)
@@ -70,8 +70,8 @@ class TransferBannerControllerTest {
 
     @Test
     fun `two transfers show arrows and page indicator`() {
-        controller.upsert(TransferBannerController.Transfer(id = "a", title = "A", percent = 10))
-        controller.upsert(TransferBannerController.Transfer(id = "b", title = "B", percent = 20))
+        controller.upsert(TransferBannerController.Transfer(id = "a", title = "A", percent = 10.0))
+        controller.upsert(TransferBannerController.Transfer(id = "b", title = "B", percent = 20.0))
         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.btnTransferPrev).visibility)
         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.btnTransferNext).visibility)
         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.tvTransferPage).visibility)
@@ -85,14 +85,14 @@ class TransferBannerControllerTest {
             TransferBannerController.Transfer(
                 id = "a",
                 title = "A",
-                percent = 10,
+                percent = 10.0,
                 onCancel = {
                     cancelled = true
                     controller.remove("a")
                 },
             ),
         )
-        controller.upsert(TransferBannerController.Transfer(id = "b", title = "B", percent = 50))
+        controller.upsert(TransferBannerController.Transfer(id = "b", title = "B", percent = 50.0))
         // Newest page is focused; move to first then cancel.
         root.findViewById<View>(R.id.btnTransferPrev).performClick()
         root.findViewById<View>(R.id.btnTransferCancel).performClick()
@@ -102,11 +102,60 @@ class TransferBannerControllerTest {
         assertTrue(controller.contains("b"))
     }
 
+    private fun text(id: Int): TextView = root.findViewById(id)
+
+    @Test
+    fun `a page reads its status, the percent to a tenth and the time left`() {
+        var now = 0L
+        val banner = TransferBannerController(root, clock = { now })
+        banner.upsert(TransferBannerController.Transfer(id = "a", title = "Report"))
+        // Nothing reported yet: a spinning bar and "Working…", no percent.
+        assertTrue(bar.isIndeterminate)
+        assertEquals(activity.getString(R.string.transfer_banner_working), text(R.id.tvTransferStatus).text.toString())
+        assertEquals(View.GONE, text(R.id.tvTransferPercent).visibility)
+
+        banner.updateProgress("a", 0.0, "Frame 1 of 40 · heatmaps")
+        while (now < 6_000L) {
+            now += 500L
+            banner.updateProgress("a", now / 600.0)
+        }
+        assertFalse(bar.isIndeterminate)
+        assertEquals("Frame 1 of 40 · heatmaps", text(R.id.tvTransferStatus).text.toString())
+        assertEquals("10.0%", text(R.id.tvTransferPercent).text.toString())
+        assertEquals(View.VISIBLE, text(R.id.tvTransferEta).visibility)
+        assertEquals("About 54 s left", text(R.id.tvTransferEta).text.toString())
+        assertEquals(100, bar.progress)
+    }
+
+    @Test
+    fun `each transfer keeps its own time left`() {
+        var now = 0L
+        val banner = TransferBannerController(root, clock = { now })
+        banner.upsert(TransferBannerController.Transfer(id = "a", title = "A"))
+        banner.upsert(TransferBannerController.Transfer(id = "b", title = "B"))
+        while (now < 6_000L) {
+            now += 500L
+            banner.updateProgress("a", now / 600.0)
+        }
+        banner.updateProgress("b", 50.0, "4.0 of 8.0 MB")
+        // "b" is on screen: one sample, no estimate yet.
+        assertEquals("50.0%", text(R.id.tvTransferPercent).text.toString())
+        assertEquals(View.GONE, text(R.id.tvTransferEta).visibility)
+
+        root.findViewById<View>(R.id.btnTransferPrev).performClick()
+        assertEquals("About 54 s left", text(R.id.tvTransferEta).text.toString())
+
+        banner.remove("a")
+        banner.upsert(TransferBannerController.Transfer(id = "a", title = "A again"))
+        banner.updateProgress("a", 1.0)
+        assertEquals("a removed transfer starts its estimate over", View.GONE, text(R.id.tvTransferEta).visibility)
+    }
+
     @Test
     fun `progress from a worker thread updates on the main thread`() {
-        controller.upsert(TransferBannerController.Transfer(id = "a", title = "A", percent = 1))
+        controller.upsert(TransferBannerController.Transfer(id = "a", title = "A", percent = 1.0))
         val worker = Thread {
-            controller.updateProgress("a", 50, "halfway")
+            controller.updateProgress("a", 50.0, "halfway")
         }
         worker.start()
         worker.join()
@@ -119,7 +168,7 @@ class TransferBannerControllerTest {
 
     @Test
     fun `a banner out of any window keeps its spring until the test ends it`() {
-        controller.upsert(TransferBannerController.Transfer(id = "a", title = "A", percent = 40))
+        controller.upsert(TransferBannerController.Transfer(id = "a", title = "A", percent = 40.0))
         val drawable = checkNotNull(bar.progressDrawable)
         assertTrue(SpringFrames.running(drawable))
 
@@ -135,7 +184,7 @@ class TransferBannerControllerTest {
     fun `a banner taken out of its window ends its spring on the next frames`() {
         val host = activity.findViewById<ViewGroup>(android.R.id.content)
         host.addView(root)
-        controller.upsert(TransferBannerController.Transfer(id = "a", title = "A", percent = 40))
+        controller.upsert(TransferBannerController.Transfer(id = "a", title = "A", percent = 40.0))
         val drawable = checkNotNull(bar.progressDrawable)
         assertTrue("the bar springs while shown", SpringFrames.running(drawable))
 

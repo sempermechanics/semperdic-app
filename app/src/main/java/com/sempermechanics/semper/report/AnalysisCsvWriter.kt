@@ -62,13 +62,31 @@ object AnalysisCsvWriter {
         "Exy" to DicResult.IDX_EXY,
     )
 
-    fun write(out: File, sweep: Boolean, frames: List<Frame>, metadata: Metadata) {
+    /**
+     * Writes [frames] in two passes: every frame's field statistics, then every
+     * frame's point rows. [onFrame] hears (point rows?, frames done) before each
+     * frame of each pass and once at the end of each; it only watches, so the
+     * bytes are the same with or without it.
+     */
+    fun write(
+        out: File,
+        sweep: Boolean,
+        frames: List<Frame>,
+        metadata: Metadata,
+        onFrame: (pointRows: Boolean, done: Int) -> Unit = { _, _ -> },
+    ) {
         open(out, sweep, metadata).use { appender ->
-            frames.forEach { frame ->
+            frames.forEachIndexed { done, frame ->
+                onFrame(false, done)
                 frame.data()?.let { data -> appender.appendFieldStats(frame, data) }
             }
+            onFrame(false, frames.size)
             appender.startPointSection()
-            frames.forEach { appender.append(it) }
+            frames.forEachIndexed { done, frame ->
+                onFrame(true, done)
+                appender.append(frame)
+            }
+            onFrame(true, frames.size)
         }
     }
 
