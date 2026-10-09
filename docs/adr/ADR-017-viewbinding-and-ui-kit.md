@@ -70,7 +70,7 @@ Conventions:
   the non-cancellable beta notice and deletion progress
   (`ui/home/FirstRunPrompts.kt:48`, `ui/settings/SettingsYourDataSection.kt:251`).
 - **The wizard's batch and sweep jobs** keep their own `Job` fields
-  (`ui/analysis/wizard/RunChannels.kt:52-53`): they run on the native
+  (`ui/analysis/wizard/RunChannels.kt:53-54`): they run on the native
   dispatcher, and `SerialJob` is main-thread only.
 - **46 `findViewById` calls remain.** 23 are the sweep page
   (`SweepSetupController`, `SweepRangeFields`), which still finds its views on the
