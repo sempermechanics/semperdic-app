@@ -27,6 +27,7 @@ import org.robolectric.annotation.Config
 class SweepSetupControllerTest {
 
     private class FakeCallbacks(var maxSubset: Int) : SweepSetupController.Callbacks {
+        override fun clearRunStatus() = Unit
         override fun goToStep(step: WizardStep, animate: Boolean) = Unit
         override fun updateWizardChrome() = Unit
         override fun checkReady() = Unit
