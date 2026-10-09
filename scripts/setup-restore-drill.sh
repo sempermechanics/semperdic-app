@@ -122,6 +122,11 @@ for member in "serviceAccount:$SA" \
               "serviceAccount:service-${DRILL_NUM}@gcp-sa-firestore.iam.gserviceaccount.com"; do
   retry gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
     --member="$member" --role=roles/storage.objectViewer --quiet
+  # The import also checks storage.buckets.get on the bucket itself before it
+  # reads a file ("Service account does not have access to Google Cloud Storage
+  # file: /<bucket>" without it); legacyBucketReader adds that, still read-only.
+  retry gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
+    --member="$member" --role=roles/storage.legacyBucketReader --quiet
 done
 
 step "Variables of the restore-drill environment"
