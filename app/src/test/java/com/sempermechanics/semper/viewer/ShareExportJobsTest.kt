@@ -108,7 +108,14 @@ class ShareExportJobsTest {
                 ApplicationProvider.getApplicationContext<android.app.Application>().contentResolver,
             )
             val id = heldJobs.newId("csv")
-            heldJobs.start(id, "CSV", null, direct = false) { file("x") to "text/csv" }
+            // The generator waits, so it cannot finish on Default before cancel:
+            // the undispatched start would then complete Ready inside start(),
+            // the race behind this test's CI flake.
+            val never = CompletableDeferred<Unit>()
+            heldJobs.start(id, "CSV", null, direct = false) {
+                never.await()
+                file("x") to "text/csv"
+            }
             heldJobs.cancel(id)
             gate.countDown()
             assertEquals(ShareExportJobs.Outcome.Cancelled(id), withTimeout(TIMEOUT_MS) { heldJobs.outcomes.first() })
