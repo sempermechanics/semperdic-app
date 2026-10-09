@@ -6,8 +6,11 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.sempermechanics.semper.data.account.LicenseErrors
 import com.sempermechanics.semper.data.cloud.TransferLog
 import com.sempermechanics.semper.data.cloud.TransferNotifications
+import com.sempermechanics.semper.data.cloud.TransferProgressUpdates
+import com.sempermechanics.semper.data.cloud.TransferResultNotifications
 import com.sempermechanics.semper.data.cloud.restore.CloudRestore
 import com.sempermechanics.semper.data.cloud.restore.DownloadFailure
 import com.sempermechanics.semper.data.cloud.restore.DownloadProgress
@@ -62,6 +65,9 @@ class DicBundleDownloadWorker internal constructor(
     override suspend fun getForegroundInfo(): ForegroundInfo =
         TransferNotifications.downloadForeground(applicationContext)
 
+    /** The running notification's reading and its once-a-second updates. */
+    private val updates = TransferProgressUpdates(applicationContext, TransferNotifications.Kind.DOWNLOAD)
+
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val cloudSessionId = inputData.getString(CloudRestore.KEY_CLOUD_SESSION_ID)
             ?: return@withContext Result.failure()
@@ -90,6 +96,17 @@ class DicBundleDownloadWorker internal constructor(
             staged?.delete()
             if (releaseGrant) dest.releaseGrant()
         }
+    }.also { result ->
+        // No Retry: a failure deletes the document and gives up its grant.
+        val cloudSessionId = inputData.getString(CloudRestore.KEY_CLOUD_SESSION_ID).orEmpty()
+        val name = inputData.getString(KEY_DISPLAY_NAME).orEmpty()
+        TransferResultNotifications.afterWork(
+            applicationContext,
+            TransferResultNotifications.Subject(TransferNotifications.Kind.DOWNLOAD, cloudSessionId, name),
+            result,
+            reason = result.outputData.getString(IntentKeys.DOWNLOAD_ERROR)
+                ?.let { LicenseErrors.downloadMessage(applicationContext, it) },
+        )
     }
 
     /** Copies [staged] into [dest]; an empty archive or a failed write removes the document instead. */
@@ -198,7 +215,9 @@ class DicBundleDownloadWorker internal constructor(
     }
 
     private suspend fun publishProgress(done: Long, total: Long) {
-        setProgress(DownloadProgress.data(done, total))
+        val reading = updates.sample(done, total)
+        setProgress(DownloadProgress.data(done, total, perSecond = reading.bytesPerSecond))
+        updates.foregroundIfDue(reading)?.let { TransferProgressUpdates.post(this, it) }
     }
 
     companion object {

@@ -124,7 +124,7 @@ class ShareExportJobsTest {
         val reported = CompletableDeferred<Unit>()
         val id = jobs.newId("pdf")
         jobs.start(id, "PDF", null, direct = true) { report ->
-            report(40, "Frame 2 of 5…")
+            report(40.5, "Frame 2 of 5…")
             reported.complete(Unit)
             release.await()
             file("pdf") to "application/pdf"
@@ -133,7 +133,7 @@ class ShareExportJobsTest {
         jobs.sendToBackground(id)
 
         assertEquals(
-            ShareExportJobs.Running(id, "PDF", 40, "Frame 2 of 5…", background = true),
+            ShareExportJobs.Running(id, "PDF", 40.5, "Frame 2 of 5…", background = true),
             jobs.running.value.getValue(id),
         )
         release.complete(Unit)

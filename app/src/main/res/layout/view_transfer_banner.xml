@@ -50,24 +50,53 @@
                 android:textStyle="bold"
                 tools:text="Export my data" />
 
-            <TextView
-                android:id="@+id/tvTransferStatus"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                tools:text="42%" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvTransferStatus"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    tools:text="Frame 12 of 40 · heatmaps" />
+
+                <TextView
+                    android:id="@+id/tvTransferPercent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_8"
+                    android:textAppearance="@style/TextAppearance.Semper.Numeric"
+                    android:visibility="gone"
+                    tools:text="30.0%"
+                    tools:visibility="visible" />
+            </LinearLayout>
 
             <com.google.android.material.progressindicator.LinearProgressIndicator
                 android:id="@+id/transferProgress"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="6dp"
+                android:max="1000"
                 app:indicatorColor="@color/sky_primary"
                 app:trackColor="@color/surface_muted"
                 app:trackThickness="4dp" />
+
+            <TextView
+                android:id="@+id/tvTransferEta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_4"
+                android:textAppearance="@style/TextAppearance.Semper.Numeric"
+                android:visibility="gone"
+                tools:text="About 35 s left"
+                tools:visibility="visible" />
         </LinearLayout>
 
         <ImageButton

@@ -150,7 +150,7 @@ class SettingsYourDataSection(
         job = activity.lifecycleScope.launch {
             try {
                 val produced = produce { done, total ->
-                    val pct = if (total > 0) done * SettingsActivity.PERCENT / total else 0
+                    val pct = if (total > 0) done * SettingsActivity.PERCENT.toDouble() / total else 0.0
                     activity.runOnUiThread {
                         activity.transferBanner.updateProgress(
                             kind.key,

@@ -156,8 +156,10 @@ delete stay on the Activity.
 | Help & support | `ui/settings/SettingsHelpSupportSection` | mailto / hosted pages |
 
 Long jobs are non-modal: `ui/common/transfer/TransferBannerController` carries restores,
-bundle downloads and both exports. Terminal restore failures are observed here
-as well as on Home.
+bundle downloads and both exports. Each page shows its status, the percent to one
+decimal and, once `EtaEstimator` has an answer, "About N s left"; a restore or download
+reads "4.2 of 12.0 MB · 1.1 MB/s" from its worker's progress Data (`TransferBytes`).
+Terminal restore failures are observed here as well as on Home.
 
 Tests: `settings/AnalysisEntriesTest`, `settings/HelpSupportSectionTest`,
 `settings/DeleteAccountReauthTest`, `settings/AppSettingsMigrateTest`,
@@ -281,7 +283,7 @@ CloudSync.enqueueUpload → DicUploadWorker.doWork → backUp
 | Decisions | `data/cloud/UploadWorkOutcomes` — HTTP → retry/fail, resume classification, staging reuse, verified `Session.zip`, incomplete staging (`classifyIncompleteStaging`: retry while the reference/`.dat` inputs exist, the row was saved < 15 min ago, or they have been missing < 10 min by the `<sessionDir>/upload_inputs_missing_since` marker; else terminal `inputs_missing`) |
 | Writes | `<sessionDir>/upload_staging/`, sync state + `cloudSessionId` on the index row; `StorageBudget.enforce` runs at the end |
 | Fails as | Terminal: `IntentKeys.UPLOAD_FAIL_REASON` in the worker output → Home pill + cloud icon dialog. Retryable: `Result.retry()` with a Timber `Upload RETRY` line |
-| Signals | `data/cloud/TransferNotifications` foreground notification; `IntentKeys.UPLOAD_PHASE` / `UPLOAD_PERCENT` progress; `SemperAnalytics` cloud_upload_* buckets; the backend's `X-Request-Id` appended by `UploadWorkOutcomes.withRef` |
+| Signals | `data/cloud/TransferNotifications` foreground notification (bar, bytes, rate, percent, time left); `data/cloud/TransferResultNotifications` "… is backed up" / failure reason with Retry (`TransferRetryReceiver`); `IntentKeys.UPLOAD_PHASE` / `UPLOAD_PERCENT` progress, plus `TRANSFER_BYTES_*` while bytes go to Drive; `SemperAnalytics` cloud_upload_* buckets; the backend's `X-Request-Id` appended by `UploadWorkOutcomes.withRef` |
 | Tests | `cloud/UploadResumableTest`, `cloud/DicUploadWorkerOutcomesTest`, `cloud/UploadChunkSizingTest`, `cloud/BackupSplitTest`, `cloud/SessionZipTest`, `cloud/WaitingUploadsTest` |
 
 `doWork` may be broken into named steps, but the resume contract depends on
@@ -352,7 +354,11 @@ only when the backend *confirms* a blob is missing (`C8` returns `MISSING`, not
 | Everything in the cloud | Settings **Download my cloud account data** | `SemperApi.exportAccount` (streamed) → C12 → `SendToSheet` |
 | Viewer exports | A8 Share | `ui/viewer/share/ShareCenter` → `report/*` → `SendToSheet` |
 
-All three run behind `ui/common/transfer/TransferBannerController`, not a modal dialog.
+The two Settings exports run behind `ui/common/transfer/TransferBannerController`, not a
+modal dialog. A viewer export starts in `ui/common/dialog/DeterminateProgressDialog`
+(status, percent to one decimal, time left; every kind but the one-photo share reports
+frame by frame or field by field, `ui/viewer/share/ExportProgress`) and moves to the same
+banner when the dialog is dismissed.
 Tests: `cloud/SessionEverythingExporterTest`, `results/*`.
 
 ### B9 Delete the account 🔒
@@ -410,10 +416,22 @@ parameter chip and pasted in A5.2. In memory only.
 
 ### B15 Transfer progress surfaces
 
-One notification channel (`semper_transfers`, `data/cloud/TransferNotifications`)
-carrying upload, restore and download; per-row state icons, progress text and bars on Home; the
-`TransferBannerController` strip in Settings and the viewer. There are no
-completion notifications by design — terminal failures surface in-app.
+One notification channel (`semper_transfers`). `data/cloud/TransferNotifications`
+builds the running upload, restore and download notifications: a spinning bar until the
+worker reports, then the bar, "4.2 of 12.0 MB · 1.1 MB/s" and "34.6% · About 35 s left"
+(`TransferMeter`; an upload still staging says "Preparing the backup"). The upload
+updates it from `UploadProgressSampler`; the two downloads at most once a second
+(`TransferProgressUpdates`). `data/cloud/TransferResultNotifications` posts the outcome:
+"steel_00 is backed up / restored / saved", or "… was not …" with the reason and, for a
+backup or a restore, a Retry that `TransferRetryReceiver` turns into the same unique
+work again. A failure without a reason (the upload's quota stop) and a retry post
+nothing. Outcomes need the notification permission, which the app declares but never
+asks for, so from Android 13 on they show only once the user allows notifications.
+On Home each row has its state icon, and while a transfer runs a progress line and bar
+fed by the same byte counts (`TransferWorkObserver.RowProgress`, "Backing up · 4.2 of
+12 MB"); the `TransferBannerController` strip in Settings and the viewer. Tests:
+`data/cloud/TransferNotificationTextTest`, `data/cloud/TransferRetryReceiverTest`,
+`data/cloud/TransferMeterTest`.
 
 ---
 

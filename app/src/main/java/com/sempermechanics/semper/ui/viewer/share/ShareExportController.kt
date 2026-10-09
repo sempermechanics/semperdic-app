@@ -55,7 +55,7 @@ internal class ShareExportController(
         title: String,
         destUri: Uri?,
         direct: Boolean,
-        produce: suspend (report: (Int, String) -> Unit) -> Pair<File, String>,
+        produce: suspend (report: ExportReport) -> Pair<File, String>,
     ) {
         jobs.start(jobs.newId(kind.wire), title, destUri, direct, produce)
     }

@@ -4,7 +4,9 @@
 
 package com.sempermechanics.semper.ui.viewer.share
 
+import android.content.res.Resources
 import android.graphics.Bitmap
+import com.sempermechanics.semper.R
 import com.sempermechanics.semper.field.DicResult
 import com.sempermechanics.semper.imaging.ImageEncoder
 import com.sempermechanics.semper.ui.viewer.share.ShareExportBuilder.Companion.FIELDS
@@ -23,6 +25,7 @@ import java.util.zip.ZipOutputStream
  */
 internal class BundleExport(
     private val s: ShareCenter.Snapshot,
+    private val resources: Resources,
     private val outDir: File,
     private val images: FieldImageExport,
     private val dataFiles: DataExport,
@@ -39,26 +42,31 @@ internal class BundleExport(
      *     └── results/<NNN_frame>/             U, V, Exx, Eyy, Exy per frame
      * ```
      */
-    suspend fun everythingZip(report: (Int, String) -> Unit = { _, _ -> }): File {
-        // The PDF is the long pole; give it the first 60% of the bar, then the
-        // per-frame result images the last 40%.
-        val pdf = dataFiles.allFramesPdf { pct, label -> report(pct * 60 / 100, label) }
-        val csv = dataFiles.batchCsv()
-        val animations = if (s.isSweep) emptyList() else dataFiles.fieldAnimations()
-        report(62, "Bundling files…")
+    suspend fun everythingZip(report: ExportReport = NO_REPORT): File {
+        // The PDF is the long pole: the first 55% of the bar. Each later stage
+        // reports its own frames inside its share, so the bar never stands
+        // still between stages (a sweep has no animations; its CSV takes theirs).
+        val pdf = dataFiles.allFramesPdf(report.within(0.0, 55.0))
+        val csvEnd = if (s.isSweep) 72.0 else 62.0
+        val csv = dataFiles.batchCsv(report.within(55.0, csvEnd))
+        val animations = if (s.isSweep) emptyList() else dataFiles.fieldAnimations(report.within(csvEnd, 72.0))
+        report(72.0, resources.getString(R.string.share_progress_zip_photos))
         val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         val f = File(outDir, "${s.baseName}_everything_$ts.zip")
+        val heatmaps = report.within(75.0, 98.0)
+        val writing = resources.getString(R.string.share_progress_zip_writing)
         ZipOutputStream(f.outputStream().buffered()).use { zip ->
             addRawPhotos(zip, ts)
             for (gif in animations) Zips.putFile(zip, "photos_$ts/animations/${gif.name}", gif)
             addResultImages(zip, ts) { done, total ->
-                report(70 + (if (total > 0) done * 30 / total else 0), "Adding result images…")
+                heatmaps.step(resources, done, total, R.string.share_progress_zip_heatmaps_fmt)
             }
+            report(98.0, writing)
             // Home of the archive: the data table and the full report.
             Zips.putFile(zip, "${s.baseName}_data.csv", csv)
             Zips.putFile(zip, "${s.baseName}_report.pdf", pdf)
         }
-        report(100, "Bundling files…")
+        report(100.0, writing)
         return f
     }
 
@@ -90,14 +98,18 @@ internal class BundleExport(
         }
     }
 
-    /** `photos_{ts}/results/<NNN_frame>/` — every field's annotated heatmap per frame. */
+    /**
+     * `photos_{ts}/results/<NNN_frame>/` — every field's annotated heatmap per
+     * frame. [onProgress] hears (frames done, frame count) before each frame
+     * and once when the last is in.
+     */
     private fun addResultImages(
         zip: ZipOutputStream,
         ts: String,
         onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
     ) {
         for ((index, file) in s.batchFiles.withIndex()) {
-            onProgress(index + 1, s.batchFiles.size)
+            onProgress(index, s.batchFiles.size)
             val data = DicResult.decodeDatFile(file) ?: continue
             // Numbered by the planned frame, like the cloud bundle's Frame_N, so
             // a frame after a skipped one keeps its own number and name.
@@ -112,6 +124,7 @@ internal class BundleExport(
                 images.recycleBaseCache(baseCache)
             }
         }
+        onProgress(s.batchFiles.size, s.batchFiles.size)
     }
 
     private fun addFrameResultImages(

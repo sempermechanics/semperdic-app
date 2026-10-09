@@ -51,8 +51,17 @@ object TransferWork {
          * Running. [percent] is the stored [IntentKeys.UPLOAD_PERCENT], or null
          * before the first report (Home skips the row; Settings shows 0).
          * [localSessionId] is the analysis the job reports for, when it does.
+         * [bytes] is set while the phase counts bytes ([TransferBytes.read]).
          */
-        data class Running(val phase: TransferPhase, val percent: Int?, val localSessionId: String?) : State
+        data class Running(
+            val phase: TransferPhase,
+            val percent: Int?,
+            val localSessionId: String?,
+            val bytes: TransferBytes? = null,
+        ) : State {
+            /** The percent with its fraction when bytes are counted, else the stored whole percent. */
+            val exactPercent: Double? get() = bytes?.percent ?: percent?.toDouble()
+        }
 
         data object Succeeded : State
 
@@ -71,6 +80,7 @@ object TransferWork {
             },
             percent = info.progress.keyValueMap[IntentKeys.UPLOAD_PERCENT] as? Int,
             localSessionId = info.progress.getString(IntentKeys.SESSION_LOCAL_ID),
+            bytes = TransferBytes.read(info.progress),
         )
         WorkInfo.State.SUCCEEDED -> State.Succeeded
         WorkInfo.State.FAILED -> State.Failed(info.outputData.getString(kind.failureKey))
