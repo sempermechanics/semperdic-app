@@ -302,6 +302,17 @@ paths:
           in: path
           required: true
           type: string
+        - name: page_size
+          in: query
+          required: false
+          type: integer
+          default: 1000
+          description: Page size (1..1000); clamped server-side.
+        - name: page_token
+          in: query
+          required: false
+          type: string
+          description: Opaque cursor from a previous nextPageToken.
       responses:
         '200': { description: OK }
         '401': { description: Missing or invalid device attestation }
@@ -337,6 +348,17 @@ paths:
           in: path
           required: true
           type: string
+        - name: page_size
+          in: query
+          required: false
+          type: integer
+          default: 1000
+          description: Page size (1..1000); clamped server-side.
+        - name: page_token
+          in: query
+          required: false
+          type: string
+          description: Opaque cursor from a previous nextPageToken.
       responses:
         '200': { description: OK }
         '404': { description: session_not_found }
