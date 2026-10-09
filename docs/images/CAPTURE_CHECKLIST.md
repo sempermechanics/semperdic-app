@@ -30,7 +30,7 @@ distort.
 | `speckle-span-warning.png` | §4 (new) | *(2026-09-10, dark)* Step 2 with the subset-span chip under the slider — a 7.1 px pattern against a 15 px subset, asking for 23 |
 | `running.png` | §4 | *(2026-10-08, light, Pixel_5 AVD)* Mid-run: "Frame N of M", time left, the convergence line over several frames, "Correlating frame N · X%" under it |
 | `roi-editor.png` | §6 | Draw + Crop mode, one rectangle drawn, HUD showing `W × H at (x, y)` |
-| `step3-sweep.png` | §7 | *(due: L4b sweep steps)* Sweep settings: subset and strain window ranges with the VSG caption, step ÷ N with overlap, **Line cut axis** over the small preview, and "Run N analyses · about T" |
+| `step3-sweep.png` | §7 | Sweep settings: subset and strain window ranges with the VSG caption, step ÷ N with overlap, **Line cut axis** over the small preview, and "Run N analyses · about T" |
 | `result-lattice.png` | §7 | Summary line above the lattice, hollow (skipped) nodes, **All / Node** pill visible |
 | `result-viewer.png` | §8 | Exx strain field with full chrome: back · title · ⓘ · Home · share along the top, field pills + scale + scrub along the bottom |
 | `settings-used.png` | §8 | ⓘ details sheet on a sweep result, line-cut section showing. Still missing: a run that stopped early, to show the "Stopped early / Frames solved" rows |
