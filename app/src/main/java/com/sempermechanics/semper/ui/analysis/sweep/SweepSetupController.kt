@@ -332,7 +332,7 @@ class SweepSetupController(
         val res = activity.resources
         val scroll = lineCutPreview.parent as ViewGroup
         val strip = res.getDimensionPixelSize(R.dimen.line_cut_preview_strip)
-        var width = ViewGroup.LayoutParams.MATCH_PARENT
+        var width = ViewGroup.LayoutParams.WRAP_CONTENT
         var height = strip
         if (open) {
             val w = viewModel.realRefWidth

@@ -351,9 +351,10 @@
                 android:fillViewport="true"
                 android:scrollbars="none">
 
+                <!-- wrap_content: fillViewport stretches it to the page as a strip. -->
                 <com.sempermechanics.semper.ui.analysis.sweep.LineCutPreviewView
                     android:id="@+id/lineCutPreview"
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="@dimen/line_cut_preview_strip"
                     android:background="?attr/selectableItemBackground"
                     android:clickable="true"
