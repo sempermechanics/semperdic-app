@@ -9,6 +9,7 @@ import com.sempermechanics.semper.data.account.LicenseEntitlements
 import com.sempermechanics.semper.data.net.AccountCache
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.net.SemperApi
+import com.sempermechanics.semper.data.session.SessionQuota
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.ui.limit.SessionLimitActivity
 import kotlinx.coroutines.Dispatchers
@@ -30,11 +31,18 @@ internal class HomeQuotaCard(
 ) {
 
     /**
-     * At the account's analysis limit, opens the persistent limit screen
-     * (email support) and says so; Home's every quota gate goes through here.
+     * At the account's analysis limit ([SessionQuota.blocked]), opens the
+     * persistent limit screen (email support) and says so; Home's every quota
+     * gate goes through here. [localCount] is the phone's rows when the caller
+     * has just counted them; a tap on the main thread uses the count the
+     * index's last write stored ([SessionQuota.blockedNow]).
      */
-    fun openLimitScreenIfReached(): Boolean {
-        val reached = AccountCache.isSessionLimitReached(activity)
+    fun openLimitScreenIfReached(localCount: Int? = null): Boolean {
+        val reached = if (localCount != null) {
+            SessionQuota.blocked(activity, localCount)
+        } else {
+            SessionQuota.blockedNow(activity)
+        }
         if (reached) activity.startActivity(Intent(activity, SessionLimitActivity::class.java))
         return reached
     }
@@ -51,12 +59,12 @@ internal class HomeQuotaCard(
      * latest server truth; newly at the cap, opens the limit screen.
      */
     suspend fun recordReconciled(quotaUsed: Int) {
-        val wasLimited = AccountCache.isSessionLimitReached(activity)
         val localCount = withContext(Dispatchers.IO) { SessionStore.list(activity).size }
+        val wasLimited = SessionQuota.blocked(activity, localCount)
         // Ceiling is owned by AppRemoteConfig (refreshed by the same
         // reconcile's config fetch); only the used count is stored here.
         AccountCache.setQuota(activity, quotaUsed, localCount)
-        if (!wasLimited) openLimitScreenIfReached()
+        if (!wasLimited) openLimitScreenIfReached(localCount)
     }
 
     private fun updateQuotaIndicator(localSessionCount: Int) {

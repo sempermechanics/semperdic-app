@@ -10,21 +10,25 @@ import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.field.DicParams
 import com.sempermechanics.semper.field.Roi
 import com.sempermechanics.semper.field.RunStop
+import com.sempermechanics.semper.fixtures.QuotaBackendOn
+import com.sempermechanics.semper.fixtures.sessionRecord
 import com.sempermechanics.semper.ui.analysis.frames.DeformedFrame
 import com.sempermechanics.semper.ui.analysis.run.BatchRun
 import com.sempermechanics.semper.ui.analysis.run.RunSpec
 import com.sempermechanics.semper.ui.analysis.run.runBatchAnalysisBody
+import com.sempermechanics.semper.ui.analysis.run.saveRunRecord
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.BatchAnalysisOutcome
 import com.sempermechanics.semper.ui.analysis.wizard.BatchProgressUpdate
-import com.sempermechanics.semper.ui.analysis.wizard.sessionLimitOutcome
+import com.sempermechanics.semper.ui.analysis.wizard.RunAdmission
+import com.sempermechanics.semper.ui.analysis.wizard.admitRun
 import kotlinx.coroutines.Job
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -37,6 +41,9 @@ import org.robolectric.RobolectricTestRunner
  */
 @RunWith(RobolectricTestRunner::class)
 class BatchAnalysisLimitTest {
+
+    @get:Rule
+    val backend = QuotaBackendOn()
 
     private lateinit var ctx: Context
     private val vm = AnalysisViewModel()
@@ -59,6 +66,7 @@ class BatchAnalysisLimitTest {
     @After
     fun tearDown() {
         AccountCache.clear(ctx)
+        SessionStore.deleteAll(ctx)
     }
 
     private fun run(): BatchAnalysisOutcome {
@@ -82,10 +90,10 @@ class BatchAnalysisLimitTest {
     @Test
     fun `the stop is for new sessions only`() {
         AccountCache.setQuota(ctx, used = 1)
-        assertNotNull(vm.sessionLimitOutcome(ctx, 3, sweep = false))
+        assertTrue(vm.admitRun(ctx, 3, sweep = false) is RunAdmission.Blocked)
         vm.workingLocalId = "existing_row"
-        assertNull("a re-run reuses its Home row and costs nothing", vm.sessionLimitOutcome(ctx, 3, sweep = false))
-        assertNotNull("a sweep after a single run is a new row", vm.sessionLimitOutcome(ctx, 3, sweep = true))
+        assertEquals("a re-run reuses its Home row and costs nothing", RunAdmission.Rerun, vm.admitRun(ctx, 3, false))
+        assertTrue("a sweep after a single run is a new row", vm.admitRun(ctx, 3, sweep = true) is RunAdmission.Blocked)
         assertEquals("a blocked sweep keeps the single run's id", "existing_row", vm.workingLocalId)
     }
 
@@ -93,8 +101,37 @@ class BatchAnalysisLimitTest {
     fun `before the config arrives a demo account is held to the demo cap`() {
         AccountCache.clear(ctx)
         AccountCache.setQuota(ctx, used = LicenseEntitlements.DEMO_MAX_ANALYSES - 1)
-        assertNull(vm.sessionLimitOutcome(ctx, 3, sweep = false))
+        assertEquals(RunAdmission.Admitted, vm.admitRun(ctx, 3, sweep = false))
         AccountCache.setQuota(ctx, used = LicenseEntitlements.DEMO_MAX_ANALYSES)
-        assertNotNull(vm.sessionLimitOutcome(ctx, 3, sweep = false))
+        assertTrue(vm.admitRun(ctx, 3, sweep = false) is RunAdmission.Blocked)
     }
+
+    @Test
+    fun `a run admitted under the cap saves after crossing it, and the next start is blocked`() {
+        AccountCache.setQuota(ctx, used = 0)
+        val admission = vm.admitRun(ctx, 3, sweep = false)
+        assertEquals(RunAdmission.Admitted, admission)
+
+        // While it solves, the account fills: an upload's 409 forces the stop.
+        AccountCache.setSessionLimitReached(ctx, true)
+        val saved = saveRunRecord(ctx, row("admitted"), cloudEnabled = false, admitted = admission.admitted)
+
+        assertEquals("only starting is blocked", SessionStore.UpsertOutcome.SAVED, saved)
+        assertTrue(
+            "the next new run is not admitted",
+            AnalysisViewModel().admitRun(ctx, 3, sweep = false) is RunAdmission.Blocked,
+        )
+    }
+
+    @Test
+    fun `the start counts the index's rows, not a stale stored count`() {
+        AccountCache.setQuota(ctx, used = 0)
+        // A row on the phone the stored count has not seen (cleared since).
+        assertTrue(SessionStore.upsert(ctx, row("on_phone"), allowOverLimit = true))
+        AccountCache.setQuota(ctx, used = 0, localCount = 0)
+
+        assertTrue("1 row at a ceiling of 1", vm.admitRun(ctx, 3, sweep = false) is RunAdmission.Blocked)
+    }
+
+    private fun row(id: String) = sessionRecord(id = id, createdAt = 1L, refPath = "ref.png", sessionDir = "/dir/$id")
 }

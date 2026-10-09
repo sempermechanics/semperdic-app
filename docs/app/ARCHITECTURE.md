@@ -194,7 +194,7 @@ gating input anywhere in `LicenseEntitlements`.
 | Cached config, wire → prefs | `data/net/AppRemoteConfig.kt` (`AppConfigDto` in `ApiDtos.kt`) |
 | Redeem a key | `SemperApi.activateLicense()` |
 | Expiry notice | `LicenseEntitlements.expiryNoticeDays()` — advisory only; suppressed on a cache older than a week. `mode` stays the only gate. See [WORKFLOWS.md §9.3](WORKFLOWS.md#9-session-limit) |
-| Local analysis cap | `LicenseEntitlements.analysisCap()` — the backend's `maxSessions` once known; before that demo 25, licensed uncapped; see [WORKFLOWS.md §9](WORKFLOWS.md#9-session-limit) |
+| Local analysis cap | `SessionQuota.blocked()` (`data/session/SessionQuota.kt`) — the one rule every start check and a new row's save ask: no cap with no backend or for licensed before its config; blocked once an upload's 409 forced the stop; otherwise blocked when max(server count, the phone's rows) reaches `LicenseEntitlements.analysisCap()` (the backend's `maxSessions` once known; before that demo 25, licensed uncapped). A run admitted at its start saves even if the cap fills meanwhile; see [WORKFLOWS.md §9](WORKFLOWS.md#9-session-limit) |
 
 ## Storage, diagnostics and the parameter clipboard
 
