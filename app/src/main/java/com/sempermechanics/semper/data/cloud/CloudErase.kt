@@ -1,8 +1,11 @@
 package com.sempermechanics.semper.data.cloud
 
 import android.content.Context
+import com.sempermechanics.semper.data.account.AuthRepository
 import com.sempermechanics.semper.data.cloud.CloudSync.AccountDeletion
+import com.sempermechanics.semper.data.cloud.CloudSync.AccountProbe
 import com.sempermechanics.semper.data.cloud.CloudSync.EraseOutcome
+import com.sempermechanics.semper.data.net.ApiErrors
 import com.sempermechanics.semper.data.net.Authed
 import com.sempermechanics.semper.data.net.CloudApi
 import com.sempermechanics.semper.data.net.HttpFailure
@@ -10,6 +13,7 @@ import com.sempermechanics.semper.data.net.TokenSource
 import com.sempermechanics.semper.data.net.authed
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -62,6 +66,26 @@ internal object CloudErase {
     }
 
     /**
+     * [deleteAccount] with the real steps: [eraseCloud], then the identity
+     * delete, the local wipe and the sign-out, on the IO dispatcher.
+     */
+    suspend fun deleteAccount(
+        context: Context,
+        api: CloudApi,
+        tokens: TokenSource,
+        eraseCloud: suspend () -> Boolean,
+    ): AccountDeletion = withContext(Dispatchers.IO) {
+        val appContext = context.applicationContext
+        val auth = AuthRepository(appContext, api, tokens)
+        deleteAccount(
+            eraseCloud = eraseCloud,
+            deleteIdentity = { auth.deleteIdentity().isSuccess },
+            wipeLocal = { SessionStore.deleteAll(appContext) },
+            signOut = { auth.signOut() },
+        )
+    }
+
+    /**
      * Erase the account in the cloud, saying how it went: [Authed.Ok] (erased),
      * [Authed.Disabled] (no backend, so nothing to erase), [Authed.NoToken], or
      * [Authed.Failed] with the failure's [HttpFailure.Kind] (a refused token, a
@@ -80,6 +104,54 @@ internal object CloudErase {
             else -> Unit
         }
         return erased
+    }
+
+    /**
+     * A session id no backend session has (they are uuid4 hex), so the probe's
+     * route answers 404 `session_not_found` for an account that still exists.
+     */
+    const val PROBE_SESSION_ID = "account-deletion-probe"
+
+    /**
+     * Whether the account this phone is signed in to was erased, for a deletion
+     * whose erase was sent and never answered.
+     *
+     * `DELETE /v1/me` cannot be asked again to find out: it is device-signed,
+     * and the erase removed the device record. Neither can `GET /v1/me`: any
+     * authenticated call re-creates an empty profile for an erased account
+     * (`get_or_create_user`, `backend/app/repo/users.py:170`), approved for an
+     * auto-approved address, so a 200 does not mean the old account is there.
+     * What tells them apart is that device record, so the probe is a
+     * device-signed read with nothing behind it ([PROBE_SESSION_ID]):
+     *
+     * - 409 `device_not_active`: the device record is gone, so the erase landed.
+     * - 403 `not_approved`: the profile is a new, pending one (the erase needed
+     *   an approved account), so the erase landed.
+     * - 404 `session_not_found`: the device and account are still there.
+     * - Anything else (no network, a 5xx, no token) says nothing.
+     */
+    suspend fun probeErasedAccount(api: CloudApi, tokens: TokenSource): AccountProbe =
+        api.authed(tokens) { token -> listSessionUploads(token, PROBE_SESSION_ID) }.toProbe()
+
+    /** What [probeErasedAccount]'s answer means; see there. */
+    fun Authed<*>.toProbe(): AccountProbe = when (this) {
+        // The route answering 200 for no session cannot happen; if it did, the account is there.
+        is Authed.Ok -> AccountProbe.STILL_THERE
+        // No backend: there was nothing to erase.
+        Authed.Disabled -> AccountProbe.STILL_THERE
+        Authed.NoToken -> AccountProbe.UNKNOWN
+        is Authed.Failed -> failure.toProbe()
+    }
+
+    private fun HttpFailure.toProbe(): AccountProbe = when {
+        kind == HttpFailure.Kind.DEVICE_NOT_ACTIVE || kind == HttpFailure.Kind.NOT_APPROVED -> AccountProbe.GONE
+        kind == HttpFailure.Kind.FORBIDDEN && ApiErrors.hasCode(body, ApiErrors.NOT_APPROVED) -> AccountProbe.GONE
+        kind == HttpFailure.Kind.NOT_FOUND && ApiErrors.hasCode(body, ApiErrors.SESSION_NOT_FOUND) ->
+            AccountProbe.STILL_THERE
+        else -> {
+            Timber.w(cause, "Could not tell whether the account was erased (%s)", kind)
+            AccountProbe.UNKNOWN
+        }
     }
 
     /** The account's cloud data is gone: erased, or there was never a backend. */

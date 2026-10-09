@@ -921,7 +921,10 @@ verified, both are live; §1.13a covers the in-app reset form it opens.
 - **Account deletion re-authenticates first** (password prompt, or a fresh Google
   credential), so `delete()` is no longer refused as stale and the identity goes
   with the data. If it still fails the user is told the data is gone but the
-  sign-in survived, and is signed out regardless.
+  sign-in survived, and is signed out regardless. Killed mid-deletion, the app
+  finishes it at the next start: the wipe and sign-out when the erase had
+  answered, or when a probe shows the account gone; nothing when the account
+  is still there; the question waits for the start after when offline.
 - **Email verification is enforced for password accounts.** Sign-up and every
   later sign-in are blocked until the address is confirmed; the session is torn
   down and a fresh link sent. Google and email-link users are exempt — both
