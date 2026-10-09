@@ -99,6 +99,7 @@ internal class FrameJumpController(private val host: ResultViewerActivity) {
         host.inspect.dismissProbe()
         host.summary.show()
         binding.tvFrameCounter.text = host.summary.counterText()
+        binding.tvFrameCounter.visibility = View.VISIBLE
         binding.layoutFrameJump.visibility = View.GONE
         binding.tvFinding.text = host.captions.title()
         updateNavButtons()
@@ -108,6 +109,8 @@ internal class FrameJumpController(private val host: ResultViewerActivity) {
     private fun leaveSummary() {
         showingSummary = false
         host.summary.hide()
+        // On a frame the jump field ("3 / 5") is the count; the pill is the summary's.
+        binding.tvFrameCounter.visibility = View.GONE
         binding.layoutFrameJump.visibility = View.VISIBLE
         updateNavButtons()
         // Re-apply the frame's own labels and heatmap after the summary's.
