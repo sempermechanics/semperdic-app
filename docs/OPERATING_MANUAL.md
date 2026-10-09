@@ -593,11 +593,14 @@ the lattice onto one combination instead; there is no overview slot.
 (Playback needs Android 9 or newer. Below that you get the first frame
 and a note; single-setting field GIFs still export.)
 
-**Frames.** Prev / Next step through; the counter shows the filename and
-`(i / N)`. Type a number in the small field under it and press Go to jump
-straight to that frame — useful at 150 frames. Anything out of range leaves you
-where you are. On a sweep each frame is a parameter combination, labelled like
-`S15 · St5 · W13 · VSG 61`.
+**Frames.** Prev / Next step through. The title at the top names what is on
+screen — *Summary*, or the frame's file name without its extension — and the
+field button beside it names the field. The pill under the frame counts:
+`i / N` on a frame, `5 frames` on the summary. Type a number in the small field
+under it and press Go to jump straight to that frame — useful at 150 frames.
+Anything out of range leaves you where you are. On a sweep each frame is a
+parameter combination, titled like `Subset 15 · window 3` (the strain window in
+data points; the step is always the subset divided by the sweep's N).
 
 ### Settings used
 

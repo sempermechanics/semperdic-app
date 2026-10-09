@@ -634,7 +634,7 @@ node. **Exit:** Home, or back to the Lattice.
 | [ ] 8.1.1c | Open a large result (many frames, a big image) | Past ~0.3 s a centred pill with a spinner reads "Opening <reference name> · N frames" ("1 frame" for one); it goes once the first frame's heatmap draws, or when the frame cannot be read. Nothing else on screen moves for it |
 | [ ] 8.1.1a | Step through the frames of a run whose specimen visibly deforms | The photo under the map changes with each frame and the map stays on the specimen. A sweep shows its one deformed photo under every node |
 | [ ] 8.1.1b | Open a session whose deformed photos are not on the phone | Each frame falls back to the reference photo, with the map at the reference positions, still lined up |
-| [ ] 8.1.2 | Tap the field FAB, then pick V / Exx / Eyy / Exy | Heatmap and colour scale follow; edge title updates; the live field stays checked in the popup |
+| [ ] 8.1.2 | Tap the field FAB, then pick V / Exx / Eyy / Exy | Heatmap and colour scale follow; the FAB names the field (the edge title does not repeat it); the live field stays checked in the popup |
 | [ ] 8.1.2a | Open the field popup | All five fields are listed; the one on screen is highlighted |
 | [ ] 8.1.2b | Check fit at rest | Heatmap (ROI or accepted points) is contained between the top bar and scrub bar; the colour scale may overlay the right edge and stays put while the figure pans |
 | [ ] 8.1.2c | Zoom, pan a region that was under the scale into the open area, then tap to probe | Probe readout shows a real point; tapping the scale itself still opens the custom-scale dialog, not a probe |
@@ -655,8 +655,9 @@ node. **Exit:** Home, or back to the Lattice.
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 8.2.1 | Read the frame counter | The original filename (or the sweep label) plus "(i / N)" |
-| [ ] 8.2.1a | Open a batch the run skipped a frame of (one kept no points or would not read) | Every later frame keeps its own filename — in the counter, the share CSV's `image` column, each PDF page title and the ZIP's `results/NNN_<name>/` folders, numbered as planned (frame 3 stays `003_…`) — matching the cloud backup's CSV and `Frame_N` folders |
+| [ ] 8.2.1 | Read the edge title and the counter pill | The title is the frame's original filename without its extension ("steel_03"; "Frame 3" when unnamed); the pill under the frame reads "i / N" alone |
+| [ ] 8.2.1b | Open a sweep node | The title reads "Subset 15 · window 3": the node's subset and its strain window in data points (the step is left out). A sweep from before windows were counted in points keeps its stored label |
+| [ ] 8.2.1a | Open a batch the run skipped a frame of (one kept no points or would not read) | Every later frame keeps its own filename — in the edge title, the share CSV's `image` column, each PDF page title and the ZIP's `results/NNN_<name>/` folders, numbered as planned (frame 3 stays `003_…`) — matching the cloud backup's CSV and `Frame_N` folders |
 | [ ] 8.2.2 | Tap **Next** | Advances one frame; the heatmap and stats update |
 | [ ] 8.2.3 | Reach the last frame | **Next** disables and fades |
 | [ ] 8.2.4 | Reach the first frame | **Prev** goes back to the summary, not nowhere |
@@ -680,7 +681,7 @@ onto a combination, with no summary slot and no Animations share target).
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 8.2a.1 | Open a result | It lands on the summary, which builds and then loops. The **counter** reads "Summary GIF"; the **edge title** carries "<field> · Summary" |
+| [ ] 8.2a.1 | Open a result | It lands on the summary, which builds and then loops. The **edge title** reads "Summary"; the **counter** pill counts the frames it plays ("5 frames") |
 | [ ] 8.2a.1b | Open a result with a sub-frame ROI (or a small accepted patch) | The summary GIF is framed on that coloured region — same rest-fit contain scale as the live viewer, not a letterboxed full photo |
 | [ ] 8.2a.1a | Watch it build | Determinate progress with a status ("Reading frames…", then "Rendering <field>…") and a **Cancel** button |
 | [ ] 8.2a.2 | Watch a short (≤33 frame) analysis | Each frame is visible for about 300 ms |
