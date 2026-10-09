@@ -50,6 +50,7 @@ class RunChromeTest {
             percent = TextView(activity),
             status = TextView(activity),
             elapsed = TextView(activity),
+            eta = TextView(activity),
         )
         chrome = RunChrome(activity, helper, cancel)
     }

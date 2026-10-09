@@ -2,25 +2,25 @@
 // small progress/animation constants read clearest passed and inlined directly.
 @file:Suppress("LongParameterList")
 
-@file:SuppressLint("SetTextI18n")
-
 package com.sempermechanics.semper.ui.analysis.run
 
-import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.sempermechanics.semper.R
 import com.sempermechanics.semper.databinding.ActivityStaticAnalysisBinding
+import com.sempermechanics.semper.ui.analysis.wizard.BatchProgressUpdate
+import com.sempermechanics.semper.ui.common.EtaEstimator
 import com.sempermechanics.semper.util.OverlayFormats
-import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * Owns the compute / video-extraction progress overlay: visibility, progress
- * ring, status line, and the one-second elapsed ticker.
+ * Owns the compute / import progress overlay: visibility, the progress ring,
+ * time left and elapsed, the status line and, for a batch run, the frame count,
+ * pace and convergence-per-frame graph with its one-strike warning.
  *
  * Progress ticks are coalesced (~100 ms) into a single main-thread post that
  * updates all wired widgets together.
@@ -32,11 +32,15 @@ class ComputeOverlayController(
     private val percent: TextView,
     private val status: TextView,
     private val elapsed: TextView,
-    private val runPoints: TextView? = null,
-    private val runConvergence: TextView? = null,
-    private val runTilesRow: View? = null,
+    private val eta: TextView,
+    private val pace: TextView? = null,
+    private val frameCount: TextView? = null,
+    private val convergenceGroup: View? = null,
+    private val convergenceLatest: TextView? = null,
+    private val convergenceLine: ConvergenceLineView? = null,
+    private val strikeWarn: TextView? = null,
 ) {
-    /** The wizard's overlay, with its run tiles. */
+    /** The wizard's overlay, with its run detail. */
     constructor(wizard: ActivityStaticAnalysisBinding) : this(
         overlay = wizard.computeOverlay,
         title = wizard.overlayTitle,
@@ -44,20 +48,26 @@ class ComputeOverlayController(
         percent = wizard.overlayPercent,
         status = wizard.overlayStatus,
         elapsed = wizard.overlayElapsed,
-        runPoints = wizard.tvRunPoints,
-        runConvergence = wizard.tvRunConvergence,
-        runTilesRow = wizard.runTilesRow,
+        eta = wizard.tvRunEta,
+        pace = wizard.tvRunPace,
+        frameCount = wizard.tvRunFrameCount,
+        convergenceGroup = wizard.runConvergenceGroup,
+        convergenceLatest = wizard.tvRunConvergenceLatest,
+        convergenceLine = wizard.convergenceLine,
+        strikeWarn = wizard.tvRunStrikeWarn,
     )
 
+    private val res get() = overlay.resources
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val etaEstimator = EtaEstimator()
     private val elapsedTicker = object : Runnable {
         override fun run() {
-            val ms = System.currentTimeMillis() - processingStartTime
-            elapsed.text = "Elapsed ${OverlayFormats.elapsed(ms)}"
+            elapsed.text = res.getString(R.string.run_elapsed_fmt, OverlayFormats.elapsed(elapsedMs()))
             mainHandler.postDelayed(this, TICK_MS)
         }
     }
 
+    /** Wall-clock start of what the overlay shows; the batch run times itself from it too. */
     var processingStartTime: Long = 0
 
     // Coalesced pending state (any thread may write; flushed on main).
@@ -67,9 +77,7 @@ class ComputeOverlayController(
 
     @Volatile private var pendingTitle: String? = null
 
-    @Volatile private var pendingPoints: Int? = null
-
-    @Volatile private var pendingConvergence: Float? = null
+    @Volatile private var pendingRun: BatchProgressUpdate? = null
 
     private var lastFlushUptimeMs = 0L
     private var flushScheduled = false
@@ -79,25 +87,35 @@ class ComputeOverlayController(
         applyPending()
     }
 
+    /**
+     * Shows the overlay from zero. [showConvergence] is for a batch run: the
+     * frame count, pace and convergence graph. An import, a video extraction
+     * and a sweep show the ring, time left and status only.
+     */
     fun show(
-        title: String = "Computing Strain Field",
-        status: String = "Initializing engine…",
-        showRunTiles: Boolean = true,
+        title: String = res.getString(R.string.computing_strain_field),
+        status: String = res.getString(R.string.initializing_engine),
+        showConvergence: Boolean = true,
     ) {
         mainHandler.removeCallbacks(flushRunnable)
         flushScheduled = false
         clearPending()
+        etaEstimator.reset()
         this.title.text = title
         progress.max = RING_MAX
         progress.progress = 0
-        percent.text = "0.0%"
+        percent.text = RunOverlayText.percent(0f)
         this.status.text = status
-        elapsed.text = "Elapsed ${OverlayFormats.elapsed(0)}"
-        // Reset the run tiles too, so a re-run doesn't flash the PREVIOUS run's
-        // points/convergence until its first frame completes.
-        runPoints?.text = OverlayFormats.compactCount(0)
-        runConvergence?.text = "0.0%"
-        runTilesRow?.visibility = if (showRunTiles) View.VISIBLE else View.GONE
+        elapsed.text = res.getString(R.string.run_elapsed_fmt, OverlayFormats.elapsed(0))
+        eta.setText(R.string.eta_estimating)
+        // Reset the run detail too, so a re-run doesn't flash the PREVIOUS run's
+        // graph and counts until its first frame completes.
+        pace?.visibility = View.GONE
+        frameCount?.visibility = View.GONE
+        strikeWarn?.visibility = View.GONE
+        convergenceLatest?.text = null
+        convergenceLine?.setValues(FloatArray(0))
+        convergenceGroup?.visibility = if (showConvergence) View.VISIBLE else View.GONE
         overlay.visibility = View.VISIBLE
         mainHandler.removeCallbacks(elapsedTicker)
         mainHandler.post(elapsedTicker)
@@ -122,40 +140,27 @@ class ComputeOverlayController(
         clearPending()
     }
 
-    /** Update the overlay's ring + percentage. Safe to call from any thread. */
-    fun setProgress(percent: Float) {
-        pendingPercent = percent.coerceIn(0f, PERCENT)
-        scheduleFlush()
-    }
-
-    /** Update the overlay's status line (e.g. "Processing frame 2/5"). */
-    fun setStatus(text: String) {
-        pendingStatus = text
-        scheduleFlush()
-    }
-
-    /** Update the overlay title. Safe to call from any thread. */
-    fun setTitle(text: String) {
-        pendingTitle = text
+    /** An import, extraction or sweep tick: ring, status, title. Safe to call from any thread. */
+    fun update(percent: Float? = null, status: String? = null, title: String? = null) {
+        if (percent != null) pendingPercent = percent.coerceIn(0f, PERCENT)
+        if (status != null) pendingStatus = status
+        if (title != null) pendingTitle = title
         scheduleFlush()
     }
 
     /**
-     * Single coalesced update for progress + optional run tiles.
-     * Prefer this over separate [setProgress]/[setStatus]/[setTitle] calls.
+     * A batch run's tick. The overlay words its own status from the frame
+     * fields; [BatchProgressUpdate.status] is the engine-side log line.
      */
-    fun update(
-        percent: Float? = null,
-        status: String? = null,
-        title: String? = null,
-        pointsSolved: Int = -1,
-        convergencePercent: Float = -1f,
-    ) {
-        if (percent != null) pendingPercent = percent.coerceIn(0f, PERCENT)
-        if (status != null) pendingStatus = status
-        if (title != null) pendingTitle = title
-        if (pointsSolved >= 0) pendingPoints = pointsSolved
-        if (convergencePercent >= 0f) pendingConvergence = convergencePercent
+    fun updateRun(tick: BatchProgressUpdate) {
+        pendingPercent = tick.percent.coerceIn(0f, PERCENT)
+        // A tick without a snapshot keeps the last one: only frame ends carry it.
+        val previous = pendingRun
+        pendingRun = if (tick.perFrameConvergence == null && previous?.perFrameConvergence != null) {
+            tick.copy(perFrameConvergence = previous.perFrameConvergence)
+        } else {
+            tick
+        }
         scheduleFlush()
     }
 
@@ -180,7 +185,9 @@ class ComputeOverlayController(
         pendingPercent?.let {
             progress.max = RING_MAX
             progress.progress = (it * RING_SCALE).roundToInt().coerceIn(0, RING_MAX)
-            percent.text = String.format(Locale.US, "%.1f%%", it)
+            percent.text = RunOverlayText.percent(it)
+            val left = etaEstimator.sample(it / PERCENT.toDouble(), SystemClock.elapsedRealtime())
+            eta.text = EtaEstimator.label(res, left) ?: res.getString(R.string.eta_estimating)
             pendingPercent = null
         }
         pendingStatus?.let {
@@ -191,22 +198,31 @@ class ComputeOverlayController(
             title.text = it
             pendingTitle = null
         }
-        pendingPoints?.let { pts ->
-            runPoints?.text = OverlayFormats.compactCount(pts)
-            pendingPoints = null
-        }
-        pendingConvergence?.let { conv ->
-            runConvergence?.text = String.format(Locale.US, "%.1f%%", conv)
-            pendingConvergence = null
+        pendingRun?.let {
+            applyRun(it)
+            pendingRun = null
         }
     }
+
+    private fun applyRun(tick: BatchProgressUpdate) {
+        frameCount.showText(RunOverlayText.frameCount(res, tick))
+        status.text = RunOverlayText.status(res, tick)
+        pace.showText(RunOverlayText.pace(res, tick, elapsedMs()))
+        val values = tick.perFrameConvergence ?: return
+        convergenceLine?.setValues(values)
+        convergenceLatest?.text = ConvergenceTrace.latest(values)?.let {
+            res.getString(R.string.run_convergence_latest_fmt, it)
+        }
+        strikeWarn.showText(RunOverlayText.strikeWarning(res, values))
+    }
+
+    private fun elapsedMs(): Long = System.currentTimeMillis() - processingStartTime
 
     private fun clearPending() {
         pendingPercent = null
         pendingStatus = null
         pendingTitle = null
-        pendingPoints = null
-        pendingConvergence = null
+        pendingRun = null
     }
 
     companion object {
@@ -216,4 +232,11 @@ class ComputeOverlayController(
         private const val RING_MAX = 1000
         private const val RING_SCALE = 10f
     }
+}
+
+/** Shows [text], or hides the view when there is none. */
+private fun TextView?.showText(text: String?) {
+    this ?: return
+    visibility = if (text != null) View.VISIBLE else View.GONE
+    if (text != null) this.text = text
 }

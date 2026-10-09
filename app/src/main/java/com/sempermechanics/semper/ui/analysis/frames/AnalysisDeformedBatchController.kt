@@ -112,7 +112,7 @@ class AnalysisDeformedBatchController(
         overlayController.show(
             title = activity.getString(R.string.analysis_importing_title),
             status = activity.getString(R.string.analysis_caching_images),
-            showRunTiles = false,
+            showConvergence = false,
         )
         showProgress(0, count)
     }

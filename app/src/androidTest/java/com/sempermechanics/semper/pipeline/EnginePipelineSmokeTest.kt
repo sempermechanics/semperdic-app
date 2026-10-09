@@ -22,6 +22,7 @@ import com.sempermechanics.semper.ui.analysis.run.BatchRun
 import com.sempermechanics.semper.ui.analysis.run.RunSpec
 import com.sempermechanics.semper.ui.analysis.run.runBatchAnalysisBody
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
+import com.sempermechanics.semper.ui.analysis.wizard.BatchProgressUpdate
 import kotlinx.coroutines.Job
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -367,7 +368,10 @@ class EnginePipelineSmokeTest {
         val spec = RunSpec.of(DicParams(subset = SUBSET, step = STEP, strainWindow = 15), Roi(0, 0, W, H), null, false, null)
 
         try {
-            val outcome = vm.runBatchAnalysisBody(ctx, BatchRun(spec, ctx.cacheDir, System.currentTimeMillis(), Job())) {}
+            val ticks = mutableListOf<BatchProgressUpdate>()
+            val outcome = vm.runBatchAnalysisBody(ctx, BatchRun(spec, ctx.cacheDir, System.currentTimeMillis(), Job())) {
+                ticks += it
+            }
 
             assertEquals(RunStop.Finished, outcome.stop)
             assertEquals(shifts.size, outcome.totalFrames)
@@ -388,6 +392,18 @@ class EnginePipelineSmokeTest {
                     minCoverageFrac = 0.25f,
                 )
             }
+
+            // What the overlay draws: frame-by-frame ticks, then a completed tick
+            // carrying every frame's convergence.
+            val frameTicks = ticks.filter { it.frameIndex in shifts.indices }
+            assertEquals(shifts.indices.toSet(), frameTicks.map { it.frameIndex }.toSet())
+            assertTrue(frameTicks.all { it.plannedFrames == shifts.size && it.framePercent in 0f..100f })
+            val done = ticks.last()
+            assertEquals("the last tick is the completed one", shifts.size, done.frameIndex)
+            assertNotNull("the completed tick carries the convergence", done.perFrameConvergence)
+            val convergence = done.perFrameConvergence!!
+            assertEquals(shifts.size, convergence.size)
+            assertTrue("every solved frame has a convergence", convergence.none { it.isNaN() })
         } finally {
             SessionStore.forget(ctx, sessionId)
             SessionStore.dirFor(ctx, sessionId).deleteRecursively()

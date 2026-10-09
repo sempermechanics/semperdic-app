@@ -427,15 +427,16 @@ vendor decoders and camera AVIs.
 
 ### 5.4 Running
 
-The same overlay is reused for importing frames and extracting video, but the two
-compute tiles are **hidden** there — they would only ever read zero. Import and
-extraction show determinate progress instead.
+The same overlay is reused for importing frames and extracting video, but the
+convergence graph is **hidden** there — nothing is being solved. Import and
+extraction show determinate progress and time left instead.
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 5.4.1 | Start a run | Overlay with title, percentage, status, elapsed seconds |
-| [ ] 5.4.2 | Watch the two tiles during a solve | **# converged** and **convergence** update as it goes |
-| [ ] 5.4.2a | Watch the overlay while frames import or a video extracts | The two tiles are absent; progress is a determinate count of frames |
+| [ ] 5.4.1 | Start a run | Overlay with title, "Frame N of M", percentage, "Estimating time left…" then "About N s left", seconds per frame, elapsed |
+| [ ] 5.4.2 | Watch the graph during a solve | **Convergence per frame** draws a point per finished frame; the status under it reads "Correlating frame N · X%", then "Completed M of M frames · saving" |
+| [ ] 5.4.2c | Run a pair that decorrelates (blurred or swapped frames) | After the first frame under 50% an amber line names it and warns one more stops the run; the second stops it as before |
+| [ ] 5.4.2a | Watch the overlay while frames import or a video extracts | The graph is absent; progress is a determinate count of frames with time left |
 | [ ] 5.4.2b | Tap **Cancel** during an import | A confirm dialog ("Cancel this import?"); confirming leaves no half-imported frames behind |
 | [ ] 5.4.3 | Leave the device untouched during a long run | The screen does not sleep |
 | [ ] 5.4.4 | Press Back mid-run | Blocked, with a toast |

@@ -217,6 +217,14 @@
         <item name="android:textColor">@color/text_secondary</item>
     </style>
 
+    <!-- Counts, percentages and times that change while you watch: tabular
+         figures keep the digits from shifting sideways as they tick. -->
+    <style name="TextAppearance.Semper.Numeric" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+    </style>
+
     <!-- Numbered step badge (the "1", "2", "3" pills) -->
 
     <!-- ============================================================= -->

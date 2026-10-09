@@ -59,6 +59,7 @@ internal class WizardTestBed(resumed: Boolean = true) : AutoCloseable {
             percent = TextView(activity),
             status = TextView(activity),
             elapsed = TextView(activity),
+            eta = TextView(activity),
         )
         return RunChrome(activity, overlay, Button(activity))
     }

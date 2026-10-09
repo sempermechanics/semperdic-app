@@ -88,13 +88,7 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     var firstFrameAvgIters = 0f
     var stop: RunStop = RunStop.Finished
 
-    onProgress(
-        BatchProgressUpdate(
-            0f,
-            "Caching reference in engine…",
-            "Caching Reference in Native Engine...",
-        ),
-    )
+    onProgress(BatchProgressUpdate(0f, "Caching reference in engine…", plannedFrames = plannedFrames))
     SemperNativeLib.initializeReference(
         refBytes,
         spec.mask,
@@ -110,11 +104,13 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     val outputBuffer = DicFieldIo.allocateDirect(maxPoints)
 
     cancelRequested = false
-    var totalPointsSolved = 0
     var lastConvergence = -1f
     val convergenceGate = ConvergenceGate()
     var failedFrameIndex = -1
     var solvedFrames = 0
+    // Each frame's convergence as the gate saw it, NaN until then; the overlay
+    // draws it and warns one low frame before the gate stops the run.
+    val frameConvergence = FloatArray(plannedFrames) { Float.NaN }
 
     // The raw deformed originals sit alongside the reference so exports (and
     // reopened sessions) can bundle them. They are MOVED in from the import
@@ -152,7 +148,6 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
             stop = RunStop.Cancelled
             break
         }
-        val frameLabel = "Processing Frame ${frameIndex + 1}/$plannedFrames..."
         onProgress(
             BatchProgressUpdate(
                 percent = (frameIndex.toFloat() / plannedFrames) * 100,
@@ -161,7 +156,9 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
                 } else {
                     "Correlating & solving…"
                 },
-                timerText = frameLabel,
+                frameIndex = frameIndex,
+                plannedFrames = plannedFrames,
+                perFrameConvergence = frameConvergence.copyOf(),
             ),
         )
 
@@ -216,7 +213,9 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
                         } else {
                             "Correlating & solving…"
                         },
-                        timerText = frameLabel,
+                        frameIndex = frameIndex,
+                        plannedFrames = plannedFrames,
+                        framePercent = percentage.toFloat(),
                     ),
                 )
             }
@@ -281,8 +280,8 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
         }
 
         solvedFrames++
-        totalPointsSolved += validPointsCount
         lastConvergence = metricsCatcher[EngineStats.SLOT_CONVERGENCE]
+        frameConvergence[frameIndex] = lastConvergence
         if (convergenceGate.record(lastConvergence)) {
             stop = RunStop.LowConvergence
             failedFrameIndex = frameIndex
@@ -292,9 +291,24 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
             BatchProgressUpdate(
                 percent = ((frameIndex + 1).toFloat() / plannedFrames) * 100,
                 status = "Processing frame ${frameIndex + 1} of $plannedFrames",
-                timerText = frameLabel,
-                pointsSolved = totalPointsSolved,
-                convergencePercent = lastConvergence,
+                frameIndex = frameIndex,
+                plannedFrames = plannedFrames,
+                framePercent = 100f,
+                perFrameConvergence = frameConvergence.copyOf(),
+            ),
+        )
+    }
+
+    // Every frame solved: the overlay says so while the run saves.
+    if (stop == RunStop.Finished) {
+        onProgress(
+            BatchProgressUpdate(
+                percent = 100f,
+                status = "Saving…",
+                frameIndex = plannedFrames,
+                plannedFrames = plannedFrames,
+                framePercent = 100f,
+                perFrameConvergence = frameConvergence.copyOf(),
             ),
         )
     }

@@ -99,8 +99,6 @@ class WizardRunOutcomes(
                 progress.point.window,
             ),
             title = activity.getString(R.string.mode_sweep),
-            pointsSolved = if (progress.pointsSolved > 0) progress.pointsSolved else -1,
-            convergencePercent = progress.convergencePercent,
         )
     }
 

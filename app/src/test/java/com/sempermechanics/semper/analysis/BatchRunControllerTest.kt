@@ -73,6 +73,7 @@ class BatchRunControllerTest {
             percent = TextView(activity),
             status = TextView(activity),
             elapsed = TextView(activity),
+            eta = TextView(activity),
         )
         // The run is in flight when its outcome arrives.
         val chrome = RunChrome(activity, overlay, cancelButton = View(activity)).apply { beginRun {} }
