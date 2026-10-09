@@ -14,6 +14,7 @@ import com.sempermechanics.semper.data.session.SessionPaths
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SkippedNode
 import com.sempermechanics.semper.report.EngineStats
+import com.sempermechanics.semper.report.ReportImageNames
 import com.sempermechanics.semper.util.LenientObjectListSerializer
 import com.sempermechanics.semper.util.OptBooleanSerializer
 import com.sempermechanics.semper.util.OptDoubleSerializer
@@ -434,7 +435,7 @@ data class SessionMetadataDoc(
 
         private fun frameOf(record: SessionRecord, index: Int, image: String): Frame {
             val label = if (record.isSweep) {
-                record.sweepLabels.getOrElse(index) { "Combination_${index + 1}" }
+                ReportImageNames.sweepLabel(record.sweepLabels, index)
             } else {
                 "Frame_${index + 1}"
             }

@@ -141,6 +141,14 @@ class SessionMetadataDocTest {
     }
 
     @Test
+    fun `a sweep frame is named by its label, else Combination_N, a blank label too`() {
+        val record = sweep.copy(defNames = List(3) { "def.png" }, sweepLabels = listOf("S21/st5/w41", ""))
+        val frames = SessionMetadataDoc.forUpload(record, context).frames.orEmpty()
+        // A label keeps its slashes here; only a path made from it loses them.
+        assertEquals(listOf("S21/st5/w41", "Combination_2", "Combination_3"), frames.map { it.frame })
+    }
+
+    @Test
     fun `a signed-out upload writes an empty user object`() {
         AccountCache.clear(context)
         val text = SessionMetadataDoc.forUpload(batch, context).encode()
