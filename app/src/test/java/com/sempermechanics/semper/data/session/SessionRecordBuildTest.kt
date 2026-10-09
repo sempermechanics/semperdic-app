@@ -6,6 +6,7 @@ import com.sempermechanics.semper.field.ImageSize
 import com.sempermechanics.semper.fixtures.CleanAppState
 import com.sempermechanics.semper.report.EngineStats
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -104,6 +105,22 @@ class SessionRecordBuildTest {
         assertEquals(emptyList<Float>(), record.engineStats)
         assertEquals(listOf(0, 0), listOf(record.stopCode, record.plannedFrameCount))
         assertEquals("0.0% converged", record.headline)
+    }
+
+    @Test
+    fun `a video run keeps its clip name and frame times, and is named after the clip`() {
+        val video = input.copy(
+            reference = RunReference("/ref.png", "tensile_03", ImageSize(1920, 1080)),
+            videoName = "tensile_03",
+            frameTimesMs = listOf(40L, 80L, 120L),
+        )
+
+        val record = repository.buildSessionRecord(context, video, outcome, cloudEnabled = false)
+
+        assertEquals("tensile_03", record.name)
+        assertEquals("tensile_03", record.videoName)
+        assertEquals(listOf(40L, 80L, 120L), record.frameTimesMs)
+        assertTrue(record.isVideo)
     }
 
     @Test

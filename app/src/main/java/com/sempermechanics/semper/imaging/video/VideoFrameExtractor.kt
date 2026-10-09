@@ -31,6 +31,8 @@ import kotlin.math.max
  *
  * @param rotationDegrees the clip's rotation from [VideoFrameExtractor.readMeta],
  *   when the caller already has it; null reads the metadata again.
+ * @param clipName the clip's display name (`tensile_03.mp4`), which names the
+ *   analysis; null when the provider gave none.
  */
 data class ExtractionRequest(
     val uri: Uri,
@@ -40,6 +42,7 @@ data class ExtractionRequest(
     val maxFrames: Int,
     val preferKeyframes: Boolean = true,
     val rotationDegrees: Int? = null,
+    val clipName: String? = null,
 )
 
 /** A video's first sampled frame as the reference: lossless [png] bytes, its pixel [size] and a [preview]. */
@@ -120,7 +123,11 @@ object VideoFrameExtractor {
         return meta
     }
 
-    /** Frame 0 of the segment as the reference, and the rest as the committed deformed [batch]. */
+    /**
+     * Frame 0 of the segment as the reference, named [refName] after the clip,
+     * and the rest as the committed deformed [batch], each frame with its time
+     * in the clip.
+     */
     data class ExtractionResult(
         val reference: ReferenceFrame,
         val refName: String,
@@ -142,7 +149,7 @@ object VideoFrameExtractor {
         onProgress: (percent: Int, status: String) -> Unit,
     ): ExtractionResult? {
         val stagingDir = FrameImportHelper.createStagingDir(cacheDir)
-        val sink = FrameSink(context, cacheDir, stagingDir, request.startMs, onProgress)
+        val sink = FrameSink(context, cacheDir, stagingDir, request.clipName, onProgress)
         var completed = false
         var refPreview: Bitmap? = null
         try {
@@ -192,7 +199,7 @@ object VideoFrameExtractor {
                     forceUniform = !request.preferKeyframes,
                 )
                 plan.timestampsUs.takeIf { it.size >= 2 }?.let { times ->
-                    sink.write(count = times.size) { i -> dec.decodeFrameAt(times[i]) }
+                    sink.write(timesMs = times.map { it / US_PER_MS }) { i -> dec.decodeFrameAt(times[i]) }
                 }
             } catch (e: CancellationException) {
                 // The user's Cancel: not a decoder failure for the next rung to retry.
@@ -218,14 +225,16 @@ object VideoFrameExtractor {
         return decoder.use { avi ->
             // An AVI has no seekable timeline of its own: sampling times map
             // onto frame indices, and repeats collapse so a rate above the
-            // stream's own cannot ask for the same frame twice.
+            // stream's own cannot ask for the same frame twice. Each frame is
+            // timed where it starts in the stream.
             val indices = request.uniformTimestampsUs()
                 .map { avi.video.frameIndexAt(it) }
                 .distinct()
             if (!avi.canDecode || indices.size < 2) {
                 null
             } else {
-                sink.write(count = indices.size) { i -> avi.decodeFrame(indices[i]) }
+                val timesMs = indices.map { avi.video.presentationTimeUs(it) / US_PER_MS }
+                sink.write(timesMs) { i -> avi.decodeFrame(indices[i]) }
             }
         }
     }
@@ -242,7 +251,9 @@ object VideoFrameExtractor {
             val timesUs = request.uniformTimestampsUs()
             val count = timesUs.size
 
+            // A frame the retriever cannot read is skipped, with its time.
             val defPaths = mutableListOf<String>()
+            val defTimesMs = mutableListOf<Long>()
             var reference: ReferenceFrame? = null
 
             for ((i, timeUs) in timesUs.withIndex()) {
@@ -262,13 +273,14 @@ object VideoFrameExtractor {
                             frame.compress(Bitmap.CompressFormat.PNG, ImageEncoder.PNG_QUALITY_MAX, out)
                         }
                         defPaths.add(f.absolutePath)
+                        defTimesMs.add(timeUs / US_PER_MS)
                     }
                 } finally {
                     frame.recycle()
                 }
                 sink.progress(i, count)
             }
-            return sink.finish(reference, defPaths)
+            return sink.finish(reference, defPaths, defTimesMs)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

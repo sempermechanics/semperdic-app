@@ -198,6 +198,19 @@ class SessionMetadataDocTest {
     }
 
     @Test
+    fun `a video row backs up without its clip fields and restores without them`() {
+        val video = batch.copy(videoName = "tensile_03", frameTimesMs = listOf(40L, 80L, 120L))
+        val text = SessionUploadMetadata.buildMetadataJson(video, context)
+
+        assertFalse(text.contains("videoName"))
+        assertFalse(text.contains("frameTimesMs"))
+        val restored = toRecord(SessionMetadataDoc.decode(text), video)
+        assertEquals(null, restored.videoName)
+        assertEquals(null, restored.frameTimesMs)
+        assertEquals(video.defNames, restored.defNames)
+    }
+
+    @Test
     fun `a restore into a placeholder row dates it when the analysis was made`() {
         val made = 1_690_000_000_000L
         val placeholder = RestoreStart.newRow(context, "cloud-1", "r1", "Beam", now = now)

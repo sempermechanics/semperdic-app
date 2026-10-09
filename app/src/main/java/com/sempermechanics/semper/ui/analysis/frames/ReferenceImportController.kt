@@ -1,10 +1,8 @@
 package com.sempermechanics.semper.ui.analysis.frames
 
-import android.annotation.SuppressLint
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.annotation.WorkerThread
 import androidx.appcompat.app.AppCompatActivity
 import androidx.exifinterface.media.ExifInterface
@@ -16,6 +14,7 @@ import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.ReferencePreviewLoader
 import com.sempermechanics.semper.ui.common.SerialJob
 import com.sempermechanics.semper.ui.common.dialog.FaqRedirect
+import com.sempermechanics.semper.ui.common.media.displayNameOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -119,16 +118,3 @@ internal fun rawSizeOf(resolver: ContentResolver, uri: Uri): ImageSize? = runCat
         ).takeIf { it.isKnown }
     }
 }.getOrNull()
-
-/** The picked file's display name; a content-provider query, so off the main thread. */
-@SuppressLint("Range")
-@WorkerThread
-internal fun displayNameOf(resolver: ContentResolver, uri: Uri): String {
-    var result: String? = null
-    if (uri.scheme == "content") {
-        resolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) result = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME))
-        }
-    }
-    return result ?: "Image_File"
-}

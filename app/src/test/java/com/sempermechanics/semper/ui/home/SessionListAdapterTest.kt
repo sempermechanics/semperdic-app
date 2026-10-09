@@ -216,6 +216,31 @@ class SessionListAdapterTest {
     }
 
     @Test
+    fun `a video analysis says so, with its frames' span in the clip`() {
+        val times = List(40) { it * 300L }
+        submit(
+            record("v", frameCount = 40, convergence = 91.2f).copy(videoName = "tensile_03", frameTimesMs = times),
+            record("low", frameCount = 40, convergence = 80f).copy(videoName = "tensile_04", frameTimesMs = times),
+        )
+        val row = bind(0)
+
+        assertEquals("Video · 40 frames, 0:00–0:11 · 91.2%", row.subtitle.text.toString())
+        assertEquals("Video · 40 frames, 0:00–0:11 · 91.2% converged", row.subtitle.contentDescription)
+        assertEquals(
+            "only the figure is amber",
+            listOf("80.0%" to activity.getColor(R.color.semantic_warning)),
+            colouredParts(bind(1).subtitle.text),
+        )
+    }
+
+    @Test
+    fun `a video analysis without its times still says it is a video`() {
+        submit(record("v", frameCount = 3, convergence = 96f).copy(videoName = "Video"))
+
+        assertEquals("Video · 3 frames · 96.0%", bind(0).subtitle.text.toString())
+    }
+
+    @Test
     fun `a parameter sweep counts its solved combinations, not frames or subsets`() {
         val sweep = record("a", frameCount = 2, sweep = true, headline = "plate · 2 of 3 solved", convergence = 50f)
             .copy(sweepSubsets = listOf(15, 25), sweepSkipSubsets = listOf(35))

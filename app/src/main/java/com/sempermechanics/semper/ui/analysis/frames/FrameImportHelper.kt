@@ -18,14 +18,20 @@ import java.util.Locale
 /**
  * Result of importing a deformed-frame batch into cacheDir/temp_deformed:
  * the frames in path order, each with the name the user picked it as and its
- * measured size. Their dates are unknown until a sort by date asks.
+ * measured size. Their dates are unknown until a sort by date asks. A video's
+ * batch carries its [videoName] (the clip's name, or "Video") and each frame's
+ * time in the clip.
  */
 data class ImportedBatch(
     val frames: List<DeformedFrame>,
     val fromVideo: Boolean = false,
+    val videoName: String? = null,
 ) {
     /** The staged path of each of [frames]. */
     val filePaths: List<String> get() = frames.map { it.path }
+
+    /** Each of [frames]' time in its clip; null unless every frame has one. */
+    val frameTimesMs: List<Long>? get() = DeformedFrame.timesOf(frames)
 }
 
 /**

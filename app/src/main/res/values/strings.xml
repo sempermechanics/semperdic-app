@@ -221,7 +221,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="one">%1$d of %2$d solved</item>
         <item quantity="other">%1$d of %2$d solved</item>
     </plurals>
-    <string name="session_sweep_name_fmt">Parameter sweep · %1$s</string>
+    <string name="session_sweep_name_fmt">%1$s sweep</string>
+    <!-- Home row of a video analysis: "Video · 40 frames, 0:00–0:12" -->
+    <string name="session_video_row_fmt">Video · %1$s</string>
+    <string name="session_video_span_fmt">%1$s, %2$s–%3$s</string>
     
     <string name="session_data_gone_title">Data no longer on this device</string>
     <string name="session_data_gone_body">This analysis was cleaned up locally. If it was synced, the files are still in your cloud folder.</string>

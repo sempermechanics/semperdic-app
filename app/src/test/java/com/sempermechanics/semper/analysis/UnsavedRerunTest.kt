@@ -84,6 +84,17 @@ class UnsavedRerunTest {
     }
 
     @Test
+    fun `the row takes the video fields of the run whose frames it now holds`() {
+        val video = previous(SyncState.LOCAL_ONLY).copy(videoName = "old_clip", frameTimesMs = listOf(1L))
+        val fromVideo = run(framesOnDisk = 1).copy(videoName = "tensile_03", frameTimesMs = listOf(40L))
+
+        val after = afterUnsavedRerun(video, fromVideo)!!
+        assertEquals("tensile_03", after.videoName)
+        assertEquals(listOf(40L), after.frameTimesMs)
+        assertFalse("images replace a video's fields", afterUnsavedRerun(video, run(framesOnDisk = 1))!!.isVideo)
+    }
+
+    @Test
     fun `a sweep row re-run as a single analysis stops being a sweep`() {
         val sweep = previous(SyncState.LOCAL_ONLY).copy(
             sweepSubsets = listOf(21, 31),

@@ -103,9 +103,13 @@ the frames are not on the phone), the name, and a line such as
 `40 frames · 96.3%`: the frame count and the share of points that converged.
 A convergence under 85% is amber. A run that stopped early reads
 `39 of 50 frames` and ends with why it stopped; a parameter sweep reads
-`9 of 9 solved`. A selected card turns light blue.
+`9 of 9 solved`. A video analysis says so, with where its frames sit in the
+clip: `Video · 40 frames, 0:00–0:12 · 91.2%`. A selected card turns light blue.
 A new analysis is named after its reference image, `steel_00`;
-a second one from the same image becomes `steel_00 (2)`. The cloud icon at the
+a second one from the same image becomes `steel_00 (2)`. A video analysis is
+named after the clip, `tensile_03` from `tensile_03.mp4` (`Video` when the
+clip's name cannot be read), and a sweep after its frame, `steel_24 sweep`.
+Analyses named before keep their names. The cloud icon at the
 row's end says where the backup stands:
 
 | Icon | Means |
@@ -139,7 +143,8 @@ warning naming a bigger subset size. Treat it as a comment on the pattern, not
 just a setting.
 
 **Video.** Pick a video and a sampling sheet opens: frame rate, time segment,
-live frame-count estimate. Frame 0 becomes the reference. While the video's
+live frame-count estimate. Frame 0 becomes the reference, named after the
+clip, and each frame keeps its time in the clip. While the video's
 length and frame rate are read, the reference slot shows a small spinner and
 **Reading video…**.
 
@@ -597,7 +602,8 @@ the lattice onto one combination instead; there is no overview slot.
 and a note; single-setting field GIFs still export.)
 
 **Frames.** Prev / Next step through. The title at the top names what is on
-screen — *Summary*, or the frame's file name without its extension — and the
+screen — *Summary*, the frame's file name without its extension, or a video
+frame's time in its clip (`0:01.25`) — and the
 field button beside it names the field. The pill under the frame counts:
 `i / N` on a frame, `5 frames` on the summary. Type a number in the small field
 under it and press Go to jump straight to that frame — useful at 150 frames.
