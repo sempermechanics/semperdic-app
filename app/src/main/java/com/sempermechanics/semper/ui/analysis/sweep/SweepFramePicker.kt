@@ -36,7 +36,8 @@ import java.util.Locale
 
 /**
  * "Frame to sweep" on the sweep setup page: a field naming the picked frame,
- * "Frame 23 of 40" under it, and a thumbnail beside it. A tap on the field
+ * with "23 / 40" at its end, and a thumbnail beside it (the ⓘ after the field,
+ * which says which frame to pick, is [SweepSetupController]'s). A tap on the field
  * opens the frame dialog -- a scrolling list of the frames, a typed frame
  * number, and a preview of the one picked -- whose OK hands the index to
  * [onPicked]. A tap on the thumbnail shows the frame large over the dimmed
@@ -92,7 +93,7 @@ internal class SweepFramePicker(
         }
         picked = index.coerceIn(0, count - 1)
         name.setText(frameLabel(picked))
-        field.helperText = activity.getString(R.string.sweep_frame_position_fmt, picked + 1, count)
+        field.suffixText = activity.getString(R.string.sweep_frame_count_fmt, picked + 1, count)
         showThumb(viewModel.defFilePaths.getOrNull(picked))
     }
 
@@ -110,7 +111,7 @@ internal class SweepFramePicker(
         content.tvSweepFrameOverlay.text = activity.getString(
             R.string.sweep_frame_overlay_caption_fmt,
             name.text,
-            field.helperText,
+            activity.getString(R.string.sweep_frame_position_fmt, picked + 1, viewModel.defCount),
         )
         content.root.setOnClickListener { dialog.dismiss() }
         dialog.setContentView(content.root)

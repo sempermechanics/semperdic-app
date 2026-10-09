@@ -95,11 +95,21 @@ delete. Pull down to sync. **+** goes straight to the picker — pick existing
 photos or a video. There is no in-app camera; the app measures images you
 already have. (The shot above is the empty state, before any analysis exists.)
 
-Each row shows the last frame's U displacement as its thumbnail (the reference
-image until that is drawn, or when the frames are not on the phone), the name,
-and a line such as `40 frames · 96.3% converged · Oct 5`. A convergence under
-85% is amber. A new analysis is named after its reference image, `steel_00`;
-a second one from the same image becomes `steel_00 (2)`. The cloud icon at the
+The list is grouped by day under small headers: *Today*, *Yesterday*, then a
+date such as *Oct 7* (with the year for an earlier year), in your phone's
+language and timezone. Each analysis is a card showing the last frame's U
+displacement as its thumbnail (the reference image until that is drawn, or when
+the frames are not on the phone), the name, and a line such as
+`40 frames · 96.3%`: the frame count and the share of points that converged.
+A convergence under 85% is amber. A run that stopped early reads
+`39 of 50 frames` and ends with why it stopped; a parameter sweep reads
+`9 of 9 solved`. A video analysis says so, with where its frames sit in the
+clip: `Video · 40 frames, 0:00–0:12 · 91.2%`. A selected card turns light blue.
+A new analysis is named after its reference image, `steel_00`;
+a second one from the same image becomes `steel_00 (2)`. A video analysis is
+named after the clip, `tensile_03` from `tensile_03.mp4` (`Video` when the
+clip's name cannot be read), and a sweep after its frame, `steel_24 sweep`.
+Analyses named before keep their names. The cloud icon at the
 row's end says where the backup stands:
 
 | Icon | Means |
@@ -133,7 +143,8 @@ warning naming a bigger subset size. Treat it as a comment on the pattern, not
 just a setting.
 
 **Video.** Pick a video and a sampling sheet opens: frame rate, time segment,
-live frame-count estimate. Frame 0 becomes the reference. While the video's
+live frame-count estimate. Frame 0 becomes the reference, named after the
+clip, and each frame keeps its time in the clip. While the video's
 length and frame rate are read, the reference slot shows a small spinner and
 **Reading video…**.
 
@@ -223,42 +234,53 @@ top to bottom:
 - **Single** or **Sweep** — Single solves every frame once. A parameter sweep
   solves one frame many times ([§7](#7-parameter-sweeps)).
 - **Region of interest** — a thumbnail of the reference with the region drawn on
-  it, and its size: "Full image · W × H px", or "1100 × 800 of 1200 × 900 px"
-  once you draw one. **Edit** opens the editor ([§6](#6-region-of-interest)).
-- **Correlation** (Single) — subset size, step, strain window and interpolation
-  ([§5](#5-parameters)), with **Reset** at the right of the heading. If you
-  copied a set of parameters from a sweep lattice, a paste icon sits beside
-  Reset and fills subset, step and strain window in one tap.
+  it, and the points the engine solves in it at the current step: "Full image ·
+  30,968 points", or "1100 × 800 px · 8,800 points" once you draw one. The count
+  follows the step and the region. In Sweep the row names the region alone:
+  each combination solves at its own step. **Edit** opens the editor
+  ([§6](#6-region-of-interest)).
+- **Correlation** (Single) — subset size, step and strain window, then a closed
+  **Advanced** section with overlap and interpolation ([§5](#5-parameters)),
+  with **Reset** at the right of the heading. If you copied a set of parameters
+  from a sweep lattice, a paste icon sits beside Reset and fills subset, step
+  and strain window in one tap; when that changes the overlap, Advanced opens
+  to show it.
 - **Frame to sweep** and **Planned lattice** (Sweep) — in place of Correlation;
   see [§7](#7-parameter-sweeps).
 
 Once this phone has finished a run, **Compute** reads "Compute · about 1 min":
 a running mean of the points per second your own runs reached, never a guess.
-Before that it reads **Compute**. In Sweep the button is **Next: sweep
-settings**.
+Before that it reads **Compute**. In Sweep the button is **Next**, to the
+sweep settings. Switching between Single and Sweep clears the last run's
+status line.
 
 ### While it runs
 
 <img src="images/running.png" width="300" alt="Progress dialog">
 
-The card shows the percentage, the time left (once a few seconds of progress
-give a steady rate), seconds per frame and elapsed time. **Convergence per frame**
-is a line across all planned frames with a dashed line at 50%; frames under it
-get a red dot. Under the graph, the status reads *Correlating frame 23 · 40%*,
-then *Completed 40 of 40 frames · saving* while the run writes the analysis.
-After one low frame an amber line warns that one more stops the run.
+The card's header reads *Frame 23 of 40* with the whole run's percentage at its
+end, then the time left (once a few seconds of progress give a steady rate).
+Under it, one bin per planned frame shows **convergence per frame**: a finished
+frame is a blue bar as tall as its convergence, red under the dashed line at
+50%; the frame being solved is a pale outlined bar rising with its progress;
+frames still to come are empty slots. Over 100 frames, neighbouring frames share
+a bin that shows the lowest of them, so a low frame is never hidden. Once every
+frame is solved the header reads *Completed 40 of 40 frames · saving* while the
+run writes the analysis. After one low frame an amber line warns that one more
+stops the run.
 **Cancel** stops the run
 where it is, within a moment — it does not wait out the frame being solved.
 Nothing is kept. Back is blocked. Cancelling a parameter sweep abandons the whole
 sweep, not just the combination in flight.
 
 The same overlay covers importing frames and extracting video, but there it
-counts frames instead: the convergence graph is hidden, because nothing is being
-solved yet. A parameter sweep shows *Analysis 7 of 9*, the percentage and time
-left, and its planned lattice in place of the graph: every combination starts
-as a grey ring, fills when it solves, turns into a red ring if it is skipped,
-and the one being solved is circled. The status under it names that
-combination, then *Solved 9 of 9 analyses · saving*. Cancelling an import asks for confirmation and leaves nothing behind.
+shows a progress bar and counts frames instead: the convergence bins are hidden,
+because nothing is being solved yet. A parameter sweep's header reads *Analysis
+7 of 9* with the percentage, then the time left, and its planned lattice takes
+the bins' place: every combination starts as a grey ring, fills when it solves,
+turns into a red ring if it is skipped, and the one being solved is circled. The
+status under it names that combination; at the end the header reads *Solved 9
+of 9 analyses · saving*. Cancelling an import asks for confirmation and leaves nothing behind.
 
 **A run stops itself if the images decorrelate.** Two consecutive frames below
 50% convergence end it — the frames after them would be no better, and the
@@ -298,8 +320,9 @@ analysis, and the earlier one is kept as it was.
 
 ## 5. Parameters
 
-Single mode only. Slider or typed field, each with an ⓘ. Step and overlap
-share a title row; the overlap ratio sits beside the step readout.
+Single mode only. Slider or typed field, each with an ⓘ. Overlap and
+interpolation sit under **Advanced**, closed until you tap it (the chevron
+turns); the overlap is a typed field, and it follows the step.
 
 | Parameter | Range | Reset to |
 |---|---|---|
@@ -321,8 +344,8 @@ for 0.007 px accuracy, sampled on a 4×4 grid and taken as the median.
 It is a starting point. Touch the slider and it stops tracking the image.
 **Reset** brings it back.
 
-While the speckle is measured (past about a third of a second) the line under
-the subset slider reads **Measuring speckle…**. When it lands:
+While the speckle is measured (past about a third of a second) the chip beside
+**Subset size** reads **Measuring speckle…**. When it lands:
 
 - A chip beside **Subset size** reads **Speckle 4.3 px** — the same measurement
   as the step 1 chip, in amber when it is outside the 3–9 px good-practice band.
@@ -330,16 +353,14 @@ the subset slider reads **Measuring speckle…**. When it lands:
 - The slider slides to the recommended size (it jumps when animations are off).
 - A blue band is shaded behind the slider track from the smallest size that both
   clears the SSSIG threshold and spans three speckles, up to the slider's end.
-  Larger subsets still correlate; they only blur the field more.
-- The line under the slider reads **"Set to 31 px · shaded: 25 px and up hold
-  enough speckle"**, and once you set a size of your own just **"Shaded: 25 px
-  and up hold enough speckle"**.
+  Larger subsets still correlate; they only blur the field more. The subset's ⓘ
+  says what the band means.
 
 They update as the reference changes, and go if the reference is removed or the
 measurement fails. Below them, a warning chip appears if the subset you are on
 cannot span three speckles, and names the size that would; it clears as soon as
-the slider passes that size. Under the step slider a line counts the points the
-region holds at that step ("30,968 points in the region"), the overlap beside it.
+the slider passes that size. The ROI row counts the points the region holds at
+the current step ("Full image · 30,968 points").
 
 On a pattern coarser than about 40 px no allowed subset spans three dots, so no
 size is named — the over-resolved chip on step 1 is the honest answer there, and
@@ -352,9 +373,9 @@ typical values are about 0.50–0.75.
 
 ### Strain window and VSG
 
-The strain window is a count of data points. The line under the slider shows the
-VSG it gives at the current step — "Fits a plane over 41 px (VSG)" — and follows
-as you change either. Sessions from
+The strain window is a count of data points. Beside its value, muted text shows
+the VSG it gives at the current step — "41 px VSG" — and follows as you change
+either. Sessions from
 before the window was counted in points show their VSG alone.
 
 ![Virtual strain gauge](images/vsg.svg)
@@ -369,7 +390,7 @@ the window is the knob, the VSG is the number you publish.
 
 ### Interpolation
 
-Sub-pixel interpolation, a dropdown at the end of the list. Leave it on 4×4
+Sub-pixel interpolation, a dropdown under **Advanced**. Leave it on 4×4
 bicubic unless interpolation bias is your subject.
 
 ### Max frames
@@ -419,33 +440,34 @@ A sweep uses **one** deformed frame.
 
 Step 2 (**Sweep setup**) picks what is swept and shows the plan:
 
-- **Frame to sweep** — the picked frame's name, "Frame 23 of 40" under it, and
-  a thumbnail beside it. It starts on the middle frame. Tap the field to open
-  the frame picker: a scrolling list of the frames, a frame-number field, and a
-  preview of the frame you are on; **OK** makes it the swept frame. Tap the
-  thumbnail to see the frame large over the dimmed page; tap anywhere to close
-  it. Pick the
-  frame with the most deformation; the sweep solves only that one. With a
-  single deformed frame there is nothing to pick and the row is hidden.
+- **Frame to sweep** — a field with the picked frame's name and "23 / 40" at its
+  end, a thumbnail before it and an ⓘ after it. It starts on the middle frame.
+  Tap the field to open the frame picker: a scrolling list of the frames, a
+  frame-number field, and a preview of the frame you are on; **OK** makes it the
+  swept frame. Tap the thumbnail to see the frame large over the dimmed page;
+  tap anywhere to close it. The ⓘ says which frame to pick: the one with the
+  most deformation, since the sweep solves only that one. With a single
+  deformed frame there is nothing to pick and the row is hidden.
 - **Planned lattice** — one node per analysis, subset across and VSG up, with
-  the summary "9 analyses · subset 21–41 px · window 3–11 points" under it. The
-  gear on its heading shows **No. of subsets** and **No. of strain windows**,
-  the samples per range.
+  the count beside the heading ("9 runs"). The gear on its heading shows **No.
+  of subsets** and **No. of strain windows**, the samples per range.
 
 Step 3 (**Sweep settings**) sets the ranges. The lattice on step 2 follows any
 change, so **Back** shows the new plan:
 
-- **Subset size range** and **Strain window range**, the latter with "Fits
-  planes over 15–101 px (VSG)", the span of VSGs the plan covers.
-- **Step size** as subset ÷ N, with the overlap beside it.
-- **Line cut axis** — **Along X** or **Along Y**, over a strip preview of the
+- **Subset** and **Strain window**, the ranges; the latter's title row ends
+  with "15–101 px VSG", the span of VSGs the plan covers.
+- **Step size** as subset ÷ N, and under a closed **Advanced** the overlap that
+  gives.
+- **Line cut axis** — **X** or **Y**, over a strip preview of the
   reference with the region and the cut through its centre. Tap the strip to
   open it larger, in the reference's own shape; a wide reference then runs past
   the screen edge and scrolls sideways. Tap again to close it.
 
-The run button reads "Run 9 analyses", and "Run 9 analyses · about 33 s" once
-this phone has finished a run: each analysis solves the one frame at its own
-step, timed at the points per second your runs reached.
+The run button reads "Run 9", and "Run 9 · 33 s" once this phone has finished
+a run (TalkBack reads "Run 9 analyses, about 33 seconds"): each analysis solves
+the one frame at its own step, timed at the points per second your runs
+reached.
 
 <img src="images/step3-sweep.png" width="300" alt="Sweep summary, step 3">
 
@@ -455,8 +477,8 @@ step, timed at the points per second your runs reached.
 | Subset range | 15–121, odd (step 3) |
 | Strain window range | 3–31 points, odd, default 3–11 — min and max (step 3) |
 | Samples | 1–8 per axis (step 2, lattice gear) |
-| Step size | subset ÷ N, N 2–9, default 3. Overlap on the same row is `1 − 1/N`. Pixel step is `round(subset / N)` (step 3) |
-| Line cut axis | Along X / Along Y (step 3) |
+| Step size | subset ÷ N, N 2–9, default 3. The overlap under **Advanced** is `1 − 1/N`. Pixel step is `round(subset / N)` (step 3) |
+| Line cut axis | X / Y (step 3) |
 
 Runtime is the product of the two sample counts. 8 × 8 is 64 solves. Start at
 3 × 3.
@@ -579,11 +601,15 @@ the lattice onto one combination instead; there is no overview slot.
 (Playback needs Android 9 or newer. Below that you get the first frame
 and a note; single-setting field GIFs still export.)
 
-**Frames.** Prev / Next step through; the counter shows the filename and
-`(i / N)`. Type a number in the small field under it and press Go to jump
-straight to that frame — useful at 150 frames. Anything out of range leaves you
-where you are. On a sweep each frame is a parameter combination, labelled like
-`S15 · St5 · W13 · VSG 61`.
+**Frames.** Prev / Next step through. The title at the top names what is on
+screen — *Summary*, the frame's file name without its extension, or a video
+frame's time in its clip (`0:01.25`) — and the
+field button beside it names the field. The pill under the frame counts:
+`i / N` on a frame, `5 frames` on the summary. Type a number in the small field
+under it and press Go to jump straight to that frame — useful at 150 frames.
+Anything out of range leaves you where you are. On a sweep each frame is a
+parameter combination, titled like `Subset 15 · window 3` (the strain window in
+data points; the step is always the subset divided by the sweep's N).
 
 ### Settings used
 
@@ -605,7 +631,11 @@ provenance record.
 
 ## 9. Exports
 
-**Share** gives six targets. Each ends at a **Send to** sheet with two rows:
+**Share** gives six targets, one line each: a title and, at the end, the file type
+(**This field** PNG, **All fields** 5 PNG, **Animations** 5 GIF, **Report** PDF,
+**Data** CSV, **Everything** ZIP). The header names the frame the photos come from
+("frame 2 of 5"; "combination 2 of 5" on a sweep). With TalkBack, each row says
+what it shares. Each ends at a **Send to** sheet with two rows:
 **Save to Files** (a folder picker, so it lands somewhere you choose and stays) or
 **Share** (the usual system chooser). For everything but the single photo the
 sheet comes up **first**, so the file is written straight into the folder you
@@ -618,12 +648,12 @@ a strip at the top, with the same progress and a Cancel.
 
 | Export | Contents |
 |---|---|
-| Single Field | One PNG: current field and frame, annotated, composited to a 1280 px long edge |
-| All fields | Five PNGs for this frame, zipped; the sheet and each stamp name the source image |
+| This field | One PNG: current field and frame, annotated, composited to a 1280 px long edge |
+| All fields | Five PNGs for this frame, zipped; each stamp names the source image |
 | Animations | Single-setting only: five looping field GIFs on one whole-sequence scale, zipped |
-| PDF report | Every frame, plus a telemetry page |
-| CSV data | `image,x_px,y_px,u_px,v_px,exx,eyy,exy,znssd` — a sweep adds `subset_px, step_px, strain_window, vsg_px` |
-| Everything (.zip) | Raw photos + all fields + CSV + PDF; single-setting also includes the field GIFs |
+| Report | One PDF: every frame, plus a telemetry page |
+| Data | One CSV: `image,x_px,y_px,u_px,v_px,exx,eyy,exy,znssd` — a sweep adds `subset_px, step_px, strain_window, vsg_px` |
+| Everything | One ZIP: raw photos + all fields + CSV + PDF; single-setting also includes the field GIFs |
 
 On a single-setting analysis the field GIFs are shared as a set, not one at a
 time — they are only comparable because they share a scale, and the set is what
@@ -670,8 +700,10 @@ from being local again, so freeing space is a reversible decision.
 
 <img src="images/settings.png" width="300" alt="Settings sections">
 
-**Cloud backup**: turn it on and it offers to back up what is already
-local. **Wi-Fi only** holds uploads until Wi-Fi. **Analyses data management**
+**Cloud backup**: turn **Save to cloud** on and it offers to back up what is
+already local; off, new analyses stay on the phone and existing cloud copies
+remain. **Wi-Fi only** holds uploads until Wi-Fi. The line under the switches
+says whether everything is backed up, or how many analyses are not. **Analyses data management**
 lists local and cloud together, with three actions per row:
 
 | Action | Does | Shows when |
@@ -684,13 +716,13 @@ Downloads and restores keep running if you leave Settings, and report back when
 they land.
 
 **Storage** is the section to reach for when the phone fills up. It measures what
-the analyses and the cache actually occupy, and gives you three tools:
+the analyses and the temporary files actually occupy, and gives you three tools:
 
 | Control | Does |
 |---|---|
-| **Free up space** | Drops the local frames of analyses that are already backed up. They become "Only in cloud" rows; nothing un-backed-up is touched |
-| **Clear cache** | Removes regenerable files — previews, exports waiting to be shared |
-| **Auto-free budget** | A slider, 0 (off) to 64 GB. Set it and the app reclaims space at start-up whenever usage is over the budget, oldest backed-up analyses first |
+| **Free up N MB** | Drops the local frames of analyses that are already backed up, N being what that frees. They become "Only in cloud" rows; nothing un-backed-up is touched. It shows only when there is something to free |
+| **Clear** | At the end of the **Temporary files** row: removes regenerable files — import leftovers, transfer scratch, exports waiting to be shared. Gone when there is nothing to clear |
+| **Auto-free space** | A slider, 0 (Off) to 64 GB, its value beside the title ("Over 8 GB"); the ⓘ explains it. Set it and the app reclaims space at start-up whenever usage is over the budget, oldest backed-up analyses first |
 
 **Background transfers survive leaving the screen and are honest about failure.**
 An upload or restore runs even if you navigate away, showing a system
@@ -773,7 +805,7 @@ Write above that block; leave it in place.
 | Cloud icon crossed out in red | The backup failed. Tap the icon — the dialog names why (device conflict, too large, ran out of memory) and offers **Try again** |
 | Restore never arrived | If it failed for good, Home and Settings both show a message saying so; otherwise it retries on a flaky network |
 | Row says "Only in cloud" | Its local frames were freed (by you, or by the auto-free budget). Tap it and choose **Restore** |
-| Phone out of space | **Settings → Storage → Free up space**, and consider setting an auto-free budget |
+| Phone out of space | **Settings → Storage → Free up N MB**, and consider setting an auto-free budget |
 | Still pending approval | Tap **Check status** — it never polls |
 | Sign-in refused after signing up | Open the verification link in your email, then try again |
 | Nothing here matches | **Settings → Help & support** — [Support](https://sempermechanics.com/support/) or **Email support** (the mail carries your account, device and build) |

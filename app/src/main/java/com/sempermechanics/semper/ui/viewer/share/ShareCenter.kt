@@ -5,7 +5,6 @@ package com.sempermechanics.semper.ui.viewer.share
 
 import android.graphics.Bitmap
 import android.net.Uri
-import android.view.View
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.account.LicenseEntitlements
 import com.sempermechanics.semper.databinding.SheetShareBinding
@@ -47,25 +46,20 @@ class ShareCenter(private val host: ResultViewerActivity) {
         val sheet = inflateSheet(host, R.layout.sheet_share)
         val v = SheetShareBinding.bind(sheet.view)
 
-        val frames = s.batchFiles.size
         val frameName = s.nameAt(s.frameIndex) ?: "Frame ${s.plannedAt(s.frameIndex) + 1}"
-        val res = host.resources
-        v.tvShareCaption.text = res.getQuantityString(R.plurals.share_caption_fmt, frames, s.frameIndex + 1, frames)
-        v.tvSharePhotoSub.text = host.getString(R.string.share_photo_sub_fmt, s.typeString, frameName)
-        val allName = s.sourceImageName(s.frameIndex) ?: frameName
-        v.tvShareAllPhotosSub.text =
-            res.getQuantityString(R.plurals.share_all_photos_sub_fmt, FIELDS.size, FIELDS.size, allName)
-        v.tvSharePdfSub.text = res.getQuantityString(R.plurals.share_pdf_sub_fmt, frames, frames)
-        v.tvShareCsvSub.text = res.getQuantityString(R.plurals.share_csv_sub_fmt, frames, frames)
+        ShareSheetCopy(
+            position = s.frameIndex,
+            frames = s.batchFiles.size,
+            isSweep = s.isSweep,
+            typeString = s.typeString,
+            frameName = frameName,
+            sourceName = s.sourceImageName(s.frameIndex) ?: frameName,
+        ).applyTo(v, host.resources)
 
         sheet.row(R.id.rowSharePhoto) { runJob(ShareKind.PHOTO) }
         sheet.row(R.id.rowShareAllPhotos) { offerSlowExport(ShareKind.PHOTOS, s) }
-        // Parameter sweeps are not a time series — no summary GIF and no Animations row.
-        if (s.isSweep) {
-            v.rowShareAnimations.visibility = View.GONE
-        } else {
-            sheet.row(R.id.rowShareAnimations) { offerSlowExport(ShareKind.GIFS, s) }
-        }
+        // ShareSheetCopy hides the Animations row on a sweep; only a series wires it.
+        if (!s.isSweep) sheet.row(R.id.rowShareAnimations) { offerSlowExport(ShareKind.GIFS, s) }
         sheet.row(R.id.rowSharePdf) { offerSlowExport(ShareKind.PDF, s) }
         sheet.row(R.id.rowShareCsv) { offerSlowExport(ShareKind.CSV, s) }
         sheet.row(R.id.rowShareZip) { offerSlowExport(ShareKind.ZIP, s) }
@@ -199,9 +193,5 @@ class ShareCenter(private val host: ResultViewerActivity) {
         /** Filename stamped on share photos: the real image, not a sweep settings label. */
         fun sourceImageName(frameIndex: Int): String? =
             if (isSweep) defImagePaths.firstOrNull()?.let { File(it).name } else nameAt(frameIndex)
-    }
-
-    private companion object {
-        val FIELDS = ShareExportBuilder.FIELDS
     }
 }

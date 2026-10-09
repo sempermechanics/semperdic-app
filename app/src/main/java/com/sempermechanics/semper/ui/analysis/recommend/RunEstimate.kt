@@ -46,17 +46,38 @@ object RunEstimate {
         return next.roundToInt().coerceAtLeast(1)
     }
 
-    /** "8,800 points in the region": the caption under the step slider. */
-    fun regionLabel(res: Resources, points: Int): String =
-        res.getQuantityString(R.plurals.run_estimate_region_fmt, points, grouped(points))
+    /** "1100 × 800 px · 8,800 points": the ROI row's [region] and the points the engine solves in it. */
+    fun regionLabel(res: Resources, region: String, points: Int): String =
+        res.getQuantityString(R.plurals.roi_points_fmt, points, region, grouped(points))
 
     /** "about 33 s" up to a minute and a half, then "about 2 min". */
     fun duration(res: Resources, seconds: Long): String =
         if (seconds <= SECONDS_LABEL_MAX) {
             res.getString(R.string.run_estimate_seconds_fmt, seconds)
         } else {
-            res.getString(R.string.run_estimate_minutes_fmt, (seconds / SECONDS_PER_MINUTE).roundToLong())
+            res.getString(R.string.run_estimate_minutes_fmt, minutes(seconds))
         }
+
+    /** [duration] without "about": "33 s", "2 min", for a button with little room. */
+    fun shortDuration(res: Resources, seconds: Long): String =
+        if (seconds <= SECONDS_LABEL_MAX) {
+            res.getString(R.string.run_estimate_seconds_short_fmt, seconds)
+        } else {
+            res.getString(R.string.run_estimate_minutes_short_fmt, minutes(seconds))
+        }
+
+    /** [duration] as TalkBack reads it: "about 33 seconds", "about 2 minutes". */
+    fun spokenDuration(res: Resources, seconds: Long): String {
+        val count = if (seconds <= SECONDS_LABEL_MAX) seconds else minutes(seconds)
+        val plural = if (seconds <= SECONDS_LABEL_MAX) {
+            R.plurals.run_estimate_seconds_spoken_fmt
+        } else {
+            R.plurals.run_estimate_minutes_spoken_fmt
+        }
+        return res.getQuantityString(plural, count.toInt(), count)
+    }
+
+    private fun minutes(seconds: Long): Long = (seconds / SECONDS_PER_MINUTE).roundToLong()
 
     private fun grouped(value: Int): String = String.format(Locale.getDefault(), "%,d", value)
 }

@@ -4,8 +4,10 @@ import android.content.Context
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
+import androidx.annotation.StringRes
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.session.SessionRecord
+import com.sempermechanics.semper.imaging.video.VideoFrameExtractor
 import com.sempermechanics.semper.report.EngineStats
 import com.sempermechanics.semper.ui.analysis.run.EngineFailure
 import com.sempermechanics.semper.ui.common.transfer.TransferWorkObserver
@@ -29,18 +31,27 @@ internal object SessionRowText {
     private const val WHOLE_FROM = 10.0
 
     /**
-     * Size · result · why it stopped · [date]: "40 frames · 96.3% converged · Oct 5".
+     * Size · result · why it stopped: "40 frames · 96.3%".
      *
+     * A video analysis says so, with the span of its frames in the clip:
+     * "Video · 40 frames, 0:00–0:12 · 91.2%".
      * A run cut short reads "39 of 50 frames" and ends with its stop reason:
      * the count alone cannot tell a short run from a shorter test. A sweep
-     * reads "9 of 9 solved · subset 15–35": its title already names it a sweep
-     * and its image. A convergence under [CONVERGENCE_WARN_BELOW] is amber.
+     * reads "9 of 9 solved": its title already names it a sweep and its image.
+     * A convergence under [CONVERGENCE_WARN_BELOW] is amber. The day is the
+     * list's header above the row, not part of it.
      */
-    fun subtitle(context: Context, r: SessionRecord, date: String): CharSequence {
+    fun subtitle(context: Context, r: SessionRecord): CharSequence =
+        build(context, r, R.string.session_convergence_fmt)
+
+    /** [subtitle] as TalkBack reads it, where the bare figure says what it is: "40 frames · 96.3% converged". */
+    fun spokenSubtitle(context: Context, r: SessionRecord): String =
+        build(context, r, R.string.session_converged_fmt).toString()
+
+    private fun build(context: Context, r: SessionRecord, @StringRes convergenceFmt: Int): SpannableStringBuilder {
         val out = SpannableStringBuilder(size(context, r))
-        appendResult(context, r, out)
+        appendResult(context, r, convergenceFmt, out)
         if (r.stoppedEarly) out.append(SEP).append(EngineFailure.shortReason(context, r.stopCode))
-        out.append(SEP).append(date)
         return out
     }
 
@@ -62,44 +73,54 @@ internal object SessionRowText {
         }
     }
 
-    /** "40 frames", "39 of 50 frames" for a run cut short, or a sweep's "9 of 9 solved · subset 15–35". */
-    private fun size(context: Context, r: SessionRecord): String = when {
-        r.isSweep -> sweepSize(context, r)
-        r.stoppedEarly && r.plannedFrameCount > r.frameCount -> context.resources.getQuantityString(
-            R.plurals.session_frames_of_fmt,
-            r.plannedFrameCount,
-            r.frameCount,
-            r.plannedFrameCount,
-        )
-        else -> context.resources.getQuantityString(R.plurals.session_frames_fmt, r.frameCount, r.frameCount)
-    }
-
-    /** Solved of planned combinations and the subset span, from the record's own sweep lists. */
-    private fun sweepSize(context: Context, r: SessionRecord): String {
-        val solved = r.sweepSteps.size
-        val planned = solved + r.sweepSkipSubsets.size
-        val subsets = r.sweepSubsets + r.sweepSkipSubsets
-        return context.resources.getQuantityString(
-            R.plurals.session_sweep_row_fmt,
-            planned,
-            solved,
-            planned,
-            subsets.minOrNull() ?: r.subset,
-            subsets.maxOrNull() ?: r.subset,
-        )
+    /**
+     * "40 frames", "39 of 50 frames" for a run cut short, or a sweep's
+     * "9 of 9 solved": solved of planned combinations, from its own sweep lists.
+     * A video's reads "Video · 40 frames, 0:00–0:12": its first and last
+     * frame's times in the clip, when it kept them.
+     */
+    private fun size(context: Context, r: SessionRecord): String {
+        val frames = when {
+            r.isSweep -> (r.sweepSteps.size + r.sweepSkipSubsets.size).let { planned ->
+                val solved = r.sweepSteps.size
+                context.resources.getQuantityString(R.plurals.session_sweep_row_fmt, planned, solved, planned)
+            }
+            r.stoppedEarly && r.plannedFrameCount > r.frameCount -> context.resources.getQuantityString(
+                R.plurals.session_frames_of_fmt,
+                r.plannedFrameCount,
+                r.frameCount,
+                r.plannedFrameCount,
+            )
+            else -> context.resources.getQuantityString(R.plurals.session_frames_fmt, r.frameCount, r.frameCount)
+        }
+        if (r.isSweep || !r.isVideo) return frames
+        val span = r.frameTimesMs?.takeIf { it.isNotEmpty() }?.let { times ->
+            context.getString(
+                R.string.session_video_span_fmt,
+                frames,
+                VideoFrameExtractor.formatClock(times.first()),
+                VideoFrameExtractor.formatClock(times.last()),
+            )
+        }
+        return context.getString(R.string.session_video_row_fmt, span ?: frames)
     }
 
     /**
      * The run's convergence, from its engine stats; an older row without stats
      * keeps its stored headline instead. A sweep's result is its [size].
      */
-    private fun appendResult(context: Context, r: SessionRecord, out: SpannableStringBuilder) {
+    private fun appendResult(
+        context: Context,
+        r: SessionRecord,
+        @StringRes convergenceFmt: Int,
+        out: SpannableStringBuilder,
+    ) {
         if (r.isSweep) return
         val convergence = r.engineStats.getOrNull(EngineStats.SLOT_CONVERGENCE)
         when {
             convergence != null -> {
                 val percent = oneDecimal(convergence)
-                val text = context.getString(R.string.session_converged_fmt, percent)
+                val text = context.getString(convergenceFmt, percent)
                 out.append(SEP)
                 val start = out.length + text.indexOf("$percent%").coerceAtLeast(0)
                 out.append(text)

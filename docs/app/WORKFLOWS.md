@@ -156,9 +156,14 @@ The session list and the only entry point to a new analysis.
 | [ ] 3.2b | Relaunch after answering it | It does not reappear; the choice is mirrored by the Settings toggle (§4, Your data) |
 | [ ] 3.2c | Signed out (a debug build with no API URL): acknowledge, then relaunch and after a process kill; then sign in to an account that has not seen it | Signed out, the notice does not reappear; the account is asked once, since each account acks for itself |
 | [ ] 3.3 | First visit | A coach mark points at the **+** button; Skip and Got it both dismiss it |
-| [ ] 3.4 | Look at a session row | A flat row on one surface, rows split by a thin divider (also under force-dark). Thumbnail, name, then "N frames · 96.3% converged · Oct 5" (a sweep: "9 of 9 solved · subset 15–35 px · date", from its own combination lists; the title names it a sweep), and a cloud state icon at the end. The convergence is the first frame's, from its engine stats; under 85% the figure is amber. A row from before engine stats were kept shows its stored headline instead |
+| [ ] 3.4 | Look at a session row | A rounded card with a thin outline, 16dp in from the screen edges. Thumbnail, name, then "N frames · 96.3%" (a sweep: "9 of 9 solved", from its own combination lists; the title names it a sweep; a run cut short: "39 of 50 frames · 90.0% · " and its stop reason), and a cloud state icon at the end. No date on the row. The convergence is the first frame's, from its engine stats; under 85% the figure is amber. TalkBack reads it as "96.3% converged". A row from before engine stats were kept shows its stored headline instead |
+| [ ] 3.4d | Look above the rows, with analyses from today, yesterday and earlier | Small grey day headers: "Today", "Yesterday", then a short date such as "Oct 7", with the year for one from another year ("Dec 31, 2025"), in the phone's language and timezone. A header is not a row: it cannot be tapped or selected, and select-all counts only analyses |
+| [ ] 3.4e | Select a row (long-press) | Its card turns light blue with a blue outline and a tick replaces the thumbnail |
+| [ ] 3.4f | Scroll to the end of a long list | Cards are about 68dp tall (12dp around a 44dp thumbnail); the last card scrolls clear above the **+** button (the list's bottom padding follows the button's spot, nine tenths down), and earlier cards pass under it |
 | [ ] 3.4a | Look at the thumbnail of a row whose frames are on the phone | The last frame's U-displacement heatmap, cropped to the field. The reference shows until it is drawn; a cloud-only row keeps the reference. Re-run the analysis and the thumbnail is drawn again from the new frames |
 | [ ] 3.4b | Make two analyses from the same reference image | The first is named after the image ("steel_00"), the second "steel_00 (2)" — no date in the name. Rows named before this change keep their names |
+| [ ] 3.4g | Look at the row of an analysis made from a video | "Video · 40 frames, 0:00–0:12 · 91.2%": the first and last frame's times in the clip, then the convergence, amber under 85% as on any row. TalkBack reads "… 91.2% converged". The same analysis restored from the cloud reads like a photo row ("40 frames · 91.2%"): the clip's times are not backed up |
+| [ ] 3.4h | Run a parameter sweep on frame `steel_24` | The new row is named "steel_24 sweep" (a second one "steel_24 sweep (2)"); sweeps named before this change keep "Parameter sweep · …" |
 | [ ] 3.4c | Read each cloud state icon with TalkBack | Cloud with tick "Backed up", up arrow "Upload pending", crossed out "Not backed up" (red when the backup failed), down arrow "Only in cloud" |
 | [ ] 3.5 | Tap a normal session | Result viewer opens on frame 1 |
 | [ ] 3.6 | Tap a sweep session | **Lattice** opens, not the viewer |
@@ -259,7 +264,7 @@ account data**.
 | [ ] 4.4 | Expand **Account** as an admin | The button appears and opens the admin list |
 | [ ] 4.5 | Turn **Save to cloud** on with local-only analyses present | A dialog offers to back up N of them |
 | [ ] 4.6 | Accept that offer | Uploads are queued; the cloud icons on Home move to "Upload pending" |
-| [ ] 4.7 | Turn **Save to cloud** off | Subtitle changes; no new uploads are queued |
+| [ ] 4.7 | Turn **Save to cloud** off | No new uploads are queued. Neither switch has a sub-line; with TalkBack each says what it does ("Save to cloud: new analyses upload when a network is available…", "Wi‑Fi only: wait for unmetered Wi‑Fi before uploading") |
 | [ ] 4.8 | Toggle **Wi-Fi only uploads** on, then queue an upload on mobile data | The upload waits for Wi-Fi |
 | [ ] 4.9 | Read the sync status line | "Up to date" or a pending count, matching the cloud icons on Home |
 | [ ] 4.10 | Expand **Analyses data management** | Merged local + cloud list; each row shows a state line |
@@ -280,12 +285,12 @@ account data**.
 | [ ] 4.17 | Confirm any backup delete, then tap **Undo** within 5 s | The row returns; nothing is deleted server-side |
 | [ ] 4.18 | Confirm and wait past the undo window | The backup is really gone after a refresh |
 | [ ] 4.18a | Expand **Storage** | Analyses and cache sizes are measured and shown, not left on "Measuring…" |
-| [ ] 4.18b | Tap **Free up space** with backed-up analyses present | A confirm dialog first, **naming how much it will reclaim** — only the frames, raw images and processed/staging folders it drops, not the kept `reference.png` / small files (`LocalArtifacts`), so the figure matches what is freed; accepting drops those local frames, the rows become "Only in cloud" on Home and the analyses total falls |
-| [ ] 4.18c | Tap it with nothing safely backed up | The button is **disabled** and the subtitle says there is nothing to free — it cannot strand un-backed-up data |
-| [ ] 4.18d | Tap **Clear cache** | The cache total drops; open analyses still work — only regenerable files go. At 0 bytes the button is disabled |
-| [ ] 4.18e | Drag the **auto-free** slider off 0 | The label names the budget in GB; at 0 it reads "off" |
+| [ ] 4.18b | Tap **Free up N MB** with backed-up analyses present (the row only shows then, its N what the backed-up analyses hold here) | A confirm dialog first, **naming how much it will reclaim** — only the frames, raw images and processed/staging folders it drops, not the kept `reference.png` / small files (`LocalArtifacts`), so the figure matches what is freed; accepting drops those local frames, the rows become "Only in cloud" on Home and the analyses total falls |
+| [ ] 4.18c | Look for it with nothing safely backed up | There is no free-up row at all — it cannot strand un-backed-up data. A demo account never has one |
+| [ ] 4.18d | Tap **Clear** at the end of the **Temporary files** row | The cache total drops; open analyses still work — only regenerable files go. At 0 bytes **Clear** is gone |
+| [ ] 4.18e | Drag the **auto-free** slider off 0 | The value at the header's end reads "Over N GB"; at 0 it reads "Off" |
 | [ ] 4.18f | Set a budget below current usage and restart the app | Space is reclaimed at start-up, oldest backed-up analyses first |
-| [ ] 4.18g | Tap the ⓘ beside it | Explains that only cloud-backed analyses are ever dropped |
+| [ ] 4.18g | Tap the ⓘ beside it | Explains what Off means (analyses stay until you remove them), what a size does, and that only cloud-backed analyses are ever dropped |
 | [ ] 4.19 | Tap **Export my data** | A master ZIP is built behind the **transfer banner** (§4.0) — not a blocking dialog — then handed to the **Send to** sheet (§8.5a) |
 | [ ] 4.19a | Tap **Download my cloud account data** | The server-side export of the account is fetched the same way, banner and all, then offered through the same sheet |
 | [ ] 4.19b | Trigger either export with no network | It fails with a named reason, not a silent no-op |
@@ -349,13 +354,13 @@ Lattice, Session limit, or back to Home.
 | [ ] 5.1.8 | Include one frame of a different pixel size | **Compute** stays disabled. On step 2 a warning chip says the image resolution isn't matching the reference (W×H) and lists the mismatched filename(s); its info icon asks first whether to leave the app, then opens the frame-size FAQ |
 | [ ] 5.1.9 | Load JPEGs | A non-blocking accuracy warning chip appears; its info icon asks first whether to leave the app, then opens the JPEG FAQ |
 | [ ] 5.1.10 | Load a poorly speckled reference | A low-texture warning names a suggested subset size; its info icon opens the speckle FAQ behind the same leave-the-app confirm |
-| [ ] 5.1.11 | Load any speckled reference and open step 2 | While the speckle is measured (past ~0.3 s) the muted line under the subset slider reads "Measuring speckle…". Then the slider slides to the recommendation (~250 ms), a "Speckle D px" chip appears beside **Subset size** (amber outside 3–9 px), a band is shaded behind the track from the smallest size that holds enough speckle, and the line reads "Set to N px · shaded: M px and up hold enough speckle" |
-| [ ] 5.1.11a | Move the subset slider after 5.1.11 | The line reads "Shaded: M px and up hold enough speckle". **Reset** brings back "Set to …" |
+| [ ] 5.1.11 | Load any speckled reference and open step 2 | While the speckle is measured (past ~0.3 s) the chip beside **Subset size** reads "Measuring speckle…". Then the slider slides to the recommendation (~250 ms), the chip reads "Speckle D px" (amber outside 3–9 px), and a band is shaded behind the track from the smallest size that holds enough speckle. No caption sits under the slider |
+| [ ] 5.1.11a | Tap the ⓘ beside **Subset size** after 5.1.11 | The dialog says what the shaded band means: the sizes that hold enough speckle. Moving the slider leaves the band where it is |
 | [ ] 5.1.11b | Turn animations off (Developer options, Animator duration scale off) and repeat 5.1.11 | The slider jumps to the recommendation instead of sliding |
 | [ ] 5.1.12 | Load a reference shot far back, so the dots are 1–2 px | A chip **on step 1** says the speckle is below the 3 px minimum and to shoot closer or use a coarser pattern |
 | [ ] 5.1.13 | Load a close-up whose dots span more than 9 px | The step 1 chip says the pattern is over-resolved — correlates fine, but a finer pattern would give more points. No span chip appears on step 2: the size verdict suppresses it |
 | [ ] 5.1.14 | Load a reference inside the band whose speckle needs a larger subset than the slider is on (e.g. dots ~7 px against a subset of 15) | A chip appears **on step 2, under the subset slider**, naming the subset in use and the one wanted. Raise the slider past it and the chip clears in place, without leaving step 2 |
-| [ ] 5.1.15 | Load a reference with no measurable pattern at all (blank card) | Neither the readout nor either chip appears; no number is invented |
+| [ ] 5.1.15 | Load a reference with no measurable pattern at all (blank card) | No speckle chip, no band and neither warning chip appears; no number is invented |
 | [ ] 5.1.16 | Open the sort menu → **Name A–Z** | Thumbnails reorder; the badge numbers renumber 1…N |
 | [ ] 5.1.17 | Choose **Date oldest first** | Order follows capture date, not filename |
 | [ ] 5.1.18 | Choose **Manual** | Hint toast about dragging; drag a thumbnail and it stays where dropped, back at its normal size, with the badges renumbered |
@@ -382,6 +387,8 @@ Reached whenever the file picked — from the grid or through Files — is a vid
 | [ ] 5.1a.9 | Pick an `.avi` that is truncated or not a video at all | The ordinary "could not read this video" snackbar — no crash |
 | [ ] 5.1a.10 | **Fixed interval**, whole clip, the source's own rate, then **Extract** | The deformed count is exactly the sheet's estimate minus the reference — a 20-frame clip gives 1 + 19, not a promised 21 |
 | [ ] 5.1a.11 | Read the codec snackbar from 5.1a.8 | The whole message shows — both remedies, not cut after two lines — and it stays up long enough to read (about 9 s) |
+| [ ] 5.1a.12 | Extract from `tensile_03.mp4`, then run | The reference card reads "tensile_03" and the analysis is named "tensile_03" ("tensile_03 (2)" for a second); a clip whose name the picker cannot give is "Video" |
+| [ ] 5.1a.13 | Extract, then kill the app on step 2 (Developer options, or `am kill`) and reopen | The wizard comes back with the frames, and after the run the row and the viewer still show the frames' clip times (3.4g, 8.2.1c) |
 
 `VideoFrameExtractionDeviceTest` (instrumented) covers the extraction itself on an
 emulator: it encodes MP4 and AVI (Y800, MJPG, H.264) clips whose frames are stamped
@@ -395,66 +402,71 @@ vendor decoders and camera AVIs.
 | # | Action | Expected |
 |---|---|---|
 | [ ] 5.2.1 | Arrive on step 2 | Toolbar reads "Parameters" with two dots, the second blue. Single / Sweep is at the top; the page is one flat list split by dividers, no cards |
-| [ ] 5.2.2 | Read the ROI row before editing | A thumbnail of the reference shaded green, and "Full image · W × H px" |
-| [ ] 5.2.3 | Tap **Edit** → draw an ROI → save | The thumbnail shows the region (holes in red) and the line becomes "w × h of W × H px" |
+| [ ] 5.2.2 | Read the ROI row before editing | A thumbnail of the reference shaded green, and "Full image · N points": the points the engine solves at this step, over the frame inset by half a subset plus 10 px a side |
+| [ ] 5.2.3 | Tap **Edit** → draw an ROI → save | The thumbnail shows the region (holes in red) and the line becomes "w × h px · N points" |
 | [ ] 5.2.4 | Tap **Edit** → cancel | Falls back to full image; any mask is cleared |
-| [ ] 5.2.5 | Switch to **Parameter sweep** | The correlation section hides; **Frame to sweep** (multi-frame only) and the **Planned lattice** appear, no range controls. Toolbar reads "Sweep setup" with three dots. Bottom nav reads **Next: sweep settings** |
-| [ ] 5.2.6 | Type **step size** as subset ÷ N on step 3 | N is 2–9 (default 3); overlap on the same row is `1 − 1/N`; each subset uses `step = round(subset / N)` |
+| [ ] 5.2.5 | Switch to **Parameter sweep** | The correlation section hides; the frame field (multi-frame only) and the **Planned lattice** appear, no range controls. Toolbar reads "Sweep setup" with three dots. Bottom nav reads **Next**. The ROI row drops its point count ("Full image", "w × h px"): each combination has its own step; **Single** brings the count back |
+| [ ] 5.2.5a | Run a single analysis ("✅ Computed N frames" under the page), then switch to **Parameter sweep** | The status line clears; switching back to **Single** does not bring it back |
+| [ ] 5.2.6 | Type **step size** as subset ÷ N on step 3 | N is 2–9 (default 3); the overlap under **Advanced** is `1 − 1/N`; each subset uses `step = round(subset / N)` |
 | [ ] 5.2.7 | Tap the ⓘ next to the mode toggle | Explains single setting vs sweep |
 | [ ] 5.2.8 | Switch back to **Single** | The correlation section returns with its previous values |
 | [ ] 5.2.9 | Drag the **subset size** slider | Only odd values between 15 and 121; the field mirrors it; overlap updates from the current step |
 | [ ] 5.2.10 | Type an even subset size and press Done | Snapped to the nearest valid odd value |
 | [ ] 5.2.11 | Type nonsense in a parameter field | Reverts to the previous value on commit |
-| [ ] 5.2.12 | Drag **step** | Max is `min(30, subset/2)` so overlap stays ≥ 0.5; the overlap field mirrors it; the line under the slider counts "N points in the region" = (ROI w ÷ step) × (ROI h ÷ step) |
-| [ ] 5.2.12a | Type **overlap** under the step slider | 0.50–0.99; step rewrites to `round(subset × (1 − overlap))` |
+| [ ] 5.2.12 | Drag **step** | Max is `min(30, subset/2)` so overlap stays ≥ 0.5; the overlap field under **Advanced** mirrors it; the ROI row's count follows, N points = (ROI w ÷ step) × (ROI h ÷ step) |
+| [ ] 5.2.12a | Open **Advanced** and type **overlap** | 0.50–0.99; step rewrites to `round(subset × (1 − overlap))` |
 | [ ] 5.2.12b | Read **Compute** before any run on this phone | "Compute", no time |
 | [ ] 5.2.12c | Run once, come back to step 2 | The button reads "Compute · about S s" (minutes past 90 s), from the points per second this phone's runs reached, frames × points; the text shrinks to stay on one line |
-| [ ] 5.2.13 | Drag **strain window** | Odd values 3–31, in **points**; the field mirrors it and the line under the slider reads "Fits a plane over N px (VSG)", N = (window − 1) × step + 1. It starts at 5 |
+| [ ] 5.2.13 | Drag **strain window** | Odd values 3–31, in **points**; the field mirrors it and the muted text beside it on the header row reads "N px VSG", N = (window − 1) × step + 1. It starts at 5 |
 | [ ] 5.2.13a | Open step 2 having never copied params from a lattice | No paste icon beside **Reset** — it only appears when the clipboard holds a set |
-| [ ] 5.2.13b | Copy params from a sweep lattice (§7.3), then return here | The paste icon appears beside **Reset**; tapping it fills subset, step and strain window (overlap follows step) and scrolls them into view. The window is the one whose VSG at the pasted step matches the node's |
-| [ ] 5.2.13c | Change the **step** with the window fixed | The VSG line follows: window 5 reads 21 px at step 5, 41 px at step 10 |
-| [ ] 5.2.14 | Tap each ⓘ | Subset, step, overlap and strain window each explain themselves |
-| [ ] 5.2.15 | Pick **6×6 Keys** in the **Interpolation** dropdown | Selection sticks; the run uses it |
+| [ ] 5.2.13b | Copy params from a sweep lattice (§7.3), then return here | The paste icon appears beside **Reset**; tapping it fills subset, step and strain window (overlap follows step) and scrolls them into view. The window is the one whose VSG at the pasted step matches the node's. When the paste changes the overlap, a closed **Advanced** opens to show it; a paste that leaves it as it was leaves Advanced closed |
+| [ ] 5.2.13c | Change the **step** with the window fixed | The VSG beside the window follows: window 5 reads "21 px VSG" at step 5, "41 px VSG" at step 10 |
+| [ ] 5.2.13d | Read the page under the strain window | **Advanced** with a chevron, closed. A tap opens it (the chevron turns up) on **Overlap** with its ⓘ and **Interpolation**; another tap closes it |
+| [ ] 5.2.14 | Tap each ⓘ | Subset (including what the shaded band means), step, overlap (under **Advanced**) and strain window each explain themselves |
+| [ ] 5.2.15 | Open **Advanced** and pick **6×6 Keys** in the **Interpolation** dropdown | Selection sticks; the run uses it |
 | [ ] 5.2.16 | Change several parameters, then tap **Reset** (the circular-arrow icon) | Subset returns to the recommended value, step to 5, overlap follows step, strain window to 5 points, interpolation to 4×4 bicubic |
 | [ ] 5.2.16a | After a failed run leaves an ❌ line on step 2, change subset / paste params / replace frames | The run-status line clears; the frame-size chip (if any) only shows when sizes still mismatch |
 | [ ] 5.2.17 | Load a well-speckled reference and watch the subset | It is pre-seeded from the SSSIG recommendation — until you touch it |
 | [ ] 5.2.18 | Draw an ROI smaller than the subset and tap **Compute** | "ROI too small" snackbar with a **Why?** action; that asks first whether to leave the app, then opens the ROI FAQ. The run does not start |
 | [ ] 5.2.19 | Edit a parameter field and tap **Compute** without pressing Done | The typed value is committed and used |
 | [ ] 5.2.20 | Open step 2 for the first time | Coach marks point at the analysis-mode toggle, the ROI row, then the Correlation section (Single) or the planned lattice (Sweep) |
-| [ ] 5.2.21 | Tap the **Frame to sweep** field (sweep, multi-frame) | The frame picker opens on the picked frame: a radio list, a frame-number field and a live preview. **OK** updates the name, "Frame n of N" and the thumbnail; **Cancel** changes nothing. With one deformed frame the row is hidden |
+| [ ] 5.2.21 | Tap the frame field (sweep, multi-frame) | It has no box label; it shows the frame's name with "n / N" at its end. The frame picker opens on the picked frame: a radio list, a frame-number field and a live preview. **OK** updates the name, "n / N" and the thumbnail; **Cancel** changes nothing. With one deformed frame the row is hidden |
+| [ ] 5.2.21b | Tap the ⓘ after the frame field | A dialog titled "Frame to sweep" says to pick the frame with the most deformation, since the sweep solves only that one; no sentence sits under the field |
 | [ ] 5.2.21a | Tap the frame thumbnail, then anywhere | The frame shows large over the dimmed page with "name · Frame n of N" and "Tap to close" under it; a tap anywhere or Back closes it |
 | [ ] 5.2.23 | Drag the subset range handles (step 3) | Both ends stay odd; min never crosses max |
 | [ ] 5.2.24 | Type a subset min above the max | Clamped so min ≤ max |
-| [ ] 5.2.25 | Drag the strain window range (step 3) | Two handles like the subset's, in points (3–31, default 3–11); the min and max boxes track it, and the line under it reads "Fits planes over a–b px (VSG)" for the plan's smallest and largest VSG |
+| [ ] 5.2.25 | Drag the strain window range (step 3) | Two handles like the subset's, in points (3–31, default 3–11); the min and max boxes track it, and the muted text at the end of the **Strain window** title row reads "a–b px VSG" for the plan's smallest and largest VSG |
 
 ### 5.3 Step 3 — Sweep settings `[sweep]`
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 5.3.1 | Arrive on step 3 | Toolbar reads "Sweep settings" with the third of three dots blue; the ranges come first, then **Line cut axis**; no lattice on this page |
-| [ ] 5.3.6 | Tap each ⓘ | The ranges, step and line-cut axis each explain themselves |
+| [ ] 5.3.1 | Arrive on step 3 | Toolbar reads "Sweep settings" with the third of three dots blue; **Subset** and **Strain window** come first, then the step, a closed **Advanced**, then **Line cut axis**; no lattice on this page |
+| [ ] 5.3.6 | Tap each ⓘ | The ranges, step, overlap (open **Advanced** first) and line-cut axis each explain themselves |
+| [ ] 5.3.6b | Tap **Advanced** on step 3, then tap it again | It opens on the **Overlap** field with its ⓘ, the chevron turned up, and closes again; the parameters page's own Advanced is unaffected |
 | [ ] 5.3.6a | Open step 3 for the first time | Three coach marks in order: the subset range, the line cut axis, then the run button |
-| [ ] 5.3.6f | Toggle the line-cut axis **Along X** ↔ **Along Y**, then tap the strip twice | The strip redraws the cut line through the ROI centre; a tap opens it in the reference's aspect, 240dp tall at least and at most 60% of the screen. A reference too wide for that scrolls sideways, starting centred. A second tap closes it |
+| [ ] 5.3.6f | Toggle the line-cut axis **X** ↔ **Y** (TalkBack reads "Along X" / "Along Y"), then tap the strip twice | The strip redraws the cut line through the ROI centre; a tap opens it in the reference's aspect, 240dp tall at least and at most 60% of the screen. A reference too wide for that scrolls sideways, starting centred. A second tap closes it |
 | [ ] 5.3.11 | Look at the planned lattice on step 2 | Grid of nodes, subset across, VSG up; taps do nothing (it's a preview) |
-| [ ] 5.3.12 | On step 2 tap the gear on **Planned lattice** and set 4 × 4 | The sample counts show under the heading (hidden until the gear); the plan summary reads 16 analyses and the lattice redraws; on step 3 the run button reads "Run 16 analyses" |
-| [ ] 5.3.12a | Read the run button before and after a run on this phone | "Run N analyses", then "Run N analyses · about S s" once a run has finished; it follows the ranges as they change |
+| [ ] 5.3.12 | On step 2 tap the gear on **Planned lattice** and set 4 × 4 | The sample counts show under the heading (hidden until the gear); the heading's count reads "16 runs" and the lattice redraws; on step 3 the run button reads "Run 16" |
+| [ ] 5.3.12a | Read the run button before and after a run on this phone | "Run N", then "Run N · S s" once a run has finished (minutes past 90 s); TalkBack reads "Run N analyses, about S seconds". It follows the ranges as they change |
 | [ ] 5.3.13 | Set samples to 9 | Clamped to 8 |
 | [ ] 5.3.14 | Set the subset min above what the ROI can hold | Warning chip under the lattice on step 2: "Subset range starts above what this image and ROI can hold"; info icon opens the sweep-subset FAQ behind the leave-the-app confirm. The run button is disabled |
 | [ ] 5.3.15 | Set a strain window range that no subset can satisfy | Warning chip under the lattice on step 2: "No combination fits this ceiling — raise Max strain window or lower the subset range"; info icon opens the empty-plan FAQ behind the same confirm. The run button is disabled |
-| [ ] 5.3.16 | Read a valid plan summary | "N analyses · subset a–b px · window c–d points"; a one-combination plan reads "1 analysis" with its real subset and window, not "1–1" |
+| [ ] 5.3.16 | Read the count beside **Planned lattice**, then start the sweep | "N runs" ("1 run" for one combination); no summary line sits under the lattice. The run overlay opens on "N analyses · subset a–b px · window c–d points"; a one-combination plan reads "1 analysis" with its real subset and window, not "1–1" |
 
 ### 5.4 Running
 
 The same overlay is reused for importing frames and extracting video, but the
-convergence graph is **hidden** there — nothing is being solved. Import and
-extraction show determinate progress and time left instead.
+convergence bins are **hidden** there — nothing is being solved. Import and
+extraction show a determinate progress bar, their status line and time left instead.
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 5.4.1 | Start a run | Overlay with title, "Frame N of M", percentage, "Estimating time left…" then "About N s left", seconds per frame, elapsed |
-| [ ] 5.4.2 | Watch the graph during a solve | **Convergence per frame** draws a point per finished frame; the status under it reads "Correlating frame N · X%", then "Completed M of M frames · saving" |
+| [ ] 5.4.1 | Start a run | Header row: "Frame N of M" with the percentage at its end (one decimal); under it "Estimating time left…" then "About N s left"; no title, ring, pace, elapsed or "Keep Semper open" line |
+| [ ] 5.4.2 | Watch the bins during a solve | One bin per planned frame: finished frames blue at their convergence height (red under the dashed 50% line), the frame being solved a pale outlined bin rising with its own progress, the rest empty slots. After the last frame the header reads "Completed M of M frames · saving" |
+| [ ] 5.4.2d | Run more than 100 frames | Neighbouring frames share a bin that shows the lowest of them; a low frame still shows red |
 | [ ] 5.4.2c | Run a pair that decorrelates (blurred or swapped frames) | After the first frame under 50% an amber line names it and warns one more stops the run; the second stops it as before |
-| [ ] 5.4.2a | Watch the overlay while frames import or a video extracts | The graph is absent; progress is a determinate count of frames with time left |
+| [ ] 5.4.2a | Watch the overlay while frames import or a video extracts | The bins are absent; the header is the import's title with its percentage, then a determinate bar, the count of frames under it, and time left |
 | [ ] 5.4.2b | Tap **Cancel** during an import | A confirm dialog ("Cancel this import?"); confirming leaves no half-imported frames behind |
 | [ ] 5.4.3 | Leave the device untouched during a long run | The screen does not sleep |
 | [ ] 5.4.4 | Press Back mid-run | Blocked, with a toast |
@@ -463,8 +475,8 @@ extraction show determinate progress and time left instead.
 | [ ] 5.4.6a | Cancel a long frame (big ROI, small step) | Same: no multi-second wait on the progress overlay after confirming |
 | [ ] 5.4.6b | Start a new run straight after cancelling one | It runs normally — the cancel does not carry over |
 | [ ] 5.4.6c | Cancel a sweep at combination 3 of 16 | The **whole sweep** stops — it does not go on to combination 4 |
-| [ ] 5.4.7 | Start a sweep | "Analysis i of N" beside the title; the planned lattice replaces the graph, all grey rings, with the combination being solved circled; the status under it reads "Solving subset S · step T · W-point window" |
-| [ ] 5.4.7a | Watch the sweep lattice | Each combination fills as it solves or becomes a red ring if skipped; percentage and time left advance per combination; at the end the status reads "Solved K of N analyses · saving" |
+| [ ] 5.4.7 | Start a sweep | Header row "Analysis i of N" with the percentage; the planned lattice replaces the bins, all grey rings, with the combination being solved circled; the status under it reads "Solving subset S · step T · W-point window" |
+| [ ] 5.4.7a | Watch the sweep lattice | Each combination fills as it solves or becomes a red ring if skipped; percentage and time left advance per combination; at the end the header reads "Solved K of N analyses · saving" |
 | [ ] 5.4.8 | Background the app mid-run | The run does not survive process death — no resume is offered |
 
 ### 5.5 Terminal states
@@ -497,7 +509,7 @@ extraction show determinate progress and time left instead.
 | [ ] 5.5.4e | Drag across the strain plot | Every curve's value at that position, each in its own curve's colour |
 | [ ] 5.5.4b | Run a sweep where **every** combination fails | The Lattice opens — not the parameter screen — all nodes hollow, summary says all failed, tapping the summary opens the VSG FAQ confirm, and **View** and **Save graph** are both disabled |
 | [ ] 5.5.5 | Finish a sweep cleanly | Lattice opens with every node filled |
-| [ ] 5.5.6 | Hit the quota during a run | Session limit screen |
+| [ ] 5.5.6 | Start a new run at the quota | Session limit screen, before any solving. A run already under way when the quota fills still saves (§9, 9.7) |
 | [ ] 5.5.7 | Re-run with the same inputs after changing a parameter | The same Home row is updated, not duplicated. A sweep re-run updates the sweep's row the same way |
 | [ ] 5.5.7a | Run a single analysis, switch to **Parameter sweep** and run it (or the other way round) | A second Home row: changing the run kind is like new inputs, and counts towards the quota. The earlier row keeps its frames, name and results, and opens as before. Switch back and run again, and that is a new row too |
 | [ ] 5.5.8 | Change the inputs and run again | A new Home row is created |
@@ -629,7 +641,7 @@ node. **Exit:** Home, or back to the Lattice.
 | [ ] 8.1.1c | Open a large result (many frames, a big image) | Past ~0.3 s a centred pill with a spinner reads "Opening <reference name> · N frames" ("1 frame" for one); it goes once the first frame's heatmap draws, or when the frame cannot be read. Nothing else on screen moves for it |
 | [ ] 8.1.1a | Step through the frames of a run whose specimen visibly deforms | The photo under the map changes with each frame and the map stays on the specimen. A sweep shows its one deformed photo under every node |
 | [ ] 8.1.1b | Open a session whose deformed photos are not on the phone | Each frame falls back to the reference photo, with the map at the reference positions, still lined up |
-| [ ] 8.1.2 | Tap the field FAB, then pick V / Exx / Eyy / Exy | Heatmap and colour scale follow; edge title updates; the live field stays checked in the popup |
+| [ ] 8.1.2 | Tap the field FAB, then pick V / Exx / Eyy / Exy | Heatmap and colour scale follow; the FAB names the field (the edge title does not repeat it); the live field stays checked in the popup |
 | [ ] 8.1.2a | Open the field popup | All five fields are listed; the one on screen is highlighted |
 | [ ] 8.1.2b | Check fit at rest | Heatmap (ROI or accepted points) is contained between the top bar and scrub bar; the colour scale may overlay the right edge and stays put while the figure pans |
 | [ ] 8.1.2c | Zoom, pan a region that was under the scale into the open area, then tap to probe | Probe readout shows a real point; tapping the scale itself still opens the custom-scale dialog, not a probe |
@@ -650,8 +662,10 @@ node. **Exit:** Home, or back to the Lattice.
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 8.2.1 | Read the frame counter | The original filename (or the sweep label) plus "(i / N)" |
-| [ ] 8.2.1a | Open a batch the run skipped a frame of (one kept no points or would not read) | Every later frame keeps its own filename — in the counter, the share CSV's `image` column, each PDF page title and the ZIP's `results/NNN_<name>/` folders, numbered as planned (frame 3 stays `003_…`) — matching the cloud backup's CSV and `Frame_N` folders |
+| [ ] 8.2.1 | Read the edge title and the counter pill | The title is the frame's original filename without its extension ("steel_03"; "Frame 3" when unnamed); the pill under the frame reads "i / N" alone |
+| [ ] 8.2.1c | Open an analysis made from a video and step through it | The title is each frame's time in the clip, "0:01.25" (m:ss.cc), not "frame_0003". One restored from the cloud is titled by its frame names |
+| [ ] 8.2.1b | Open a sweep node | The title reads "Subset 15 · window 3": the node's subset and its strain window in data points (the step is left out). A sweep from before windows were counted in points keeps its stored label |
+| [ ] 8.2.1a | Open a batch the run skipped a frame of (one kept no points or would not read) | Every later frame keeps its own filename — in the edge title, the share CSV's `image` column, each PDF page title and the ZIP's `results/NNN_<name>/` folders, numbered as planned (frame 3 stays `003_…`) — matching the cloud backup's CSV and `Frame_N` folders |
 | [ ] 8.2.2 | Tap **Next** | Advances one frame; the heatmap and stats update |
 | [ ] 8.2.3 | Reach the last frame | **Next** disables and fades |
 | [ ] 8.2.4 | Reach the first frame | **Prev** goes back to the summary, not nowhere |
@@ -675,7 +689,7 @@ onto a combination, with no summary slot and no Animations share target).
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 8.2a.1 | Open a result | It lands on the summary, which builds and then loops. The **counter** reads "Summary GIF"; the **edge title** carries "<field> · Summary" |
+| [ ] 8.2a.1 | Open a result | It lands on the summary, which builds and then loops. The **edge title** reads "Summary"; the **counter** pill counts the frames it plays ("5 frames") |
 | [ ] 8.2a.1b | Open a result with a sub-frame ROI (or a small accepted patch) | The summary GIF is framed on that coloured region — same rest-fit contain scale as the live viewer, not a letterboxed full photo |
 | [ ] 8.2a.1a | Watch it build | Determinate progress with a status ("Reading frames…", then "Rendering <field>…") and a **Cancel** button |
 | [ ] 8.2a.2 | Watch a short (≤33 frame) analysis | Each frame is visible for about 300 ms |
@@ -729,17 +743,18 @@ a centre double-tap brings the bars back when they have faded.
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 8.5.1 | Tap Share | Sheet with six targets, captioned positionally — "frame N of M shown · photos share the current frame". It no longer names the frame; the frame's own name is on the **Single Field** row's sub-line |
-| [ ] 8.5.2 | **Single Field** | One annotated PNG of the field and frame on screen |
-| [ ] 8.5.3 | **All fields** | Five PNGs for the current frame, zipped for hand-off. The row's sub-line and each PNG's stamp name the **source image**; the file names still come from the analysis name |
+| [ ] 8.5.1 | Tap Share | Sheet headed **Share**, with the frame on screen at the header's end ("frame 2 of 5"; "combination 2 of 5" on a sweep). Six flat one-line rows split by hairlines, no cards: icon, title, file type at the end — **This field** PNG, **All fields** 5 PNG, **Animations** 5 GIF, **Report** PDF, **Data** CSV, **Everything** ZIP |
+| [ ] 8.5.1a | Same, with TalkBack on | Each row reads what it shares: "Share this field (U of frame.jpg) as PNG", "Share all 5 fields of frame.jpg as PNG", "Share the report of all 5 frames as PDF", … |
+| [ ] 8.5.2 | **This field** | One annotated PNG of the field and frame on screen |
+| [ ] 8.5.3 | **All fields** | Five PNGs for the current frame, zipped for hand-off. Each PNG's stamp names the **source image**; the file names still come from the analysis name |
 | [ ] 8.5.3a | **Animations** `[single]` | Five GIFs, one per field, zipped; each loops when opened in a gallery app. Row is absent on a parameter sweep |
 | [ ] 8.5.3b | Same, immediately on entering the viewer `[single]` | Fields not built yet are built under the progress dialog — never silently missing |
-| [ ] 8.5.4 | **PDF report** | Every frame's pages plus a telemetry page. Its sheet row reads "fields, stats, telemetry · All N frames", with the same "·" as the other rows |
-| [ ] 8.5.5 | **CSV data** | `#` preamble (version, reference, strain method, ROI, per-frame U/V/Exx/Eyy/Exy max/min/mean), blank line, then point header `image,x_px,y_px,u_px,v_px,exx,eyy,exy,znssd,shift_u_px,shift_v_px,shift_rot_deg` — the three motion columns are written for every session, empty when a frame admits no fit; sweeps insert `subset_px,step_px,strain_window,vsg_px` after `image` (`strain_window` in points, empty for a sweep stored before points; `vsg_px` the VSG) |
-| [ ] 8.5.6 | **Everything (.zip)** | Raw photos, per-frame results for all five fields, the CSV and the PDF; single-setting also includes the five field GIFs under `animations/` |
+| [ ] 8.5.4 | **Report** | One PDF: every frame's pages plus a telemetry page |
+| [ ] 8.5.5 | **Data** | One CSV for the whole analysis: `#` preamble (version, reference, strain method, ROI, per-frame U/V/Exx/Eyy/Exy max/min/mean), blank line, then point header `image,x_px,y_px,u_px,v_px,exx,eyy,exy,znssd,shift_u_px,shift_v_px,shift_rot_deg` — the three motion columns are written for every session, empty when a frame admits no fit; sweeps insert `subset_px,step_px,strain_window,vsg_px` after `image` (`strain_window` in points, empty for a sweep stored before points; `vsg_px` the VSG) |
+| [ ] 8.5.6 | **Everything** | Raw photos, per-frame results for all five fields, the CSV and the PDF; single-setting also includes the five field GIFs under `animations/` |
 | [ ] 8.5.7 | Check the filename of anything you export | It carries the specimen / analysis name, not a generic `export.zip` |
 | [ ] 8.5.8 | Export a very large analysis | Determinate progress dialog, then either a file or a message naming the failure — never a crash, and never an OOM from rendering the report |
-| [ ] 8.5.8b | Watch the dialog of a CSV, **All fields**, **Animations** or **Everything** export | It spins until the first report, then names what it is on ("Frame 12 of 40 · heatmaps", "Field 2 of 5 · V heatmap", "Frame 3 of 40 · Exx animation"), shows the percent to one decimal on the right and, after about 3 s, "About N s left" under the bar. No kind spins for its whole run; only **Single Field** (one render) has no steps |
+| [ ] 8.5.8b | Watch the dialog of a CSV, **All fields**, **Animations** or **Everything** export | It spins until the first report, then names what it is on ("Frame 12 of 40 · heatmaps", "Field 2 of 5 · V heatmap", "Frame 3 of 40 · Exx animation"), shows the percent to one decimal on the right and, after about 3 s, "About N s left" under the bar. No kind spins for its whole run; only **This field** (one render) has no steps |
 | [ ] 8.5.8a | Dismiss that dialog with Back, or by tapping outside | The export keeps running behind a **transfer banner** at the top of the viewer, with the same status, percent and time left, Cancel and ‹ › paging — the same strip Settings uses (§4.0) |
 | [ ] 8.5.9 | Check an exported PNG | Heatmap baked in, min/max annotated, composited to a **1280 px long edge** — not the reference's full sensor resolution |
 
@@ -749,7 +764,7 @@ Viewer exports and the two Settings data exports end at the same in-app **Send
 to** bottom sheet rather than being thrown straight at the system chooser. Two
 rows, so "keep this file" and "send this file somewhere" are separate decisions.
 
-**When the sheet appears depends on the target.** The single **Single Field**
+**When the sheet appears depends on the target.** The single **This field**
 photo is generated first and then offered. The five slow targets — All fields,
 Animations, PDF, CSV, Everything — ask **first**: the sheet comes up before any
 work, and choosing **Save to Files** opens SAF straight away so the export is
@@ -760,7 +775,7 @@ and the lattice's **Save graph** (§7.3.4, straight to the system chooser).
 | # | Action | Expected |
 |---|---|---|
 | [ ] 8.5a.1 | Trigger any viewer export | A **Send to** sheet with a folder-icon **Save to Files** row ("Save a copy to this device") and a **Share** row ("Send to another app"). There is no filename caption on it |
-| [ ] 8.5a.2 | Tap **Save to Files** for **Single Field** | A SAF save dialog opens via the transparent `SaveExportActivity`; the already-built file lands where you choose |
+| [ ] 8.5a.2 | Tap **Save to Files** for **This field** | A SAF save dialog opens via the transparent `SaveExportActivity`; the already-built file lands where you choose |
 | [ ] 8.5a.2a | Tap **Save to Files** for a slow target (PDF, Everything, …) | SAF opens **before** generation, and the export is written straight into that document — nothing is staged and re-offered |
 | [ ] 8.5a.3 | Cancel that SAF dialog | You come back to the app cleanly, with nothing half-written |
 | [ ] 8.5a.4 | Tap **Share** | The normal system chooser opens with the file attached |
@@ -774,7 +789,7 @@ and the lattice's **Save graph** (§7.3.4, straight to the system chooser).
 | [ ] 8.6.2 | Press Back on a single-setting result | Wherever you came from |
 | [ ] 8.6.3 | Press Back on a sweep combination | The Lattice |
 | [ ] 8.6.4 | Leave a single-setting result and look at its Home row | The headline is unchanged by viewing — still the first frame's convergence (§3.4), whatever frame or field was on screen |
-| [ ] 8.6.5 | Leave a sweep and look at its Home row | The row still reads "K of N solved · subset … px"; nothing in the viewer rewrites it |
+| [ ] 8.6.5 | Leave a sweep and look at its Home row | The row still reads "K of N solved"; nothing in the viewer rewrites it |
 | [ ] 8.6.6 | Look for rename or delete in the viewer | Neither exists — both live on Home |
 
 ---
@@ -796,6 +811,38 @@ sweep hitting the cap, or a background upload rejected with a quota error.
 | [ ] 9.4 | Tap **Re-check** while still at the cap | "Still at the limit" |
 | [ ] 9.5 | Delete an analysis elsewhere, then tap **Re-check** | The screen closes and you can start a new analysis |
 | [ ] 9.6 | Tap **Back to my analyses** | Home |
+| [ ] 9.7 | Start a run one under the cap, and let the cap fill while it solves (another phone's backup, or an upload refused as full) | The run saves its row; the next new run is blocked |
+
+**The rule.** One function decides whether the account may add an analysis,
+`SessionQuota.blocked(context, liveRows)` (`data/session/SessionQuota.kt`), and
+every check asks it: Home's **+**, cold start, quota chip and reconcile
+(`HomeQuotaCard`), this screen's **Re-check**, the wizard's start check
+(`AnalysisNavHelper.ensureSessionQuota`), the run's own start check on the native
+thread (`admitRun` in `ui/analysis/wizard/RunChannels.kt`), and the save of a new
+row (`SessionStore.save`). In order:
+
+1. No backend (`CloudApi.enabled` false: a build with no API URL, or the dev-auth
+   bypass) → no cap.
+2. Licensed with no `/v1/config` yet (`LicenseEntitlements.hasUnlimitedAnalysis`)
+   → no cap.
+3. The server has said full → blocked. An upload refused with 409
+   `session_quota_exceeded` forces the stop (`AccountCache.setSessionLimitReached`);
+   fresh server numbers (`setQuota`) or a delete on the phone
+   (`onLocalSessionsRemoved`) lift it.
+4. Otherwise blocked when the larger of the server's last count and the phone's
+   rows reaches `LicenseEntitlements.analysisCap()`. The phone's rows are the
+   session index's: a check off the main thread counts them, and a tap on the main
+   thread reads the count `SessionStore` stores with every write of the index
+   (`SessionQuota.blockedNow`).
+
+Only **starting** a new analysis is blocked. A batch or sweep the run's start
+check admitted as a new row (`RunAdmission.Admitted`) saves it even if the cap
+fills while it solves: the save passes `allowOverLimit`, as a cloud restore does.
+A re-run over an existing row is not checked at its start and updates that row;
+if the row was deleted meanwhile, its save is a new row with no admission, the
+rule applies, and a refusal ends the run as `RunStop.SessionLimit` (`afterSave`).
+The backend counts account-wide (every app and phone) and refuses only at
+`POST /v1/sessions`, the upload.
 
 **Where the cap (`M`) comes from.** `LicenseEntitlements.analysisCap()` reads
 `AppRemoteConfig`, which is populated from the backend's `GET /v1/config` (see
@@ -807,7 +854,7 @@ sweep hitting the cap, or a background upload rejected with a quota error.
   the Save-to-cloud toggle, which demo is not shown) — but demo has no
   backup/restore *feature*: Home shows no cloud state icon or row progress (3.4,
   3.7, 3.8 do not apply), Settings has no **Cloud backup**, **Analyses data
-  management**, **Free up space** or auto-free controls (4.5–4.18g do not
+  management**, **Free up** or auto-free controls (4.5–4.18g do not
   apply), and a stored copy is never pulled back. The upload is what the cap
   counts.
 - **Professional — individual key**: capped at the backend's licensed

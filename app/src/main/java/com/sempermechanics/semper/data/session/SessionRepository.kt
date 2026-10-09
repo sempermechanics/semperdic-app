@@ -135,8 +135,9 @@ class SessionRepository {
         val autoName = if (existing?.renamedByUser == true) {
             existing.name
         } else {
-            SessionNaming.defaultSessionName(
+            SessionNaming.runSessionName(
                 input.reference.name,
+                input.videoName,
                 SessionStore.namesOtherThan(appContext, input.localSessionId),
             )
         }
@@ -165,6 +166,8 @@ class SessionRepository {
             engineStats = metrics.engineStats,
             stopCode = outcome.stopCode,
             plannedFrameCount = outcome.plannedFrameCount,
+            videoName = input.videoName,
+            frameTimesMs = input.frameTimesMs,
             strainMethod = "VSG",
             pointsConverged = metrics.pointsConverged,
             avgIterations = metrics.avgIterations,
@@ -189,12 +192,18 @@ data class SessionRecordSettings(
 /** The reference a run is saved with: its display copy, its original file name and its real size. */
 data class RunReference(val pngPath: String, val name: String, val size: ImageSize)
 
-/** Where a run is saved and what it ran on: the session's id and directory, its reference, its settings. */
+/**
+ * Where a run is saved and what it ran on: the session's id and directory, its
+ * reference, its settings, and for frames sampled from a video, the clip's
+ * [videoName] and each frame's time in it ([frameTimesMs], one per planned frame).
+ */
 data class RunInput(
     val localSessionId: String,
     val dir: File,
     val reference: RunReference,
     val settings: SessionRecordSettings,
+    val videoName: String? = null,
+    val frameTimesMs: List<Long>? = null,
 )
 
 /** The first frame's engine metrics and the run's time, as the session row keeps them. */

@@ -3,6 +3,7 @@ package com.sempermechanics.semper.ui.analysis.frames
 import android.app.Application
 import android.net.Uri
 import com.sempermechanics.semper.ui.analysis.WizardTestBed
+import com.sempermechanics.semper.ui.common.media.displayNameOf
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

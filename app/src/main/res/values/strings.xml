@@ -135,7 +135,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
 
     <!-- Result viewer: summary animation and frame jump -->
     <string name="summary_title">Summary</string>
-    <string name="summary_gif">Summary GIF</string>
     <!-- The scale bar's colour mapping is clamped to the 2nd/98th percentile
          (VisualizationEngine.computeSigmaClampedRange), not the field's true
          extrema: measured on real sessions, that clamp discards real signal
@@ -161,8 +160,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="step_size_density">Step size (density)</string>
     <string name="strain_window">Strain window</string>
     <string name="strain_window_unit_points">points</string>
-    <!-- Under the strain-window slider: the window in points gives this VSG at the current step. -->
-    <string name="strain_window_vsg_fmt">Fits a plane over %1$d px (VSG)</string>
+    <!-- Beside the strain-window value: the window in points gives this VSG at the current step. -->
+    <string name="strain_window_vsg_short_fmt">%1$d px VSG</string>
     <!-- A stored window: points when the VSG is a whole odd count of steps (StrainWindowText), else the VSG alone. -->
     <string name="strain_window_points_vsg_fmt">%1$d-point window · VSG %2$d px</string>
     <string name="strain_window_vsg_only_fmt">VSG %1$d px</string>
@@ -172,11 +171,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="result">Result: --</string>
     <string name="back">Back</string>
     <string name="next_settings">Next: Settings →</string>
-    <string name="computing_strain_field">Computing strain field</string>
     <string name="initializing_engine">Initializing engine…</string>
-    <string name="elapsed_0s">0:00 elapsed</string>
-    <string name="run_elapsed_fmt">%1$s elapsed</string>
-    <string name="please_keep_the_app_open">Keep Semper open until it finishes</string>
     <string name="text">—</string>
     <string name="extraction_frame_rate">Extraction frame rate</string>
     <string name="time_segment">Time segment</string>
@@ -214,16 +209,22 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="transfer_row_bytes_fmt">%1$s · %2$s of %3$s</string>
     <string name="transfer_row_percent_fmt">%1$s · %2$s%%</string>
     <string name="session_converged_fmt">%1$s%% converged</string>
+    <string name="session_convergence_fmt">%1$s%%</string>
+    <string name="home_day_today">Today</string>
+    <string name="home_day_yesterday">Yesterday</string>
 
     <plurals name="session_frames_of_fmt">
         <item quantity="one">%1$d of %2$d frame</item>
         <item quantity="other">%1$d of %2$d frames</item>
     </plurals>
     <plurals name="session_sweep_row_fmt">
-        <item quantity="one">%1$d of %2$d solved · subset %3$d–%4$d px</item>
-        <item quantity="other">%1$d of %2$d solved · subset %3$d–%4$d px</item>
+        <item quantity="one">%1$d of %2$d solved</item>
+        <item quantity="other">%1$d of %2$d solved</item>
     </plurals>
-    <string name="session_sweep_name_fmt">Parameter sweep · %1$s</string>
+    <string name="session_sweep_name_fmt">%1$s sweep</string>
+    <!-- Home row of a video analysis: "Video · 40 frames, 0:00–0:12" -->
+    <string name="session_video_row_fmt">Video · %1$s</string>
+    <string name="session_video_span_fmt">%1$s, %2$s–%3$s</string>
     
     <string name="session_data_gone_title">Data no longer on this device</string>
     <string name="session_data_gone_body">This analysis was cleaned up locally. If it was synced, the files are still in your cloud folder.</string>
@@ -256,7 +257,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="download_analysis_failed">Couldn\'t download this analysis. Check your connection and try again.</string>
     <string name="viewer_details_desc">Frame stats and settings used</string>
     <string name="viewer_details_title">Details</string>
-    <string name="viewer_edge_title_fmt">%1$s · %2$s</string>
+    <string name="viewer_sweep_title_fmt">Subset %1$d · window %2$d</string>
     <string name="settings_used_title">Settings used</string>
     <string name="settings_used_subset">Subset size</string>
     <string name="settings_used_step">Step size</string>
@@ -309,10 +310,9 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="help_support_feedback_subject_fmt">Semper feedback (v%1$s / %2$d)</string>
     <string name="help_support_feedback_body_fmt">Describe your feedback below.\n\n---\nApp: %1$s (%2$d)\nDevice: %3$s\nAndroid: %4$d\nBuild: %5$s\n</string>
     <string name="settings_save_cloud">Save to cloud</string>
-    <string name="settings_save_cloud_sub">New analyses upload when a network is available</string>
-    <string name="settings_save_cloud_sub_off">New analyses stay on this phone. Existing cloud copies remain until you delete them</string>
+    <string name="settings_save_cloud_desc">Save to cloud: new analyses upload when a network is available. Off keeps them on this phone; existing cloud copies remain</string>
     <string name="settings_wifi_only">Wi‑Fi only</string>
-    <string name="settings_wifi_only_sub">Wait for unmetered Wi‑Fi before uploading</string>
+    <string name="settings_wifi_only_desc">Wi‑Fi only: wait for unmetered Wi‑Fi before uploading</string>
     <string name="account_section">Account</string>
     <string name="account_device_id_fmt">Device ID · %1$s</string>
     <!-- The key prefix, never the key. It is what support asks for on the
@@ -336,9 +336,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="storage_analyses_label">Analyses on this phone</string>
     <string name="storage_cache_label">Temporary files</string>
     <string name="storage_measuring">Measuring…</string>
-    <string name="storage_free_up">Free up space</string>
-    <string name="storage_free_up_sub_fmt">%1$s can be released from backed-up analyses</string>
-    <string name="storage_free_up_none">Nothing to release — no analysis is backed up yet</string>
+    <string name="storage_free_up_fmt">Free up %1$s</string>
     <string name="storage_free_up_title">Free up space?</string>
     <string name="storage_free_up_body_fmt">This removes the local images and results for every analysis that is already backed up, freeing about %1$s.\n\nNothing is deleted from the cloud. Opening one of these analyses downloads it again.</string>
     <string name="storage_free_up_confirm">Free up space</string>
@@ -348,13 +346,13 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     </plurals>
     <string name="storage_freed_none">There was nothing to free up.</string>
     <string name="storage_clear_cache">Clear temporary files</string>
-    <string name="storage_clear_cache_sub">Import leftovers, transfer scratch, and export bundles. Safe to remove.</string>
+    <string name="storage_clear">Clear</string>
     <string name="storage_cache_cleared_fmt">Cleared %1$s of temporary files.</string>
     <string name="storage_cache_cleared_none">Nothing to clear. A live import or transfer still in progress is kept.</string>
     <string name="storage_auto_free">Auto-free space</string>
-    <string name="storage_auto_free_off">Off — analyses stay on this phone until you remove them</string>
-    <string name="storage_auto_free_on_fmt">Release backed-up analyses when this phone holds over %1$d GB</string>
-    <string name="storage_auto_free_info">Only analyses that finished backing up are released, oldest first. They stay in the cloud and download again when opened. Analyses that are not backed up are never touched.</string>
+    <string name="storage_auto_free_off">Off</string>
+    <string name="storage_auto_free_on_fmt">Over %1$d GB</string>
+    <string name="storage_auto_free_info">When off, analyses stay on this phone until you remove them. Set a size, and whenever this phone holds more than that, backed-up analyses are released, oldest first, to get back under it. Only analyses that finished backing up are ever released. They stay in the cloud and download again when opened. Analyses that are not backed up are never touched.</string>
     <string name="action_undo">Undo</string>
     <string name="analysis_preferences">Analysis preferences</string>
     <string name="cloud_retry_backup">Retry backup</string>
@@ -433,6 +431,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="subset_min">Subset size (min)</string>
     <string name="subset_max">Subset size (max)</string>
     <string name="subset_range">Subset size range</string>
+    <!-- The sweep settings page's label over the subset range. -->
+    <string name="sweep_subset">Subset</string>
     <string name="subset_samples">No. of subsets</string>
     <string name="vsg_samples">No. of strain windows</string>
     <string name="step_depth">Step size</string>
@@ -458,7 +458,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     
     <string name="sweep_plan_empty">No combination fits this ceiling — raise Max strain window or lower the subset range.</string>
     <string name="sweep_plan_subset_too_big_fmt">Subset range starts above what this image and ROI can hold (max %1$d px). Lower the minimum subset, or draw a larger region of interest.</string>
-    <string name="next_sweep">Next: sweep settings</string>
+    <string name="next_sweep">Next</string>
     <string name="sweep_settings">Sweep settings</string>
     <string name="lattice_samples_settings">Sample counts</string>
     <string name="preview_enlarge_fmt">%1$s, tap to enlarge</string>
@@ -468,10 +468,16 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="sweep_frame_overlay_close">Tap to close</string>
     <string name="sweep_frame_overlay_caption_fmt">%1$s · %2$s</string>
     <string name="sweep_frame_position_fmt">Frame %1$d of %2$d</string>
+    <!-- The end of the frame-to-sweep field: the picked frame's position. -->
+    <string name="sweep_frame_count_fmt">%1$d / %2$d</string>
     <string name="sweep_frame_hint">Pick the frame with the most deformation; the sweep solves only this one.</string>
+    <!-- The line-cut toggle reads X / Y; TalkBack reads Along X / Along Y. -->
+    <string name="line_cut_x">X</string>
+    <string name="line_cut_y">Y</string>
     <string name="line_cut_along_x">Along X</string>
     <string name="line_cut_along_y">Along Y</string>
-    <string name="strain_win_vsg_range_fmt">Fits planes over %1$d–%2$d px (VSG)</string>
+    <!-- Beside the sweep's strain-window title: the smallest and largest VSG the plan fits. -->
+    <string name="strain_win_vsg_range_fmt">%1$d–%2$d px VSG</string>
     <string name="planned_lattice_heading">Planned lattice</string>
     <string name="run_sweep_legend">Filled: solved · grey: waiting · red: skipped</string>
     <string name="sweep_running_fmt">Solving subset %1$d · step %2$d · %3$d-point window</string>
@@ -574,12 +580,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="line_cut_axis_strain">Strain (mε)</string>
 
     <string name="run_frame_of_fmt">Frame %1$d of %2$d</string>
-    <string name="run_pace_fmt">%1$.1f s a frame</string>
-    <string name="run_convergence_per_frame">Convergence per frame</string>
-    <string name="run_convergence_latest_fmt">%1$.1f%%</string>
-    <string name="run_convergence_cd">Convergence per frame, latest %1$.1f%%</string>
-    <string name="run_correlating_fmt">Correlating frame %1$d · %2$d%%</string>
-    <string name="run_correlating_single_fmt">Correlating · %1$d%%</string>
+    <plurals name="run_bins_cd">
+        <item quantity="one">Frame %1$d of %2$d, %3$d converged above %4$d%%</item>
+        <item quantity="other">Frame %1$d of %2$d, %3$d converged above %4$d%%</item>
+    </plurals>
     <plurals name="run_completed_fmt">
         <item quantity="one">Completed %1$d of %2$d frame · saving</item>
         <item quantity="other">Completed %1$d of %2$d frames · saving</item>
@@ -622,12 +626,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="speckle_under_resolved_fmt">Speckle measures about %1$.1f px across, below the %2$d px minimum. The pattern may be too fine for this frame to resolve, and points can fail to correlate. Shoot closer, or use a coarser pattern.</string>
     <string name="speckle_over_resolved_fmt">Speckle measures about %1$.1f px across, above the %2$d px the method needs. It will correlate, but a finer pattern would give more measurement points across the same area.</string>
     <string name="speckle_subset_span_fmt">A %1$d px subset spans too few speckles on this pattern to be unambiguous. Good practice asks for at least %2$d px here.</string>
-    <!-- The readout while the speckle is measured (shown past 300 ms), and once the
-         measurement has set the slider: the size it chose, the speckle it chose from. -->
+    <!-- The speckle chip beside the subset size while the speckle is measured (shown
+         past 300 ms), then the speckle the measurement found. -->
     <string name="speckle_measuring">Measuring speckle…</string>
     <string name="speckle_chip_fmt">Speckle %1$.1f px</string>
-    <string name="speckle_band_fmt">Shaded: %1$d px and up hold enough speckle</string>
-    <string name="speckle_band_set_fmt">Set to %1$d px · shaded: %2$d px and up hold enough speckle</string>
     <string name="next_reason_ref">add a reference image to continue</string>
     <string name="next_reason_def">add at least one deformed frame to continue</string>
     <string name="run_analysis">Compute</string>
@@ -637,13 +639,22 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="param_section_correlation">Correlation</string>
     <string name="param_step">Step</string>
     <string name="param_interpolation">Interpolation</string>
-    <plurals name="run_estimate_region_fmt">
-        <item quantity="one">%1$s point in the region</item>
-        <item quantity="other">%1$s points in the region</item>
-    </plurals>
+    <!-- The collapsible section holding the overlap and the interpolation. -->
+    <string name="param_advanced">Advanced</string>
     <string name="run_compute_eta_fmt">Compute · %1$s</string>
     <string name="run_estimate_seconds_fmt">about %1$d s</string>
     <string name="run_estimate_minutes_fmt">about %1$d min</string>
+    <!-- The same times without "about", for the sweep's short run button, and spoken in full. -->
+    <string name="run_estimate_seconds_short_fmt">%1$d s</string>
+    <string name="run_estimate_minutes_short_fmt">%1$d min</string>
+    <plurals name="run_estimate_seconds_spoken_fmt">
+        <item quantity="one">about %1$d second</item>
+        <item quantity="other">about %1$d seconds</item>
+    </plurals>
+    <plurals name="run_estimate_minutes_spoken_fmt">
+        <item quantity="one">about %1$d minute</item>
+        <item quantity="other">about %1$d minutes</item>
+    </plurals>
     <string name="reference_meta_fmt">Reference · %1$d × %2$d px</string>
     <!-- The reference slot while a pick is read (ReferenceSlotBusy). -->
     <string name="reference_decoding_image">Decoding image</string>
@@ -682,8 +693,13 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="coach_sweep_ranges">Set the ranges the sweep covers; each pair of subset and strain window is one analysis.</string>
     <string name="coach_sweep_run">Run the sweep when the plan looks right.</string>
     
-    <string name="roi_full_fmt">Full image · %1$d × %2$d px</string>
-    <string name="roi_custom_fmt">%1$d × %2$d of %3$d × %4$d px</string>
+    <!-- The ROI row: the region, then the points the engine solves in it at this step. -->
+    <string name="roi_full_image">Full image</string>
+    <string name="roi_custom_fmt">%1$d × %2$d px</string>
+    <plurals name="roi_points_fmt">
+        <item quantity="one">%1$s · %2$s point</item>
+        <item quantity="other">%1$s · %2$s points</item>
+    </plurals>
     <string name="picker_select_reference_toast">Select the reference image or video</string>
     <string name="picker_select_deformed">Select the deformed frames — tap several</string>
     <string name="source_images">Images</string>
@@ -738,21 +754,47 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="probe_reading_fmt">%1$s: %2$s %3$s\n(%4$d, %5$d)</string>
     <string name="probe_no_data">No data</string>
     
-    <string name="share_photo">Single Field</string>
-    <string name="share_photo_sub_fmt">%1$s field, %2$s</string>
+    <!-- Share sheet rows: a title, then the file type at the row's end. Each row's
+         contentDescription says what it shares (ShareSheetCopy). -->
+    <string name="share_position_fmt">frame %1$d of %2$d</string>
+    <string name="share_position_sweep_fmt">combination %1$d of %2$d</string>
+    <string name="share_photo">This field</string>
+    <string name="share_photo_desc_fmt">Share this field (%1$s of %2$s) as PNG</string>
     <string name="share_all_photos">All fields</string>
-    <plurals name="share_all_photos_sub_fmt">
-        <item quantity="one">1 field of %2$s</item>
-        <item quantity="other">U V Exx Eyy Exy · %1$d fields of %2$s</item>
+    <plurals name="share_all_photos_desc_fmt">
+        <item quantity="one">Share %1$d field of %2$s as PNG</item>
+        <item quantity="other">Share all %1$d fields of %2$s as PNG</item>
     </plurals>
-    <string name="share_pdf">PDF report</string>
-    
-    <string name="share_csv">CSV data</string>
-    
     <string name="share_animations">Animations</string>
-    <string name="share_animations_sub">U V Exx Eyy Exy · all frames</string>
-    <string name="share_zip">Everything (.zip)</string>
-    <string name="share_zip_sub">All frames: photos + PDF + CSV + GIFs</string>
+    <plurals name="share_animations_desc_fmt">
+        <item quantity="one">Share %1$d field animation over all frames as GIF</item>
+        <item quantity="other">Share %1$d field animations over all frames as GIF</item>
+    </plurals>
+    <string name="share_pdf">Report</string>
+    <plurals name="share_pdf_desc_fmt">
+        <item quantity="one">Share the report of %1$d frame as PDF</item>
+        <item quantity="other">Share the report of all %1$d frames as PDF</item>
+    </plurals>
+    <string name="share_csv">Data</string>
+    <plurals name="share_csv_desc_fmt">
+        <item quantity="one">Share the point data of %1$d frame as one CSV</item>
+        <item quantity="other">Share the point data of all %1$d frames as one CSV</item>
+    </plurals>
+    <string name="share_zip">Everything</string>
+    <string name="share_zip_desc">Share everything as ZIP: photos, report, data and animations</string>
+    <string name="share_zip_sweep_desc">Share everything as ZIP: photos, report and data</string>
+    <string name="share_type_png">PNG</string>
+    <plurals name="share_type_png_count_fmt">
+        <item quantity="one">%1$d PNG</item>
+        <item quantity="other">%1$d PNG</item>
+    </plurals>
+    <plurals name="share_type_gif_count_fmt">
+        <item quantity="one">%1$d GIF</item>
+        <item quantity="other">%1$d GIF</item>
+    </plurals>
+    <string name="share_type_pdf">PDF</string>
+    <string name="share_type_csv">CSV</string>
+    <string name="share_type_zip">ZIP</string>
     <string name="share_generating_gif">Rendering the animations …</string>
     <string name="share_generating">Preparing files…</string>
     <string name="share_generating_pdf">Building the report …</string>
@@ -892,9 +934,9 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="one">≈ %1$d frame: 1 reference + %2$d deformed%3$s</item>
         <item quantity="other">≈ %1$d frames: 1 reference + %2$d deformed%3$s</item>
     </plurals>
-    <string name="info_subset">Bigger means more robust on weak speckle, but smoothens sharp strain gradients.</string>
+    <string name="info_subset">Bigger means more robust on weak speckle, but smoothens sharp strain gradients. Once the speckle is measured, the shaded band on the slider marks the sizes that hold enough speckle.</string>
     <string name="info_step">Spacing between tracked points, in pixels. Smaller means denser results but longer analysis time. Linked to subset overlap: overlap = 1 − step / subset.</string>
-    <string name="info_strain_window">How many data points across each strain value averages over. The virtual strain gauge (VSG) it gives, in pixels, is (window − 1) × step + 1, shown under the slider. Bigger means smoother strain but less local detail.</string>
+    <string name="info_strain_window">How many data points across each strain value averages over. The virtual strain gauge (VSG) it gives, in pixels, is (window − 1) × step + 1, shown beside the value. Bigger means smoother strain but less local detail.</string>
 
     <!-- Auth: sign-in errors -->
     <string name="error_passwords_mismatch">Passwords do not match.</string>
@@ -1025,17 +1067,27 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="one">%1$s, and %2$d more</item>
         <item quantity="other">%1$s, and %2$d more</item>
     </plurals>
+    <!-- The sweep's run button reads "Run 9 · 7 s" (or "Run 9" before this phone
+         has a rate); run_sweep_fmt / run_sweep_eta_fmt are what TalkBack reads. -->
+    <string name="run_sweep_short_fmt">Run %1$d</string>
+    <string name="run_sweep_eta_short_fmt">Run %1$d · %2$s</string>
     <plurals name="run_sweep_fmt">
         <item quantity="one">Run %1$d analysis</item>
         <item quantity="other">Run %1$d analyses</item>
     </plurals>
     <plurals name="run_sweep_eta_fmt">
-        <item quantity="one">Run %1$d analysis · %2$s</item>
-        <item quantity="other">Run %1$d analyses · %2$s</item>
+        <item quantity="one">Run %1$d analysis, %2$s</item>
+        <item quantity="other">Run %1$d analyses, %2$s</item>
     </plurals>
+    <!-- The run overlay's status as a sweep starts. -->
     <plurals name="sweep_plan_grid_fmt">
         <item quantity="one">1 analysis · subset %2$d–%3$d px · window %4$d–%5$d points</item>
         <item quantity="other">%1$d analyses · subset %2$d–%3$d px · window %4$d–%5$d points</item>
+    </plurals>
+    <!-- Beside the Planned lattice heading: how many analyses the plan holds. -->
+    <plurals name="sweep_plan_runs_fmt">
+        <item quantity="one">%1$d run</item>
+        <item quantity="other">%1$d runs</item>
     </plurals>
     <plurals name="sweep_partial_fmt">
         <item quantity="one">1 of %2$d combinations could not be solved and was skipped — the rest are shown.</item>
@@ -1056,18 +1108,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <plurals name="def_count_fmt">
         <item quantity="one">1 deformed frame</item>
         <item quantity="other">%1$d deformed frames</item>
-    </plurals>
-    <plurals name="share_caption_fmt">
-        <item quantity="one">frame %1$d of %2$d shown · photos share the current frame</item>
-        <item quantity="other">frame %1$d of %2$d shown · photos share the current frame</item>
-    </plurals>
-    <plurals name="share_pdf_sub_fmt">
-        <item quantity="one">fields, stats, telemetry · All 1 frame</item>
-        <item quantity="other">fields, stats, telemetry · All %1$d frames</item>
-    </plurals>
-    <plurals name="share_csv_sub_fmt">
-        <item quantity="one">Whole analysis · 1 frame, one file</item>
-        <item quantity="other">Whole analysis · %1$d frames, one file</item>
     </plurals>
     <plurals name="sync_status_failed_fmt">
         <item quantity="one">%1$d analysis could not be backed up</item>

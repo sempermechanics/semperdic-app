@@ -161,6 +161,15 @@ class ViewerArgsTest {
     }
 
     @Test
+    fun `a video's frame times survive the Intent, and only a video writes them`() {
+        val video = args().copy(frameTimesMs = listOf(40L, 1_250L))
+        val intent = video.toIntent(context)
+
+        assertEquals(video, ViewerArgs.from(intent, ::noRecord))
+        assertFalse(args().toIntent(context).hasExtra(IntentKeys.FRAME_TIMES_MS))
+    }
+
+    @Test
     fun `a sweep and its picked frame survive the Intent unchanged`() {
         val sent = args(sweepArgs).copy(startFrame = 1)
 

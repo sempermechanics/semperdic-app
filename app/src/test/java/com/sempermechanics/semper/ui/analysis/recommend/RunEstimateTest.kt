@@ -46,9 +46,9 @@ class RunEstimateTest {
     }
 
     @Test
-    fun `the step caption counts the region's points`() {
-        assertEquals("8,800 points in the region", RunEstimate.regionLabel(res, 8800))
-        assertEquals("1 point in the region", RunEstimate.regionLabel(res, 1))
+    fun `the ROI row counts the region's points`() {
+        assertEquals("Full image · 8,800 points", RunEstimate.regionLabel(res, "Full image", 8800))
+        assertEquals("10 × 10 px · 1 point", RunEstimate.regionLabel(res, "10 × 10 px", 1))
     }
 
     @Test
@@ -56,5 +56,14 @@ class RunEstimateTest {
         assertEquals("about 90 s", RunEstimate.duration(res, 90))
         assertEquals("about 2 min", RunEstimate.duration(res, 100))
         assertEquals("about 12 min", RunEstimate.duration(res, 700))
+    }
+
+    @Test
+    fun `the short time drops the about, and the spoken one spells its unit`() {
+        assertEquals("7 s", RunEstimate.shortDuration(res, 7))
+        assertEquals("2 min", RunEstimate.shortDuration(res, 100))
+        assertEquals("about 7 seconds", RunEstimate.spokenDuration(res, 7))
+        assertEquals("about 1 second", RunEstimate.spokenDuration(res, 1))
+        assertEquals("about 12 minutes", RunEstimate.spokenDuration(res, 700))
     }
 }

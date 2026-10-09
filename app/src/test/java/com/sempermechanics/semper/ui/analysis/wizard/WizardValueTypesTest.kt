@@ -95,6 +95,7 @@ class WizardValueTypesTest {
 
     /** Only [SweepSetupController.Callbacks.maxSubsetForRoi] matters to `currentPlan`. */
     private class Ceiling(var max: Int) : SweepSetupController.Callbacks {
+        override fun clearRunStatus() = Unit
         override fun goToStep(step: WizardStep, animate: Boolean) = Unit
         override fun updateWizardChrome() = Unit
         override fun checkReady() = Unit

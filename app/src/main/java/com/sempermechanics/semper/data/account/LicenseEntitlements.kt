@@ -75,7 +75,7 @@ object LicenseEntitlements {
      * Whether starting new work needs a seat this account does not have.
      *
      * A **parallel** gate to the quota one, not a widening of it: an
-     * institution member is [MODE_LICENSED], so `isSessionLimitReached` and
+     * institution member is [MODE_LICENSED], so `SessionQuota.blocked` and
      * `analysisCap` only fire for them at the licensed ceiling. Without this
      * a member with no seat would sail past every existing check.
      *

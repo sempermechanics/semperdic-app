@@ -6,7 +6,6 @@ package com.sempermechanics.semper.data.net
 
 import android.content.Context
 import androidx.core.content.edit
-import com.sempermechanics.semper.data.account.LicenseEntitlements
 import com.sempermechanics.semper.data.prefs.PrefFiles.Onboarding
 import com.sempermechanics.semper.data.prefs.PrefFiles.Session
 import com.sempermechanics.semper.data.prefs.PrefKey
@@ -55,10 +54,11 @@ object AccountCache {
 
     // ── Cloud analysis quota (max sessions per account) ──────────────────
     // The ceiling is owned by [AppRemoteConfig] (from /v1/config); AccountCache
-    // holds only the runtime USED count and a forced-stop flag and reads the
+    // holds only the runtime USED counts and a forced-stop flag and reads the
     // ceiling from there. One dependency direction (AccountCache → AppRemoteConfig),
-    // no cycle. The hard stop is computed live, so a changed ceiling takes effect
-    // without any write-back from AppRemoteConfig.
+    // no cycle. Whether the account may add an analysis is the one rule in
+    // `data/session/SessionQuota`, computed live, so a changed ceiling takes
+    // effect without any write-back from AppRemoteConfig.
 
     /**
      * Analyses counted against the cap: the server's count or the phone's,
@@ -70,6 +70,18 @@ object AccountCache {
         maxOf(it[Session.QUOTA_USED], it[Session.LOCAL_COUNT])
     }
 
+    /** The server's half of [quotaUsed]: the account-wide count it last reported. */
+    fun serverQuotaUsed(context: Context): Int = prefs(context)[Session.QUOTA_USED]
+
+    /**
+     * The phone's half of [quotaUsed]: the session index's row count, stored
+     * with every write of the index.
+     */
+    fun localCount(context: Context): Int = prefs(context)[Session.LOCAL_COUNT]
+
+    /** True while an upload's quota refusal holds the stop ([setSessionLimitReached]). */
+    fun isLimitForced(context: Context): Boolean = prefs(context)[Session.LIMIT_FORCED]
+
     /** Session ceiling, owned by [AppRemoteConfig]; 0 until the backend reports it. */
     fun quotaMax(context: Context): Int = AppRemoteConfig.maxSessions(context)
 
@@ -79,8 +91,8 @@ object AccountCache {
     /**
      * Refresh the cached USED count. [localCount] is folded in so the client
      * blocks new analyses even before the next cloud reconcile. Fresh numbers
-     * clear any forced stop; the hard stop itself is recomputed live in
-     * [isSessionLimitReached] from used vs the [AppRemoteConfig] ceiling.
+     * clear any forced stop; the hard stop itself is recomputed live by
+     * `SessionQuota.blocked` from used vs the [AppRemoteConfig] ceiling.
      */
     fun setQuota(context: Context, used: Int, localCount: Int = 0) {
         prefs(context).edit {
@@ -117,17 +129,6 @@ object AccountCache {
     /** Force the hard stop (e.g. an upload rejected 409 without fresh numbers). */
     fun setSessionLimitReached(context: Context, v: Boolean) {
         prefs(context).edit { put(Session.LIMIT_FORCED, v) }
-    }
-
-    /**
-     * True when the account may not create another analysis (hard stop).
-     * Both modes stop at the backend's ceiling once [AppRemoteConfig] has it.
-     * Before that, demo uses the 25-run ceiling and licensed has none.
-     */
-    fun isSessionLimitReached(context: Context): Boolean = when {
-        LicenseEntitlements.hasUnlimitedAnalysis(context) -> false
-        prefs(context)[Session.LIMIT_FORCED] -> true
-        else -> quotaUsed(context) >= LicenseEntitlements.analysisCap(context)
     }
 
     /**

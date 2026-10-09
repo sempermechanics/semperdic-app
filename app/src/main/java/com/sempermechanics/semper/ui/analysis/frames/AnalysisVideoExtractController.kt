@@ -111,5 +111,6 @@ class AnalysisVideoExtractController(
         viewModel.defOrderMode = FrameOrderMode.PICKER
         viewModel.defOrderDirection = FrameOrderDirection.ASCENDING
         viewModel.defFromVideo = result.batch.fromVideo
+        viewModel.defVideoName = result.batch.videoName
     }
 }

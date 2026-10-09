@@ -42,25 +42,25 @@ on 2026-10-03.
 | Package | Files | Role |
 |---|---|---|
 | `ui/auth/` | 11 | Splash, sign-in (`AuthActivity` with `AuthTotpController` and `AuthPasswordReset`), pending approval, terms, `AccessRouter`, `GoogleSignInHelper`, `PasswordPolicy` |
-| `ui/home/` | 14 | `HomeActivity` and its parts: session list and selection (rows painted by `SessionRowText`, `SessionStateIcon` and `SessionThumbs`, the last caching the last frame's U heatmap as `SessionPaths.resultThumb`), `HomeQuotaCard`, `CloudBackupsCard`, `FirstRunPrompts`, `HomeFabLayout`, `HomeTransferWatch` (backup and restore jobs), `BackupBadgeActions` |
+| `ui/home/` | 15 | `HomeActivity` and its parts: session list and selection (cards under the day headers `SessionDays` inserts, painted by `SessionRowText`, `SessionStateIcon` and `SessionThumbs`, the last caching the last frame's U heatmap as `SessionPaths.resultThumb`), `HomeQuotaCard`, `CloudBackupsCard`, `FirstRunPrompts`, `HomeFabLayout`, `HomeTransferWatch` (backup and restore jobs), `BackupBadgeActions` |
 | `ui/analysis/` | 3 | The three analysis Activities only: `StaticAnalysisActivity` (the wizard), `RoiDrawActivity`, `VsgLatticeActivity` |
 | `ui/analysis/wizard/` | 22 | `AnalysisViewModel` with `RunChannels` (launch batch and sweep) and `SweepAnalysis`; `WizardStep`, `AnalysisWizardChrome.applyStep`, `AnalysisWizardHost`; `WizardState` / `WizardDraftBinding` (process death, [ADR-005](../adr/ADR-005-wizard-process-death.md)); slots, coach, nav, ready / cancel / leave gates; parameter fields and sliders; settings sheet |
-| `ui/analysis/run/` | 19 | `BatchAnalysis.kt` (`runBatchAnalysisBody`, the one JNI loop, and `afterSave`) + `DicFieldIo`; `RunRecordSave` (`saveRunRecord`); `BatchRunController`, `WizardRunLauncher`, `WizardRunOutcomes`, `RunStatusLine`, `RunChrome`; the run overlay `ComputeOverlayController` with its wording (`RunOverlayText`) and convergence graph (`ConvergenceLineView`, `ConvergenceTrace`, which warns one strike before `ConvergenceGate` stops a run); `RunSpec` ([ADR-004](../adr/ADR-004-runspec.md)); `EngineFailure`, `ConvergenceGate`, `UnsavedRerun`, `SemperEngine` |
+| `ui/analysis/run/` | 19 | `BatchAnalysis.kt` (`runBatchAnalysisBody`, the one JNI loop, and `afterSave`) + `DicFieldIo`; `RunRecordSave` (`saveRunRecord`); `BatchRunController`, `WizardRunLauncher`, `WizardRunOutcomes`, `RunStatusLine`, `RunChrome`; the run overlay `ComputeOverlayController` (a header row of what is running and its percent, time left, then a batch run's convergence bins, a sweep's live lattice, or an import's progress bar) with its wording (`RunOverlayText`) and convergence bins (`ConvergenceBinsView`, one bin a frame, merged keeping the lowest over 100 frames; `ConvergenceTrace`, which warns one strike before `ConvergenceGate` stops a run); `RunSpec` ([ADR-004](../adr/ADR-004-runspec.md)); `EngineFailure`, `ConvergenceGate`, `UnsavedRerun`, `SemperEngine` |
 | `ui/analysis/frames/` | 13 | Reference and frame import (`ReferenceImportController` with `ReferenceSlotBusy`, `FrameImportController`, `WizardMediaPickers`), ordering (`FrameOrderController`, adapter, menu), deformed batch, video (`VideoSamplingSheet`, extract controller) |
 | `ui/analysis/roi/` | 7 | ROI studio: `StudioOverlayView` with its geometry, viewport and mask encoder; `RoiViewport`, `RoiResolveHelper`, `RoiStudioLauncher` |
-| `ui/analysis/recommend/` | 11 | `SubsetRecommender` and `SubsetRecommendationController` with the `SubsetBand` shaded behind the subset slider, `RunEstimate` (points and time above Compute), speckle scale, noise floor, good-practice and strain-window copy, EXIF patch map |
+| `ui/analysis/recommend/` | 11 | `SubsetRecommender` and `SubsetRecommendationController` with the `SubsetBand` shaded behind the subset slider, `RunEstimate` (the ROI row's point count and the time on Compute), speckle scale, noise floor, good-practice and strain-window copy, EXIF patch map |
 | `ui/analysis/sweep/` | 18 | Parameter sweep: `SweepSetupController` with `SweepRangeFields` / `SweepFramePicker` (the step-2 frame field and its picker dialog), `SweepStudy` / `SweepStudyRunner`, the lattice (`SweepControls`, `SweepProfiles`, `SweepGraphExport`), the run overlay's `LiveSweepLattice`, and plot views (`SweepPlotView` with viewport, axes, palette; `PlotStyle`), line-cut preview |
 | `ui/viewer/` | 19 | `ResultViewerActivity` and its controllers (`ViewerChromeController`, `ViewerImageLoader`, `ViewerFrameLoader`, `ViewerScaleController`, `FrameJumpController`, `ViewerCaptions`, `ViewerShareController`, `FieldPopup`), `SaveExportActivity`, their ViewModels, `ViewerArgs` ([ADR-003](../adr/ADR-003-viewerargs-read-side.md)), scrub cache, `ViewerFieldPills`, the ⓘ details sheet; heatmaps draw each frame on its own photo at the displaced positions ([ADR-011](../adr/ADR-011-viewer-deformed-frame.md)) |
-| `ui/viewer/share/` | 12 | `ShareCenter` → `ShareExportJobs` (held by `ResultViewerViewModel`) → `ShareExportBuilder` (`FieldImageExport`, `BundleExport`, `DataExport`); `ExportProgress` (each kind's per-frame / per-field progress); `ShareExportController`, `ShareKind`, `SendToSheet`, `ViewerReportFactory` |
+| `ui/viewer/share/` | 13 | `ShareCenter` (its sheet copy in `ShareSheetCopy`) → `ShareExportJobs` (held by `ResultViewerViewModel`) → `ShareExportBuilder` (`FieldImageExport`, `BundleExport`, `DataExport`); `ExportProgress` (each kind's per-frame / per-field progress); `ShareExportController`, `ShareKind`, `SendToSheet`, `ViewerReportFactory` |
 | `ui/viewer/summary/` | 3 | Summary GIF (`SummaryAnimation`), caption, `ViewerSummaryController` |
 | `ui/viewer/inspect/` | 5 | Tap-to-probe: `InspectOverlayView`, `PointSpatialIndex`, `TouchImageView`, field histogram view |
 | `ui/settings/` | 15 | `SettingsActivity` (restore, download, delete) and its sections: account, cloud, analyses, storage, preferences, your data, help, footer; `AccountDeletionRun`, `BusyTransfers`; scroll body via `SettingsScrollContentView` |
 | `ui/admin/` | 1 | Admin screen — approve/revoke users via `/v1/admin/*` |
 | `ui/limit/` | 2 | Session-quota and seat-required screens |
-| `ui/common/` | 16 | Cross-screen basics: insets, motion (`Motion.reduced` for animations off), keyboard (`Keyboard`, `ImeReveal`), toggle groups, `dp`, `SerialJob`, `ConflatedRefresh`, `Busy` (`setBusy`), `InlineBusy` (a slot's busy state for a wait past 300 ms: the reference slot, the speckle readout, the video read, the viewer's opening pill), `ViewportMath`, `ByteSize`, `EtaEstimator` (time left for runs, exports and transfers), `ProgressText` (their "34.6%", "4.2 of 12.0 MB · 1.1 MB/s" wording), coach marks, the settings section header |
+| `ui/common/` | 17 | Cross-screen basics: insets, motion (`Motion.reduced` for animations off), `CollapsibleSection` (the wizard's closed **Advanced** sections), keyboard (`Keyboard`, `ImeReveal`), toggle groups, `dp`, `SerialJob`, `ConflatedRefresh`, `Busy` (`setBusy`), `InlineBusy` (a slot's busy state for a wait past 300 ms: the reference slot, the speckle chip, the video read, the viewer's opening pill), `ViewportMath`, `ByteSize`, `EtaEstimator` (time left for runs, exports and transfers), `ProgressText` (their "34.6%", "4.2 of 12.0 MB · 1.1 MB/s" wording), coach marks, the settings section header |
 | `ui/common/dialog/` | 8 | `Feedback.toast`, `CrispToast`, `Dialogs` (info, confirm, i-buttons), `Sheet` (`inflateSheet`), `WarnChip`, `FaqRedirect`, delete-choice and progress dialogs |
 | `ui/common/auth/` | 6 | `AuthRoute` (re-authentication), sign-out confirm and run, `ExternalLinks`, `SupportMail` |
-| `ui/common/media/` | 6 | `MediaPickerSheet` (Home **+** and the wizard dropzones), `MediaStoreBrowser`, `MediaSourceChooser`, `ThumbnailLoader` |
+| `ui/common/media/` | 7 | `MediaPickerSheet` (Home **+** and the wizard dropzones), `MediaStoreBrowser`, `MediaSourceChooser`, `ThumbnailLoader`, `DisplayNames` (a picked image's or video's file name) |
 | `ui/common/transfer/` | 4 | `TransferBannerController`, `TransferWorkObserver` (one reading of WorkManager jobs for Home and Settings), `DeleteFeedback`, `RestoreFailureNotice` |
 | `data/` | 11 | The six WorkManager workers (WorkManager stores their class names, so they never move) and the backup's steps beside `DicUploadWorker`: `UploadStaging`, `UploadSessionPlanner`, `UploadRun`, `UploadFailures`, `UploadTuning` |
 | `data/session/` | 17 | `SessionStore` / `SessionRecord`, `SessionPaths` / `SessionLayout`, `SessionRepository`, `SessionNaming`, zip and `.dat` codecs, storage budget, cache janitor |
@@ -76,7 +76,7 @@ on 2026-10-03.
 | `field/` | 12 | `DicResult`, `DatDecoder`, `FieldHistogram`, and the small value types: `ImageSize`, `Roi`, `RunStop`, `DicParams` / `FrameParams`, `ValueRange`, `FieldStats` |
 | `diagnostics/` | 4 | `Diagnostics`, `CrashReportingTree`, `EngineDebug`, `SemperAnalytics` (consent-gated Firebase Analytics events) |
 | `navigation/` | 2 | `AppIntents` — intent factories so `data` / `report` never import a `ui` Activity — and `IntentKeys`, the shared intent extras |
-| `util/` | 12 | `AtomicFiles` / `AtomicWrites`, `Streams`, `Zips`, `Digests`, `Mime`, `suspendRunCatching` and caller cancellation, `BrandAssets`, `OverlayFormats` |
+| `util/` | 11 | `AtomicFiles` / `AtomicWrites`, `Streams`, `Zips`, `Digests`, `Mime`, `suspendRunCatching` and caller cancellation, `BrandAssets` |
 | *(root)* | 2 | `SemperApp`, `SemperNativeLib` / `ProgressCallback` (JNI symbol names; never move) |
 
 Style for shared UI logic: plain `object` / small classes. A part that owns a
@@ -109,6 +109,16 @@ The constants `SessionPaths.RAW_DEFORMED_SUBDIR`, `FRAME_DAT_FMT`, and
 `SessionPaths.frameDat` are shared by the ViewModel / `BatchAnalysis`,
 [`DicUploadWorker`](../../app/src/main/java/com/sempermechanics/semper/data/DicUploadWorker.kt),
 and cloud restore so path segments and `frame_0000.dat` names never diverge.
+
+The Home list's rows are `SessionRecord`s in `sessions/index.json`. Fields added
+since the first index are optional with a default, and the encoder leaves a
+default out, so an older index loads and an older row writes as it did
+(`SessionIndexGoldenTest`). A video analysis adds two: `videoName` (the clip's
+name without its extension, or "Video") and `frameTimesMs` (each deformed
+frame's time in the clip, index-aligned with `defNames`). Home's row line and
+the viewer's frame title read them. Neither goes to the cloud copy's
+`metadata.json`, so a restored video analysis has neither and its frames are
+known by their names.
 
 ## Sync workers
 
@@ -194,7 +204,7 @@ gating input anywhere in `LicenseEntitlements`.
 | Cached config, wire → prefs | `data/net/AppRemoteConfig.kt` (`AppConfigDto` in `ApiDtos.kt`) |
 | Redeem a key | `SemperApi.activateLicense()` |
 | Expiry notice | `LicenseEntitlements.expiryNoticeDays()` — advisory only; suppressed on a cache older than a week. `mode` stays the only gate. See [WORKFLOWS.md §9.3](WORKFLOWS.md#9-session-limit) |
-| Local analysis cap | `LicenseEntitlements.analysisCap()` — the backend's `maxSessions` once known; before that demo 25, licensed uncapped; see [WORKFLOWS.md §9](WORKFLOWS.md#9-session-limit) |
+| Local analysis cap | `SessionQuota.blocked()` (`data/session/SessionQuota.kt`) — the one rule every start check and a new row's save ask: no cap with no backend or for licensed before its config; blocked once an upload's 409 forced the stop; otherwise blocked when max(server count, the phone's rows) reaches `LicenseEntitlements.analysisCap()` (the backend's `maxSessions` once known; before that demo 25, licensed uncapped). A run admitted at its start saves even if the cap fills meanwhile; see [WORKFLOWS.md §9](WORKFLOWS.md#9-session-limit) |
 
 ## Storage, diagnostics and the parameter clipboard
 

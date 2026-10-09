@@ -20,6 +20,7 @@ import com.sempermechanics.semper.field.Roi
 import com.sempermechanics.semper.ui.analysis.recommend.RunEstimate
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.WizardStep
+import com.sempermechanics.semper.ui.common.CollapsibleSection
 import com.sempermechanics.semper.ui.common.Motion
 import com.sempermechanics.semper.ui.common.dialog.WarnChip
 import com.sempermechanics.semper.ui.common.dialog.bindInfo
@@ -28,9 +29,10 @@ import com.sempermechanics.semper.ui.common.onButtonChecked
 /**
  * Parameter-sweep setup UI for the analysis wizard (§5.4.5 parameter sweep).
  * Page 2 (sweep setup): the mode toggle, the frame to sweep, and the planned
- * lattice with its summary and, under its gear, the sample counts. Page 3
- * (sweep settings): the subset, window and step inputs, the line cut axis over
- * a preview that opens on a tap, and "Run 9 analyses · about 33 s".
+ * lattice with its run count ("9 runs") and, under its gear, the sample
+ * counts. Page 3 (sweep settings): the subset, window and step inputs, the
+ * overlap under a closed Advanced, the line cut axis over a preview that opens
+ * on a tap, and "Run 9 · 33 s".
  * Orchestration ([startSweep], progress, lifecycle) stays in the Activity.
  * The range inputs are [SweepRangeFields]; the frame dropdown is
  * [SweepFramePicker].
@@ -42,6 +44,8 @@ class SweepSetupController(
     private val callbacks: Callbacks,
 ) {
     interface Callbacks {
+        /** Drops a previous run's status line when an input or the mode changes; not while busy. */
+        fun clearRunStatus()
         fun goToStep(step: WizardStep, animate: Boolean)
         fun updateWizardChrome()
         fun checkReady()
@@ -73,7 +77,7 @@ class SweepSetupController(
     private lateinit var advancedParamsCard: View
     private lateinit var sweepSettingsCard: View
     private lateinit var rgLineCutAxis: MaterialButtonToggleGroup
-    private lateinit var tvSweepPlan: TextView
+    private lateinit var tvSweepRunCount: TextView
     private lateinit var tvStrainWinVsg: TextView
     private lateinit var sweepPlanWarn: WarnChip
     private lateinit var lineCutPreview: LineCutPreviewView
@@ -99,7 +103,7 @@ class SweepSetupController(
         advancedParamsCard = activity.findViewById(R.id.advancedParamsCard)
         sweepSettingsCard = activity.findViewById(R.id.sweepSettingsCard)
         rgLineCutAxis = activity.findViewById(R.id.rgLineCutAxis)
-        tvSweepPlan = activity.findViewById(R.id.tvSweepPlan)
+        tvSweepRunCount = activity.findViewById(R.id.tvSweepRunCount)
         tvStrainWinVsg = activity.findViewById(R.id.tvStrainWinVsg)
         sweepPlanWarn = WarnChip(activity.findViewById(R.id.sweepPlanWarnRow), callbacks::confirmOpenFaq)
         lineCutPreview = activity.findViewById(R.id.lineCutPreview)
@@ -116,6 +120,8 @@ class SweepSetupController(
 
         rgAnalysisMode.check(if (viewModel.sweepMode) R.id.rbModeSweep else R.id.rbModeSingle)
         rgAnalysisMode.onButtonChecked { checkedId ->
+            // The last run's "Computed 5 frames" belongs to the mode it ran in.
+            callbacks.clearRunStatus()
             viewModel.sweepMode = checkedId == R.id.rbModeSweep
             // Leaving sweep mode while on the sweep page returns to settings.
             if (!viewModel.sweepMode && viewModel.step == WizardStep.SWEEP) {
@@ -143,6 +149,14 @@ class SweepSetupController(
         }
         lineCutPreview.setOnClickListener { expandLineCut(!lineCutExpanded) }
         expandLineCut(false)
+        val advancedHeader = activity.findViewById<View>(R.id.sweepAdvancedHeader)
+        CollapsibleSection(
+            header = advancedHeader,
+            // Its own chevron: the parameters page's Advanced has one with the same id.
+            chevron = advancedHeader.findViewById(R.id.imgAdvancedChevron),
+            body = activity.findViewById(R.id.sweepAdvancedBody),
+            container = activity.findViewById(R.id.sweepColumn),
+        )
 
         wireSweepInfoButtons()
 
@@ -206,18 +220,22 @@ class SweepSetupController(
     )
 
     fun refreshSweepPlan() {
-        if (!::tvSweepPlan.isInitialized) return
+        if (!::tvSweepRunCount.isInitialized) return
         rangeFields?.showCountsAndStepDepth()
         refreshSweepFrameUi()
 
         val plan = currentPlan()
         tvStrainWinVsg.isVisible = plan.isNotEmpty()
-        btnRunSweep.text = runLabel(plan)
+        tvSweepRunCount.isVisible = plan.isNotEmpty()
+        showRunLabel(plan)
         when {
             plan.isNotEmpty() -> {
-                tvSweepPlan.isVisible = true
                 sweepPlanWarn.hide()
-                tvSweepPlan.text = planSummary(plan)
+                tvSweepRunCount.text = activity.resources.getQuantityString(
+                    R.plurals.sweep_plan_runs_fmt,
+                    plan.size,
+                    plan.size,
+                )
                 tvStrainWinVsg.text = activity.getString(
                     R.string.strain_win_vsg_range_fmt,
                     plan.minOf { it.vsg },
@@ -225,7 +243,6 @@ class SweepSetupController(
                 )
             }
             viewModel.subsetMin > callbacks.maxSubsetForRoi() -> {
-                tvSweepPlan.isVisible = false
                 sweepPlanWarn.show(
                     activity.getString(
                         R.string.sweep_plan_subset_too_big_fmt,
@@ -235,7 +252,6 @@ class SweepSetupController(
                 )
             }
             else -> {
-                tvSweepPlan.isVisible = false
                 sweepPlanWarn.show(
                     activity.getString(R.string.sweep_plan_empty),
                     activity.getString(R.string.url_faq_sweep_empty_plan),
@@ -260,7 +276,7 @@ class SweepSetupController(
         }
     }
 
-    /** "N analyses · subset a–b px · window c–d points" for a plan. */
+    /** "N analyses · subset a–b px · window c–d points": the run overlay's status as a sweep starts. */
     fun planSummary(plan: List<SweepStudy.Point>): String = activity.resources.getQuantityString(
         R.plurals.sweep_plan_grid_fmt,
         plan.size,
@@ -272,24 +288,32 @@ class SweepSetupController(
     )
 
     /**
-     * "Run 9 analyses · about 33 s": each analysis solves the sweep frame once
-     * over the region its subset leaves, at its own step. The time comes from
-     * this phone's finished runs; without any, the count alone.
+     * "Run 9 · 33 s" on the run button, read out as "Run 9 analyses, about 33
+     * seconds": each analysis solves the sweep frame once over the region its
+     * subset leaves, at its own step. The time comes from this phone's
+     * finished runs; without any, the count alone ("Run 9").
      */
-    fun runLabel(plan: List<SweepStudy.Point>): String {
+    private fun showRunLabel(plan: List<SweepStudy.Point>) {
         val points = plan.sumOf { point ->
             Roi.forSolve(point.subset, viewModel.hasCustomRoi, viewModel.roi, viewModel.refSize)
                 ?.let { RunEstimate.gridPoints(it.w, it.h, point.step) } ?: 0
         }
         val res = activity.resources
+        val runs = plan.size
         val seconds = RunEstimate.seconds(points, 1, AppSettings.runPointsPerSecond(activity))
-            ?: return res.getQuantityString(R.plurals.run_sweep_fmt, plan.size, plan.size)
-        return res.getQuantityString(
-            R.plurals.run_sweep_eta_fmt,
-            plan.size,
-            plan.size,
-            RunEstimate.duration(res, seconds),
-        )
+        if (seconds == null) {
+            btnRunSweep.text = res.getString(R.string.run_sweep_short_fmt, runs)
+            btnRunSweep.contentDescription = res.getQuantityString(R.plurals.run_sweep_fmt, runs, runs)
+        } else {
+            val time = RunEstimate.shortDuration(res, seconds)
+            btnRunSweep.text = res.getString(R.string.run_sweep_eta_short_fmt, runs, time)
+            btnRunSweep.contentDescription = res.getQuantityString(
+                R.plurals.run_sweep_eta_fmt,
+                runs,
+                runs,
+                RunEstimate.spokenDuration(res, seconds),
+            )
+        }
     }
 
     /** Short per-combination label; becomes the frame name in viewer and report. */
@@ -368,6 +392,7 @@ class SweepSetupController(
         fun info(@IdRes button: Int, @StringRes title: Int, @StringRes body: Int) =
             activity.findViewById<View>(button).bindInfo(activity, title, body)
         info(R.id.btnSweepInfo, R.string.analysis_mode, R.string.info_analysis_mode)
+        info(R.id.btnSweepFrameInfo, R.string.sweep_frame, R.string.sweep_frame_hint)
         info(R.id.btnSubsetRangeInfo, R.string.subset_range, R.string.info_subset_range)
         info(R.id.btnVsgMaxInfo, R.string.strain_win_range, R.string.info_strain_win_range)
         info(R.id.btnSamplesInfo, R.string.subset_samples, R.string.info_subset_samples)

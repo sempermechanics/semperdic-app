@@ -8,6 +8,7 @@ import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
+import androidx.test.espresso.action.ViewActions.scrollTo
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
@@ -20,6 +21,7 @@ import com.sempermechanics.semper.data.prefs.CoachPrefs
 import com.sempermechanics.semper.fixtures.awaitDrawnFrame
 import com.sempermechanics.semper.ui.analysis.StaticAnalysisActivity
 import com.sempermechanics.semper.ui.analysis.wizard.WizardStep
+import org.hamcrest.CoreMatchers.not
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -89,7 +91,10 @@ class AnalysisWizardSmokeTest {
     fun wizardShowsSingleAndSweepSetupOnStep2AndSweepSettingsOnStep3() {
         goToWizardStep(WizardStep.SETTINGS)
         onView(withId(R.id.rgAnalysisMode)).check(matches(isDisplayed()))
-        onView(withId(R.id.etOverlapValue)).check(matches(isDisplayed()))
+        // Overlap sits under Advanced, closed until its header is tapped.
+        onView(withId(R.id.etOverlapValue)).check(matches(not(isDisplayed())))
+        onView(withId(R.id.advancedHeader)).perform(scrollTo(), click())
+        onView(withId(R.id.etOverlapValue)).perform(scrollTo()).check(matches(isDisplayed()))
         scenarioRule.scenario.onActivity { activity ->
             assertTrue(activity.findViewById<View>(R.id.advancedParamsCard).isVisible)
             assertFalse(activity.findViewById<View>(R.id.sweepSettingsCard).isVisible)
@@ -107,6 +112,8 @@ class AnalysisWizardSmokeTest {
             assertEquals(activity.getString(R.string.wizard_title_sweep_setup), toolbar.title)
             val dots = activity.findViewById<TextView>(R.id.tvStepDots)
             assertEquals(activity.getString(R.string.step_of_fmt, 2, 3), dots.contentDescription)
+            val next = activity.findViewById<TextView>(R.id.btnNext)
+            assertEquals(activity.getString(R.string.next_sweep), next.text.toString())
         }
         captureWizardShot("step2-sweep.png")
 
@@ -115,6 +122,8 @@ class AnalysisWizardSmokeTest {
             assertTrue(activity.findViewById<View>(R.id.subsetRangeBlock).isShown)
             assertTrue(activity.findViewById<View>(R.id.tilStepDepth).isShown)
             assertTrue(activity.findViewById<View>(R.id.lineCutPreviewCard).isShown)
+            // The overlap waits under Advanced.
+            assertFalse(activity.findViewById<View>(R.id.tilSweepOverlap).isShown)
             val toolbar = activity.findViewById<MaterialToolbar>(R.id.toolbar)
             assertEquals(activity.getString(R.string.sweep_settings), toolbar.title)
         }

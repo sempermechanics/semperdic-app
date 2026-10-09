@@ -17,6 +17,7 @@ _ALLOWED = frozenset({
     "dependency", "latencyMs", "method", "path", "status", "attempt",
     "maxAttempts", "httpStatus", "count", "stage",
     "opClass", "routeTemplate", "fileCount", "frameCount", "folderMs",
+    "appId",
 })
 
 # Opaque path segments (session / file / user ids) collapse to {id} so log
@@ -233,3 +234,69 @@ def report_exception(
         "message": error_code,
     })
     logger.error(json.dumps(payload, separators=(",", ":")))
+
+
+# Cloud Logging's names for Python's levels; anything else is DEFAULT.
+_SEVERITY = {
+    "DEBUG": "DEBUG",
+    "INFO": "INFO",
+    "WARNING": "WARNING",
+    "ERROR": "ERROR",
+    "CRITICAL": "CRITICAL",
+}
+
+
+class JsonLineFormatter(logging.Formatter):
+    """One JSON object per line, which Cloud Run stores as `jsonPayload`.
+
+    A message that is already a JSON object (`log_event`, `report_exception`)
+    is written as that object, field order kept, with `severity` added. Any
+    other message is wrapped as `{"severity", "message", "logger"}`. A
+    traceback, when the record carries one, goes in `stack_trace`, the field
+    Error Reporting reads a `jsonPayload` trace from.
+
+    Behind the default `LEVEL:logger:` prefix every line was `textPayload`, so
+    no filter on `jsonPayload.*` matched and Error Reporting never saw the
+    `@type` of a reported error.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        message = record.getMessage()
+        payload = _json_object(message)
+        severity = _SEVERITY.get(record.levelname, "DEFAULT")
+        if payload is None:
+            payload = {"severity": severity, "message": message, "logger": record.name}
+        else:
+            payload.setdefault("severity", severity)
+        if record.exc_info:
+            payload["stack_trace"] = self.formatException(record.exc_info)
+        if record.stack_info:
+            payload["stack"] = self.formatStack(record.stack_info)
+        return json.dumps(payload, separators=(",", ":"), default=str)
+
+
+def _json_object(message: str) -> dict | None:
+    if not message.startswith("{"):
+        return None
+    try:
+        parsed = json.loads(message)
+    except ValueError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def configure_logging(*, structured: bool) -> None:
+    """INFO and up to stderr; one JSON object per line when `structured`.
+
+    Structured on Cloud Run only: locally the plain `LEVEL:logger:` lines read
+    better. uvicorn's own loggers (`uvicorn`, `uvicorn.access`) do not
+    propagate to the root, so their handlers get the formatter too; each line
+    is still written once.
+    """
+    logging.basicConfig(level=logging.INFO)
+    if not structured:
+        return
+    formatter = JsonLineFormatter()
+    for name in ("", "uvicorn", "uvicorn.access"):
+        for handler in logging.getLogger(name).handlers:
+            handler.setFormatter(formatter)

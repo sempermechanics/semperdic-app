@@ -83,33 +83,21 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <LinearLayout
+                        <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/settings_save_cloud"
-                                android:textColor="@color/text_primary"
-                                android:textSize="14sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:id="@+id/tvSaveCloudSub"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/settings_save_cloud_sub"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
-                        </LinearLayout>
+                            android:importantForAccessibility="no"
+                            android:text="@string/settings_save_cloud"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
                             android:id="@+id/switchSaveCloud"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content" />
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/settings_save_cloud_desc" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -120,32 +108,21 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <LinearLayout
+                        <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/settings_wifi_only"
-                                android:textColor="@color/text_primary"
-                                android:textSize="14sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/settings_wifi_only_sub"
-                                android:textColor="@color/text_secondary"
-                                android:textSize="12sp" />
-                        </LinearLayout>
+                            android:importantForAccessibility="no"
+                            android:text="@string/settings_wifi_only"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
                             android:id="@+id/switchWifiOnly"
                             android:layout_width="wrap_content"
-                            android:layout_height="wrap_content" />
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/settings_wifi_only_desc" />
                     </LinearLayout>
 
                     <TextView
@@ -294,42 +271,32 @@
                             android:text="@string/storage_measuring"
                             android:textColor="@color/text_secondary"
                             android:textSize="14sp" />
+
+                        <!-- Shown only while there is something to clear. -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnStorageClearCache"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
+                            android:contentDescription="@string/storage_clear_cache"
+                            android:minWidth="0dp"
+                            android:text="@string/storage_clear"
+                            android:textAllCaps="false"
+                            android:textColor="@color/sky_primary"
+                            android:textStyle="bold"
+                            android:visibility="gone" />
                     </LinearLayout>
 
-                    <!-- Free up space -->
-                    <TextView
-                        android:id="@+id/tvStorageFreeUpSub"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/storage_free_up_none"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
-
+                    <!-- "Free up N MB": only while a backed-up analysis has local data to drop -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnStorageFreeUp"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/storage_free_up" />
-
-                    <!-- Clear cache -->
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/storage_clear_cache_sub"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnStorageClearCache"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/storage_clear_cache" />
+                        android:layout_marginTop="8dp"
+                        android:textAllCaps="false"
+                        android:visibility="gone" />
 
                     <!-- Auto-free budget -->
                     <LinearLayout
@@ -359,15 +326,16 @@
                             android:scaleType="fitCenter"
                             android:src="@drawable/ic_info_min"
                             app:tint="@color/text_secondary" />
-                    </LinearLayout>
 
-                    <TextView
-                        android:id="@+id/tvAutoFreeValue"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/storage_auto_free_off"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
+                        <TextView
+                            android:id="@+id/tvAutoFreeValue"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:text="@string/storage_auto_free_off"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp" />
+                    </LinearLayout>
 
                     <com.google.android.material.slider.Slider
                         android:id="@+id/sliderAutoFree"

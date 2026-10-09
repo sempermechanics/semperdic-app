@@ -57,6 +57,7 @@ object SessionOpenHelper {
             roiY = session.roiY,
             roiW = session.roiW,
             roiH = session.roiH,
+            frameTimesMs = session.frameTimesMs.takeUnless { session.isSweep },
             sweep = if (session.isSweep) {
                 ViewerSweepArgs(
                     subsets = session.sweepSubsets,

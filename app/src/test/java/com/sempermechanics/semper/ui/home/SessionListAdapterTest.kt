@@ -1,8 +1,6 @@
 package com.sempermechanics.semper.ui.home
 
 import android.app.Application
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.View
@@ -27,15 +25,13 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.TimeZone
 
 /**
  * One Home row: the subtitle that says how a run ended, the state icon and
- * transfer bar, the selection paint, and which rows get rebound when progress,
- * cloud presence or selection change — the list must never repaint rows
- * whose state did not move.
+ * transfer bar, the selection paint, the day headers between rows, and which
+ * rows get rebound when progress, cloud presence or selection change — the
+ * list must never repaint rows whose state did not move.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -53,17 +49,19 @@ class SessionListAdapterTest {
         onClick = { clicked += it.id },
         onLongClick = { longClicked += it.id },
         onBadgeClick = { badgeClicked += it.id },
+        clock = { NOW },
     )
 
     /** Positions rebound through notifyItemChanged, and whole-list refreshes. */
     private val changed = mutableListOf<Int>()
     private var fullRefreshes = 0
 
-    /** Every fixture row was created at 0: the date its subtitle ends with. */
-    private val date = SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(0L))
+    /** Day headers follow the device's timezone; the tests pin it to UTC. */
+    private val deviceZone = TimeZone.getDefault()
 
     @Before
     fun setUp() {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
         val controller = Robolectric.buildActivity(AppCompatActivity::class.java)
         controller.get().setTheme(R.style.Theme_Semper) // Material rows need the app theme
         activity = controller.setup().get()
@@ -83,7 +81,10 @@ class SessionListAdapterTest {
 
     /** A bound row's bar springs to its percent, and no frame ends it here (TD-200). */
     @After
-    fun tearDown() = SpringFrames.endAll()
+    fun tearDown() {
+        SpringFrames.endAll()
+        TimeZone.setDefault(deviceZone)
+    }
 
     @Suppress("LongParameterList") // named, defaulted knobs of one SessionRecord
     private fun record(
@@ -113,8 +114,23 @@ class SessionListAdapterTest {
         }.orEmpty(),
     )
 
-    private fun bind(position: Int): SessionListAdapter.Holder =
-        adapter.createViewHolder(parent, 0).also { adapter.bindViewHolder(it, position) }
+    /**
+     * Binds the [index]th session (headers not counted). Every fixture row
+     * was created at 0, so one header sits at position 0 above them all.
+     */
+    private fun bind(index: Int): SessionListAdapter.Holder {
+        val holder = adapter.createViewHolder(parent, SessionListAdapter.TYPE_SESSION) as SessionListAdapter.Holder
+        adapter.bindViewHolder(holder, adapter.positionOf(adapter.allIds()[index]))
+        return holder
+    }
+
+    /** The text of the day header at adapter [position]. */
+    private fun dayAt(position: Int): String {
+        assertEquals(SessionListAdapter.TYPE_DAY, adapter.getItemViewType(position))
+        val holder = adapter.createViewHolder(parent, SessionListAdapter.TYPE_DAY) as SessionListAdapter.DayHolder
+        adapter.bindViewHolder(holder, position)
+        return holder.day.sessionDay.text.toString()
+    }
 
     private val SessionListAdapter.Holder.state get() = row.sessionState
     private val SessionListAdapter.Holder.subtitle get() = row.sessionSubtitle
@@ -145,12 +161,18 @@ class SessionListAdapterTest {
     // ── Subtitle ─────────────────────────────────────────────────────────────
 
     @Test
-    fun `a finished run reads as frames, convergence and date`() {
+    fun `a finished run reads as frames and convergence, with no date`() {
         submit(record("a", frameCount = 40, convergence = 96.34f))
         val subtitle = bind(0).subtitle.text
 
-        assertEquals("40 frames · 96.3% converged · $date", subtitle.toString())
+        assertEquals("40 frames · 96.3%", subtitle.toString())
         assertTrue("above 85% is not flagged", colouredParts(subtitle).isEmpty())
+    }
+
+    @Test
+    fun `TalkBack hears what the bare figure means`() {
+        submit(record("a", frameCount = 5, convergence = 87.9f))
+        assertEquals("5 frames · 87.9% converged", bind(0).subtitle.contentDescription)
     }
 
     @Test
@@ -158,7 +180,7 @@ class SessionListAdapterTest {
         submit(record("low", convergence = 84.9f), record("edge", convergence = 85f))
 
         val low = bind(0).subtitle.text
-        assertEquals("12 frames · 84.9% converged · $date", low.toString())
+        assertEquals("12 frames · 84.9%", low.toString())
         assertEquals(listOf("84.9%" to activity.getColor(R.color.semantic_warning)), colouredParts(low))
         assertTrue("85.0 exactly is fine", colouredParts(bind(1).subtitle.text).isEmpty())
     }
@@ -168,16 +190,20 @@ class SessionListAdapterTest {
         submit(record("a", frameCount = 12, headline = "97.5% converged on frame 1"))
         val subtitle = bind(0).subtitle.text.toString()
 
-        assertEquals("12 frames · 97.5% converged on frame 1 · $date", subtitle)
+        assertEquals("12 frames · 97.5% converged on frame 1", subtitle)
     }
 
     @Test
-    fun `a run cut short says how far it got and why, before the date`() {
+    fun `a run cut short says how far it got and why`() {
         val code = 3
         submit(record("a", frameCount = 39, stopCode = code, planned = 50, convergence = 90f))
-        val subtitle = bind(0).subtitle.text.toString()
+        val row = bind(0)
 
-        assertEquals("39 of 50 frames · 90.0% converged · Unknown engine error (code 3) · $date", subtitle)
+        assertEquals("39 of 50 frames · 90.0% · Unknown engine error (code 3)", row.subtitle.text.toString())
+        assertEquals(
+            "39 of 50 frames · 90.0% converged · Unknown engine error (code 3)",
+            row.subtitle.contentDescription,
+        )
     }
 
     @Test
@@ -190,13 +216,38 @@ class SessionListAdapterTest {
     }
 
     @Test
-    fun `a parameter sweep counts its solved combinations and subset span, not frames`() {
+    fun `a video analysis says so, with its frames' span in the clip`() {
+        val times = List(40) { it * 300L }
+        submit(
+            record("v", frameCount = 40, convergence = 91.2f).copy(videoName = "tensile_03", frameTimesMs = times),
+            record("low", frameCount = 40, convergence = 80f).copy(videoName = "tensile_04", frameTimesMs = times),
+        )
+        val row = bind(0)
+
+        assertEquals("Video · 40 frames, 0:00–0:11 · 91.2%", row.subtitle.text.toString())
+        assertEquals("Video · 40 frames, 0:00–0:11 · 91.2% converged", row.subtitle.contentDescription)
+        assertEquals(
+            "only the figure is amber",
+            listOf("80.0%" to activity.getColor(R.color.semantic_warning)),
+            colouredParts(bind(1).subtitle.text),
+        )
+    }
+
+    @Test
+    fun `a video analysis without its times still says it is a video`() {
+        submit(record("v", frameCount = 3, convergence = 96f).copy(videoName = "Video"))
+
+        assertEquals("Video · 3 frames · 96.0%", bind(0).subtitle.text.toString())
+    }
+
+    @Test
+    fun `a parameter sweep counts its solved combinations, not frames or subsets`() {
         val sweep = record("a", frameCount = 2, sweep = true, headline = "plate · 2 of 3 solved", convergence = 50f)
             .copy(sweepSubsets = listOf(15, 25), sweepSkipSubsets = listOf(35))
         submit(sweep)
         val subtitle = bind(0).subtitle.text.toString()
 
-        assertEquals("2 of 3 solved · subset 15–35 px · $date", subtitle)
+        assertEquals("2 of 3 solved", subtitle)
     }
 
     // ── State icon and transfer bar ──────────────────────────────────────────
@@ -257,6 +308,7 @@ class SessionListAdapterTest {
         val row = bind(0)
 
         assertEquals("Backing up · 42.0%", row.subtitle.text.toString())
+        assertNull("the text is read as written", row.subtitle.contentDescription)
         assertEquals("Backing up", row.stateWords)
         assertEquals(activity.getColor(R.color.sky_primary), row.stateTint)
         assertTrue(row.progressBar.isVisible())
@@ -314,7 +366,7 @@ class SessionListAdapterTest {
     // ── Selection paint and clicks ───────────────────────────────────────────
 
     @Test
-    fun `a selected row is ticked and tinted`() {
+    fun `a selected card is ticked, filled and stroked in sky`() {
         submit(record("a"), record("b"))
         selected += "b"
 
@@ -322,8 +374,10 @@ class SessionListAdapterTest {
         val picked = bind(1)
         assertFalse(plain.check.isVisible())
         assertTrue(picked.check.isVisible())
-        assertEquals(activity.getColor(R.color.sky_container), picked.background())
-        assertEquals(Color.TRANSPARENT, plain.background())
+        assertEquals(activity.getColor(R.color.sky_container), picked.fill())
+        assertEquals(activity.getColor(R.color.sky_primary), picked.stroke())
+        assertEquals(activity.getColor(R.color.surface_muted), plain.fill())
+        assertEquals(activity.getColor(R.color.surface_outline), plain.stroke())
     }
 
     @Test
@@ -354,7 +408,7 @@ class SessionListAdapterTest {
     fun `progress rebinds only the rows whose progress moved`() {
         submit(record("a"), record("b"), record("c"))
         adapter.setUploadProgress(mapOf("b" to progress(TransferPhase.UPLOAD, 10)))
-        assertEquals(listOf(1), changed)
+        assertEquals("b sits under the day header", listOf(2), changed)
 
         changed.clear()
         adapter.setUploadProgress(
@@ -363,11 +417,11 @@ class SessionListAdapterTest {
                 "c" to progress(TransferPhase.PREPARE, 0),
             ),
         )
-        assertEquals("b unchanged, c new", listOf(2), changed)
+        assertEquals("b unchanged, c new", listOf(3), changed)
 
         changed.clear()
         adapter.setUploadProgress(mapOf("b" to progress(TransferPhase.UPLOAD, 10)))
-        assertEquals("c finished", listOf(2), changed)
+        assertEquals("c finished", listOf(3), changed)
         assertEquals(0, fullRefreshes)
     }
 
@@ -378,7 +432,7 @@ class SessionListAdapterTest {
         changed.clear()
 
         adapter.setUploadProgress(mapOf("a" to progress(TransferPhase.UPLOAD, 10, 2L, 10L)))
-        assertEquals(listOf(0), changed)
+        assertEquals(listOf(1), changed)
     }
 
     @Test
@@ -409,13 +463,66 @@ class SessionListAdapterTest {
     }
 
     @Test
+    fun `rows sit under today, yesterday and older day headers`() {
+        submit(
+            record("t1").copy(createdAt = NOW - HOUR),
+            record("t2").copy(createdAt = NOW - 2 * HOUR),
+            record("y").copy(createdAt = NOW - DAY),
+            record("old").copy(createdAt = NOW - 30 * DAY),
+        )
+
+        assertEquals(7, adapter.itemCount)
+        assertEquals("Today", dayAt(0))
+        assertEquals(listOf(1, 2), listOf(adapter.positionOf("t1"), adapter.positionOf("t2")))
+        assertEquals("Yesterday", dayAt(3))
+        assertEquals(4, adapter.positionOf("y"))
+        assertEquals(6, adapter.positionOf("old"))
+        assertFalse(dayAt(5), dayAt(5).isBlank())
+    }
+
+    @Test
+    fun `ids, selection and rebinds skip the headers`() {
+        submit(
+            record("a").copy(createdAt = NOW),
+            record("b").copy(createdAt = NOW - DAY),
+            record("c").copy(createdAt = NOW - 2 * DAY),
+        )
+        assertEquals("three headers are not rows", listOf("a", "b", "c"), adapter.allIds())
+
+        adapter.rebindRow("c")
+        adapter.rebindRow("a")
+        assertEquals("each id maps past the headers above it", listOf(5, 1), changed)
+    }
+
+    @Test
+    fun `a header is not clickable and a card under it reports its own record`() {
+        submit(record("a").copy(createdAt = NOW), record("b").copy(createdAt = NOW - DAY))
+        val header = adapter.createViewHolder(parent, SessionListAdapter.TYPE_DAY)
+        adapter.bindViewHolder(header, 2)
+        assertFalse(header.itemView.hasOnClickListeners())
+
+        bind(1).itemView.performClick()
+        assertEquals(listOf("b"), clicked)
+    }
+
+    @Test
     fun `records for a selection come back in list order`() {
         submit(record("a"), record("b"), record("c"))
         assertEquals(listOf("a", "c"), adapter.recordsFor(linkedSetOf("c", "a", "zzz")).map { it.id })
         assertEquals(listOf("a", "b", "c"), adapter.allIds())
     }
 
-    private fun SessionListAdapter.Holder.background(): Int = (row.sessionRow.background as ColorDrawable).color
+    private fun SessionListAdapter.Holder.fill(): Int = row.sessionCard.cardBackgroundColor.defaultColor
+
+    private fun SessionListAdapter.Holder.stroke(): Int? = row.sessionCard.strokeColorStateList?.defaultColor
 
     private fun View.isVisible() = visibility == View.VISIBLE
+
+    private companion object {
+        const val HOUR = 60L * 60L * 1000L
+        const val DAY = 24L * HOUR
+
+        /** 2026-10-13 12:00 UTC: two hours back is still today. */
+        const val NOW = 1_791_892_800_000L
+    }
 }

@@ -250,7 +250,7 @@ test("a refused convert is explained in the dialog, which stays as it was", asyn
   for (const [reply, text] of [
     [() => json(409, { detail: "convert_domain_mismatch" }), "The holder's address is not on that domain."],
     [() => json(409, { detail: "license_not_convertible" }), "Only an individual licensed key converts."],
-    [() => json(409, { detail: "license_revoked" }), "This licence is revoked."],
+    [() => json(403, { detail: "license_revoked" }), "This licence is revoked."],
     [() => json(409, { detail: "odd" }), "Not converted: odd"],
     [offline, "Not converted: Failed to fetch"],
   ]) {

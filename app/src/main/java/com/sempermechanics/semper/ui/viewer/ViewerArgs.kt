@@ -71,6 +71,8 @@ data class ViewerArgs(
     /** The frame to open on; null opens a run on its summary. A lattice node sets it. */
     val startFrame: Int? = null,
     val strainMethod: String = STRAIN_METHOD_VSG,
+    /** A video's frame times in its clip (ms), index-aligned with [frameNames]; null for anything else. */
+    val frameTimesMs: List<Long>? = null,
 ) {
 
     /**
@@ -92,6 +94,7 @@ data class ViewerArgs(
             defPath?.let { putExtra(IntentKeys.DEF_PATH, it) }
             putExtra(IntentKeys.BATCH_DIR_PATH, batchDirPath)
             putStringArrayListExtra(IntentKeys.DEF_FILE_NAMES, ArrayList(frameNames))
+            frameTimesMs?.let { putExtra(IntentKeys.FRAME_TIMES_MS, it.toLongArray()) }
             if (defFilePaths.isNotEmpty()) {
                 putStringArrayListExtra(IntentKeys.DEF_FILE_PATHS, ArrayList(defFilePaths))
             }
@@ -265,6 +268,9 @@ data class ViewerArgs(
                 startFrame = intent.takeIf { it.hasExtra(IntentKeys.START_FRAME) }
                     ?.getIntExtra(IntentKeys.START_FRAME, 0),
                 strainMethod = intent.getStringExtra(IntentKeys.STRAIN_METHOD) ?: STRAIN_METHOD_VSG,
+                // Absent for anything but a video, so never filled from the record:
+                // an older Intent's video frames keep their names.
+                frameTimesMs = intent.getLongArrayExtra(IntentKeys.FRAME_TIMES_MS)?.toList(),
             )
             if (fromRecord.isNotEmpty() || defaulted.isNotEmpty()) {
                 Timber.w("Viewer Intent missing keys; from record: %s; defaulted: %s", fromRecord, defaulted)

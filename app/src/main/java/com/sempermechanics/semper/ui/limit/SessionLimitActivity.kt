@@ -10,6 +10,7 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.account.DeviceKeys
 import com.sempermechanics.semper.data.cloud.CloudSync
 import com.sempermechanics.semper.data.net.AccountCache
+import com.sempermechanics.semper.data.session.SessionQuota
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.databinding.ActivitySessionLimitBinding
 import com.sempermechanics.semper.ui.common.Insets
@@ -75,9 +76,11 @@ class SessionLimitActivity : AppCompatActivity() {
             // deep=true: the user explicitly tapped Recheck, so bypass the
             // reconcile throttle — a silently skipped check would report
             // "still full" from stale data.
-            when (val outcome = CloudSync.reconcile(this@SessionLimitActivity, deep = true)) {
+            val outcome = CloudSync.reconcile(this@SessionLimitActivity, deep = true)
+            // The rows after the reconcile, which may have repaired some.
+            val localCount = SessionStore.listOnIo(this@SessionLimitActivity).size
+            when (outcome) {
                 is CloudSync.Outcome.Ok -> {
-                    val localCount = SessionStore.listOnIo(this@SessionLimitActivity).size
                     // Ceiling is owned by AppRemoteConfig (refreshed by the same
                     // reconcile's config fetch); only the used count is stored here.
                     AccountCache.setQuota(
@@ -89,7 +92,7 @@ class SessionLimitActivity : AppCompatActivity() {
                 else -> Unit
             }
             setLoading(false)
-            if (!AccountCache.isSessionLimitReached(this@SessionLimitActivity)) {
+            if (!SessionQuota.blocked(this@SessionLimitActivity, localCount)) {
                 Feedback.toast(this@SessionLimitActivity, R.string.limit_cleared)
                 finish()
             } else {

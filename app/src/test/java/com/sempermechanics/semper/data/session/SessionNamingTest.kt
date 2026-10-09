@@ -1,6 +1,7 @@
 package com.sempermechanics.semper.data.session
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -11,6 +12,23 @@ class SessionNamingTest {
     fun `the auto-name is the reference's base name, without the date the row already shows`() {
         assertEquals("specimen_A", SessionNaming.defaultSessionName("specimen_A.tif", emptySet()))
         assertEquals("Analysis", SessionNaming.defaultSessionName(".png", emptySet()))
+    }
+
+    @Test
+    fun `a video analysis is named after its clip, without the extension`() {
+        assertEquals("tensile_03", SessionNaming.clipName("tensile_03.mp4"))
+        assertEquals("clip", SessionNaming.clipName("clip"))
+        assertNull("no name: the caller says Video", SessionNaming.clipName(null))
+        assertNull(SessionNaming.clipName(".mp4"))
+        // The clip's name is the reference's, so the run's auto-name is the clip's.
+        assertEquals("tensile_03 (2)", SessionNaming.runSessionName("tensile_03", "tensile_03", setOf("tensile_03")))
+        val dotted = SessionNaming.runSessionName("tensile.v2", "tensile.v2", emptySet())
+        assertEquals("a dot in a clip's name stays", "tensile.v2", dotted)
+        assertEquals(
+            "a reference picked over a video's frame names the run as an image",
+            "plate",
+            SessionNaming.runSessionName("plate.tif", "tensile_03", emptySet()),
+        )
     }
 
     @Test

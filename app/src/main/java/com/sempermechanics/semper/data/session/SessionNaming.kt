@@ -26,6 +26,27 @@ object SessionNaming {
     fun defaultSessionName(refFileName: String, taken: Collection<String>): String =
         uniqueName(refFileName.substringBeforeLast('.').ifBlank { "Analysis" }, taken)
 
+    /**
+     * A run's auto-name: [defaultSessionName] of its reference [refName],
+     * except when the reference is the first frame of video [videoName]. A
+     * clip's name has no extension left to drop and may hold a dot of its own
+     * (`tensile.v2`), so it is taken whole.
+     */
+    fun runSessionName(refName: String, videoName: String?, taken: Collection<String>): String =
+        if (videoName != null && videoName == refName) {
+            uniqueName(videoName, taken)
+        } else {
+            defaultSessionName(refName, taken)
+        }
+
+    /**
+     * A video analysis's name from its clip's display name: `tensile_03.mp4`
+     * reads `tensile_03`. Null when the clip has no usable name; the caller
+     * then says "Video".
+     */
+    fun clipName(displayName: String?): String? =
+        displayName?.substringBeforeLast('.')?.trim()?.takeIf { it.isNotEmpty() }
+
     /** [base] itself when no name in [taken] is it, else `base (n)` for the first free n ≥ 2. */
     fun uniqueName(base: String, taken: Collection<String>): String {
         if (base !in taken) return base

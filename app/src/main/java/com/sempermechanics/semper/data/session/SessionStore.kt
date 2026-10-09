@@ -95,7 +95,7 @@ object SessionStore {
     enum class UpsertOutcome {
         SAVED,
 
-        /** A new row was refused: the account is at its analysis quota ([SessionQuotaGate]). */
+        /** A new row was refused: the account is at its analysis quota ([SessionQuota]). */
         QUOTA_FULL,
 
         /** The index is unreadable (so it must not be overwritten), or the write failed. */
@@ -103,10 +103,12 @@ object SessionStore {
     }
 
     /**
-     * Insert or update a session row. New sessions are hard-stopped when the
-     * account is at its analysis quota ([SessionQuotaGate]) — re-runs of an
-     * existing id still save.
-     * @param allowOverLimit true for cloud restore (session already counts against quota).
+     * Insert or update a session row. A new row is refused when the account is
+     * at its analysis quota ([SessionQuota.blocked], with the index's rows as
+     * the phone's count); re-runs of an existing id still save.
+     * @param allowOverLimit true for a cloud restore (the session already
+     *   counts against the quota) and for a run the quota admitted at its start
+     *   (`RunAdmission.Admitted`): a run under way when the cap fills still saves.
      */
     @WorkerThread
     fun save(
@@ -120,12 +122,12 @@ object SessionStore {
             return@synchronized UpsertOutcome.INDEX_UNAVAILABLE
         }
         val isNew = existing.none { it.id == record.id }
-        if (isNew && !allowOverLimit && !SessionQuotaGate.allowNewSession(context, existing.size)) {
+        if (isNew && !allowOverLimit && SessionQuota.blocked(context, existing.size)) {
+            Timber.w("Hard stop: refusing new session at the analysis limit (%d on the phone)", existing.size)
             return@synchronized UpsertOutcome.QUOTA_FULL
         }
         val next = existing.filterNot { it.id == record.id } + record
         if (!write(context, next)) return@synchronized UpsertOutcome.INDEX_UNAVAILABLE
-        AccountCache.refreshSessionLimit(context, next.size)
         UpsertOutcome.SAVED
     }
 
@@ -304,7 +306,9 @@ object SessionStore {
     }
 
     /**
-     * Atomic replace: backup prior good file, write tmp, flush, rename.
+     * Atomic replace: backup prior good file, write tmp, flush, rename. Stores
+     * the row count it wrote as the quota's phone count, so the count
+     * [SessionQuota.blockedNow] reads on the main thread is the live one.
      * @return false only if something unexpected fails mid-write (rare).
      */
     private fun write(context: Context, records: List<SessionRecord>): Boolean {
@@ -325,10 +329,11 @@ object SessionStore {
                 }
             }
             indexCorrupt = false
-            return true
         } catch (e: Exception) {
             Timber.e(e, "Failed to write session index")
             return false
         }
+        AccountCache.refreshSessionLimit(context, records.size)
+        return true
     }
 }
