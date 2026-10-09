@@ -18,7 +18,7 @@ import org.robolectric.annotation.Config
  *
  * [baseBundle] is that Bundle written out by hand, key by key, as the build
  * before the wizard's value types (`Roi`, `ImageSize`, `SweepRanges`,
- * `WizardStep`) wrote it.
+ * `WizardStep`) wrote it. `workingIsSweep` came later ([currentBundle]).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -50,11 +50,27 @@ class WizardStateBundleFormatTest {
         putString("framesFingerprint", WizardState.fingerprint(WizardState.encodeFrames(WizardState.Frames())))
     }
 
+    /** [baseBundle] as this build writes it: with the working session's kind. */
+    private fun currentBundle(): Bundle = baseBundle().apply { putBoolean("workingIsSweep", true) }
+
     @Test
-    fun `a Bundle the base build saved restores and saves again unchanged`() {
+    fun `a Bundle this build saved restores and saves again unchanged`() {
+        val restored = AnalysisViewModel(SavedStateHandle(mapOf(WizardState.KEY to currentBundle())))
+
+        assertSameBundle(currentBundle(), restored.saveWizardState())
+    }
+
+    @Test
+    fun `a Bundle the base build saved restores, its run kind unknown so the next run is a new session`() {
         val restored = AnalysisViewModel(SavedStateHandle(mapOf(WizardState.KEY to baseBundle())))
 
-        assertSameBundle(baseBundle(), restored.saveWizardState())
+        // The base build did not save whether its session was a single run or
+        // a sweep; reusing it could write one kind over the other.
+        val expected = baseBundle().apply {
+            putString("workingLocalId", null)
+            putBoolean("workingIsSweep", false)
+        }
+        assertSameBundle(expected, restored.saveWizardState())
     }
 
     @Test
@@ -81,6 +97,7 @@ class WizardStateBundleFormatTest {
             putBoolean("lineCutHorizontal", true)
             putInt("vsgFrameIndex", -1)
             putString("workingLocalId", null)
+            putBoolean("workingIsSweep", false)
             putString("framesFingerprint", WizardState.fingerprint(WizardState.encodeFrames(WizardState.Frames())))
         }
 

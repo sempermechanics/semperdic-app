@@ -60,4 +60,20 @@ object SessionPaths {
      */
     fun plannedFrameIndices(datFiles: List<File>): List<Int> =
         datFiles.mapIndexed { position, file -> frameIndexOf(file.name) ?: position }
+
+    /**
+     * True when [file] belongs to a session other than [sessionDir]: it is
+     * under the sessions root ([sessionDir]'s parent, as `SessionStore.dirFor`
+     * makes it) but not under [sessionDir]. A run must copy such an image,
+     * never move it: it is that other session's own input, which the wizard
+     * reaches after a run of the other kind (single and sweep never share a
+     * session).
+     */
+    fun isInOtherSession(file: File, sessionDir: File): Boolean {
+        val own = sessionDir.absoluteFile.normalize()
+        val root = own.parentFile ?: return false
+        val path = file.absoluteFile.normalize().path
+        fun isUnder(dir: File) = path.startsWith(dir.path + File.separator)
+        return isUnder(root) && !isUnder(own)
+    }
 }

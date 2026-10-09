@@ -81,13 +81,24 @@ class AnalysisViewModelTest {
 
     @Test
     fun `a fresh view model would create a new session row`() {
-        assertTrue(vm.wouldCreateNewSession())
+        assertTrue(vm.wouldCreateNewSession(sweep = false))
     }
 
     @Test
     fun `re-runs over an existing working id do not create another session row`() {
         vm.workingLocalId = "abc123"
-        assertFalse(vm.wouldCreateNewSession())
+        assertFalse(vm.wouldCreateNewSession(sweep = false))
+    }
+
+    @Test
+    fun `a run of the other kind would create a new session row`() {
+        vm.workingLocalId = "abc123"
+        vm.workingIsSweep = false
+        assertTrue("a sweep must not write over a single run's row", vm.wouldCreateNewSession(sweep = true))
+
+        vm.workingIsSweep = true
+        assertTrue("a single run must not write over a sweep's row", vm.wouldCreateNewSession(sweep = false))
+        assertFalse(vm.wouldCreateNewSession(sweep = true))
     }
 
     // -------------------------------------------------------------- reset logic
@@ -110,13 +121,13 @@ class AnalysisViewModelTest {
     @Test
     fun `clearing results sends the next run back to a new session row`() {
         vm.workingLocalId = "abc123"
-        assertFalse(vm.wouldCreateNewSession())
+        assertFalse(vm.wouldCreateNewSession(sweep = false))
 
         vm.clearPreviousResults()
 
         assertTrue(
             "new inputs must start a fresh Home row rather than overwrite the old one",
-            vm.wouldCreateNewSession(),
+            vm.wouldCreateNewSession(sweep = false),
         )
     }
 
@@ -194,11 +205,11 @@ class AnalysisViewModelTest {
     @Test
     fun `a new reference starts a new Home row`() {
         ranWithCustomRoi()
-        assertFalse(vm.wouldCreateNewSession())
+        assertFalse(vm.wouldCreateNewSession(sweep = false))
 
         vm.applyNewReference(ByteArray(8), "second.png", ImageSize(640, 480))
 
-        assertTrue("a new reference overwrote the previous one's session", vm.wouldCreateNewSession())
+        assertTrue("a new reference overwrote the previous one's session", vm.wouldCreateNewSession(sweep = false))
         assertNull(vm.lastBatchDirPath)
     }
 

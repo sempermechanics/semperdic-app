@@ -60,6 +60,7 @@ internal object WizardState {
     private const val LINE_CUT_HORIZONTAL = "lineCutHorizontal"
     private const val SWEEP_FRAME_INDEX = "vsgFrameIndex"
     private const val WORKING_LOCAL_ID = "workingLocalId"
+    private const val WORKING_IS_SWEEP = "workingIsSweep"
 
     /** Index-aligned lists behind the deformed-frames card; `-1` = size not measured. */
     @Serializable
@@ -99,6 +100,7 @@ internal object WizardState {
         putBoolean(LINE_CUT_HORIZONTAL, viewModel.lineCutHorizontal)
         putInt(SWEEP_FRAME_INDEX, viewModel.sweepFrameIndex)
         putString(WORKING_LOCAL_ID, viewModel.workingLocalId)
+        putBoolean(WORKING_IS_SWEEP, viewModel.workingIsSweep)
         putString(FRAMES_FINGERPRINT, fingerprint(framesJson))
     }
 
@@ -122,7 +124,11 @@ internal object WizardState {
         viewModel.subsetOverlap = b.getDouble(SUBSET_OVERLAP, viewModel.subsetOverlap)
         viewModel.lineCutHorizontal = b.getBoolean(LINE_CUT_HORIZONTAL, true)
         viewModel.sweepFrameIndex = b.getInt(SWEEP_FRAME_INDEX, -1)
-        viewModel.workingLocalId = b.getString(WORKING_LOCAL_ID)
+        // A Bundle from before the kind was saved cannot say whether its
+        // session is a single run or a sweep, and a run of the other kind
+        // must not write over it: the next run starts a new record instead.
+        viewModel.workingLocalId = b.getString(WORKING_LOCAL_ID)?.takeIf { b.containsKey(WORKING_IS_SWEEP) }
+        viewModel.workingIsSweep = b.getBoolean(WORKING_IS_SWEEP)
     }
 
     fun frames(viewModel: AnalysisViewModel): Frames = wizardFramesOf(viewModel.deformedFrames)

@@ -32,12 +32,15 @@ object AnalysisNavHelper {
      * Returns false having already navigated to whichever gate applies. Both
      * checks are guarded by [AnalysisViewModel.wouldCreateNewSession], so a
      * **run already in flight, or a re-run of an existing session, always
-     * passes** — losing a seat mid-analysis must never abort work.
+     * passes** — losing a seat mid-analysis must never abort work. A run of
+     * the other kind than the working session's ([sweep] says which this is)
+     * is a new session, and is checked like one.
      */
     suspend fun ensureCanStart(
         host: Activity,
         viewModel: AnalysisViewModel,
-    ): Boolean = ensureSeat(host, viewModel) && ensureSessionQuota(host, viewModel)
+        sweep: Boolean,
+    ): Boolean = ensureSeat(host, viewModel, sweep) && ensureSessionQuota(host, viewModel, sweep)
 
     /**
      * Hard stop when this account holds no floating seat.
@@ -55,8 +58,9 @@ object AnalysisNavHelper {
     suspend fun ensureSeat(
         host: Activity,
         viewModel: AnalysisViewModel,
+        sweep: Boolean,
     ): Boolean {
-        if (!viewModel.wouldCreateNewSession()) return true
+        if (!viewModel.wouldCreateNewSession(sweep)) return true
         if (!LicenseEntitlements.isSeatRequiredToStart(host)) return true
         openSeatRequired(host)
         return false
@@ -73,8 +77,9 @@ object AnalysisNavHelper {
     suspend fun ensureSessionQuota(
         host: Activity,
         viewModel: AnalysisViewModel,
+        sweep: Boolean,
     ): Boolean {
-        if (!viewModel.wouldCreateNewSession()) return true
+        if (!viewModel.wouldCreateNewSession(sweep)) return true
         val localCount = withContext(Dispatchers.IO) {
             SessionStore.list(host).size
         }
