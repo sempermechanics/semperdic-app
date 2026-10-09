@@ -165,14 +165,15 @@ class ShareExportProgressTest {
     fun `the PDF names each frame in the app's own words`() {
         val activity = viewer()
         val seen = mutableListOf<Pair<Double, String>>()
-        // Robolectric's PdfDocument cannot start a page, so the job fails on
-        // frame 1's cover (PdfReportDeviceTest draws the pages); what it
-        // reported before that is the status under test.
+        // Robolectric's PdfDocument does not really draw or write pages, so the
+        // job may fail before it completes (PdfReportDeviceTest draws them);
+        // what it reported on the way is the status under test.
         runCatching { activity.reports(ShareKind.PDF, seen = seen) }
 
         val frames = (1..FRAMES).map { activity.getString(R.string.share_progress_pdf_frame_fmt, it, FRAMES) }
         assertEquals("Frame 1 of 3 · report pages", seen.first().second)
-        val known = frames + activity.getString(R.string.share_progress_pdf_telemetry)
+        val known = frames + activity.getString(R.string.share_progress_pdf_telemetry) +
+            activity.getString(R.string.share_progress_pdf_finishing)
         assertTrue(seen.toString(), seen.all { it.second in known })
         val percents = seen.map { it.first }
         assertEquals(percents.sorted(), percents)
