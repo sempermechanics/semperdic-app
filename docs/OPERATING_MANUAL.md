@@ -605,7 +605,11 @@ provenance record.
 
 ## 9. Exports
 
-**Share** gives six targets. Each ends at a **Send to** sheet with two rows:
+**Share** gives six targets, one line each: a title and, at the end, the file type
+(**This field** PNG, **All fields** 5 PNG, **Animations** 5 GIF, **Report** PDF,
+**Data** CSV, **Everything** ZIP). The header names the frame the photos come from
+("frame 2 of 5"; "combination 2 of 5" on a sweep). With TalkBack, each row says
+what it shares. Each ends at a **Send to** sheet with two rows:
 **Save to Files** (a folder picker, so it lands somewhere you choose and stays) or
 **Share** (the usual system chooser). For everything but the single photo the
 sheet comes up **first**, so the file is written straight into the folder you
@@ -618,12 +622,12 @@ a strip at the top, with the same progress and a Cancel.
 
 | Export | Contents |
 |---|---|
-| Single Field | One PNG: current field and frame, annotated, composited to a 1280 px long edge |
-| All fields | Five PNGs for this frame, zipped; the sheet and each stamp name the source image |
+| This field | One PNG: current field and frame, annotated, composited to a 1280 px long edge |
+| All fields | Five PNGs for this frame, zipped; each stamp names the source image |
 | Animations | Single-setting only: five looping field GIFs on one whole-sequence scale, zipped |
-| PDF report | Every frame, plus a telemetry page |
-| CSV data | `image,x_px,y_px,u_px,v_px,exx,eyy,exy,znssd` — a sweep adds `subset_px, step_px, strain_window, vsg_px` |
-| Everything (.zip) | Raw photos + all fields + CSV + PDF; single-setting also includes the field GIFs |
+| Report | One PDF: every frame, plus a telemetry page |
+| Data | One CSV: `image,x_px,y_px,u_px,v_px,exx,eyy,exy,znssd` — a sweep adds `subset_px, step_px, strain_window, vsg_px` |
+| Everything | One ZIP: raw photos + all fields + CSV + PDF; single-setting also includes the field GIFs |
 
 On a single-setting analysis the field GIFs are shared as a set, not one at a
 time — they are only comparable because they share a scale, and the set is what
