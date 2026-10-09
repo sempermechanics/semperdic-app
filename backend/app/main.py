@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers, MutableHeaders
 
-from . import errors
+from . import apps, errors
 from . import observability as obs
 from .config import settings
 from .routers import (
@@ -219,6 +219,7 @@ class EdgeMiddleware:
             errorCode=None if status < 400 else f"http_{status}",
             opClass=op_class,
             routeTemplate=route_template,
+            appId=apps.logged_application_id(Headers(scope=scope).get("x-app-id")),
             **(counts if isinstance(counts, dict) else {}),
         )
 

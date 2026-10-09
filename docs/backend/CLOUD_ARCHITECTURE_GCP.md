@@ -1088,9 +1088,16 @@ Signing.
   dependency); reachable only on the private run.app URL with an invoker token.
 - **Structured JSON access log** — UTC `timestamp`, `requestId`, `method`,
   `path`, `status`, `latencyMs`, `outcome`, `uid` / `deviceId` when resolved,
-  `opClass` / `routeTemplate` for usage rollups, optional `fileCount` /
+  `opClass` / `routeTemplate` for usage rollups, `appId`, optional `fileCount` /
   `frameCount` on session create, and `errorCode` on failures
   (`backend/app/observability.py` + middleware). Never logs tokens/signatures/URIs.
+  `appId` is the `X-App-Id` header when it is a listed app id (old
+  `com.indicvision.*` ids included), `none` without one, and `unknown` for
+  anything else, so caller text never reaches the log
+  (`apps.logged_application_id`); a refused `unknown_app` call is logged too.
+  The line goes to stderr behind the default `logging` prefix
+  (`INFO:semper.access:{...}`, `backend/app/main.py:28`), so Cloud Logging
+  keeps it as `textPayload`, not `jsonPayload`.
   `routeTemplate` is the route's **declared** path with every parameter as
   `{id}` (`/v1/licenses/{id}/revoke`), registered from the routers at startup;
   only an undeclared path (a 404) falls back to collapsing long segments.

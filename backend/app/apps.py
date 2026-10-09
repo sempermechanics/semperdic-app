@@ -56,6 +56,17 @@ def from_header(value: str | None) -> str | None:
     return _BY_APPLICATION_ID.get(value)
 
 
+def logged_application_id(value: str | None) -> str:
+    """The `X-App-Id` header as the access log records it: the id when this
+    backend knows it, `none` when absent, `unknown` otherwise. The header is
+    caller text, so only a listed id reaches the log (TD-176: it shows when no
+    build sends a `com.indicvision.*` id any more)."""
+    value = (value or "").strip()
+    if not value:
+        return "none"
+    return value if value in _BY_APPLICATION_ID else "unknown"
+
+
 def from_name(value: str | None) -> str | None:
     """An app named by its short name (`semper`, `materialtesting`), as the
     consoles send it. Semper when empty, None when unknown."""
