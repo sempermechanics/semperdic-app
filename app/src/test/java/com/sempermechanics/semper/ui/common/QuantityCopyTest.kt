@@ -80,10 +80,15 @@ class QuantityCopyTest {
     }
 
     @Test
-    fun `the PDF share row uses the same separator as its neighbours`() {
+    fun `the share rows' descriptions count frames in number`() {
+        assertEquals("Share the report of 1 frame as PDF", res.getQuantityString(R.plurals.share_pdf_desc_fmt, 1, 1))
         assertEquals(
-            "fields, stats, telemetry · All 4 frames",
-            res.getQuantityString(R.plurals.share_pdf_sub_fmt, 4, 4),
+            "Share the report of all 4 frames as PDF",
+            res.getQuantityString(R.plurals.share_pdf_desc_fmt, 4, 4),
+        )
+        assertEquals(
+            "Share the point data of 1 frame as one CSV",
+            res.getQuantityString(R.plurals.share_csv_desc_fmt, 1, 1),
         )
     }
 }

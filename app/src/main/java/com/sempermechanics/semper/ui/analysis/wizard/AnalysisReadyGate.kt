@@ -1,6 +1,5 @@
 package com.sempermechanics.semper.ui.analysis.wizard
 
-import androidx.core.view.isVisible
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.prefs.AppSettings
 import com.sempermechanics.semper.databinding.ActivityStaticAnalysisBinding
@@ -49,9 +48,10 @@ class AnalysisReadyGate(
     }
 
     /**
-     * "8,800 points in the region" under the step slider, and "Compute · about
-     * 1 min" on the button. The time comes from this phone's past runs; without
-     * any, the button says Compute alone.
+     * "1100 × 800 px · 8,800 points" on the ROI row, and "Compute · about
+     * 1 min" on the button. Runs on every step or region change, so the count
+     * follows both. The time comes from this phone's past runs; without any,
+     * the button says Compute alone.
      */
     private fun showEstimate() {
         val subset = settings.sliderSubsetSize.value.toInt()
@@ -59,8 +59,7 @@ class AnalysisReadyGate(
         val roi = Roi.forSolve(subset, viewModel.hasCustomRoi, viewModel.roi, viewModel.refSize)
         val points = roi?.let { RunEstimate.gridPoints(it.w, it.h, step) } ?: 0
         val res = binding.root.resources
-        settings.tvStepPoints.isVisible = points > 0
-        if (points > 0) settings.tvStepPoints.text = RunEstimate.regionLabel(res, points)
+        showRoi(points)
 
         val rate = AppSettings.runPointsPerSecond(binding.root.context)
         val seconds = RunEstimate.seconds(points, viewModel.defCount, rate)
@@ -69,5 +68,16 @@ class AnalysisReadyGate(
         } else {
             res.getString(R.string.run_analysis)
         }
+    }
+
+    /** The ROI row's line: the region, "Full image" or "w × h px", then its [points] once there are any. */
+    private fun showRoi(points: Int) {
+        val res = binding.root.resources
+        val region = if (viewModel.hasCustomRoi) {
+            res.getString(R.string.roi_custom_fmt, viewModel.roiW, viewModel.roiH)
+        } else {
+            res.getString(R.string.roi_full_image)
+        }
+        settings.tvInstruction.text = if (points > 0) RunEstimate.regionLabel(res, region, points) else region
     }
 }

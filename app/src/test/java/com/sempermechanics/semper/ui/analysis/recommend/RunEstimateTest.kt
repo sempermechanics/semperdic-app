@@ -46,9 +46,9 @@ class RunEstimateTest {
     }
 
     @Test
-    fun `the step caption counts the region's points`() {
-        assertEquals("8,800 points in the region", RunEstimate.regionLabel(res, 8800))
-        assertEquals("1 point in the region", RunEstimate.regionLabel(res, 1))
+    fun `the ROI row counts the region's points`() {
+        assertEquals("Full image · 8,800 points", RunEstimate.regionLabel(res, "Full image", 8800))
+        assertEquals("10 × 10 px · 1 point", RunEstimate.regionLabel(res, "10 × 10 px", 1))
     }
 
     @Test

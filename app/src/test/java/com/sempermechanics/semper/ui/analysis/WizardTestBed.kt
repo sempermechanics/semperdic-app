@@ -5,7 +5,6 @@ import android.os.Looper
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
-import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.sempermechanics.semper.R
@@ -54,11 +53,9 @@ internal class WizardTestBed(resumed: Boolean = true) : AutoCloseable {
     fun chrome(): RunChrome {
         val overlay = ComputeOverlayController(
             overlay = View(activity),
-            title = TextView(activity),
-            progress = ProgressBar(activity),
+            header = TextView(activity),
             percent = TextView(activity),
             status = TextView(activity),
-            elapsed = TextView(activity),
             eta = TextView(activity),
         )
         return RunChrome(activity, overlay, Button(activity))

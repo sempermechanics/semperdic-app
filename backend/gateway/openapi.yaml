@@ -302,6 +302,17 @@ paths:
           in: path
           required: true
           type: string
+        - name: page_size
+          in: query
+          required: false
+          type: integer
+          default: 1000
+          description: Page size (1..1000); clamped server-side.
+        - name: page_token
+          in: query
+          required: false
+          type: string
+          description: Opaque cursor from a previous nextPageToken.
       responses:
         '200': { description: OK }
         '401': { description: Missing or invalid device attestation }
@@ -337,6 +348,17 @@ paths:
           in: path
           required: true
           type: string
+        - name: page_size
+          in: query
+          required: false
+          type: integer
+          default: 1000
+          description: Page size (1..1000); clamped server-side.
+        - name: page_token
+          in: query
+          required: false
+          type: string
+          description: Opaque cursor from a previous nextPageToken.
       responses:
         '200': { description: OK }
         '404': { description: session_not_found }
@@ -569,9 +591,9 @@ paths:
         already-bound uid/device succeeds without consuming a new seat.
       responses:
         '200': { description: OK }
-        '403': { description: "Lock mismatch, revoked, disabled seat, or domain mismatch (license_email_mismatch, license_device_mismatch, license_revoked, license_seat_disabled)" }
+        '403': { description: "Lock mismatch, revoked, or domain mismatch (license_email_mismatch, license_device_mismatch, license_revoked)" }
         '404': { description: Unknown key }
-        '409': { description: "Already redeemed by another account, or institution seats exhausted (license_already_redeemed, license_seats_exhausted)" }
+        '409': { description: "Already redeemed by another account, institution seats exhausted, or the seat is on hold (license_already_redeemed, license_seats_exhausted, license_seat_disabled)" }
         '429': { description: Rate limited }
         '503': { description: "Lost the race for a seat, or for an empty device lock; retry (claim_contended, device_lock_contended)" }
   /v1/admin/licenses:
@@ -758,9 +780,9 @@ paths:
       responses:
         '200': { description: OK }
         '400': { description: empty_patch }
-        '403': { description: "not_admin, or the console's step-up is missing or stale" }
+        '403': { description: "not_admin, the console's step-up is missing or stale, or license_revoked on a hold or resume" }
         '404': { description: license_not_found or seat_not_found }
-        '409': { description: "seat_revoked, license_revoked, seat_busy" }
+        '409': { description: "seat_revoked, seat_busy" }
         '429': { description: Rate limited }
     delete:
       operationId: adminRevokeSeat
@@ -920,9 +942,9 @@ paths:
       responses:
         '200': { description: OK }
         '401': { description: Missing or invalid device attestation }
-        '403': { description: "Console path: no second factor on the token, or the sign-in is too old (mfa_required, reauth_required)" }
+        '403': { description: "Console path: no second factor on the token, or the sign-in is too old (mfa_required, reauth_required); or the licence is revoked (license_revoked)" }
         '404': { description: License not found }
-        '409': { description: "Revoked, or not an individual licensed key (license_revoked, license_not_convertible)" }
+        '409': { description: "Not an individual licensed key (license_not_convertible)" }
         '422': { description: "The holder's address is not on domainLock (convert_domain_mismatch), or an invalid body" }
         '503': { description: Seating the holder lost a race; retry (claim_contended) }
   /v1/institutions/licenses:
@@ -1039,9 +1061,9 @@ paths:
       responses:
         '200': { description: OK }
         '400': { description: empty_patch }
-        '403': { description: email_not_verified }
+        '403': { description: "email_not_verified, or a hold or resume on a revoked licence (license_revoked)" }
         '404': { description: license_not_found or seat_not_found }
-        '409': { description: "Hold or resume on a removed seat or a revoked licence, or lost a race with another change to it (seat_revoked, license_revoked, seat_busy)" }
+        '409': { description: "Hold or resume on a removed seat, or lost a race with another change to it (seat_revoked, seat_busy)" }
         '429': { description: Rate limited }
     delete:
       operationId: institutionRevokeSeat

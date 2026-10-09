@@ -26,18 +26,13 @@ internal class SettingsCloudSection(
     fun wire() {
         val switchSave = views.switchSaveCloud
         val switchWifi = views.switchWifiOnly
-        val sub = views.tvSaveCloudSub
         val status = views.tvCloudSyncStatus
 
         switchSave.isChecked = AppSettings.saveToCloudEnabled(activity)
         switchWifi.isChecked = AppSettings.wifiOnlyUploadEnabled(activity)
-        sub.setText(
-            if (switchSave.isChecked) R.string.settings_save_cloud_sub else R.string.settings_save_cloud_sub_off,
-        )
 
         switchSave.setOnCheckedChangeListener { _, checked ->
             AppSettings.setSaveToCloudEnabled(activity, checked)
-            sub.setText(if (checked) R.string.settings_save_cloud_sub else R.string.settings_save_cloud_sub_off)
             if (checked) maybeOfferBackfill()
         }
         switchWifi.setOnCheckedChangeListener { _, checked -> AppSettings.setWifiOnlyUploadEnabled(activity, checked) }

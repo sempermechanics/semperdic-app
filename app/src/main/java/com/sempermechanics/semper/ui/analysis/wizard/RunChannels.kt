@@ -7,8 +7,8 @@ import androidx.annotation.MainThread
 import androidx.annotation.WorkerThread
 import androidx.lifecycle.viewModelScope
 import com.sempermechanics.semper.SemperNativeLib
-import com.sempermechanics.semper.data.net.AccountCache
 import com.sempermechanics.semper.data.session.SessionLayout
+import com.sempermechanics.semper.data.session.SessionQuota
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.diagnostics.SemperAnalytics
 import com.sempermechanics.semper.field.RunStop
@@ -189,33 +189,57 @@ fun AnalysisViewModel.launchSweep(appContext: Context, spec: RunSpec) {
 }
 
 /**
- * Hard stop before any native work: a new session cannot exceed the account
- * quota. Re-runs of the same kind over an existing
- * [AnalysisViewModel.workingLocalId] are still allowed; a run of the other
- * kind, a sweep when [sweep], is a new session ([resolveLocalSessionId]).
- * Returns the outcome to abort with, or null when the run may proceed.
+ * What the session quota made of a run at its start ([admitRun]). Only
+ * starting is blocked: a run admitted here saves its session even if the cap
+ * fills while it runs ([admitted] is the save's `allowOverLimit`).
  */
-internal fun AnalysisViewModel.sessionLimitOutcome(
+internal sealed interface RunAdmission {
+    /** At the limit: the run ends with [outcome] before any native work. */
+    class Blocked(val outcome: BatchAnalysisOutcome) : RunAdmission
+
+    /** A new session [SessionQuota.blocked] let start. */
+    data object Admitted : RunAdmission
+
+    /**
+     * A re-run over the working session's row: nothing new to admit. Its save
+     * updates that row; one that finds the row gone is a new row, and the
+     * save applies the rule.
+     */
+    data object Rerun : RunAdmission
+
+    /** Whether the run's save may go past the cap. */
+    val admitted: Boolean get() = this == Admitted
+}
+
+/**
+ * Hard stop before any native work: a new session cannot start at the
+ * account's limit ([SessionQuota.blocked], with the index's live rows; this
+ * runs on the native thread). Re-runs of the same kind over an existing
+ * [AnalysisViewModel.workingLocalId] are not checked; a run of the other
+ * kind, a sweep when [sweep], is a new session ([resolveLocalSessionId]).
+ */
+@WorkerThread
+internal fun AnalysisViewModel.admitRun(
     appContext: Context,
     plannedFrames: Int,
     sweep: Boolean,
-): BatchAnalysisOutcome? {
-    if (!wouldCreateNewSession(sweep)) return null
-    AccountCache.refreshSessionLimit(appContext, SessionStore.list(appContext).size)
+): RunAdmission = when {
+    !wouldCreateNewSession(sweep) -> RunAdmission.Rerun
     // Before the config is fetched a demo account is held to the demo cap
     // (LicenseEntitlements.analysisCap); a licensed one has no local cap.
     // The upload is gated separately in CloudSync until config is known.
-    return if (AccountCache.isSessionLimitReached(appContext)) {
+    !SessionQuota.blocked(appContext, SessionStore.list(appContext).size) -> RunAdmission.Admitted
+    else -> {
         Timber.w("Hard stop: analysis blocked at session limit")
-        BatchAnalysisOutcome(
-            engineErrorCode = RunStop.SessionLimit.wireCode,
-            firstFrameValidPoints = 0,
-            totalFrames = plannedFrames,
-            executionTimeMs = 0,
-            batchDirPath = "",
+        RunAdmission.Blocked(
+            BatchAnalysisOutcome(
+                engineErrorCode = RunStop.SessionLimit.wireCode,
+                firstFrameValidPoints = 0,
+                totalFrames = plannedFrames,
+                executionTimeMs = 0,
+                batchDirPath = "",
+            ),
         )
-    } else {
-        null
     }
 }
 

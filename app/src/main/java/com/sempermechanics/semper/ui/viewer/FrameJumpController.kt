@@ -3,7 +3,6 @@ package com.sempermechanics.semper.ui.viewer
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import androidx.lifecycle.lifecycleScope
-import com.sempermechanics.semper.R
 import com.sempermechanics.semper.ui.common.SerialJob
 import com.sempermechanics.semper.ui.common.commitOnDone
 import com.sempermechanics.semper.ui.common.hideKeyboard
@@ -101,11 +100,7 @@ internal class FrameJumpController(private val host: ResultViewerActivity) {
         host.summary.show()
         binding.tvFrameCounter.text = host.summary.counterText()
         binding.layoutFrameJump.visibility = View.GONE
-        binding.tvFinding.text = host.getString(
-            R.string.viewer_edge_title_fmt,
-            host.currentTypeString,
-            host.getString(R.string.summary_title),
-        )
+        binding.tvFinding.text = host.captions.title()
         updateNavButtons()
         host.bumpChrome()
     }

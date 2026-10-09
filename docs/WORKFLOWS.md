@@ -204,9 +204,9 @@ progress is a buffered `SharedFlow`, not a `StateFlow`.
 | Field | Value |
 |---|---|
 | Entry | `ui/analysis/RoiDrawActivity` (started for result by A5.2) |
-| Chain | `ui/analysis/roi/StudioOverlayView` (draw / hit-test / mask) → `StudioOverlayMaskEncoder` → `util/OverlayFormats`; resolved back by `ui/analysis/roi/RoiResolveHelper` |
+| Chain | `ui/analysis/roi/StudioOverlayView` (draw / hit-test / mask) → `StudioOverlayMaskEncoder`; resolved back by `ui/analysis/roi/RoiResolveHelper` |
 | Writes | Mask file at `IntentKeys.MASK_FILE_PATH`; ROI rect in `IntentKeys.ROI_*` |
-| Tests | `util/OverlayFormatsTest` |
+| Tests | `ui/analysis/roi/StudioOverlayViewTest`, `StudioOverlayGeometryTest`, `StudioOverlayViewportTest`, `RoiResolveHelperTest`, `ui/analysis/RoiDrawActivityTest` |
 
 Circle / ellipse / freeform are implemented in `StudioOverlayView` but not
 exposed by `activity_roi_draw.xml` — see §11 of [app/WORKFLOWS.md](app/WORKFLOWS.md).
@@ -243,7 +243,8 @@ demand, never on open; report compositing is capped at
 ### A9 Session limit
 
 `ui/limit/SessionLimitActivity` → `CloudSync.reconcile(deep = true)` +
-`AccountCache` quota → back to A3 when the cap clears. Reached from Home cold
+`SessionQuota.blocked` (the one quota rule, [app/WORKFLOWS.md §9](app/WORKFLOWS.md#9-session-limit))
+→ back to A3 when the cap clears. Reached from Home cold
 start, the FAB, the quota chip, a pre-run check (`AnalysisNavHelper.ensureSessionQuota`)
 or a quota rejection during B1. Not a paywall: the way past it is an email.
 
@@ -399,7 +400,7 @@ Tests: `diagnostics/SemperAnalyticsTest`.
 ### B12 Local session index
 
 `data/session/SessionStore` (atomic index write, `synchronized`, corruption flag) +
-`data/SessionRecord` + `data/session/SessionQuotaGate` + `data/session/SessionPaths` (the one
+`data/SessionRecord` + `data/session/SessionQuota` + `data/session/SessionPaths` (the one
 place that knows `frame_%04d.dat` and `raw_deformed/`).
 Tests: `session/SessionStoreAtomicTest`, `upgrade/PrefsUpgradeSmokeTest`.
 
@@ -452,7 +453,7 @@ pieces are `deps.py` (auth), `repo/` (all Firestore access, one module per aggre
 
 | Id | Concern | File | What it does |
 |---|---|---|---|
-| C17 | Access log | `main.py` `EdgeMiddleware` (one ASGI middleware) | One JSON line per request: `requestId`, `opClass`, `routeTemplate`, status, latency, outcome, uid/deviceId when known. Stamps **`X-Request-Id`** on the response — the app now echoes it into failure reasons (B1/B2), so a user's screenshot joins to this line |
+| C17 | Access log | `main.py` `EdgeMiddleware` (one ASGI middleware) | One JSON line per request: `requestId`, `opClass`, `routeTemplate`, status, latency, outcome, uid/deviceId when known, `appId` (the `X-App-Id` when it is a listed id, else `none` / `unknown`; TD-176). Stamps **`X-Request-Id`** on the response — the app now echoes it into failure reasons (B1/B2), so a user's screenshot joins to this line |
 | C17a | Route classes | `observability.classify_route` | `health` / `attest` / `login` / `config` / `account` / `backup` / `sync` / `restore` / `admin`; ids in paths collapse to `{id}` so nothing identifying lands in `routeTemplate` |
 | C18 | Audit trail 🔒 | `audit.record` | Append-only `audit_logs`: AUTH_DENIED, DEVICE_*, SESSION_CREATE/DELETE, UPLOAD_COMPLETE, FILE_DOWNLOAD, DATA_EXPORT, ACCOUNT_DELETE, ADMIN_*. Best-effort — an audit write never fails the request |
 | C19 | Access-request mail 🔒 | `notify.access_request` | On first PENDING user, mails support via Resend on a daemon worker with retry + per-uid idempotency. Off (silently) without `RESEND_API_KEY` |

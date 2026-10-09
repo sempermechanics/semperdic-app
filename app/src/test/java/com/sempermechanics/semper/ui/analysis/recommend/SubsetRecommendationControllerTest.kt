@@ -1,10 +1,12 @@
 package com.sempermechanics.semper.ui.analysis.recommend
 
 import android.app.Application
+import android.graphics.drawable.LayerDrawable
 import android.os.Looper
 import android.provider.Settings
 import android.view.View
 import androidx.core.view.isVisible
+import com.sempermechanics.semper.R
 import com.sempermechanics.semper.field.DicParams
 import com.sempermechanics.semper.field.ImageSize
 import com.sempermechanics.semper.ui.analysis.WizardTestBed
@@ -66,7 +68,7 @@ class SubsetRecommendationControllerTest {
 
         assertEquals(25, bed.settings.sliderSubsetSize.value.toInt())
         assertEquals(listOf("commitParamFields", "onSweepInputsChanged"), bed.host.calls)
-        assertTrue(bed.settings.tvSpeckleReadout.isVisible)
+        assertTrue(bed.settings.chipSpeckle.isVisible)
         assertFalse(bed.binding.speckleWarnRow.root.isVisible)
         assertFalse(bed.binding.lowTextureWarnRow.root.isVisible)
     }
@@ -101,7 +103,8 @@ class SubsetRecommendationControllerTest {
         bed.viewModel.subsetRecommendation = null
         subsets.apply()
 
-        assertFalse(bed.settings.tvSpeckleReadout.isVisible)
+        assertFalse(bed.settings.chipSpeckle.isVisible)
+        assertEquals(null, band().range)
         assertFalse(bed.binding.speckleWarnRow.root.isVisible)
         assertFalse(bed.binding.lowTextureWarnRow.root.isVisible)
     }
@@ -125,23 +128,28 @@ class SubsetRecommendationControllerTest {
         }
     }
 
+    /** The band [SubsetRecommendationController] put behind the subset slider. */
+    private fun band(): SubsetBand {
+        val background = bed.settings.sliderSubsetSize.background
+        return (background as? LayerDrawable)?.getDrawable(0) as? SubsetBand ?: background as SubsetBand
+    }
+
     @Test
-    fun `the caption gives the size set and the shaded band, then the band alone once the user sets one`() {
+    fun `the chip gives the speckle and the band starts at the recommended size`() {
         recommend(31, speckle = 4.3)
         subsets.apply()
-        assertEquals(
-            "Set to 31 px · shaded: 31 px and up hold enough speckle",
-            bed.settings.tvSpeckleReadout.text.toString(),
-        )
+        assertEquals(31..bed.settings.sliderSubsetSize.valueTo.toInt(), band().range)
         assertEquals("Speckle 4.3 px", bed.settings.chipSpeckle.text.toString())
         assertEquals(
             "Speckle measures about 4.3 px across. Good practice asks for 3–9 px.",
             bed.settings.chipSpeckle.contentDescription.toString(),
         )
 
+        // A size of the user's own leaves the band where the speckle put it.
         bed.viewModel.subsetUserModified = true
+        bed.settings.sliderSubsetSize.value = 61f
         subsets.showSpeckleFeedback()
-        assertEquals("Shaded: 31 px and up hold enough speckle", bed.settings.tvSpeckleReadout.text.toString())
+        assertEquals(31, band().range?.first)
     }
 
     @Test
@@ -150,14 +158,16 @@ class SubsetRecommendationControllerTest {
         recommend(21, speckle = 9.0)
         subsets.apply()
 
-        assertEquals(
-            "Set to 21 px · shaded: 27 px and up hold enough speckle",
-            bed.settings.tvSpeckleReadout.text.toString(),
-        )
+        assertEquals(27, band().range?.first)
     }
 
     @Test
-    fun `a slow measurement says so, and a failed one clears the readout`() {
+    fun `the subset's info says what the shaded band means`() {
+        assertTrue(bed.activity.getString(R.string.info_subset).contains("shaded band"))
+    }
+
+    @Test
+    fun `a slow measurement says so in the speckle chip, and a failed one clears it`() {
         val held = mutableListOf<Runnable>()
         val measuring = SubsetRecommendationController(
             bed.activity,
@@ -169,7 +179,7 @@ class SubsetRecommendationControllerTest {
         )
         // Too small for the smallest subset: the measurement comes back empty.
         bed.viewModel.applyNewReference(ByteArray(64), "ref.png", ImageSize(8, 8))
-        val readout = bed.settings.tvSpeckleReadout
+        val readout = bed.settings.chipSpeckle
 
         measuring.request()
         idleFor(InlineBusy.SHOW_AFTER_MS - 1)
@@ -180,7 +190,7 @@ class SubsetRecommendationControllerTest {
 
         while (held.isNotEmpty()) held.removeAt(0).run()
         bed.idle()
-        assertFalse("a failed measurement leaves no caption", readout.isVisible)
+        assertFalse("a failed measurement leaves no chip", readout.isVisible)
         assertEquals(null, bed.viewModel.subsetRecommendation)
     }
 
@@ -190,7 +200,7 @@ class SubsetRecommendationControllerTest {
         recommend(25, speckle = 5.0)
         subsets.apply()
 
-        assertEquals("the readout states the new size at once", true, bed.settings.tvSpeckleReadout.isVisible)
+        assertEquals("the chip shows the speckle at once", true, bed.settings.chipSpeckle.isVisible)
         assertEquals(DicParams.DEFAULT_SUBSET, bed.settings.sliderSubsetSize.value.toInt())
         assertEquals(listOf("commitParamFields"), bed.host.calls)
 

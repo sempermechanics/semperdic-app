@@ -356,7 +356,7 @@ class DicUploadWorkerTest {
         seed()
         api.onCreateSession = { throw apiError(409, "session_quota_exceeded: 25/25 analyses stored.") }
         DicUploadSeams.inForeground = { false }
-        assertFalse(AccountCache.isSessionLimitReached(context))
+        assertFalse(AccountCache.isLimitForced(context))
 
         val result = run()
 
@@ -366,7 +366,7 @@ class DicUploadWorkerTest {
             "no reason: Home shows no snackbar for it",
             result.outputData.getString(IntentKeys.UPLOAD_FAIL_REASON),
         )
-        assertTrue(AccountCache.isSessionLimitReached(context))
+        assertTrue(AccountCache.isLimitForced(context))
         // Background activity starts are blocked on targetSdk 36; Home opens the
         // limit screen from the gate instead.
         assertNull(shadowOf(context).nextStartedActivity)
@@ -383,7 +383,7 @@ class DicUploadWorkerTest {
 
         val started = shadowOf(context).nextStartedActivity
         assertEquals(AppIntents.sessionLimit(context).component, started?.component)
-        assertTrue(AccountCache.isSessionLimitReached(context))
+        assertTrue(AccountCache.isLimitForced(context))
     }
 
     @Test

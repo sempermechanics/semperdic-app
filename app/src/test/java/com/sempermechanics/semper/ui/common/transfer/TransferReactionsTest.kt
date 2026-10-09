@@ -23,6 +23,7 @@ import com.sempermechanics.semper.data.net.AccountCache
 import com.sempermechanics.semper.data.net.AppConfigDto
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.fixtures.CleanAppState
+import com.sempermechanics.semper.fixtures.QuotaBackendOn
 import com.sempermechanics.semper.fixtures.idleUntil
 import com.sempermechanics.semper.navigation.IntentKeys
 import com.sempermechanics.semper.ui.home.HomeActivity
@@ -54,6 +55,10 @@ class TransferReactionsTest {
 
     @get:Rule
     val clean = CleanAppState()
+
+    /** The limit screen opens only where the quota has a backend to cap it. */
+    @get:Rule
+    val backend = QuotaBackendOn()
 
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val workManager: WorkManager get() = WorkManager.getInstance(context)

@@ -502,6 +502,8 @@
                 android:orientation="vertical"
                 android:padding="@dimen/space_24">
 
+                <!-- Header: what is running ("Frame 4 of 5", "Analysis 6 of 9",
+                     an import's title, the end state) and the whole job's percent. -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -509,94 +511,55 @@
                     android:orientation="horizontal">
 
                     <TextView
-                        android:id="@+id/overlayTitle"
+                        android:id="@+id/tvRunHeader"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="@string/computing_strain_field"
-                        android:textAppearance="@style/TextAppearance.Semper.SectionHeader" />
+                        android:accessibilityLiveRegion="polite"
+                        android:text="@string/initializing_engine"
+                        android:textAppearance="@style/TextAppearance.Semper.SectionHeader"
+                        tools:text="Frame 4 of 5" />
 
                     <TextView
-                        android:id="@+id/tvRunFrameCount"
+                        android:id="@+id/tvRunPercent"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="@dimen/space_12"
-                        android:textAppearance="@style/TextAppearance.Semper.Numeric"
-                        android:visibility="gone"
-                        tools:text="Frame 23 of 40"
-                        tools:visibility="visible" />
+                        android:fontFeatureSettings="tnum"
+                        android:textColor="@color/sky_primary"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        tools:text="79.0%" />
                 </LinearLayout>
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/tvRunEta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_4"
+                    android:text="@string/eta_estimating"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp" />
+
+                <!-- An import's or a video extraction's progress. -->
+                <com.google.android.material.progressindicator.LinearProgressIndicator
+                    android:id="@+id/overlayBar"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_16"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:max="1000"
+                    android:visibility="gone"
+                    app:indicatorColor="@color/sky_primary"
+                    app:trackColor="@color/sky_container"
+                    app:trackThickness="6dp"
+                    app:trackCornerRadius="3dp" />
 
-                    <FrameLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content">
-
-                        <com.google.android.material.progressindicator.CircularProgressIndicator
-                            android:id="@+id/overlayProgress"
-                            android:layout_width="84dp"
-                            android:layout_height="84dp"
-                            android:layout_gravity="center"
-                            android:max="1000"
-                            android:progress="0"
-                            app:indicatorColor="@color/sky_primary"
-                            app:indicatorInset="0dp"
-                            app:indicatorSize="84dp"
-                            app:trackColor="@color/sky_container"
-                            app:trackThickness="7dp" />
-
-                        <TextView
-                            android:id="@+id/overlayPercent"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_gravity="center"
-                            android:fontFeatureSettings="tnum"
-                            android:textColor="@color/sky_primary"
-                            android:textSize="15sp"
-                            android:textStyle="bold"
-                            tools:text="57.0%" />
-                    </FrameLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="@dimen/space_16"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:id="@+id/tvRunEta"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/eta_estimating"
-                            android:textColor="@color/text_primary"
-                            android:textSize="15sp" />
-
-                        <TextView
-                            android:id="@+id/tvRunPace"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/space_4"
-                            android:textAppearance="@style/TextAppearance.Semper.Numeric"
-                            android:visibility="gone"
-                            tools:text="1.9 s a frame"
-                            tools:visibility="visible" />
-
-                        <TextView
-                            android:id="@+id/overlayElapsed"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/space_4"
-                            android:text="@string/elapsed_0s"
-                            android:textAppearance="@style/TextAppearance.Semper.Numeric" />
-                    </LinearLayout>
-                </LinearLayout>
+                <!-- A batch run's convergence per frame. -->
+                <com.sempermechanics.semper.ui.analysis.run.ConvergenceBinsView
+                    android:id="@+id/runBins"
+                    android:layout_width="match_parent"
+                    android:layout_height="72dp"
+                    android:layout_marginTop="@dimen/space_16" />
 
                 <LinearLayout
                     android:id="@+id/runSweepGroup"
@@ -620,57 +583,22 @@
                         android:textAppearance="@style/TextAppearance.Semper.Caption" />
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/runConvergenceGroup"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_16"
-                    android:orientation="vertical">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/run_convergence_per_frame"
-                            android:textAppearance="@style/TextAppearance.Semper.Caption" />
-
-                        <TextView
-                            android:id="@+id/tvRunConvergenceLatest"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textAppearance="@style/TextAppearance.Semper.Numeric"
-                            tools:text="96.1%" />
-                    </LinearLayout>
-
-                    <com.sempermechanics.semper.ui.analysis.run.ConvergenceLineView
-                        android:id="@+id/convergenceLine"
-                        android:layout_width="match_parent"
-                        android:layout_height="64dp"
-                        android:layout_marginTop="@dimen/space_4"
-                        android:paddingTop="@dimen/space_4"
-                        android:paddingBottom="@dimen/space_4" />
-                </LinearLayout>
-
+                <!-- An import's status, or the combination a sweep is solving. -->
                 <TextView
                     android:id="@+id/overlayStatus"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/space_8"
                     android:fontFeatureSettings="tnum"
-                    android:text="@string/initializing_engine"
                     android:textColor="@color/text_secondary"
-                    android:textSize="13sp" />
+                    android:textSize="13sp"
+                    android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/tvRunStrikeWarn"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_4"
+                    android:layout_marginTop="@dimen/space_8"
                     android:textColor="@color/semantic_warning"
                     android:textSize="12sp"
                     android:visibility="gone"
@@ -685,15 +613,6 @@
                     android:layout_marginTop="@dimen/space_12"
                     android:text="@string/action_cancel"
                     android:textColor="@color/semantic_danger" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_8"
-                    android:gravity="center"
-                    android:text="@string/please_keep_the_app_open"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </FrameLayout>

@@ -1,7 +1,6 @@
 package com.sempermechanics.semper.ui.analysis.wizard
 
 import android.app.Application
-import android.view.View
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.prefs.AppSettings
 import com.sempermechanics.semper.databinding.WizardStepSweepBinding
@@ -9,6 +8,7 @@ import com.sempermechanics.semper.field.ImageSize
 import com.sempermechanics.semper.field.Roi
 import com.sempermechanics.semper.ui.analysis.WizardTestBed
 import com.sempermechanics.semper.ui.analysis.frames.DeformedFrame
+import com.sempermechanics.semper.ui.analysis.recommend.SubsetRecommendationController
 import com.sempermechanics.semper.ui.common.dialog.WarnChip
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -19,8 +19,8 @@ import org.robolectric.annotation.Config
 
 /**
  * The parameters page's chrome: the toolbar names the page and shows a dot
- * per page; the step slider says how many points the region holds; Compute
- * says, once this phone has run one, about how long a run takes.
+ * per page; the ROI row says how many points the region holds at the step;
+ * Compute says, once this phone has run one, about how long a run takes.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -49,14 +49,30 @@ class ParametersPageTest {
     }
 
     @Test
-    fun `the step caption counts the region's points, and Compute stays plain before any run`() {
+    fun `the ROI row counts the region's points, and Compute stays plain before any run`() {
         loadRun()
 
         gate.apply(isProcessing = false, sweepController = null)
 
-        assertEquals(View.VISIBLE, bed.settings.tvStepPoints.visibility)
-        assertEquals("8,800 points in the region", bed.settings.tvStepPoints.text.toString())
+        assertEquals("1100 × 800 px · 8,800 points", bed.settings.tvInstruction.text.toString())
         assertEquals("Compute", bed.binding.btnCalculateFullField.text.toString())
+    }
+
+    @Test
+    fun `the ROI row's count follows the step and the region`() {
+        loadRun()
+        val subsets = SubsetRecommendationController(bed.activity, bed.viewModel, bed.binding, bed.settings, bed.host)
+        WizardParamFields(bed.activity, bed.viewModel, bed.settings, subsets, bed.host) {
+            gate.apply(isProcessing = false, sweepController = null)
+        }.bind()
+
+        bed.settings.sliderStepSize.value = 5f
+        assertEquals("1100 × 800 px · 35,200 points", bed.settings.tvInstruction.text.toString())
+
+        // The full 1200 × 900 frame, inset 25 px a side for the 31 px subset: 1150 × 850.
+        bed.viewModel.hasCustomRoi = false
+        gate.apply(isProcessing = false, sweepController = null)
+        assertEquals("Full image · 39,100 points", bed.settings.tvInstruction.text.toString())
     }
 
     @Test
@@ -75,7 +91,7 @@ class ParametersPageTest {
 
         gate.apply(isProcessing = false, sweepController = null)
 
-        assertEquals(View.GONE, bed.settings.tvStepPoints.visibility)
+        assertEquals("Full image", bed.settings.tvInstruction.text.toString())
         assertEquals("Compute", bed.binding.btnCalculateFullField.text.toString())
     }
 

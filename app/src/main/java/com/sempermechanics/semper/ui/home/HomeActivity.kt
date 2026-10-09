@@ -196,7 +196,7 @@ class HomeActivity : AppCompatActivity() {
     /** The + button, the gear, and the empty state's button (which is the + button). */
     private fun wireButtons() {
         val fab = binding.fabNewAnalysis
-        HomeFabLayout.pinAtNineTenths(binding.homeRoot, fab)
+        HomeFabLayout.pinAtNineTenths(binding.homeRoot, fab, binding.sessionList)
         fab.setOnClickListener {
             // Two independent reasons new work cannot start. The seat check is
             // first because an institution member is licensed, so the quota
@@ -287,7 +287,7 @@ class HomeActivity : AppCompatActivity() {
                 SessionStore.list(this@HomeActivity).size
             }
             AccountCache.refreshSessionLimit(this@HomeActivity, localCount)
-            quotaCard.openLimitScreenIfReached()
+            quotaCard.openLimitScreenIfReached(localCount)
         }
     }
 
@@ -349,8 +349,9 @@ class HomeActivity : AppCompatActivity() {
             quotaCard.render(sessions.size)
             // A refresh can drop rows out from under a selection.
             selection.updateSelectionBar()
-            // Local count alone can trip the hard-stop flag (before cloud reconcile).
-            AccountCache.refreshSessionLimit(this@HomeActivity, sessions.size)
+            // No quota count stored from here: these rows leave out the ones a
+            // queued delete is about to remove, and the quota counts every row
+            // the index holds, which SessionStore stores with each write.
         }
     }
 
