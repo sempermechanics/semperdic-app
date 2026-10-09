@@ -195,6 +195,43 @@ async def test_config_endpoint_reports_individual_license_kind(client, monkeypat
     assert resp.json()["licenseKind"] == "individual"
 
 
+def _past(days):
+    from datetime import datetime, timedelta, timezone
+    return datetime.now(timezone.utc) - timedelta(days=days)
+
+
+@pytest.mark.parametrize("user, prefix", [
+    ({"mode": "licensed"}, "SEMP-AB12"),
+    # Past expiry, still in grace: entitled, so named.
+    ({"mode": "licensed", "licenseExpiresAt": _past(1), "licenseGraceDays": 14}, "SEMP-AB12"),
+    ({"mode": "demo"}, ""),
+    ({"mode": "licensed", "licenseExpiresAt": _past(30), "licenseGraceDays": 14}, ""),
+    ({"mode": "licensed", "licenseSeating": "floating"}, ""),
+    ({"mode": "licensed", "licenseSeating": "floating", "leaseExpiresAt": _past(1)}, ""),
+])
+def test_config_names_the_licence_only_while_it_entitles(store, monkeypatch, user, prefix):
+    """TD-145: the app shows "Licensed as …" whenever `licensePrefix` is set,
+    so a Demo key, a lapsed licence or a floating seat with no lease sends none."""
+    _limit_env(monkeypatch)
+    cfg = repo.resolve_user_config({"uid": "u1", "licensePrefix": "SEMP-AB12", **user})
+    assert cfg["licensePrefix"] == prefix
+    assert (cfg["mode"] == "licensed") == bool(prefix)
+
+
+async def test_config_drops_a_held_licence_prefix_that_me_still_names(client, monkeypatch):
+    """A floating member between leases runs as Demo: /v1/config sends no
+    prefix, while /v1/me names the held licence under `held`."""
+    from app import deps
+    monkeypatch.setattr(deps, "_DEV_USER", {
+        **deps._DEV_USER, "licenseKind": "institution", "licensePrefix": "SEMP-ABCD",
+        "licenseSeating": "floating",
+    })
+    cfg = (await client.get("/v1/config")).json()
+    assert cfg["mode"] == "demo" and cfg["licensePrefix"] == ""
+    lic = (await client.get("/v1/me")).json()["license"]
+    assert lic["held"] is True and lic["mode"] == "demo" and lic["prefix"] == "SEMP-ABCD"
+
+
 @pytest.mark.asyncio
 async def test_admin_patch_user_config(client, monkeypatch):
     store = fake_firestore.install(monkeypatch)

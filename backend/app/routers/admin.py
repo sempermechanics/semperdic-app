@@ -361,17 +361,14 @@ def admin_convert_license(
     with `supersededBy` set. The new key is returned once, as a mint does.
     """
     admin = ctx.user
-    # A revoked licence is a conflict to convert (409), where on the phone's
-    # own routes it is "you may not use it" (403).
-    with errors.restatus({errors.LICENSE_REVOKED: 409}):
-        out = repo.convert_to_institution(
-            license_id,
-            domain_lock=body.domainLock,
-            admin_emails=body.adminEmails,
-            max_seats=body.maxSeats,
-            seating=body.seating,
-            admin_uid=admin["uid"],
-        )
+    out = repo.convert_to_institution(
+        license_id,
+        domain_lock=body.domainLock,
+        admin_emails=body.adminEmails,
+        max_seats=body.maxSeats,
+        seating=body.seating,
+        admin_uid=admin["uid"],
+    )
     audit.record(
         admin["uid"], action="ADMIN_LICENSE_CONVERT",
         target={"type": "license", "id": license_id},

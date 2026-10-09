@@ -14,6 +14,7 @@ import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.net.TokenProvider
 import com.sempermechanics.semper.data.prefs.AccountDeletionMarker
 import com.sempermechanics.semper.data.prefs.AccountDeletionMarker.Stage
+import com.sempermechanics.semper.util.rethrowIfCallerCancelled
 import com.sempermechanics.semper.util.suspendRunCatching
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -109,11 +110,16 @@ object AccountDeletionRun {
         val api = ErasureWatch(app, cloudApi(app))
         scope.launch {
             // Never left in Running: a throw would otherwise stick the dialog up
-            // and refuse every later start. [scope] is never cancelled, so what
-            // is caught here is never a cancellation of this work. What the user
-            // is told depends on whether the cloud erase had gone through.
-            val outcome = runCatching { delete(app, api).toOutcome() }.getOrElse {
-                Timber.e(it, "Account deletion threw %s", it.javaClass.simpleName)
+            // and refuse every later start. [scope] is never cancelled, so a
+            // CancellationException caught here (a cancelled Firebase Task, say)
+            // is a failure like any other; the check only rethrows a real
+            // cancellation of this work (TD-171). What the user is told depends
+            // on whether the cloud erase had gone through.
+            val outcome = try {
+                delete(app, api).toOutcome()
+            } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+                e.rethrowIfCallerCancelled()
+                Timber.e(e, "Account deletion threw %s", e.javaClass.simpleName)
                 if (api.cloudErased) Outcome.PHONE_NOT_CLEARED else Outcome.CLOUD_NOT_REACHED
             }
             // A wipe that threw skipped the sign-out after it, and the account
@@ -144,8 +150,11 @@ object AccountDeletionRun {
             val owed = withContext(Dispatchers.IO) { AccountDeletionMarker.read(app) } ?: return@launch
             if (!_state.compareAndSet(State.Idle, State.Running)) return@launch
             // [scope] is never cancelled, as in [start].
-            val outcome = runCatching { resume(app, owed) }.getOrElse {
-                Timber.e(it, "Finishing an interrupted account deletion threw %s", it.javaClass.simpleName)
+            val outcome = try {
+                resume(app, owed)
+            } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
+                e.rethrowIfCallerCancelled()
+                Timber.e(e, "Finishing an interrupted account deletion threw %s", e.javaClass.simpleName)
                 null
             }
             _state.value = outcome?.let { State.Done(it) } ?: State.Idle

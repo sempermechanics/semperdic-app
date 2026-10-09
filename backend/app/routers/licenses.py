@@ -21,12 +21,9 @@ def activate_license(
     (the device of the app that asks, ADR-010)."""
     rate_limit.enforce(rate_limit.license_activate_bucket, user["uid"])
     device_id = require_header_identifier(x_device_id, name="device_id", maximum=128)
-    # A seat on hold refuses a typed key as 403 here, where IT adding the
-    # member is told 409: the holder may not use it, IT is in a conflict.
-    with errors.restatus({errors.LICENSE_SEAT_DISABLED: 403}):
-        config = repo.activate_license(
-            user["uid"], user.get("email") or "", device_id, body.key, app,
-        )
+    config = repo.activate_license(
+        user["uid"], user.get("email") or "", device_id, body.key, app,
+    )
     audit.record(
         user["uid"], device_id, action="LICENSE_ACTIVATE",
         detail={"mode": (config or {}).get("mode")},

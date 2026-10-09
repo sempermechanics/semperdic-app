@@ -78,3 +78,61 @@ async def test_a_hidden_failure_still_carries_the_edge_headers(client, monkeypat
     assert r.json() == {"detail": "internal_error"}
     assert r.headers["x-content-type-options"] == "nosniff"
     assert r.headers["x-request-id"]
+
+
+def _access_entries(caplog) -> list[dict]:
+    return [json.loads(rec.message) for rec in caplog.records if rec.name == "semper.access"]
+
+
+async def test_access_log_names_the_app_id_each_call_sends(client, caplog, monkeypatch):
+    """TD-176: the old `com.indicvision.*` ids can go once the log shows no
+    call sends them; a known id is logged as sent."""
+    import logging
+
+    import fake_firestore
+
+    fake_firestore.install(monkeypatch)
+    sent = ("com.sempermechanics.semper", "com.indicvision.semper", " com.sempermechanics.materialtesting ")
+    with caplog.at_level(logging.INFO, logger="semper.access"):
+        for app_id in sent:
+            r = await client.get("/v1/me", headers={"X-App-Id": app_id})
+            assert r.status_code == 200
+    logged = [e["appId"] for e in _access_entries(caplog)]
+    assert logged == ["com.sempermechanics.semper", "com.indicvision.semper", "com.sempermechanics.materialtesting"]
+
+
+async def test_access_log_records_an_unknown_app_id_as_unknown(client, caplog, monkeypatch):
+    """The refused call is logged too, and the caller's text never is."""
+    import logging
+
+    import fake_firestore
+
+    fake_firestore.install(monkeypatch)
+    crafted = ("com.example.other", "com.sempermechanics.semper" + "x" * 500, '{"appId":"forged"}')
+    with caplog.at_level(logging.INFO, logger="semper.access"):
+        for app_id in crafted:
+            r = await client.get("/v1/me", headers={"X-App-Id": app_id})
+            assert r.status_code == 400
+            assert r.json()["detail"] == "unknown_app"
+    entries = _access_entries(caplog)
+    assert [e["appId"] for e in entries] == ["unknown"] * 3
+    assert all(e["status"] == 400 for e in entries)
+    assert "forged" not in caplog.text and "com.example" not in caplog.text
+
+
+async def test_access_log_records_a_call_without_the_header_as_none(client, caplog):
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="semper.access"):
+        await client.get("/healthz")
+    assert _access_entries(caplog)[-1]["appId"] == "none"
+
+
+def test_a_header_with_line_breaks_is_logged_as_unknown():
+    """An HTTP client refuses to send one; the helper still never passes it on."""
+    from app import apps
+
+    assert apps.logged_application_id("com.sempermechanics.semper\n{\"event\":\"x\"}") == "unknown"
+    assert apps.logged_application_id("com.indicvision.semper\r\n") == "com.indicvision.semper"
+    assert apps.logged_application_id("") == "none"
+    assert apps.logged_application_id(None) == "none"

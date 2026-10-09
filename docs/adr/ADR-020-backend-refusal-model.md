@@ -34,10 +34,15 @@ adding the member, 403 to a typed key). Nothing said whether that was intended.
 - `main.refusal_handler` is the one place a refusal becomes a response:
   `{"detail": "<code>"}` (or `"<code>: <suffix>"`) with `STATUS[code]`, plus
   `Retry-After` when `retry_at` is set (`device_change_too_soon`).
-- Routes do not map codes. The two existing deviations are kept, and are named
-  where they happen with `errors.restatus({code: status})`: activation
+- Routes do not map codes. The two existing deviations were kept at first,
+  named where they happened with `errors.restatus({code: status})`: activation
   (`license_seat_disabled` → 403), conversion and seat holds (`license_revoked`
-  → 409). TD-185 records them as open.
+  → 409). They are gone (TD-185): no client read those statuses. The app
+  matches the `detail` code, and its one activation call has no caller
+  (`data/net/SemperApi.kt:180`); the consoles match the code through
+  `explain` (`firebase-hosting/public/console/messages.js:28`) and compare no
+  status. `license_revoked` is 403 and `license_seat_disabled` 409 on every
+  route, and `restatus` is removed.
 - The transaction bodies (`claim_seat`, `claim_individual_license`, the lease
   and seat transactions) still return codes inside the repo. Their callers
   read the code: `entitlement` tells contention from a full roster, and `mint`
@@ -68,6 +73,6 @@ adding the member, 403 to a typed key). Nothing said whether that was intended.
 
 ## Action items
 
-1. [x] `STATUS`, `Refusal`, `restatus`, the handler.
+1. [x] `STATUS`, `Refusal`, `restatus` (removed with item 3), the handler.
 2. [x] The repo raises; the nine route maps are gone; literals become `errors.*`.
-3. [ ] Decide the two deviations with the client owners (TD-185).
+3. [x] Decide the two deviations: dropped, as no client reads them (TD-185).
