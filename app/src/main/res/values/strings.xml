@@ -161,8 +161,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="step_size_density">Step size (density)</string>
     <string name="strain_window">Strain window</string>
     <string name="strain_window_unit_points">points</string>
-    <!-- Under the strain-window slider: the window in points gives this VSG at the current step. -->
-    <string name="strain_window_vsg_fmt">Fits a plane over %1$d px (VSG)</string>
+    <!-- Beside the strain-window value: the window in points gives this VSG at the current step. -->
+    <string name="strain_window_vsg_short_fmt">%1$d px VSG</string>
     <!-- A stored window: points when the VSG is a whole odd count of steps (StrainWindowText), else the VSG alone. -->
     <string name="strain_window_points_vsg_fmt">%1$d-point window · VSG %2$d px</string>
     <string name="strain_window_vsg_only_fmt">VSG %1$d px</string>
@@ -622,12 +622,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="speckle_under_resolved_fmt">Speckle measures about %1$.1f px across, below the %2$d px minimum. The pattern may be too fine for this frame to resolve, and points can fail to correlate. Shoot closer, or use a coarser pattern.</string>
     <string name="speckle_over_resolved_fmt">Speckle measures about %1$.1f px across, above the %2$d px the method needs. It will correlate, but a finer pattern would give more measurement points across the same area.</string>
     <string name="speckle_subset_span_fmt">A %1$d px subset spans too few speckles on this pattern to be unambiguous. Good practice asks for at least %2$d px here.</string>
-    <!-- The readout while the speckle is measured (shown past 300 ms), and once the
-         measurement has set the slider: the size it chose, the speckle it chose from. -->
+    <!-- The speckle chip beside the subset size while the speckle is measured (shown
+         past 300 ms), then the speckle the measurement found. -->
     <string name="speckle_measuring">Measuring speckle…</string>
     <string name="speckle_chip_fmt">Speckle %1$.1f px</string>
-    <string name="speckle_band_fmt">Shaded: %1$d px and up hold enough speckle</string>
-    <string name="speckle_band_set_fmt">Set to %1$d px · shaded: %2$d px and up hold enough speckle</string>
     <string name="next_reason_ref">add a reference image to continue</string>
     <string name="next_reason_def">add at least one deformed frame to continue</string>
     <string name="run_analysis">Compute</string>
@@ -637,10 +635,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="param_section_correlation">Correlation</string>
     <string name="param_step">Step</string>
     <string name="param_interpolation">Interpolation</string>
-    <plurals name="run_estimate_region_fmt">
-        <item quantity="one">%1$s point in the region</item>
-        <item quantity="other">%1$s points in the region</item>
-    </plurals>
+    <!-- The collapsible section holding the overlap and the interpolation. -->
+    <string name="param_advanced">Advanced</string>
     <string name="run_compute_eta_fmt">Compute · %1$s</string>
     <string name="run_estimate_seconds_fmt">about %1$d s</string>
     <string name="run_estimate_minutes_fmt">about %1$d min</string>
@@ -682,8 +678,13 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="coach_sweep_ranges">Set the ranges the sweep covers; each pair of subset and strain window is one analysis.</string>
     <string name="coach_sweep_run">Run the sweep when the plan looks right.</string>
     
-    <string name="roi_full_fmt">Full image · %1$d × %2$d px</string>
-    <string name="roi_custom_fmt">%1$d × %2$d of %3$d × %4$d px</string>
+    <!-- The ROI row: the region, then the points the engine solves in it at this step. -->
+    <string name="roi_full_image">Full image</string>
+    <string name="roi_custom_fmt">%1$d × %2$d px</string>
+    <plurals name="roi_points_fmt">
+        <item quantity="one">%1$s · %2$s point</item>
+        <item quantity="other">%1$s · %2$s points</item>
+    </plurals>
     <string name="picker_select_reference_toast">Select the reference image or video</string>
     <string name="picker_select_deformed">Select the deformed frames — tap several</string>
     <string name="source_images">Images</string>
@@ -887,9 +888,9 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="one">≈ %1$d frame: 1 reference + %2$d deformed%3$s</item>
         <item quantity="other">≈ %1$d frames: 1 reference + %2$d deformed%3$s</item>
     </plurals>
-    <string name="info_subset">Bigger means more robust on weak speckle, but smoothens sharp strain gradients.</string>
+    <string name="info_subset">Bigger means more robust on weak speckle, but smoothens sharp strain gradients. Once the speckle is measured, the shaded band on the slider marks the sizes that hold enough speckle.</string>
     <string name="info_step">Spacing between tracked points, in pixels. Smaller means denser results but longer analysis time. Linked to subset overlap: overlap = 1 − step / subset.</string>
-    <string name="info_strain_window">How many data points across each strain value averages over. The virtual strain gauge (VSG) it gives, in pixels, is (window − 1) × step + 1, shown under the slider. Bigger means smoother strain but less local detail.</string>
+    <string name="info_strain_window">How many data points across each strain value averages over. The virtual strain gauge (VSG) it gives, in pixels, is (window − 1) × step + 1, shown beside the value. Bigger means smoother strain but less local detail.</string>
 
     <!-- Auth: sign-in errors -->
     <string name="error_passwords_mismatch">Passwords do not match.</string>

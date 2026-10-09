@@ -92,7 +92,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textAppearance="@style/TextAppearance.Semper.Numeric"
-                    tools:text="1100 × 800 of 1200 × 900 px" />
+                    tools:text="1100 × 800 px · 8,800 points" />
             </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
@@ -228,7 +228,8 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- The recommended band is drawn behind the track (SubsetBand). -->
+            <!-- The recommended band is drawn behind the track (SubsetBand); the
+                 subset's ⓘ says what it means. -->
             <com.google.android.material.slider.Slider
                 android:id="@+id/sliderSubsetSize"
                 android:layout_width="match_parent"
@@ -237,16 +238,6 @@
                 android:value="41"
                 android:valueFrom="15"
                 android:valueTo="121" />
-
-            <!-- What the shaded band means; gone until the speckle is measured. -->
-            <TextView
-                android:id="@+id/tvSpeckleReadout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Semper.Caption"
-                android:visibility="gone"
-                tools:text="Set to 31 px · shaded: 25 px and up hold enough speckle"
-                tools:visibility="visible" />
 
             <!-- The subset is too small to span three speckles. Its fix is the
                  slider above, so it clears in place as the slider moves. -->
@@ -258,7 +249,7 @@
                 android:layout_marginTop="@dimen/space_8"
                 android:visibility="gone" />
 
-            <!-- Step: the grid pitch, with the points it gives and the overlap -->
+            <!-- Step: the grid pitch. The points it gives are on the ROI row. -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -324,56 +315,7 @@
                 android:valueFrom="1"
                 android:valueTo="30" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/tvStepPoints"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textAppearance="@style/TextAppearance.Semper.Caption"
-                    tools:text="8,800 points in the region" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/overlap"
-                    android:textAppearance="@style/TextAppearance.Semper.Caption" />
-
-                <EditText
-                    android:id="@+id/etOverlapValue"
-                    android:layout_width="44dp"
-                    android:layout_height="wrap_content"
-                    android:background="@android:color/transparent"
-                    android:contentDescription="@string/subset_overlap"
-                    android:gravity="end"
-                    android:imeOptions="actionDone"
-                    android:importantForAutofill="no"
-                    android:inputType="numberDecimal"
-                    android:maxLength="4"
-                    android:paddingTop="0dp"
-                    android:paddingBottom="0dp"
-                    android:textColor="@color/sky_primary"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    tools:text="0.80" />
-
-                <ImageButton
-                    android:id="@+id/btnOverlapInfo"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:layout_marginStart="6dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/info"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/ic_info_min"
-                    app:tint="@color/viewer_chrome_muted" />
-            </LinearLayout>
-
+            <!-- The overlap's model; its field is under Advanced. -->
             <com.google.android.material.slider.Slider
                 android:id="@+id/sliderOverlap"
                 android:layout_width="0dp"
@@ -384,7 +326,7 @@
                 android:valueTo="99"
                 android:visibility="gone" />
 
-            <!-- Strain window, in data points; the caption gives the VSG in px -->
+            <!-- Strain window, in data points, with the VSG in px beside the value -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -414,6 +356,15 @@
                     android:layout_width="0dp"
                     android:layout_height="1dp"
                     android:layout_weight="1" />
+
+                <!-- The VSG the window gives at the current step. -->
+                <TextView
+                    android:id="@+id/tvStrainVsg"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/space_8"
+                    android:textAppearance="@style/TextAppearance.Semper.Caption"
+                    tools:text="21 px VSG" />
 
                 <EditText
                     android:id="@+id/etStrainValue"
@@ -451,44 +402,105 @@
                 android:valueFrom="3"
                 android:valueTo="31" />
 
-            <TextView
-                android:id="@+id/tvStrainVsg"
+            <!-- Advanced: overlap and interpolation, closed until opened (or until
+                 a Paste changes one). CollapsibleSection opens and closes it. -->
+            <include
+                android:id="@+id/advancedHeader"
+                layout="@layout/view_advanced_header"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Semper.Caption"
-                tools:text="Fits a plane over 21 px (VSG)" />
+                android:layout_marginTop="@dimen/space_16" />
 
-            <!-- Sub-pixel interpolation kernel -->
             <LinearLayout
+                android:id="@+id/advancedBody"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/space_16"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:paddingBottom="@dimen/space_8"
+                android:visibility="gone"
+                tools:visibility="visible">
 
-                <TextView
-                    android:layout_width="0dp"
+                <!-- Overlap: follows the step (1 − step / subset); typing it rewrites the step. -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/param_interpolation"
-                    android:textColor="@color/viewer_chrome_text"
-                    android:textStyle="bold" />
+                    android:layout_marginTop="@dimen/space_8"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/tilInterpolator"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense.ExposedDropdownMenu"
-                    android:layout_width="168dp"
-                    android:layout_height="wrap_content"
-                    android:contentDescription="@string/sub_pixel_interpolation_kernel">
-
-                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                        android:id="@+id/ddInterpolator"
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:inputType="none"
-                        android:textSize="14sp"
-                        tools:text="4×4 Bicubic" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:text="@string/overlap"
+                        android:textColor="@color/viewer_chrome_text"
+                        android:textStyle="bold" />
+
+                    <ImageButton
+                        android:id="@+id/btnOverlapInfo"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="6dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/info"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_info_min"
+                        app:tint="@color/viewer_chrome_muted" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="1dp"
+                        android:layout_weight="1" />
+
+                    <EditText
+                        android:id="@+id/etOverlapValue"
+                        android:layout_width="52dp"
+                        android:layout_height="wrap_content"
+                        android:background="@android:color/transparent"
+                        android:contentDescription="@string/subset_overlap"
+                        android:gravity="end"
+                        android:imeOptions="actionDone"
+                        android:importantForAutofill="no"
+                        android:inputType="numberDecimal"
+                        android:maxLength="4"
+                        android:paddingTop="0dp"
+                        android:paddingBottom="0dp"
+                        android:textColor="@color/sky_primary"
+                        android:textStyle="bold"
+                        tools:text="0.80" />
+                </LinearLayout>
+
+                <!-- Sub-pixel interpolation kernel -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_8"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/param_interpolation"
+                        android:textColor="@color/viewer_chrome_text"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilInterpolator"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense.ExposedDropdownMenu"
+                        android:layout_width="168dp"
+                        android:layout_height="wrap_content"
+                        android:contentDescription="@string/sub_pixel_interpolation_kernel">
+
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                            android:id="@+id/ddInterpolator"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:textSize="14sp"
+                            tools:text="4×4 Bicubic" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 

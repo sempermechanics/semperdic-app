@@ -223,12 +223,16 @@ top to bottom:
 - **Single** or **Sweep** — Single solves every frame once. A parameter sweep
   solves one frame many times ([§7](#7-parameter-sweeps)).
 - **Region of interest** — a thumbnail of the reference with the region drawn on
-  it, and its size: "Full image · W × H px", or "1100 × 800 of 1200 × 900 px"
-  once you draw one. **Edit** opens the editor ([§6](#6-region-of-interest)).
-- **Correlation** (Single) — subset size, step, strain window and interpolation
-  ([§5](#5-parameters)), with **Reset** at the right of the heading. If you
-  copied a set of parameters from a sweep lattice, a paste icon sits beside
-  Reset and fills subset, step and strain window in one tap.
+  it, and the points the engine solves in it at the current step: "Full image ·
+  30,968 points", or "1100 × 800 px · 8,800 points" once you draw one. The count
+  follows the step and the region. **Edit** opens the editor
+  ([§6](#6-region-of-interest)).
+- **Correlation** (Single) — subset size, step and strain window, then a closed
+  **Advanced** section with overlap and interpolation ([§5](#5-parameters)),
+  with **Reset** at the right of the heading. If you copied a set of parameters
+  from a sweep lattice, a paste icon sits beside Reset and fills subset, step
+  and strain window in one tap; when that changes the overlap, Advanced opens
+  to show it.
 - **Frame to sweep** and **Planned lattice** (Sweep) — in place of Correlation;
   see [§7](#7-parameter-sweeps).
 
@@ -298,8 +302,9 @@ analysis, and the earlier one is kept as it was.
 
 ## 5. Parameters
 
-Single mode only. Slider or typed field, each with an ⓘ. Step and overlap
-share a title row; the overlap ratio sits beside the step readout.
+Single mode only. Slider or typed field, each with an ⓘ. Overlap and
+interpolation sit under **Advanced**, closed until you tap it (the chevron
+turns); the overlap is a typed field, and it follows the step.
 
 | Parameter | Range | Reset to |
 |---|---|---|
@@ -321,8 +326,8 @@ for 0.007 px accuracy, sampled on a 4×4 grid and taken as the median.
 It is a starting point. Touch the slider and it stops tracking the image.
 **Reset** brings it back.
 
-While the speckle is measured (past about a third of a second) the line under
-the subset slider reads **Measuring speckle…**. When it lands:
+While the speckle is measured (past about a third of a second) the chip beside
+**Subset size** reads **Measuring speckle…**. When it lands:
 
 - A chip beside **Subset size** reads **Speckle 4.3 px** — the same measurement
   as the step 1 chip, in amber when it is outside the 3–9 px good-practice band.
@@ -330,16 +335,14 @@ the subset slider reads **Measuring speckle…**. When it lands:
 - The slider slides to the recommended size (it jumps when animations are off).
 - A blue band is shaded behind the slider track from the smallest size that both
   clears the SSSIG threshold and spans three speckles, up to the slider's end.
-  Larger subsets still correlate; they only blur the field more.
-- The line under the slider reads **"Set to 31 px · shaded: 25 px and up hold
-  enough speckle"**, and once you set a size of your own just **"Shaded: 25 px
-  and up hold enough speckle"**.
+  Larger subsets still correlate; they only blur the field more. The subset's ⓘ
+  says what the band means.
 
 They update as the reference changes, and go if the reference is removed or the
 measurement fails. Below them, a warning chip appears if the subset you are on
 cannot span three speckles, and names the size that would; it clears as soon as
-the slider passes that size. Under the step slider a line counts the points the
-region holds at that step ("30,968 points in the region"), the overlap beside it.
+the slider passes that size. The ROI row counts the points the region holds at
+the current step ("Full image · 30,968 points").
 
 On a pattern coarser than about 40 px no allowed subset spans three dots, so no
 size is named — the over-resolved chip on step 1 is the honest answer there, and
@@ -352,9 +355,9 @@ typical values are about 0.50–0.75.
 
 ### Strain window and VSG
 
-The strain window is a count of data points. The line under the slider shows the
-VSG it gives at the current step — "Fits a plane over 41 px (VSG)" — and follows
-as you change either. Sessions from
+The strain window is a count of data points. Beside its value, muted text shows
+the VSG it gives at the current step — "41 px VSG" — and follows as you change
+either. Sessions from
 before the window was counted in points show their VSG alone.
 
 ![Virtual strain gauge](images/vsg.svg)
@@ -369,7 +372,7 @@ the window is the knob, the VSG is the number you publish.
 
 ### Interpolation
 
-Sub-pixel interpolation, a dropdown at the end of the list. Leave it on 4×4
+Sub-pixel interpolation, a dropdown under **Advanced**. Leave it on 4×4
 bicubic unless interpolation bias is your subject.
 
 ### Max frames

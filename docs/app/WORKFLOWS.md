@@ -349,13 +349,13 @@ Lattice, Session limit, or back to Home.
 | [ ] 5.1.8 | Include one frame of a different pixel size | **Compute** stays disabled. On step 2 a warning chip says the image resolution isn't matching the reference (W×H) and lists the mismatched filename(s); its info icon asks first whether to leave the app, then opens the frame-size FAQ |
 | [ ] 5.1.9 | Load JPEGs | A non-blocking accuracy warning chip appears; its info icon asks first whether to leave the app, then opens the JPEG FAQ |
 | [ ] 5.1.10 | Load a poorly speckled reference | A low-texture warning names a suggested subset size; its info icon opens the speckle FAQ behind the same leave-the-app confirm |
-| [ ] 5.1.11 | Load any speckled reference and open step 2 | While the speckle is measured (past ~0.3 s) the muted line under the subset slider reads "Measuring speckle…". Then the slider slides to the recommendation (~250 ms), a "Speckle D px" chip appears beside **Subset size** (amber outside 3–9 px), a band is shaded behind the track from the smallest size that holds enough speckle, and the line reads "Set to N px · shaded: M px and up hold enough speckle" |
-| [ ] 5.1.11a | Move the subset slider after 5.1.11 | The line reads "Shaded: M px and up hold enough speckle". **Reset** brings back "Set to …" |
+| [ ] 5.1.11 | Load any speckled reference and open step 2 | While the speckle is measured (past ~0.3 s) the chip beside **Subset size** reads "Measuring speckle…". Then the slider slides to the recommendation (~250 ms), the chip reads "Speckle D px" (amber outside 3–9 px), and a band is shaded behind the track from the smallest size that holds enough speckle. No caption sits under the slider |
+| [ ] 5.1.11a | Tap the ⓘ beside **Subset size** after 5.1.11 | The dialog says what the shaded band means: the sizes that hold enough speckle. Moving the slider leaves the band where it is |
 | [ ] 5.1.11b | Turn animations off (Developer options, Animator duration scale off) and repeat 5.1.11 | The slider jumps to the recommendation instead of sliding |
 | [ ] 5.1.12 | Load a reference shot far back, so the dots are 1–2 px | A chip **on step 1** says the speckle is below the 3 px minimum and to shoot closer or use a coarser pattern |
 | [ ] 5.1.13 | Load a close-up whose dots span more than 9 px | The step 1 chip says the pattern is over-resolved — correlates fine, but a finer pattern would give more points. No span chip appears on step 2: the size verdict suppresses it |
 | [ ] 5.1.14 | Load a reference inside the band whose speckle needs a larger subset than the slider is on (e.g. dots ~7 px against a subset of 15) | A chip appears **on step 2, under the subset slider**, naming the subset in use and the one wanted. Raise the slider past it and the chip clears in place, without leaving step 2 |
-| [ ] 5.1.15 | Load a reference with no measurable pattern at all (blank card) | Neither the readout nor either chip appears; no number is invented |
+| [ ] 5.1.15 | Load a reference with no measurable pattern at all (blank card) | No speckle chip, no band and neither warning chip appears; no number is invented |
 | [ ] 5.1.16 | Open the sort menu → **Name A–Z** | Thumbnails reorder; the badge numbers renumber 1…N |
 | [ ] 5.1.17 | Choose **Date oldest first** | Order follows capture date, not filename |
 | [ ] 5.1.18 | Choose **Manual** | Hint toast about dragging; drag a thumbnail and it stays where dropped, back at its normal size, with the badges renumbered |
@@ -395,8 +395,8 @@ vendor decoders and camera AVIs.
 | # | Action | Expected |
 |---|---|---|
 | [ ] 5.2.1 | Arrive on step 2 | Toolbar reads "Parameters" with two dots, the second blue. Single / Sweep is at the top; the page is one flat list split by dividers, no cards |
-| [ ] 5.2.2 | Read the ROI row before editing | A thumbnail of the reference shaded green, and "Full image · W × H px" |
-| [ ] 5.2.3 | Tap **Edit** → draw an ROI → save | The thumbnail shows the region (holes in red) and the line becomes "w × h of W × H px" |
+| [ ] 5.2.2 | Read the ROI row before editing | A thumbnail of the reference shaded green, and "Full image · N points": the points the engine solves at this step, over the frame inset by half a subset plus 10 px a side |
+| [ ] 5.2.3 | Tap **Edit** → draw an ROI → save | The thumbnail shows the region (holes in red) and the line becomes "w × h px · N points" |
 | [ ] 5.2.4 | Tap **Edit** → cancel | Falls back to full image; any mask is cleared |
 | [ ] 5.2.5 | Switch to **Parameter sweep** | The correlation section hides; **Frame to sweep** (multi-frame only) and the **Planned lattice** appear, no range controls. Toolbar reads "Sweep setup" with three dots. Bottom nav reads **Next: sweep settings** |
 | [ ] 5.2.6 | Type **step size** as subset ÷ N on step 3 | N is 2–9 (default 3); overlap on the same row is `1 − 1/N`; each subset uses `step = round(subset / N)` |
@@ -405,16 +405,17 @@ vendor decoders and camera AVIs.
 | [ ] 5.2.9 | Drag the **subset size** slider | Only odd values between 15 and 121; the field mirrors it; overlap updates from the current step |
 | [ ] 5.2.10 | Type an even subset size and press Done | Snapped to the nearest valid odd value |
 | [ ] 5.2.11 | Type nonsense in a parameter field | Reverts to the previous value on commit |
-| [ ] 5.2.12 | Drag **step** | Max is `min(30, subset/2)` so overlap stays ≥ 0.5; the overlap field mirrors it; the line under the slider counts "N points in the region" = (ROI w ÷ step) × (ROI h ÷ step) |
-| [ ] 5.2.12a | Type **overlap** under the step slider | 0.50–0.99; step rewrites to `round(subset × (1 − overlap))` |
+| [ ] 5.2.12 | Drag **step** | Max is `min(30, subset/2)` so overlap stays ≥ 0.5; the overlap field under **Advanced** mirrors it; the ROI row's count follows, N points = (ROI w ÷ step) × (ROI h ÷ step) |
+| [ ] 5.2.12a | Open **Advanced** and type **overlap** | 0.50–0.99; step rewrites to `round(subset × (1 − overlap))` |
 | [ ] 5.2.12b | Read **Compute** before any run on this phone | "Compute", no time |
 | [ ] 5.2.12c | Run once, come back to step 2 | The button reads "Compute · about S s" (minutes past 90 s), from the points per second this phone's runs reached, frames × points; the text shrinks to stay on one line |
-| [ ] 5.2.13 | Drag **strain window** | Odd values 3–31, in **points**; the field mirrors it and the line under the slider reads "Fits a plane over N px (VSG)", N = (window − 1) × step + 1. It starts at 5 |
+| [ ] 5.2.13 | Drag **strain window** | Odd values 3–31, in **points**; the field mirrors it and the muted text beside it on the header row reads "N px VSG", N = (window − 1) × step + 1. It starts at 5 |
 | [ ] 5.2.13a | Open step 2 having never copied params from a lattice | No paste icon beside **Reset** — it only appears when the clipboard holds a set |
-| [ ] 5.2.13b | Copy params from a sweep lattice (§7.3), then return here | The paste icon appears beside **Reset**; tapping it fills subset, step and strain window (overlap follows step) and scrolls them into view. The window is the one whose VSG at the pasted step matches the node's |
-| [ ] 5.2.13c | Change the **step** with the window fixed | The VSG line follows: window 5 reads 21 px at step 5, 41 px at step 10 |
-| [ ] 5.2.14 | Tap each ⓘ | Subset, step, overlap and strain window each explain themselves |
-| [ ] 5.2.15 | Pick **6×6 Keys** in the **Interpolation** dropdown | Selection sticks; the run uses it |
+| [ ] 5.2.13b | Copy params from a sweep lattice (§7.3), then return here | The paste icon appears beside **Reset**; tapping it fills subset, step and strain window (overlap follows step) and scrolls them into view. The window is the one whose VSG at the pasted step matches the node's. When the paste changes the overlap, a closed **Advanced** opens to show it; a paste that leaves it as it was leaves Advanced closed |
+| [ ] 5.2.13c | Change the **step** with the window fixed | The VSG beside the window follows: window 5 reads "21 px VSG" at step 5, "41 px VSG" at step 10 |
+| [ ] 5.2.13d | Read the page under the strain window | **Advanced** with a chevron, closed. A tap opens it (the chevron turns up) on **Overlap** with its ⓘ and **Interpolation**; another tap closes it |
+| [ ] 5.2.14 | Tap each ⓘ | Subset (including what the shaded band means), step, overlap (under **Advanced**) and strain window each explain themselves |
+| [ ] 5.2.15 | Open **Advanced** and pick **6×6 Keys** in the **Interpolation** dropdown | Selection sticks; the run uses it |
 | [ ] 5.2.16 | Change several parameters, then tap **Reset** (the circular-arrow icon) | Subset returns to the recommended value, step to 5, overlap follows step, strain window to 5 points, interpolation to 4×4 bicubic |
 | [ ] 5.2.16a | After a failed run leaves an ❌ line on step 2, change subset / paste params / replace frames | The run-status line clears; the frame-size chip (if any) only shows when sizes still mismatch |
 | [ ] 5.2.17 | Load a well-speckled reference and watch the subset | It is pre-seeded from the SSSIG recommendation — until you touch it |

@@ -1,6 +1,7 @@
 package com.sempermechanics.semper.ui.analysis.wizard
 
 import android.graphics.Rect
+import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.prefs.ParamClipboard
@@ -8,12 +9,14 @@ import com.sempermechanics.semper.databinding.WizardStepSettingsContentBinding
 import com.sempermechanics.semper.field.DicParams
 import com.sempermechanics.semper.ui.analysis.recommend.SubsetRecommendationController
 import com.sempermechanics.semper.ui.analysis.sweep.SweepStudy
+import com.sempermechanics.semper.ui.common.CollapsibleSection
 
 /**
  * The settings page's parameter sliders: the value fields are editable, so
  * dragging writes into them and typing writes back into the slider. Values
- * are still read via `slider.value` everywhere. Also the advanced card's
- * Reset and Paste.
+ * are still read via `slider.value` everywhere. Also the correlation
+ * section's Reset and Paste, and its Advanced section (overlap and
+ * interpolation), closed until opened or until a Paste changes what it shows.
  */
 class WizardParamFields(
     private val activity: AppCompatActivity,
@@ -42,6 +45,14 @@ class WizardParamFields(
             override fun onParamsChanged() = host.clearRunStatus()
         },
         onGeometryChanged,
+    )
+
+    /** Overlap and interpolation; opens itself when a Paste changes either. */
+    private val advanced = CollapsibleSection(
+        header = settings.advancedHeader.root,
+        chevron = settings.advancedHeader.imgAdvancedChevron,
+        body = settings.advancedBody,
+        container = settings.root as ViewGroup,
     )
 
     private val bicubic get() = activity.getString(R.string.label_4_4_bicubic)
@@ -97,16 +108,24 @@ class WizardParamFields(
         host.clearRunStatus()
     }
 
-    /** Applies ParamClipboard subset/step/window into the analysis sliders. */
+    /**
+     * Applies ParamClipboard subset/step/window into the analysis sliders, and
+     * opens Advanced when that moves the overlap (or the interpolation) off
+     * what it showed, so no pasted change is hidden.
+     */
     internal fun paste() {
         val params = ParamClipboard.peek(activity) ?: return
         host.commitParamFields()
+        val shown = settings.etOverlapValue.text.toString() to settings.ddInterpolator.text.toString()
         viewModel.subsetUserModified = true
         settings.sliderSubsetSize.value = snapToSlider(settings.sliderSubsetSize, params.subset).toFloat()
         settings.sliderStepSize.value = snapToSlider(settings.sliderStepSize, params.step).toFloat()
         // The clipboard holds a VSG in px; the slider takes points at the pasted step.
         settings.sliderStrainWindow.value = SweepStudy.nearestWindowPoints(params.vsg, stepSize).toFloat()
         sheet.syncFromStep()
+        if (shown != settings.etOverlapValue.text.toString() to settings.ddInterpolator.text.toString()) {
+            advanced.expand()
+        }
         subsets.showSpeckleFeedback()
         host.onSweepInputsChanged()
         host.clearRunStatus()

@@ -3,7 +3,6 @@ package com.sempermechanics.semper.ui.analysis.recommend
 import android.animation.ValueAnimator
 import android.graphics.Rect
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.SemperNativeLib
@@ -31,10 +30,10 @@ import timber.log.Timber
  *
  * Owns the speckle feedback too: the low-texture and speckle-size chips on
  * page 1; on page 2 the speckle chip beside the subset size, the band of
- * sizes that hold enough speckle shaded behind the slider ([SubsetBand]),
- * its caption, and the span chip. The caption says "Measuring speckle…"
- * while a measurement lasts past 300 ms, and the slider glides to the size
- * the measurement chose.
+ * sizes that hold enough speckle shaded behind the slider ([SubsetBand]; the
+ * subset's ⓘ says what it means), and the span chip. The speckle chip says
+ * "Measuring speckle…" while a measurement lasts past 300 ms, and the slider
+ * glides to the size the measurement chose.
  */
 class SubsetRecommendationController(
     private val activity: AppCompatActivity,
@@ -49,7 +48,7 @@ class SubsetRecommendationController(
         .apply { setFaq(activity.getString(R.string.url_faq_speckle)) }
     private val speckleChip = WarnChip(binding.speckleWarnRow.root, host::confirmOpenFaq)
     private val speckleSpanChip = WarnChip(settings.speckleSpanWarnRow.root, host::confirmOpenFaq)
-    private val measuring = InlineBusy(activity, settings.tvSpeckleReadout)
+    private val measuring = InlineBusy(activity, settings.chipSpeckle)
     private val band = SubsetBand.attach(settings.sliderSubsetSize)
 
     /** The slider's glide to a new recommendation, while it runs. */
@@ -77,7 +76,7 @@ class SubsetRecommendationController(
             sizes = settings.sliderSubsetSize.valueFrom.toInt()..settings.sliderSubsetSize.valueTo.toInt(),
         )
 
-        val started = measuring.start { settings.tvSpeckleReadout.setText(R.string.speckle_measuring) }
+        val started = measuring.start { SubsetBand.showMeasuring(settings.chipSpeckle) }
         activity.lifecycleScope.launch(measureOn()) {
             val result = runCatching {
                 SubsetRecommender.recommend(
@@ -130,7 +129,7 @@ class SubsetRecommendationController(
             val snapped = snapToSlider(settings.sliderSubsetSize, rec.subsetSize)
             if (settings.sliderSubsetSize.value.toInt() != snapped) {
                 host.commitParamFields()
-                // The readout states the new size now; the rest waits for the slider to get there.
+                // The band and chip show now; the rest waits for the slider to get there.
                 showReadout()
                 seeding = settings.sliderSubsetSize.glideTo(snapped, { viewModel.subsetUserModified }) {
                     seeding = null
@@ -156,8 +155,8 @@ class SubsetRecommendationController(
      * Guide* band, so the user learns something about their specimen rather
      * than only about the slider.
      *
-     * Three surfaces, each placed where its fix is. The readout under the
-     * subset slider is shown whenever a measurement exists, good news included
+     * Three surfaces, each placed where its fix is. The chip beside the
+     * subset size is shown whenever a measurement exists, good news included
      * — it is the number the recommendation rests on, and a user who can see
      * it can judge their own pattern before spending a run on it. The size
      * chip sits on step 1 with the images, because a pattern outside the band
@@ -194,22 +193,14 @@ class SubsetRecommendationController(
     }
 
     /**
-     * The band behind the slider and its caption ("Set to 31 px · shaded: 25 px
-     * and up hold enough speckle" while the slider holds the recommendation),
-     * and the speckle chip beside the size, amber outside the good-practice
-     * band. Returns the measured diameter, or null without one.
+     * The band behind the slider, and the speckle chip beside the size, amber
+     * outside the good-practice band. Returns the measured diameter, or null
+     * without one.
      */
     private fun showReadout(): Double? {
         val rec = viewModel.subsetRecommendation
         val slider = settings.sliderSubsetSize
-        val range = rec?.let { SubsetBand.rangeFor(it, slider.valueFrom.toInt()..slider.valueTo.toInt()) }
-        band.range = range
-        val readout = settings.tvSpeckleReadout
-        readout.isVisible = range != null
-        if (range != null) {
-            val setTo = defaultSubsetSize().takeUnless { viewModel.subsetUserModified }
-            readout.text = SubsetBand.caption(activity.resources, range, setTo)
-        }
+        band.range = rec?.let { SubsetBand.rangeFor(it, slider.valueFrom.toInt()..slider.valueTo.toInt()) }
         val diameter = rec?.speckleDiameterPx
         SubsetBand.showChip(settings.chipSpeckle, diameter)
         return diameter

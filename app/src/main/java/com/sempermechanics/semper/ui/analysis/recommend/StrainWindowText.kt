@@ -13,9 +13,9 @@ import com.sempermechanics.semper.ui.analysis.sweep.SweepStudy
  */
 object StrainWindowText {
 
-    /** "Fits a plane over 41 px (VSG)": what a window of [points] gives at [step], under the slider. */
+    /** "41 px VSG": what a window of [points] gives at [step], beside the window's value. */
     fun vsgAt(context: Context, points: Int, step: Int): String =
-        context.getString(R.string.strain_window_vsg_fmt, SweepStudy.vsgFor(points, step))
+        context.getString(R.string.strain_window_vsg_short_fmt, SweepStudy.vsgFor(points, step))
 
     fun of(context: Context, vsgPx: Int, step: Int): String {
         val points = SweepStudy.windowPointsFor(vsgPx, step)

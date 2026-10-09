@@ -46,9 +46,9 @@ object RunEstimate {
         return next.roundToInt().coerceAtLeast(1)
     }
 
-    /** "8,800 points in the region": the caption under the step slider. */
-    fun regionLabel(res: Resources, points: Int): String =
-        res.getQuantityString(R.plurals.run_estimate_region_fmt, points, grouped(points))
+    /** "1100 × 800 px · 8,800 points": the ROI row's [region] and the points the engine solves in it. */
+    fun regionLabel(res: Resources, region: String, points: Int): String =
+        res.getQuantityString(R.plurals.roi_points_fmt, points, region, grouped(points))
 
     /** "about 33 s" up to a minute and a half, then "about 2 min". */
     fun duration(res: Resources, seconds: Long): String =

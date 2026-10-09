@@ -171,7 +171,6 @@ class StaticAnalysisActivity :
         wizardSlots = AnalysisWizardSlots(
             viewModel = viewModel,
             binding = binding,
-            settings = settings,
             formatChip = formatChip,
             frameOrderAdapter = frameOrder.adapter,
             onLineCutPreview = { sweepController.refreshLineCutPreview() },
@@ -199,7 +198,7 @@ class StaticAnalysisActivity :
     private fun wireButtons() {
         val pickers = WizardMediaPickers(this, onReference = reference::load, onDeformed = ::importDeformed)
         val roiStudio = RoiStudioLauncher(this, viewModel, onRoiChanged = {
-            wizardSlots.updateRoiSummary()
+            wizardSlots.updateRoiThumbnail()
             checkReady()
             subsets.request()
         })
@@ -291,7 +290,7 @@ class StaticAnalysisActivity :
         if (newReference) wizardSlots.refreshRefSlot(refPreviewBmp)
         if (newFrames) wizardSlots.refreshDefSlot()
         // A different-size reference resets the ROI (applyNewReference).
-        if (newReference) wizardSlots.updateRoiSummary()
+        if (newReference) wizardSlots.updateRoiThumbnail()
         // Frames may have been loaded before this reference.
         viewModel.checkFrameSizes(resources)
         clearRunStatus()
@@ -362,7 +361,7 @@ class StaticAnalysisActivity :
         if (target >= WizardStep.SETTINGS) viewModel.settingsReviewed = true
 
         if (target == WizardStep.SETTINGS) {
-            wizardSlots.updateRoiSummary()
+            wizardSlots.updateRoiThumbnail()
             // Cheap no-op when the reference/ROI have not changed since the
             // last measurement; covers inputs that arrived before this page.
             subsets.request()
