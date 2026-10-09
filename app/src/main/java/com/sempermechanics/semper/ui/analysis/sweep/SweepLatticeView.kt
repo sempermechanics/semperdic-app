@@ -70,6 +70,10 @@ class SweepLatticeView @JvmOverloads constructor(
         val failureReason: String = "",
         /** Native / run code when [solved] is false; drives the FAQ Why? hop. */
         val failureCode: Int? = null,
+        /** Not run yet: the live sweep lattice draws it as a muted ring; [solved] is ignored. */
+        val pending: Boolean = false,
+        /** Being solved now: ringed, whatever its state. */
+        val current: Boolean = false,
     )
 
     /** Invoked when a solved node is tapped. */
@@ -293,26 +297,36 @@ class SweepLatticeView @JvmOverloads constructor(
         // since only the FOCUSED curve is ever shown in colour there now).
         val solved = ContextCompat.getColor(context, R.color.viewer_plot_node_solved)
         val skipped = ContextCompat.getColor(context, R.color.viewer_plot_node_skipped)
+        val pending = ContextCompat.getColor(context, R.color.viewer_plot_muted)
         val ring = PlotStyle.inkStrong(context)
         nodes.forEach { node ->
             val x = columnX[node.subset] ?: return@forEach
             val y = yFor(node.vsg)
             placed.add(Placed(node, x, y))
-            if (node.solved) {
-                fillPaint.color = solved
-                canvas.drawCircle(x, y, radius, fillPaint)
-                if (selectedFrameIndex >= 0 && node.frameIndex == selectedFrameIndex) {
-                    strokePaint.color = ring
-                    canvas.drawCircle(x, y, selectedRadius, strokePaint)
+            when {
+                node.pending -> {
+                    strokePaint.color = pending
+                    canvas.drawCircle(x, y, radius, strokePaint)
                 }
-            } else {
+                node.solved -> {
+                    fillPaint.color = solved
+                    canvas.drawCircle(x, y, radius, fillPaint)
+                }
                 // Hollow ring, no fill: a combination that was attempted and
                 // failed. Deliberately transparent at the centre rather than a
                 // background-matched disc -- this view is hosted on different
-                // surfaces (result lattice, wizard preview card), and only a
-                // truly empty centre is guaranteed to match all of them.
-                strokePaint.color = skipped
-                canvas.drawCircle(x, y, radius, strokePaint)
+                // surfaces (result lattice, wizard preview card, run overlay), and
+                // only a truly empty centre is guaranteed to match all of them.
+                else -> {
+                    strokePaint.color = skipped
+                    canvas.drawCircle(x, y, radius, strokePaint)
+                }
+            }
+            val selected = node.solved && !node.pending && selectedFrameIndex >= 0 &&
+                node.frameIndex == selectedFrameIndex
+            if (selected || node.current) {
+                strokePaint.color = ring
+                canvas.drawCircle(x, y, selectedRadius, strokePaint)
             }
         }
     }

@@ -449,7 +449,9 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="sweep_frame_out_of_fmt">out of %1$d</string>
     <string name="line_cut_preview_heading">Line cut</string>
     <string name="planned_lattice_heading">Planned lattice</string>
-    <string name="sweep_running_fmt">Analysis %1$d of %2$d · subset %3$d · step %4$d · %5$d-point window</string>
+    <string name="run_sweep_legend">Filled: solved · grey: waiting · red: skipped</string>
+    <string name="sweep_running_fmt">Solving subset %1$d · step %2$d · %3$d-point window</string>
+    <string name="run_analysis_of_fmt">Analysis %1$d of %2$d</string>
     <!-- W is the strain window in data points; with St it fixes the VSG,
          (W − 1) × St + 1 px, so the label needs no VSG of its own. -->
     <string name="sweep_frame_label_fmt">S%1$d · St%2$d · W%3$d</string>
@@ -557,6 +559,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <plurals name="run_completed_fmt">
         <item quantity="one">Completed %1$d of %2$d frame · saving</item>
         <item quantity="other">Completed %1$d of %2$d frames · saving</item>
+    </plurals>
+    <plurals name="sweep_completed_fmt">
+        <item quantity="one">Solved %1$d of %2$d analysis · saving</item>
+        <item quantity="other">Solved %1$d of %2$d analyses · saving</item>
     </plurals>
     <string name="run_strike_warn_fmt">Frame %1$d: %2$.0f%% converged. One more low frame stops the run.</string>
     <string name="eta_estimating">Estimating time left…</string>

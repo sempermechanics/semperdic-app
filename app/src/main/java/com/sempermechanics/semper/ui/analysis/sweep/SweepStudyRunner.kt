@@ -50,6 +50,15 @@ object SweepStudyRunner {
         val outputDir: File,
     )
 
+    /** Where one combination of the plan stands. */
+    enum class NodeOutcome { PENDING, SOLVED, SKIPPED }
+
+    /**
+     * One tick: [runIndex] is starting (no points yet) or has just ended.
+     * [outcomes] holds every combination of the plan, in plan order, as of this
+     * tick. Always a copy: the progress flow drops old ticks, and each tick
+     * carries the whole lattice, so a dropped one loses nothing.
+     */
     data class Progress(
         val runIndex: Int,
         val totalRuns: Int,
@@ -57,6 +66,7 @@ object SweepStudyRunner {
         val point: SweepStudy.Point,
         val pointsSolved: Int,
         val convergencePercent: Float,
+        val outcomes: List<NodeOutcome> = emptyList(),
     )
 
     /** One completed combination and the file holding its field. */
@@ -138,6 +148,7 @@ object SweepStudyRunner {
         var firstMetrics: FloatArray? = null
         var errorCode = 0
         val total = params.plan.size
+        val outcomes = MutableList(total) { NodeOutcome.PENDING }
 
         val skipped = ArrayList<SweepStudy.Point>()
         val skippedCodes = ArrayList<Int>()
@@ -151,7 +162,7 @@ object SweepStudyRunner {
         for ((index, point) in params.plan.withIndex()) {
             if (cancelRequested) break
             val metrics = EngineStats.newMetrics()
-            onProgress(Progress(index, total, index * PERCENT / maxOf(1, total), point, 0, -1f))
+            onProgress(Progress(index, total, index * PERCENT / maxOf(1, total), point, 0, -1f, outcomes.toList()))
 
             val solved = SemperEngine.solve(refBytes, defBytes, params.engineParams(point), buffer, metrics)
             // One bad node says nothing about the rest — a small subset can fail
@@ -162,6 +173,9 @@ object SweepStudyRunner {
             if (skipCode != null) {
                 recordSkip(point, skipCode, skipped, skippedCodes)
                 lastEngineError = skipCode
+                outcomes[index] = NodeOutcome.SKIPPED
+                val done = (index + 1) * PERCENT / maxOf(1, total)
+                onProgress(Progress(index, total, done, point, 0, -1f, outcomes.toList()))
                 continue
             }
             if (firstMetrics == null) firstMetrics = metrics
@@ -175,6 +189,7 @@ object SweepStudyRunner {
             )
             DicFieldIo.write(buffer, solved, datFile)
             runs.add(RunOutcome(point, datFile, solved))
+            outcomes[index] = NodeOutcome.SOLVED
 
             onProgress(
                 Progress(
@@ -184,6 +199,7 @@ object SweepStudyRunner {
                     point = point,
                     pointsSolved = solved,
                     convergencePercent = metrics[EngineStats.SLOT_CONVERGENCE],
+                    outcomes = outcomes.toList(),
                 ),
             )
         }
