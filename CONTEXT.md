@@ -161,6 +161,11 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   backend by host and port and follows no redirects (TD-160, TD-161); an account deletion
   the process died in is finished at the next start (TD-165, `AccountDeletionMarker`);
   a wizard run's outcome waits for the screen (TD-168, `PendingOutcome`).
+- **UI pass (on `main` 2026-10-09, #385, #387–#391, #396; not in a release yet).** The run
+  overlay's convergence line graph and time left, the sweep lattice filling live, export and
+  transfer progress with bytes and Retry notifications, signals for silent waits, denser
+  Home rows, and the flat parameters page with the sweep split into setup and settings.
+  Owed: a device check of the transfer notifications (it touches the shared backend).
 - **Dependabot** opens monthly PRs for major versions only (pip, Gradle, Actions; #337);
   minor and patch fixes arrive as Dependabot security updates, which are on.
 - **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke
