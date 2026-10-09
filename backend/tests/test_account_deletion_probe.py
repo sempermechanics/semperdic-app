@@ -1,78 +1,109 @@
-"""The backend's half of the app's account-deletion probe (TD-165).
+"""`GET /v1/me/erasure`: the app's check after an interrupted account deletion.
 
-An account deletion whose `DELETE /v1/me` was sent and never answered (the
-process died) is settled at the app's next start by one device-signed
-`GET /v1/sessions/account-deletion-probe/uploads`
-(`CloudErase.probeErasedAccount`). The app wipes the phone on 409
-`device_not_active` or 403 `not_approved` (the erase landed) and leaves it
-alone on 404 `session_not_found` (it did not). These pin those answers, so a
-change to the route or its dependency cannot turn a wipe into "still there"
-or, worse, the other way round, without a test noticing.
+When the process died between sending `DELETE /v1/me` and its answer, the next
+start asks here whether the account went (`CloudErase.probeErasedAccount`)
+before it wipes the phone. Erased means this phone's device record is gone or
+belongs to someone else. The route reads the ID token alone: the earlier probe
+went through `current_user`, which re-created a profile for the erased uid and
+mailed support when it was pending (TD-206).
 """
 from pathlib import Path
 
 import pytest
-from fastapi import HTTPException
-from pydantic import TypeAdapter
 
 import repo_view as repo
 from app import deps, errors
-from app.routers import sessions
-from app.validation import SessionId
-from tests import test_device_auth as device_auth
+from app.config import settings
 
-# The device-auth fixtures: a real keypair and verified_device wired to it.
-keypair = device_auth.keypair
-wired = device_auth.wired
-
-PROBE_SID = "account-deletion-probe"
-PROBE_PATH = f"/v1/sessions/{PROBE_SID}/uploads"
-USER = {"uid": "u1", "email": "a@b.com", "access_status": "APPROVED"}
+DEVICE = "d-probe-1"
+ROUTE = "/v1/me/erasure"
+DEV_UID = deps._DEV_USER["uid"]
 
 _KOTLIN = (
     Path(__file__).resolve().parents[2]
-    / "app/src/main/java/com/sempermechanics/semper/data/cloud/CloudErase.kt"
+    / "app/src/main/java/com/sempermechanics/semper/data/net/SemperApi.kt"
 )
 
 
+def _device(uid: str, status: str = "ACTIVE") -> dict:
+    return {"uid": uid, "status": status, "app": "semper"}
+
+
+async def _ask(client, device: str | None = DEVICE, **headers):
+    if device is not None:
+        headers["X-Device-Id"] = device
+    return await client.get(ROUTE, headers=headers)
+
+
 @pytest.mark.skipif(not _KOTLIN.is_file(), reason="app/ not present (backend-only checkout)")
-def test_the_app_probes_this_session_id():
-    assert f'PROBE_SESSION_ID = "{PROBE_SID}"' in _KOTLIN.read_text(encoding="utf-8")
+def test_the_app_calls_this_route():
+    assert f'"{ROUTE}"' in _KOTLIN.read_text(encoding="utf-8")
 
 
-def test_the_probe_id_is_a_valid_session_id():
-    # A 422 here would read as "no answer" on the phone, forever.
-    assert TypeAdapter(SessionId).validate_python(PROBE_SID) == PROBE_SID
+async def test_a_living_account_is_not_erased(client, store):
+    store._data["devices"] = {DEVICE: _device(DEV_UID)}
+    resp = await _ask(client)
+    assert resp.status_code == 200
+    assert resp.json() == {"erased": False}
 
 
-def test_the_probe_route_is_device_signed():
-    route = next(
-        r for r in sessions.router.routes
-        if r.path == "/v1/sessions/{sid}/uploads" and "GET" in r.methods
-    )
-    calls = {d.call for d in route.dependant.dependencies}
-    assert deps.verified_device in calls
+async def test_a_retired_device_is_still_the_accounts(client, store):
+    # A superseded or revoked device keeps its record; only the erase deletes it,
+    # so an admin's reset must not read as an erase (and wipe the phone).
+    store._data["devices"] = {DEVICE: _device(DEV_UID, status="SUPERSEDED")}
+    assert (await _ask(client)).json() == {"erased": False}
 
 
-async def test_an_erased_account_answers_device_not_active(wired, monkeypatch):
-    # The erase deleted this phone's device record.
-    monkeypatch.setattr(deps.repo, "get_device", lambda did: None)
-    with pytest.raises(HTTPException) as refused:
-        await deps.verified_device(
-            request=device_auth._make_request("GET", PROBE_PATH, b""),
-            user=USER,
-            x_device_id="d1",
-            x_nonce="n1",
-            x_signature=device_auth._sign(wired, "n1", "GET", PROBE_PATH, b""),
-        )
-    assert refused.value.status_code == 409
-    assert refused.value.detail == errors.DEVICE_NOT_ACTIVE
+async def test_a_deleted_device_record_means_erased(client, store):
+    store._data["devices"] = {}
+    assert (await _ask(client)).json() == {"erased": True}
 
 
-def test_a_living_account_answers_session_not_found(monkeypatch):
-    # No session has the probe's id (sessions are uuid4 hex).
-    repo.patch(monkeypatch, "get_session", lambda sid: None)
-    with pytest.raises(HTTPException) as refused:
-        sessions._owned_session(PROBE_SID, USER)
-    assert refused.value.status_code == 404
-    assert refused.value.detail == errors.SESSION_NOT_FOUND
+async def test_a_device_now_someone_elses_means_erased(client, store):
+    store._data["devices"] = {DEVICE: _device("someone-else")}
+    assert (await _ask(client)).json() == {"erased": True}
+
+
+async def test_asking_creates_no_profile(client, store, monkeypatch):
+    # The whole point (TD-206): an erased account must stay erased.
+    store._data["users"] = {}
+    store._data["devices"] = {}
+
+    def refuse(*a, **k):
+        raise AssertionError("the erasure check must not read or create a profile")
+
+    repo.patch(monkeypatch, "get_or_create_user", refuse)
+    assert (await _ask(client)).json() == {"erased": True}
+    assert store._data["users"] == {}
+
+
+async def test_a_real_token_is_verified_and_nothing_else(client, store, monkeypatch):
+    monkeypatch.setattr(settings, "DEV_INSECURE_AUTH", False)
+    monkeypatch.setattr(settings, "APP_CHECK_MODE", "off")
+    monkeypatch.setattr(deps, "verify_id_token", lambda token: {"sub": "u-erased"})
+    repo.patch(monkeypatch, "get_or_create_user", lambda *a, **k: pytest.fail("profile touched"))
+    store._data["devices"] = {DEVICE: _device("u-erased")}
+
+    resp = await _ask(client, Authorization="Bearer tok")
+    assert resp.status_code == 200
+    assert resp.json() == {"erased": False}
+
+
+async def test_no_token_is_refused(client, store, monkeypatch):
+    monkeypatch.setattr(settings, "DEV_INSECURE_AUTH", False)
+    resp = await _ask(client)
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == errors.MISSING_BEARER
+
+
+async def test_the_device_header_is_required(client, store):
+    resp = await _ask(client, device=None)
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "missing_device_id"
+
+
+async def test_it_is_rate_limited_without_current_user(client, store):
+    store._data["devices"] = {DEVICE: _device(DEV_UID)}
+    codes = [(await _ask(client)).status_code for _ in range(5)]
+    assert codes[:3] == [200, 200, 200]
+    assert 429 in codes

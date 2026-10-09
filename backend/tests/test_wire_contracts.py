@@ -54,6 +54,7 @@ REQUESTS: dict[str, type[BaseModel]] = {
 RESPONSES = (
     "license_activate_response",  # POST /v1/licenses/activate
     "me_response",  # GET /v1/me
+    "erasure_response",  # GET /v1/me/erasure
     "config_response",  # GET /v1/config
     "challenge_response",  # POST /v1/challenge
     "session_create_response",  # POST /v1/sessions
@@ -230,6 +231,7 @@ async def live(client, monkeypatch, scenario_user):
     await call("license_activate_response", "POST", "/v1/licenses/activate",
                json={"key": minted["key"]}, headers=device)
     await call("me_response", "GET", "/v1/me")
+    await call("erasure_response", "GET", "/v1/me/erasure", headers=device)
     await call("config_response", "GET", "/v1/config")
     await call("consent_update", "PUT", "/v1/me/consents", json=_fixture("consent_update_request"))
     await call("challenge_response", "POST", "/v1/challenge", headers=device)

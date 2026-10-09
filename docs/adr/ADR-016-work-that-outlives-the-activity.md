@@ -140,10 +140,11 @@ time, a `StateFlow`, and a consume.
   is the one that writes down how far it got: `AccountDeletionMarker` is
   committed before the erase is sent and when it answers, and the next
   process finishes the wipe and sign-out (`AccountDeletionRun.resumeInterrupted`).
-  An erase that never answered is settled by a device-signed probe
-  (`CloudErase.probeErasedAccount`): wiped only when the account is known
-  gone, asked again at the next start when there is no answer. Tests:
-  `AccountDeletionDeathTest`, `test_account_deletion_probe.py`.
+  An erase that never answered is settled by asking `GET /v1/me/erasure`
+  (`CloudErase.probeErasedAccount`), which reads the ID token alone so the
+  question does not re-create the erased profile (TD-206): wiped only when
+  the account is known gone, asked again at the next start when there is no
+  answer. Tests: `AccountDeletionDeathTest`, `test_account_deletion_probe.py`.
 - The wizard's run outcome was a `SharedFlow` with no replay, collected only
   while the wizard was started, so an outcome emitted while it was in the
   background was dropped (TD-168). It is now held until consumed

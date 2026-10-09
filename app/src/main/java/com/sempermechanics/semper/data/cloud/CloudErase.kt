@@ -5,9 +5,9 @@ import com.sempermechanics.semper.data.account.AuthRepository
 import com.sempermechanics.semper.data.cloud.CloudSync.AccountDeletion
 import com.sempermechanics.semper.data.cloud.CloudSync.AccountProbe
 import com.sempermechanics.semper.data.cloud.CloudSync.EraseOutcome
-import com.sempermechanics.semper.data.net.ApiErrors
 import com.sempermechanics.semper.data.net.Authed
 import com.sempermechanics.semper.data.net.CloudApi
+import com.sempermechanics.semper.data.net.ErasureStatus
 import com.sempermechanics.semper.data.net.HttpFailure
 import com.sempermechanics.semper.data.net.TokenSource
 import com.sempermechanics.semper.data.net.authed
@@ -108,49 +108,33 @@ internal object CloudErase {
     }
 
     /**
-     * A session id no backend session has (they are uuid4 hex), so the probe's
-     * route answers 404 `session_not_found` for an account that still exists.
-     */
-    const val PROBE_SESSION_ID = "account-deletion-probe"
-
-    /**
      * Whether the account this phone is signed in to was erased, for a deletion
      * whose erase was sent and never answered.
      *
-     * `DELETE /v1/me` cannot be asked again to find out: it is device-signed,
-     * and the erase removed the device record. Neither can `GET /v1/me`: any
-     * authenticated call re-creates an empty profile for an erased account
-     * (`get_or_create_user`, `backend/app/repo/users.py:170`), approved for an
-     * auto-approved address, so a 200 does not mean the old account is there.
-     * What tells them apart is that device record, so the probe is a
-     * device-signed read with nothing behind it ([PROBE_SESSION_ID]):
+     * `DELETE /v1/me` cannot be asked again: it is device-signed, and the
+     * erase removed the device record. Nor can any route behind the backend's
+     * `current_user`, `GET /v1/me` included: it re-creates an empty profile for
+     * an erased account (`get_or_create_user`), and mails support when that
+     * profile is pending. `GET /v1/me/erasure` checks the ID token alone and
+     * answers whether this phone's device record is gone (TD-206):
      *
-     * - 409 `device_not_active`: the device record is gone, so the erase landed.
-     * - 403 `not_approved`: the profile is a new, pending one (the erase needed
-     *   an approved account), so the erase landed.
-     * - 404 `session_not_found`: the device and account are still there.
-     * - Anything else (no network, a 5xx, no token) says nothing.
+     * - `erased: true`: the erase landed.
+     * - `erased: false`: the account and this phone's record are still there
+     *   (a reset or superseded device keeps its record, so it reads as here).
+     * - Anything else (no network, a 5xx, no token, a backend without the
+     *   route) says nothing, and the next start asks again.
      */
     suspend fun probeErasedAccount(api: CloudApi, tokens: TokenSource): AccountProbe =
-        api.authed(tokens) { token -> listSessionUploads(token, PROBE_SESSION_ID) }.toProbe()
+        api.authed(tokens) { token -> getErasureStatus(token) }.toProbe()
 
     /** What [probeErasedAccount]'s answer means; see there. */
-    fun Authed<*>.toProbe(): AccountProbe = when (this) {
-        // The route answering 200 for no session cannot happen; if it did, the account is there.
-        is Authed.Ok -> AccountProbe.STILL_THERE
+    fun Authed<ErasureStatus>.toProbe(): AccountProbe = when (this) {
+        is Authed.Ok -> if (value.erased) AccountProbe.GONE else AccountProbe.STILL_THERE
         // No backend: there was nothing to erase.
         Authed.Disabled -> AccountProbe.STILL_THERE
         Authed.NoToken -> AccountProbe.UNKNOWN
-        is Authed.Failed -> failure.toProbe()
-    }
-
-    private fun HttpFailure.toProbe(): AccountProbe = when {
-        kind == HttpFailure.Kind.DEVICE_NOT_ACTIVE || kind == HttpFailure.Kind.NOT_APPROVED -> AccountProbe.GONE
-        kind == HttpFailure.Kind.FORBIDDEN && ApiErrors.hasCode(body, ApiErrors.NOT_APPROVED) -> AccountProbe.GONE
-        kind == HttpFailure.Kind.NOT_FOUND && ApiErrors.hasCode(body, ApiErrors.SESSION_NOT_FOUND) ->
-            AccountProbe.STILL_THERE
-        else -> {
-            Timber.w(cause, "Could not tell whether the account was erased (%s)", kind)
+        is Authed.Failed -> {
+            Timber.w(failure.cause, "Could not tell whether the account was erased (%s)", failure.kind)
             AccountProbe.UNKNOWN
         }
     }

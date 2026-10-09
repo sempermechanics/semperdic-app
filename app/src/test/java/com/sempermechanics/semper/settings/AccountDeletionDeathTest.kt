@@ -14,6 +14,7 @@ import com.sempermechanics.semper.data.net.AccountCache
 import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.Authed
 import com.sempermechanics.semper.data.net.DeviceNotActiveException
+import com.sempermechanics.semper.data.net.ErasureStatus
 import com.sempermechanics.semper.data.net.HttpFailure
 import com.sempermechanics.semper.data.net.NotApprovedException
 import com.sempermechanics.semper.data.prefs.AccountDeletionMarker
@@ -237,29 +238,23 @@ class AccountDeletionDeathTest {
 
     @Test
     fun `death before the answer, account gone, is wiped and signed out`() {
-        for (gone in listOf(DeviceNotActiveException(), ApiException(403, """{"detail":"not_approved"}"""))) {
-            seedAnalysis()
-            startAndDieDuringErase()
-            assertEquals(Stage.REQUESTED, AccountDeletionMarker.read(app)?.stage)
-            api.onListSessionUploads = { _, sid ->
-                assertEquals(CloudErase.PROBE_SESSION_ID, sid)
-                throw gone
-            }
+        seedAnalysis()
+        startAndDieDuringErase()
+        assertEquals(Stage.REQUESTED, AccountDeletionMarker.read(app)?.stage)
+        api.onErasureStatus = { ErasureStatus(erased = true) }
 
-            assertEquals(State.Done(Outcome.DELETED), resume())
+        assertEquals(State.Done(Outcome.DELETED), resume())
 
-            assertTrue("the phone copy is wiped after $gone", SessionStore.list(app).isEmpty())
-            assertEquals(listOf("identity", "wipe", "signOut"), steps)
-            assertNull(AccountDeletionMarker.read(app))
-            AccountDeletionRun.consume()
-        }
+        assertTrue("the phone copy is wiped", SessionStore.list(app).isEmpty())
+        assertEquals(listOf("identity", "wipe", "signOut"), steps)
+        assertNull(AccountDeletionMarker.read(app))
     }
 
     @Test
     fun `death before the answer, account still there, touches nothing and forgets`() {
         seedAnalysis()
         startAndDieDuringErase()
-        api.onListSessionUploads = { _, _ -> throw ApiException(404, """{"detail":"session_not_found"}""") }
+        api.onErasureStatus = { ErasureStatus(erased = false) }
 
         assertEquals(State.Idle, resume())
 
@@ -272,7 +267,7 @@ class AccountDeletionDeathTest {
     fun `no answer at the next start keeps everything for the start after`() {
         seedAnalysis()
         startAndDieDuringErase()
-        api.onListSessionUploads = { _, _ -> throw IOException("offline") }
+        api.onErasureStatus = { throw IOException("offline") }
 
         assertEquals(State.Idle, resume())
 
@@ -282,7 +277,7 @@ class AccountDeletionDeathTest {
 
         // The start after has the network back.
         die()
-        api.onListSessionUploads = { _, _ -> throw DeviceNotActiveException() }
+        api.onErasureStatus = { ErasureStatus(erased = true) }
         assertEquals(State.Done(Outcome.DELETED), resume())
         assertTrue(SessionStore.list(app).isEmpty())
     }
@@ -295,7 +290,7 @@ class AccountDeletionDeathTest {
 
         assertEquals(State.Idle, resume())
 
-        assertFalse("the backend is not asked", "listSessionUploads" in api.calls)
+        assertFalse("the backend is not asked", "getErasureStatus" in api.calls)
         assertEquals(1, SessionStore.list(app).size)
         assertNull(AccountDeletionMarker.read(app))
     }
@@ -332,7 +327,7 @@ class AccountDeletionDeathTest {
 
         assertEquals(State.Idle, resume())
 
-        assertFalse("listSessionUploads" in api.calls)
+        assertFalse("getErasureStatus" in api.calls)
         assertEquals(Stage.REQUESTED, AccountDeletionMarker.read(app)?.stage)
     }
 
@@ -352,7 +347,7 @@ class AccountDeletionDeathTest {
     fun `a probe that says gone is recorded, so a death during the wipe needs no second probe`() {
         startAndDieDuringErase()
         val finishing = CompletableDeferred<Unit>()
-        api.onListSessionUploads = { _, _ -> throw DeviceNotActiveException() }
+        api.onErasureStatus = { ErasureStatus(erased = true) }
         AccountDeletionRun.finish = { _, _ ->
             finishing.complete(Unit)
             awaitCancellation()
@@ -384,38 +379,34 @@ class AccountDeletionDeathTest {
     // ── What the probe's answer means ──────────────────────────────────────
 
     @Test
-    fun `the probe reads only a device or approval refusal as gone`() {
-        fun failed(e: Exception): Authed<Unit> = Authed.Failed(HttpFailure.classify(e))
+    fun `the probe reads only the backend's erased answer as gone`() {
+        fun failed(e: Exception): Authed<ErasureStatus> = Authed.Failed(HttpFailure.classify(e))
         val cases = mapOf(
-            failed(DeviceNotActiveException()) to AccountProbe.GONE,
-            failed(NotApprovedException()) to AccountProbe.GONE,
-            failed(ApiException(403, """{"detail":"not_approved"}""")) to AccountProbe.GONE,
-            failed(ApiException(404, """{"detail":"session_not_found"}""")) to AccountProbe.STILL_THERE,
-            Authed.Ok(Unit) to AccountProbe.STILL_THERE,
+            Authed.Ok(ErasureStatus(erased = true)) to AccountProbe.GONE,
+            Authed.Ok(ErasureStatus(erased = false)) to AccountProbe.STILL_THERE,
             Authed.Disabled to AccountProbe.STILL_THERE,
             Authed.NoToken to AccountProbe.UNKNOWN,
+            // The old probe read these two as gone; the new route never sends them.
+            failed(DeviceNotActiveException()) to AccountProbe.UNKNOWN,
+            failed(NotApprovedException()) to AccountProbe.UNKNOWN,
             failed(IOException("offline")) to AccountProbe.UNKNOWN,
             failed(ApiException(503, "")) to AccountProbe.UNKNOWN,
             failed(ApiException(429, "")) to AccountProbe.UNKNOWN,
             failed(ApiException(401, """{"detail":"invalid_token"}""")) to AccountProbe.UNKNOWN,
-            failed(ApiException(403, """{"detail":"app_check_required"}""")) to AccountProbe.UNKNOWN,
+            // A backend from before the route: ask again at the next start.
             failed(ApiException(404, "Not Found")) to AccountProbe.UNKNOWN,
         )
         for ((answer, probe) in cases) assertEquals("$answer", probe, answer.toProbe())
     }
 
     @Test
-    fun `the probe sends one device-signed read for a session nobody has`() {
-        val probed = mutableListOf<String>()
-        api.onListSessionUploads = { _, sid ->
-            probed += sid
-            throw DeviceNotActiveException()
-        }
+    fun `the probe asks the erasure route once and nothing else`() {
+        api.onErasureStatus = { ErasureStatus(erased = true) }
 
         val probe = runBlocking { CloudErase.probeErasedAccount(api, FakeTokens()) }
 
         assertEquals(AccountProbe.GONE, probe)
-        assertEquals(listOf(CloudErase.PROBE_SESSION_ID), probed)
+        assertEquals(listOf("getErasureStatus"), api.calls)
     }
 
     private companion object {

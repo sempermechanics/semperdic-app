@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field
 
 from .. import audit, drive, errors, repo, legal
 from .. import rate_limit
-from ..deps import any_status_user, current_user, rate_limited, verified_device
+from ..deps import any_status_user, current_user, rate_limited, token_uid, verified_device
+from ..validation import require_header_identifier
 from ._shared import json_dumps
 
 log = logging.getLogger("semper")
@@ -214,6 +215,30 @@ def export_account(ctx=Depends(verified_device)):
             "Cache-Control": "no-store",
         },
     )
+
+
+@router.get("/v1/me/erasure")
+def erasure_status(uid: str = Depends(token_uid), x_device_id: str = Header(default="")):
+    """Whether the account this phone was registered to has been erased.
+
+    For an account deletion whose `DELETE /v1/me` was sent and never answered
+    (the app's process died): the next start asks here before it wipes the
+    phone. Erased is "this phone's device record is gone, or someone else's":
+    the erase deletes the account's device records, and nothing else ever
+    does (a superseded or revoked device keeps its record with another
+    status), so an admin's device reset does not read as an erase.
+
+    Token-only (`token_uid`): any route behind `current_user` re-creates a
+    profile for the erased uid, and mails support when it is pending, which is
+    what the app's earlier device-signed probe did (TD-206). The answer names
+    only the caller's own device, so it tells a token holder nothing about
+    anyone else. Rate-limited in the handler: `rate_limited` goes through
+    `current_user`.
+    """
+    rate_limit.enforce(rate_limit.erase_bucket, uid)
+    device_id = require_header_identifier(x_device_id, name="device_id", maximum=128)
+    device = repo.get_device(device_id)
+    return {"erased": device is None or device.get("uid") != uid}
 
 
 @router.delete("/v1/me", dependencies=[rate_limited(rate_limit.erase_bucket)])

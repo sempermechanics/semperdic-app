@@ -31,6 +31,7 @@ from app.deps import (
     attested_or_mfa_admin_fresh,
     attested_or_mfa_user,
     current_user,
+    token_uid,
     verified_device,
 )
 from app.main import app
@@ -44,6 +45,10 @@ ANY_STATUS = "any-status"
 # Not a user tier: authenticated by the OIDC token Cloud Tasks attaches, and
 # reachable by nothing else — no ID token or device signature will open it.
 TASK = "cloud-task"
+# A verified ID token and nothing more: no profile is read or created. Only the
+# erasure check, which must ask about an erased account without re-creating it
+# (TD-206), and which answers about the caller's own device alone.
+TOKEN_ONLY = "token-only"
 # Institution IT self-service: membership in adminEmails plus dashboard MFA
 # (institution_admin_stepup). Membership is checked before MFA so a foreign
 # licence still 404s. Deliberately distinct from ADMIN/DEVICE_ADMIN.
@@ -74,6 +79,7 @@ EXPECTED = {
     ("GET", "/healthz"): NONE,                                  # liveness probe
     ("GET", "/readyz"): NONE,                                   # readiness probe
     ("GET", "/v1/me"): USER,
+    ("GET", "/v1/me/erasure"): TOKEN_ONLY,
     ("GET", "/v1/config"): USER,
     ("GET", "/v1/me/export"): DEVICE,
     ("POST", "/v1/me/terms"): ANY_STATUS,                       # clickwrap runs before approval
@@ -197,6 +203,8 @@ def _tier(route) -> str:
         return USER
     if any_status_user in calls:
         return ANY_STATUS
+    if token_uid in calls:
+        return TOKEN_ONLY
     return NONE
 
 

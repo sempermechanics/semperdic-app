@@ -3,6 +3,7 @@ package com.sempermechanics.semper.cloud
 import com.sempermechanics.semper.data.net.AdminUserDto
 import com.sempermechanics.semper.data.net.AppConfigDto
 import com.sempermechanics.semper.data.net.CloudApi
+import com.sempermechanics.semper.data.net.ErasureStatus
 import com.sempermechanics.semper.data.net.FileCompleteRequest
 import com.sempermechanics.semper.data.net.MeResponse
 import com.sempermechanics.semper.data.net.SessionCreateRequest
@@ -27,6 +28,7 @@ class FakeCloudApi(override var enabled: Boolean = true) : CloudApi {
     val calls = mutableListOf<String>()
 
     var onMe: suspend (String) -> MeResponse = { unscripted("getMe") }
+    var onErasureStatus: suspend (String) -> ErasureStatus = { unscripted("getErasureStatus") }
     var onGetConfig: suspend (String) -> AppConfigDto = { unscripted("getConfig") }
     var onExportAccount: suspend (String, File) -> Unit = { _, _ -> unscripted("exportAccount") }
     var onRegisterDevice: suspend (String) -> Unit = { unscripted("registerDevice") }
@@ -44,6 +46,8 @@ class FakeCloudApi(override var enabled: Boolean = true) : CloudApi {
         { _, _, _ -> unscripted("replaceSessionMetadata") }
 
     override suspend fun getMe(idToken: String) = record("getMe") { onMe(idToken) }
+
+    override suspend fun getErasureStatus(idToken: String) = record("getErasureStatus") { onErasureStatus(idToken) }
 
     override suspend fun getConfig(idToken: String) = record("getConfig") { onGetConfig(idToken) }
 

@@ -84,6 +84,7 @@ def test_static_segments_are_not_ids():
         "/v1/admin/licenses/{id}/revoke",
     )
     assert obs.classify_route("PUT", "/v1/me/consents")[0] == "account"
+    assert obs.classify_route("GET", "/v1/me/erasure")[0] == "account"
     assert obs.classify_route("POST", "/v1/me/terms")[0] == "account"
 
 

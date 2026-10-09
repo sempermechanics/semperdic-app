@@ -90,6 +90,15 @@ class SemperApi @VisibleForTesting internal constructor(
         calls.bearer(idToken, { url(endpoint("/v1/me")) }, ApiAnswer::failMe) { decode(it) }
 
     /**
+     * GET /v1/me/erasure — whether this phone's account was erased. The backend
+     * checks the ID token alone, so asking does not re-create the profile of
+     * an erased account (TD-206); the answer is about this phone's device id,
+     * which [SemperApiCalls.bearer] sends.
+     */
+    override suspend fun getErasureStatus(idToken: String): ErasureStatus =
+        calls.bearer(idToken, { url(endpoint("/v1/me/erasure")) }) { decode(it) }
+
+    /**
      * GET /v1/config — resolved product limits for this account.
      *
      * At launch the status check and the cloud reconcile both ask for it within

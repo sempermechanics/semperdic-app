@@ -4,6 +4,7 @@ import com.sempermechanics.semper.data.net.AppConfigDto
 import com.sempermechanics.semper.data.net.ChallengeResponse
 import com.sempermechanics.semper.data.net.ConsentUpdateRequest
 import com.sempermechanics.semper.data.net.DeviceRegisterRequest
+import com.sempermechanics.semper.data.net.ErasureStatus
 import com.sempermechanics.semper.data.net.FileCompleteRequest
 import com.sempermechanics.semper.data.net.LicenseActivateRequest
 import com.sempermechanics.semper.data.net.LicenseActivateResponse
@@ -88,6 +89,11 @@ class ApiDtosContractTest {
         }
 
     // ------------------------------------------------------------ responses
+
+    @Test
+    fun `erasure response decodes the backend's answer`() {
+        assertEquals(ErasureStatus(erased = false), response<ErasureStatus>("erasure_response"))
+    }
 
     @Test
     fun `me response decodes the backend's answer including snake_case keys`() {

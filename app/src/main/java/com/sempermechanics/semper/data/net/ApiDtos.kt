@@ -12,6 +12,10 @@ private const val DEFAULT_UPLOAD_CHUNK_BYTES = 8 * 1024 * 1024
  * docs/backend/CLOUD_ARCHITECTURE_GCP.md for the full API.
  */
 
+/** GET /v1/me/erasure: whether this phone's account was erased (TD-206). */
+@Serializable
+data class ErasureStatus(val erased: Boolean)
+
 @Serializable
 data class MeResponse(
     val uid: String,

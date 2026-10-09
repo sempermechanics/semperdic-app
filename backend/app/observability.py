@@ -98,7 +98,7 @@ def classify_route(method: str, path: str) -> tuple[str, str]:
         return "attest", template
     if template == "/v1/me" and method_u == "DELETE":
         return "account", template
-    if template in {"/v1/me/export", "/v1/me/consents", "/v1/me/terms"}:
+    if template in {"/v1/me/export", "/v1/me/consents", "/v1/me/terms", "/v1/me/erasure"}:
         return "account", template
     if template in {"/v1/me", "/v1/devices/register"}:
         return "login", template
