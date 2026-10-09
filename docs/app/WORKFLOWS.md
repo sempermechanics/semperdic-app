@@ -497,7 +497,7 @@ extraction show determinate progress and time left instead.
 | [ ] 5.5.4e | Drag across the strain plot | Every curve's value at that position, each in its own curve's colour |
 | [ ] 5.5.4b | Run a sweep where **every** combination fails | The Lattice opens — not the parameter screen — all nodes hollow, summary says all failed, tapping the summary opens the VSG FAQ confirm, and **View** and **Save graph** are both disabled |
 | [ ] 5.5.5 | Finish a sweep cleanly | Lattice opens with every node filled |
-| [ ] 5.5.6 | Hit the quota during a run | Session limit screen |
+| [ ] 5.5.6 | Start a new run at the quota | Session limit screen, before any solving. A run already under way when the quota fills still saves (§9, 9.7) |
 | [ ] 5.5.7 | Re-run with the same inputs after changing a parameter | The same Home row is updated, not duplicated. A sweep re-run updates the sweep's row the same way |
 | [ ] 5.5.7a | Run a single analysis, switch to **Parameter sweep** and run it (or the other way round) | A second Home row: changing the run kind is like new inputs, and counts towards the quota. The earlier row keeps its frames, name and results, and opens as before. Switch back and run again, and that is a new row too |
 | [ ] 5.5.8 | Change the inputs and run again | A new Home row is created |
@@ -796,6 +796,38 @@ sweep hitting the cap, or a background upload rejected with a quota error.
 | [ ] 9.4 | Tap **Re-check** while still at the cap | "Still at the limit" |
 | [ ] 9.5 | Delete an analysis elsewhere, then tap **Re-check** | The screen closes and you can start a new analysis |
 | [ ] 9.6 | Tap **Back to my analyses** | Home |
+| [ ] 9.7 | Start a run one under the cap, and let the cap fill while it solves (another phone's backup, or an upload refused as full) | The run saves its row; the next new run is blocked |
+
+**The rule.** One function decides whether the account may add an analysis,
+`SessionQuota.blocked(context, liveRows)` (`data/session/SessionQuota.kt`), and
+every check asks it: Home's **+**, cold start, quota chip and reconcile
+(`HomeQuotaCard`), this screen's **Re-check**, the wizard's start check
+(`AnalysisNavHelper.ensureSessionQuota`), the run's own start check on the native
+thread (`admitRun` in `ui/analysis/wizard/RunChannels.kt`), and the save of a new
+row (`SessionStore.save`). In order:
+
+1. No backend (`CloudApi.enabled` false: a build with no API URL, or the dev-auth
+   bypass) → no cap.
+2. Licensed with no `/v1/config` yet (`LicenseEntitlements.hasUnlimitedAnalysis`)
+   → no cap.
+3. The server has said full → blocked. An upload refused with 409
+   `session_quota_exceeded` forces the stop (`AccountCache.setSessionLimitReached`);
+   fresh server numbers (`setQuota`) or a delete on the phone
+   (`onLocalSessionsRemoved`) lift it.
+4. Otherwise blocked when the larger of the server's last count and the phone's
+   rows reaches `LicenseEntitlements.analysisCap()`. The phone's rows are the
+   session index's: a check off the main thread counts them, and a tap on the main
+   thread reads the count `SessionStore` stores with every write of the index
+   (`SessionQuota.blockedNow`).
+
+Only **starting** a new analysis is blocked. A batch or sweep the run's start
+check admitted as a new row (`RunAdmission.Admitted`) saves it even if the cap
+fills while it solves: the save passes `allowOverLimit`, as a cloud restore does.
+A re-run over an existing row is not checked at its start and updates that row;
+if the row was deleted meanwhile, its save is a new row with no admission, the
+rule applies, and a refusal ends the run as `RunStop.SessionLimit` (`afterSave`).
+The backend counts account-wide (every app and phone) and refuses only at
+`POST /v1/sessions`, the upload.
 
 **Where the cap (`M`) comes from.** `LicenseEntitlements.analysisCap()` reads
 `AppRemoteConfig`, which is populated from the backend's `GET /v1/config` (see

@@ -29,6 +29,7 @@ import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.prefs.AppSettings
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.fixtures.CleanAppState
+import com.sempermechanics.semper.fixtures.QuotaBackendOn
 import com.sempermechanics.semper.fixtures.idleUntil
 import com.sempermechanics.semper.fixtures.sessionRecord
 import com.sempermechanics.semper.navigation.IntentKeys
@@ -60,6 +61,10 @@ class HomeControllersTest {
 
     @get:Rule
     val clean = CleanAppState()
+
+    /** The limit screen opens only where the quota has a backend to cap it. */
+    @get:Rule
+    val backend = QuotaBackendOn()
 
     private val context: Context = ApplicationProvider.getApplicationContext()
     private lateinit var activity: AppCompatActivity

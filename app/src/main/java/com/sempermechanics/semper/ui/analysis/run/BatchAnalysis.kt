@@ -26,9 +26,10 @@ import com.sempermechanics.semper.ui.analysis.recommend.RunEstimate
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.BatchAnalysisOutcome
 import com.sempermechanics.semper.ui.analysis.wizard.BatchProgressUpdate
+import com.sempermechanics.semper.ui.analysis.wizard.RunAdmission
+import com.sempermechanics.semper.ui.analysis.wizard.admitRun
 import com.sempermechanics.semper.ui.analysis.wizard.openRunSession
 import com.sempermechanics.semper.ui.analysis.wizard.repointDeformedPathsOnMain
-import com.sempermechanics.semper.ui.analysis.wizard.sessionLimitOutcome
 import kotlinx.coroutines.ensureActive
 import timber.log.Timber
 import java.io.File
@@ -56,14 +57,15 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     onProgress: (BatchProgressUpdate) -> Unit,
 ): BatchAnalysisOutcome {
     val spec = run.spec
-    val limited = sessionLimitOutcome(appContext, defFilePaths.size, sweep = false)
-    if (limited != null) {
+    // Admitted here, the run saves its session even if the cap fills meanwhile.
+    val admission = admitRun(appContext, defFilePaths.size, sweep = false)
+    if (admission is RunAdmission.Blocked) {
         SemperAnalytics.event(
             appContext,
             SemperAnalytics.ANALYSIS_FAILED,
             mapOf("mode" to "batch", "reason" to "session_limit"),
         )
-        return limited
+        return admission.outcome
     }
 
     // Results live in app-private persistent storage (NOT cacheDir, which
@@ -373,7 +375,7 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
             plannedFrameCount = plannedFrames.also { lastPlannedFrames = it },
         )
         val record = sessions.buildSessionRecord(appContext, input, outcome, cloudEnabled)
-        val saved = afterSave(stop, saveRunRecord(appContext, record, cloudEnabled))
+        val saved = afterSave(stop, saveRunRecord(appContext, record, cloudEnabled, admission.admitted))
         stop = saved.stop
         recordSaved = saved.recordSaved
         indexUnavailable = saved.indexUnavailable
@@ -420,9 +422,11 @@ internal data class AfterSave(val stop: RunStop, val recordSaved: Boolean, val i
 
 /**
  * What the save [result] of a run that stopped with [stop] makes of it. A full
- * quota (the limit filled between the pre-check and the save) stops the run
- * as [RunStop.SessionLimit], whatever stopped it; an index that could not be
- * read or written is not the quota, and leaves [stop] as it was.
+ * quota stops the run as [RunStop.SessionLimit], whatever stopped it; only a
+ * save no start check admitted can meet one (a re-run whose row was deleted
+ * meanwhile), since an admitted run saves past the cap ([RunAdmission]). An
+ * index that could not be read or written is not the quota, and leaves [stop]
+ * as it was.
  */
 internal fun afterSave(stop: RunStop, result: SessionStore.UpsertOutcome): AfterSave = when (result) {
     SessionStore.UpsertOutcome.SAVED -> AfterSave(stop, recordSaved = true, indexUnavailable = false)

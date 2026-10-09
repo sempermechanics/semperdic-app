@@ -6,7 +6,7 @@ import com.sempermechanics.semper.cloud.FakeCloudApi
 import com.sempermechanics.semper.data.net.AccountCache
 import com.sempermechanics.semper.data.net.AppConfigDto
 import com.sempermechanics.semper.data.net.AppRemoteConfig
-import com.sempermechanics.semper.data.session.SessionQuotaGate
+import com.sempermechanics.semper.data.session.SessionQuota
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.fixtures.CleanAppState
@@ -153,8 +153,8 @@ class SessionStoreAtomicTest {
     @Test
     fun `save refuses a new row at a full quota but still updates an existing one`() {
         // Cloud on: a build with no API URL (CI) would otherwise skip the quota.
-        val realApi = SessionQuotaGate.api
-        SessionQuotaGate.api = { FakeCloudApi() }
+        val realApi = SessionQuota.api
+        SessionQuota.api = { FakeCloudApi() }
         try {
             AppRemoteConfig.apply(ctx, AppConfigDto(maxSessions = 1, maxFilesPerSession = 600, maxFrames = 150))
             assertEquals(SessionStore.UpsertOutcome.SAVED, SessionStore.save(ctx, record("a", 1)))
@@ -168,7 +168,7 @@ class SessionStoreAtomicTest {
                 SessionStore.save(ctx, record("c", 4), allowOverLimit = true),
             )
         } finally {
-            SessionQuotaGate.api = realApi
+            SessionQuota.api = realApi
             AccountCache.clear(ctx)
         }
     }

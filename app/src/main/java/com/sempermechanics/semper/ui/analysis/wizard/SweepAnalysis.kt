@@ -56,24 +56,29 @@ private fun AnalysisViewModel.runSweepBody(
     val plan = sweep.plan
     sweepEvent(appContext, SemperAnalytics.ANALYSIS_STARTED, "frames" to SemperAnalytics.frameCountBucket(plan.size))
     val bytes = refBytes ?: error("Reference missing")
-    val startedAt = System.currentTimeMillis()
 
-    val limited = sessionLimitOutcome(appContext, plan.size, sweep = true)
-    if (limited != null) {
+    // Admitted here, the sweep saves its session even if the cap fills meanwhile.
+    val admission = admitRun(appContext, plan.size, sweep = true)
+    if (admission is RunAdmission.Blocked) {
         sweepEvent(appContext, SemperAnalytics.ANALYSIS_FAILED, "reason" to "session_limit")
-        return limited
+        return admission.outcome
     }
-    return solveSweep(appContext, spec, bytes, startedAt, onProgress)
+    return solveSweep(appContext, spec, bytes, admission.admitted, onProgress)
 }
 
-/** Solves every combination of [spec]'s plan against [bytes] and saves the ones that solved. */
+/**
+ * Solves every combination of [spec]'s plan against [bytes] and saves the
+ * ones that solved; [admitted] is whether the quota let the sweep start as a
+ * new session, so its save goes through if the cap fills meanwhile.
+ */
 private fun AnalysisViewModel.solveSweep(
     appContext: Context,
     spec: RunSpec,
     bytes: ByteArray,
-    startedAt: Long,
+    admitted: Boolean,
     onProgress: (SweepStudyRunner.Progress) -> Unit,
 ): BatchAnalysisOutcome {
+    val startedAt = System.currentTimeMillis()
     val sweep = checkNotNull(spec.sweep)
     val plan = sweep.plan
     // Its own session, never a single run's: a sweep after one is a new record.
@@ -126,7 +131,11 @@ private fun AnalysisViewModel.solveSweep(
         )
     }
 
-    return finishSolvedSweep(appContext, SweepSession(localSessionId, batchDir, bytes, result, spec, executionTimeMs))
+    return finishSolvedSweep(
+        appContext,
+        SweepSession(localSessionId, batchDir, bytes, result, spec, executionTimeMs),
+        admitted = admitted,
+    )
 }
 
 /**
@@ -134,15 +143,18 @@ private fun AnalysisViewModel.solveSweep(
  * and says how it ended, reading the save as a batch run's is ([afterSave]):
  * a full quota ends it at the session limit, and an index that could not be
  * read or written as not saved. [cloudEnabled] is whether a saved session
- * queues its upload.
+ * queues its upload. [admitted] is a sweep the quota let start as a new
+ * session ([RunAdmission.Admitted]): its save goes through though the cap
+ * filled while it solved.
  */
 @WorkerThread
 internal fun AnalysisViewModel.finishSolvedSweep(
     appContext: Context,
     run: SweepSession,
     cloudEnabled: Boolean = CloudSync.uploadsEnabled(appContext),
+    admitted: Boolean = false,
 ): BatchAnalysisOutcome {
-    val saved = persistSweepSession(appContext, run, cloudEnabled)
+    val saved = persistSweepSession(appContext, run, cloudEnabled, admitted)
     val outcome = BatchAnalysisOutcome(
         engineErrorCode = saved.stop.wireCode,
         firstFrameValidPoints = run.result.runs.first().pointsSolved,
@@ -202,6 +214,7 @@ private fun AnalysisViewModel.persistSweepSession(
     appContext: Context,
     run: SweepSession,
     cloudEnabled: Boolean,
+    admitted: Boolean,
 ): AfterSave {
     val result = run.result
     val sweep = checkNotNull(run.spec.sweep)
@@ -257,7 +270,10 @@ private fun AnalysisViewModel.persistSweepSession(
         sweepSkippedNodes = this.sweepSkippedNodes,
         headline = summary.headline,
     )
-    return afterSave(RunStop.fromWireCode(result.engineErrorCode), saveRunRecord(appContext, record, cloudEnabled))
+    return afterSave(
+        RunStop.fromWireCode(result.engineErrorCode),
+        saveRunRecord(appContext, record, cloudEnabled, admitted),
+    )
 }
 
 /** The Home-list name, headline and per-frame labels of a finished sweep. */

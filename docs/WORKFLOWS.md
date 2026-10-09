@@ -243,7 +243,8 @@ demand, never on open; report compositing is capped at
 ### A9 Session limit
 
 `ui/limit/SessionLimitActivity` → `CloudSync.reconcile(deep = true)` +
-`AccountCache` quota → back to A3 when the cap clears. Reached from Home cold
+`SessionQuota.blocked` (the one quota rule, [app/WORKFLOWS.md §9](app/WORKFLOWS.md#9-session-limit))
+→ back to A3 when the cap clears. Reached from Home cold
 start, the FAB, the quota chip, a pre-run check (`AnalysisNavHelper.ensureSessionQuota`)
 or a quota rejection during B1. Not a paywall: the way past it is an email.
 
@@ -399,7 +400,7 @@ Tests: `diagnostics/SemperAnalyticsTest`.
 ### B12 Local session index
 
 `data/session/SessionStore` (atomic index write, `synchronized`, corruption flag) +
-`data/SessionRecord` + `data/session/SessionQuotaGate` + `data/session/SessionPaths` (the one
+`data/SessionRecord` + `data/session/SessionQuota` + `data/session/SessionPaths` (the one
 place that knows `frame_%04d.dat` and `raw_deformed/`).
 Tests: `session/SessionStoreAtomicTest`, `upgrade/PrefsUpgradeSmokeTest`.
 

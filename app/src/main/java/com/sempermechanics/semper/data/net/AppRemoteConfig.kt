@@ -66,7 +66,7 @@ object AppRemoteConfig {
 
     /**
      * Persist a successful config response. The session-limit hard stop is
-     * recomputed live by [AccountCache.isSessionLimitReached] from the used count
+     * recomputed live by `SessionQuota.blocked` from the used count
      * against [maxSessions], so storing the ceiling here is all that is needed —
      * no write back into AccountCache, no [localSessionCount] to fold in.
      *
