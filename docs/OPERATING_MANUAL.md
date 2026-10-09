@@ -682,8 +682,10 @@ from being local again, so freeing space is a reversible decision.
 
 <img src="images/settings.png" width="300" alt="Settings sections">
 
-**Cloud backup**: turn it on and it offers to back up what is already
-local. **Wi-Fi only** holds uploads until Wi-Fi. **Analyses data management**
+**Cloud backup**: turn **Save to cloud** on and it offers to back up what is
+already local; off, new analyses stay on the phone and existing cloud copies
+remain. **Wi-Fi only** holds uploads until Wi-Fi. The line under the switches
+says whether everything is backed up, or how many analyses are not. **Analyses data management**
 lists local and cloud together, with three actions per row:
 
 | Action | Does | Shows when |
@@ -696,13 +698,13 @@ Downloads and restores keep running if you leave Settings, and report back when
 they land.
 
 **Storage** is the section to reach for when the phone fills up. It measures what
-the analyses and the cache actually occupy, and gives you three tools:
+the analyses and the temporary files actually occupy, and gives you three tools:
 
 | Control | Does |
 |---|---|
-| **Free up space** | Drops the local frames of analyses that are already backed up. They become "Only in cloud" rows; nothing un-backed-up is touched |
-| **Clear cache** | Removes regenerable files — previews, exports waiting to be shared |
-| **Auto-free budget** | A slider, 0 (off) to 64 GB. Set it and the app reclaims space at start-up whenever usage is over the budget, oldest backed-up analyses first |
+| **Free up N MB** | Drops the local frames of analyses that are already backed up, N being what that frees. They become "Only in cloud" rows; nothing un-backed-up is touched. It shows only when there is something to free |
+| **Clear** | At the end of the **Temporary files** row: removes regenerable files — import leftovers, transfer scratch, exports waiting to be shared. Gone when there is nothing to clear |
+| **Auto-free space** | A slider, 0 (Off) to 64 GB, its value beside the title ("Over 8 GB"); the ⓘ explains it. Set it and the app reclaims space at start-up whenever usage is over the budget, oldest backed-up analyses first |
 
 **Background transfers survive leaving the screen and are honest about failure.**
 An upload or restore runs even if you navigate away, showing a system
@@ -785,7 +787,7 @@ Write above that block; leave it in place.
 | Cloud icon crossed out in red | The backup failed. Tap the icon — the dialog names why (device conflict, too large, ran out of memory) and offers **Try again** |
 | Restore never arrived | If it failed for good, Home and Settings both show a message saying so; otherwise it retries on a flaky network |
 | Row says "Only in cloud" | Its local frames were freed (by you, or by the auto-free budget). Tap it and choose **Restore** |
-| Phone out of space | **Settings → Storage → Free up space**, and consider setting an auto-free budget |
+| Phone out of space | **Settings → Storage → Free up N MB**, and consider setting an auto-free budget |
 | Still pending approval | Tap **Check status** — it never polls |
 | Sign-in refused after signing up | Open the verification link in your email, then try again |
 | Nothing here matches | **Settings → Help & support** — [Support](https://sempermechanics.com/support/) or **Email support** (the mail carries your account, device and build) |

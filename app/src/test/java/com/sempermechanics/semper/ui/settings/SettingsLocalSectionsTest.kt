@@ -17,11 +17,14 @@ import com.sempermechanics.semper.data.net.AppConfigDto
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.prefs.AppSettings
 import com.sempermechanics.semper.data.session.CacheJanitor
+import com.sempermechanics.semper.data.session.SessionPaths
+import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.fixtures.CleanAppState
 import com.sempermechanics.semper.fixtures.idleUntil
 import com.sempermechanics.semper.fixtures.sessionRecord
 import com.sempermechanics.semper.ui.admin.AdminActivity
+import com.sempermechanics.semper.ui.common.ByteSize
 import com.sempermechanics.semper.ui.common.auth.SignOutRun
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -144,39 +147,94 @@ class SettingsLocalSectionsTest {
 
     // ── SettingsStorageSection ───────────────────────────────────────────
 
-    @Test
-    fun `a demo account has no free-up or auto-free controls, only the cache`() {
-        demo()
-        open()
+    /** A [state] analysis whose frame and raw image (2560 bytes) a free-up would drop. */
+    private fun seedSession(id: String, state: SessionRecord.SyncState) {
+        val dir = SessionStore.dirFor(context, id)
+        File(dir, "frame_0000.dat").writeText("d".repeat(512))
+        File(dir, "reference.png").writeText("ref")
+        File(dir, SessionPaths.RAW_DEFORMED_SUBDIR).apply { mkdirs() }
+            .let { File(it, "specimen.png").writeText("i".repeat(2048)) }
+        val record = sessionRecord(
+            id = id,
+            refPath = File(dir, "reference.png").absolutePath,
+            sessionDir = dir.absolutePath,
+            syncState = state,
+        )
+        assertTrue(SessionStore.upsert(context, record, allowOverLimit = true))
+    }
 
-        listOf(R.id.btnStorageFreeUp, R.id.tvStorageFreeUpSub, R.id.rowAutoFreeHeader, R.id.sliderAutoFree)
-            .forEach { assertEquals("view $it", View.GONE, view<View>(it).visibility) }
-        assertEquals(View.VISIBLE, view<View>(R.id.btnStorageClearCache).visibility)
+    /** Waits for the off-thread measure to fill in the sizes. */
+    private fun awaitStorageTotals() {
+        val measuring = settings.getString(R.string.storage_measuring)
+        idleUntil("the storage sizes to load") {
+            view<TextView>(R.id.tvStorageAnalysesSize).text.toString() != measuring
+        }
     }
 
     @Test
-    fun `Clear deletes the temporary files and disables itself once nothing is left`() {
+    fun `a demo account has no free-up or auto-free controls, even with a backed-up analysis`() {
+        demo()
+        seedSession("synced", SessionRecord.SyncState.SYNCED)
+        open()
+        awaitStorageTotals()
+
+        listOf(R.id.btnStorageFreeUp, R.id.rowAutoFreeHeader, R.id.tvAutoFreeValue, R.id.sliderAutoFree)
+            .forEach { assertEquals("view $it", View.GONE, view<View>(it).visibility) }
+        assertEquals(View.VISIBLE, view<View>(R.id.tvStorageCacheSize).visibility)
+    }
+
+    @Test
+    fun `Clear sits on the temporary files row and goes once nothing is left`() {
         demo()
         val leftover = File(context.cacheDir, CacheJanitor.TEMP_ROI_REF).apply { writeBytes(ByteArray(4096)) }
         open()
-        val clear = view<View>(R.id.btnStorageClearCache)
-        idleUntil("the cache size to load") { clear.isEnabled }
+        val clear = view<TextView>(R.id.btnStorageClearCache)
+        idleUntil("the cache size to load") { clear.visibility == View.VISIBLE }
+        assertTrue(clear.isEnabled)
+        assertEquals(settings.getString(R.string.storage_clear), clear.text.toString())
+        assertEquals(settings.getString(R.string.storage_clear_cache), clear.contentDescription)
         assertFalse(view<TextView>(R.id.tvStorageCacheSize).text.isNullOrBlank())
 
         clear.performClick()
-        idleUntil("the clear to finish") { !leftover.exists() && !clear.isEnabled }
+        idleUntil("the clear to finish") { !leftover.exists() && clear.visibility == View.GONE }
+        assertFalse(clear.isEnabled)
     }
 
     @Test
-    fun `with nothing backed up, free-up is disabled and says so, and auto-free reads off`() {
+    fun `with nothing backed up there is no free-up row, and auto-free reads Off`() {
         licensed()
+        seedSession("local", SessionRecord.SyncState.LOCAL_ONLY)
         AppSettings.setAutoFreeBudgetGb(context, AppSettings.AUTO_FREE_OFF)
         open()
+        awaitStorageTotals()
 
-        val sub = view<TextView>(R.id.tvStorageFreeUpSub)
-        idleUntil("the reclaimable size to load") { sub.text == settings.getString(R.string.storage_free_up_none) }
-        assertFalse(view<View>(R.id.btnStorageFreeUp).isEnabled)
-        assertEquals(settings.getString(R.string.storage_auto_free_off), view<TextView>(R.id.tvAutoFreeValue).text)
+        assertEquals(View.GONE, view<View>(R.id.btnStorageFreeUp).visibility)
+        assertEquals("Off", view<TextView>(R.id.tvAutoFreeValue).text.toString())
+        assertEquals(View.VISIBLE, view<View>(R.id.btnAutoFreeInfo).visibility)
+    }
+
+    @Test
+    fun `a backed-up analysis shows one free-up row naming what it frees`() {
+        licensed()
+        seedSession("synced", SessionRecord.SyncState.SYNCED)
+        seedSession("local", SessionRecord.SyncState.LOCAL_ONLY)
+        open()
+
+        val freeUp = view<TextView>(R.id.btnStorageFreeUp)
+        idleUntil("the reclaimable size to load") { freeUp.visibility == View.VISIBLE }
+        // Only the backed-up analysis's frame and raw image count.
+        assertEquals("Free up ${ByteSize.format(512L + 2048L)}", freeUp.text.toString())
+    }
+
+    @Test
+    fun `the auto-free value is short, Over N GB, with its meaning in the info dialog`() {
+        licensed()
+        AppSettings.setAutoFreeBudgetGb(context, 8)
+        open()
+
+        assertEquals("Over 8 GB", view<TextView>(R.id.tvAutoFreeValue).text.toString())
+        val info = settings.getString(R.string.storage_auto_free_info)
+        assertTrue(info, info.contains("stay on this phone until you remove them"))
     }
 
     @Test
@@ -186,10 +244,7 @@ class SettingsLocalSectionsTest {
         open()
 
         view<Slider>(R.id.sliderAutoFree).value = 8f
-        assertEquals(
-            settings.getString(R.string.storage_auto_free_on_fmt, 8),
-            view<TextView>(R.id.tvAutoFreeValue).text,
-        )
+        assertEquals("Over 8 GB", view<TextView>(R.id.tvAutoFreeValue).text.toString())
         // Only a drag by the user stores (and applies) a budget.
         assertEquals(AppSettings.AUTO_FREE_OFF, AppSettings.autoFreeBudgetGb(context))
     }

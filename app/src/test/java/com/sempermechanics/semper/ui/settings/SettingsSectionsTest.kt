@@ -78,14 +78,14 @@ class SettingsSectionsTest {
         open()
         val save = settings.findViewById<CompoundButton>(R.id.switchSaveCloud)
         val wifi = settings.findViewById<CompoundButton>(R.id.switchWifiOnly)
-        val sub = settings.findViewById<TextView>(R.id.tvSaveCloudSub)
         assertFalse(save.isChecked)
-        assertEquals(settings.getString(R.string.settings_save_cloud_sub_off), sub.text)
+        // No sub-lines: each switch says what it does to TalkBack instead.
+        assertEquals(settings.getString(R.string.settings_save_cloud_desc), save.contentDescription)
+        assertEquals(settings.getString(R.string.settings_wifi_only_desc), wifi.contentDescription)
 
         save.isChecked = true
         idle()
         assertTrue(AppSettings.saveToCloudEnabled(context))
-        assertEquals(settings.getString(R.string.settings_save_cloud_sub), sub.text)
 
         val wifiBefore = AppSettings.wifiOnlyUploadEnabled(context)
         wifi.isChecked = !wifi.isChecked

@@ -259,7 +259,7 @@ account data**.
 | [ ] 4.4 | Expand **Account** as an admin | The button appears and opens the admin list |
 | [ ] 4.5 | Turn **Save to cloud** on with local-only analyses present | A dialog offers to back up N of them |
 | [ ] 4.6 | Accept that offer | Uploads are queued; the cloud icons on Home move to "Upload pending" |
-| [ ] 4.7 | Turn **Save to cloud** off | Subtitle changes; no new uploads are queued |
+| [ ] 4.7 | Turn **Save to cloud** off | No new uploads are queued. Neither switch has a sub-line; with TalkBack each says what it does ("Save to cloud: new analyses upload when a network is available…", "Wi‑Fi only: wait for unmetered Wi‑Fi before uploading") |
 | [ ] 4.8 | Toggle **Wi-Fi only uploads** on, then queue an upload on mobile data | The upload waits for Wi-Fi |
 | [ ] 4.9 | Read the sync status line | "Up to date" or a pending count, matching the cloud icons on Home |
 | [ ] 4.10 | Expand **Analyses data management** | Merged local + cloud list; each row shows a state line |
@@ -280,12 +280,12 @@ account data**.
 | [ ] 4.17 | Confirm any backup delete, then tap **Undo** within 5 s | The row returns; nothing is deleted server-side |
 | [ ] 4.18 | Confirm and wait past the undo window | The backup is really gone after a refresh |
 | [ ] 4.18a | Expand **Storage** | Analyses and cache sizes are measured and shown, not left on "Measuring…" |
-| [ ] 4.18b | Tap **Free up space** with backed-up analyses present | A confirm dialog first, **naming how much it will reclaim** — only the frames, raw images and processed/staging folders it drops, not the kept `reference.png` / small files (`LocalArtifacts`), so the figure matches what is freed; accepting drops those local frames, the rows become "Only in cloud" on Home and the analyses total falls |
-| [ ] 4.18c | Tap it with nothing safely backed up | The button is **disabled** and the subtitle says there is nothing to free — it cannot strand un-backed-up data |
-| [ ] 4.18d | Tap **Clear cache** | The cache total drops; open analyses still work — only regenerable files go. At 0 bytes the button is disabled |
-| [ ] 4.18e | Drag the **auto-free** slider off 0 | The label names the budget in GB; at 0 it reads "off" |
+| [ ] 4.18b | Tap **Free up N MB** with backed-up analyses present (the row only shows then, its N what the backed-up analyses hold here) | A confirm dialog first, **naming how much it will reclaim** — only the frames, raw images and processed/staging folders it drops, not the kept `reference.png` / small files (`LocalArtifacts`), so the figure matches what is freed; accepting drops those local frames, the rows become "Only in cloud" on Home and the analyses total falls |
+| [ ] 4.18c | Look for it with nothing safely backed up | There is no free-up row at all — it cannot strand un-backed-up data. A demo account never has one |
+| [ ] 4.18d | Tap **Clear** at the end of the **Temporary files** row | The cache total drops; open analyses still work — only regenerable files go. At 0 bytes **Clear** is gone |
+| [ ] 4.18e | Drag the **auto-free** slider off 0 | The value at the header's end reads "Over N GB"; at 0 it reads "Off" |
 | [ ] 4.18f | Set a budget below current usage and restart the app | Space is reclaimed at start-up, oldest backed-up analyses first |
-| [ ] 4.18g | Tap the ⓘ beside it | Explains that only cloud-backed analyses are ever dropped |
+| [ ] 4.18g | Tap the ⓘ beside it | Explains what Off means (analyses stay until you remove them), what a size does, and that only cloud-backed analyses are ever dropped |
 | [ ] 4.19 | Tap **Export my data** | A master ZIP is built behind the **transfer banner** (§4.0) — not a blocking dialog — then handed to the **Send to** sheet (§8.5a) |
 | [ ] 4.19a | Tap **Download my cloud account data** | The server-side export of the account is fetched the same way, banner and all, then offered through the same sheet |
 | [ ] 4.19b | Trigger either export with no network | It fails with a named reason, not a silent no-op |
@@ -842,7 +842,7 @@ The backend counts account-wide (every app and phone) and refuses only at
   the Save-to-cloud toggle, which demo is not shown) — but demo has no
   backup/restore *feature*: Home shows no cloud state icon or row progress (3.4,
   3.7, 3.8 do not apply), Settings has no **Cloud backup**, **Analyses data
-  management**, **Free up space** or auto-free controls (4.5–4.18g do not
+  management**, **Free up** or auto-free controls (4.5–4.18g do not
   apply), and a stored copy is never pulled back. The upload is what the cap
   counts.
 - **Professional — individual key**: capped at the backend's licensed

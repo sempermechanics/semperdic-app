@@ -305,10 +305,9 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="help_support_feedback_subject_fmt">Semper feedback (v%1$s / %2$d)</string>
     <string name="help_support_feedback_body_fmt">Describe your feedback below.\n\n---\nApp: %1$s (%2$d)\nDevice: %3$s\nAndroid: %4$d\nBuild: %5$s\n</string>
     <string name="settings_save_cloud">Save to cloud</string>
-    <string name="settings_save_cloud_sub">New analyses upload when a network is available</string>
-    <string name="settings_save_cloud_sub_off">New analyses stay on this phone. Existing cloud copies remain until you delete them</string>
+    <string name="settings_save_cloud_desc">Save to cloud: new analyses upload when a network is available. Off keeps them on this phone; existing cloud copies remain</string>
     <string name="settings_wifi_only">Wi‑Fi only</string>
-    <string name="settings_wifi_only_sub">Wait for unmetered Wi‑Fi before uploading</string>
+    <string name="settings_wifi_only_desc">Wi‑Fi only: wait for unmetered Wi‑Fi before uploading</string>
     <string name="account_section">Account</string>
     <string name="account_device_id_fmt">Device ID · %1$s</string>
     <!-- The key prefix, never the key. It is what support asks for on the
@@ -332,9 +331,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="storage_analyses_label">Analyses on this phone</string>
     <string name="storage_cache_label">Temporary files</string>
     <string name="storage_measuring">Measuring…</string>
-    <string name="storage_free_up">Free up space</string>
-    <string name="storage_free_up_sub_fmt">%1$s can be released from backed-up analyses</string>
-    <string name="storage_free_up_none">Nothing to release — no analysis is backed up yet</string>
+    <string name="storage_free_up_fmt">Free up %1$s</string>
     <string name="storage_free_up_title">Free up space?</string>
     <string name="storage_free_up_body_fmt">This removes the local images and results for every analysis that is already backed up, freeing about %1$s.\n\nNothing is deleted from the cloud. Opening one of these analyses downloads it again.</string>
     <string name="storage_free_up_confirm">Free up space</string>
@@ -344,13 +341,13 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     </plurals>
     <string name="storage_freed_none">There was nothing to free up.</string>
     <string name="storage_clear_cache">Clear temporary files</string>
-    <string name="storage_clear_cache_sub">Import leftovers, transfer scratch, and export bundles. Safe to remove.</string>
+    <string name="storage_clear">Clear</string>
     <string name="storage_cache_cleared_fmt">Cleared %1$s of temporary files.</string>
     <string name="storage_cache_cleared_none">Nothing to clear. A live import or transfer still in progress is kept.</string>
     <string name="storage_auto_free">Auto-free space</string>
-    <string name="storage_auto_free_off">Off — analyses stay on this phone until you remove them</string>
-    <string name="storage_auto_free_on_fmt">Release backed-up analyses when this phone holds over %1$d GB</string>
-    <string name="storage_auto_free_info">Only analyses that finished backing up are released, oldest first. They stay in the cloud and download again when opened. Analyses that are not backed up are never touched.</string>
+    <string name="storage_auto_free_off">Off</string>
+    <string name="storage_auto_free_on_fmt">Over %1$d GB</string>
+    <string name="storage_auto_free_info">When off, analyses stay on this phone until you remove them. Set a size, and whenever this phone holds more than that, backed-up analyses are released, oldest first, to get back under it. Only analyses that finished backing up are ever released. They stay in the cloud and download again when opened. Analyses that are not backed up are never touched.</string>
     <string name="action_undo">Undo</string>
     <string name="analysis_preferences">Analysis preferences</string>
     <string name="cloud_retry_backup">Retry backup</string>
