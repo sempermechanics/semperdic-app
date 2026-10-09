@@ -4,6 +4,7 @@ import androidx.annotation.MainThread
 import androidx.lifecycle.LifecycleOwner
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.sempermechanics.semper.data.cloud.TransferBytes
 import com.sempermechanics.semper.data.cloud.TransferPhase
 import com.sempermechanics.semper.data.cloud.TransferWork
 import com.sempermechanics.semper.data.cloud.WorkTags
@@ -62,13 +63,15 @@ class TransferWorkObserver(
 
         /**
          * Progress by local session id, for the running jobs that say which
-         * analysis they are working on and have reported a percent.
+         * analysis they are working on and have reported a percent; with the
+         * job's byte counts once it reports them ([TransferBytes]).
          */
         fun rowProgress(): Map<String, RowProgress> = jobs.mapNotNull { job ->
             val running = job.state as? TransferWork.State.Running ?: return@mapNotNull null
             val id = running.localSessionId ?: return@mapNotNull null
             val percent = running.percent?.takeIf { it >= 0 } ?: return@mapNotNull null
-            id to RowProgress(running.phase, percent)
+            val bytes = TransferBytes.read(job.info.progress)
+            id to RowProgress(running.phase, percent, bytes?.done, bytes?.total)
         }.toMap()
     }
 
