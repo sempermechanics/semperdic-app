@@ -26,6 +26,17 @@
         app:navigationIconTint="@color/viewer_chrome_text"
         app:titleCentered="false"
         android:elevation="0dp">
+
+        <!-- One dot per wizard page; the toolbar title names the page. -->
+        <TextView
+            android:id="@+id/tvStepDots"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="@dimen/space_16"
+            android:letterSpacing="0.1"
+            android:textSize="12sp"
+            tools:text="● ● ○" />
     </com.google.android.material.appbar.MaterialToolbar>
 
     <!-- ===================== Pages ===================== -->
@@ -382,10 +393,27 @@
         android:id="@+id/bottomNav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:background="@color/viewer_canvas"
         android:elevation="0dp"
         android:padding="12dp">
+
+        <!-- What Compute will solve, and about how long it takes on this phone. -->
+        <TextView
+            android:id="@+id/tvRunEstimate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/space_8"
+            android:gravity="end"
+            android:textAppearance="@style/TextAppearance.Semper.Numeric"
+            android:visibility="gone"
+            tools:text="8,800 points × 40 frames · about 1 min"
+            tools:visibility="visible" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnBack"
@@ -448,6 +476,7 @@
             android:paddingTop="0dp"
             android:paddingBottom="0dp"
             android:text="@string/next_settings" />
+        </LinearLayout>
     </LinearLayout>
   </LinearLayout>
 

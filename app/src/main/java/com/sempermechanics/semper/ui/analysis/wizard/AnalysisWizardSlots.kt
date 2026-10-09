@@ -71,7 +71,7 @@ class AnalysisWizardSlots(
         updateFormatChip()
     }
 
-    /** ROI card subtitle reflecting the current selection. */
+    /** The ROI row's size line, and the thumbnail and line cut drawn from the same region. */
     fun updateRoiSummary() {
         settings.tvInstruction.text = if (!viewModel.hasCustomRoi) {
             activity.getString(R.string.roi_full_fmt, viewModel.realRefWidth, viewModel.realRefHeight)
@@ -80,8 +80,8 @@ class AnalysisWizardSlots(
                 R.string.roi_custom_fmt,
                 viewModel.roiW,
                 viewModel.roiH,
-                viewModel.roiX,
-                viewModel.roiY,
+                viewModel.realRefWidth,
+                viewModel.realRefHeight,
             )
         }
         onLineCutPreview()

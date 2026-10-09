@@ -162,12 +162,12 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="strain_window">Strain window</string>
     <string name="strain_window_unit_points">points</string>
     <!-- Under the strain-window slider: the window in points gives this VSG at the current step. -->
-    <string name="strain_window_vsg_fmt">VSG %1$d px at step %2$d px</string>
+    <string name="strain_window_vsg_fmt">Fits a plane over %1$d px (VSG)</string>
     <!-- A stored window: points when the VSG is a whole odd count of steps (StrainWindowText), else the VSG alone. -->
     <string name="strain_window_points_vsg_fmt">%1$d-point window · VSG %2$d px</string>
     <string name="strain_window_vsg_only_fmt">VSG %1$d px</string>
     <string name="sub_pixel_interpolation_kernel">Sub-pixel interpolation kernel</string>
-    <string name="label_4_4_bicubic">4×4 Bicubic</string>
+    <string name="label_4_4_bicubic">4×4 bicubic</string>
     <string name="label_6_6_keys">6×6 Keys</string>
     <string name="result">Result: --</string>
     <string name="back">Back</string>
@@ -405,7 +405,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="settings_terms_not_accepted">Terms not yet accepted on this device</string>
     <string name="settings_view_terms">View Terms</string>
     
-    <string name="advanced_parameters">Advanced parameters</string>
     
 
     <!-- Parameter sweep / virtual strain gauge study (Good Practices Guide §5.4.5) -->
@@ -597,12 +596,33 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <!-- The readout while the speckle is measured (shown past 300 ms), and once the
          measurement has set the slider: the size it chose, the speckle it chose from. -->
     <string name="speckle_measuring">Measuring speckle…</string>
-    <string name="speckle_set_from_fmt">Set to %1$d px from speckle %2$.1f px. Good practice asks for %3$d–%4$d px.</string>
+    <string name="speckle_chip_fmt">Speckle %1$.1f px</string>
+    <string name="speckle_band_fmt">Shaded: %1$d px and up hold enough speckle</string>
+    <string name="speckle_band_set_fmt">Set to %1$d px · shaded: %2$d px and up hold enough speckle</string>
     <string name="next_reason_ref">add a reference image to continue</string>
     <string name="next_reason_def">add at least one deformed frame to continue</string>
     <string name="run_analysis">Compute</string>
     <string name="new_analysis_title">New analysis</string>
     <string name="step_of_fmt">Step %1$d of %2$d</string>
+    <string name="wizard_title_sweep_setup">Sweep setup</string>
+    <string name="param_section_correlation">Correlation</string>
+    <string name="param_step">Step</string>
+    <string name="param_interpolation">Interpolation</string>
+    <plurals name="run_estimate_region_fmt">
+        <item quantity="one">%1$s point in the region</item>
+        <item quantity="other">%1$s points in the region</item>
+    </plurals>
+    <plurals name="run_estimate_points_fmt">
+        <item quantity="one">%1$s point</item>
+        <item quantity="other">%1$s points</item>
+    </plurals>
+    <plurals name="run_estimate_frames_fmt">
+        <item quantity="one">%1$s points × %2$d frame</item>
+        <item quantity="other">%1$s points × %2$d frames</item>
+    </plurals>
+    <string name="run_estimate_joined_fmt">%1$s · %2$s</string>
+    <string name="run_estimate_seconds_fmt">about %1$d s</string>
+    <string name="run_estimate_minutes_fmt">about %1$d min</string>
     <string name="reference_meta_fmt">Reference · %1$d × %2$d px</string>
     <!-- The reference slot while a pick is read (ReferenceSlotBusy). -->
     <string name="reference_decoding_image">Decoding image</string>
@@ -641,7 +661,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="coach_sweep_run">Run the sweep when the plan looks right.</string>
     
     <string name="roi_full_fmt">Full image · %1$d × %2$d px</string>
-    <string name="roi_custom_fmt">%1$d × %2$d px at (%3$d, %4$d)</string>
+    <string name="roi_custom_fmt">%1$d × %2$d of %3$d × %4$d px</string>
     <string name="picker_select_reference_toast">Select the reference image or video</string>
     <string name="picker_select_deformed">Select the deformed frames — tap several</string>
     <string name="source_images">Images</string>

@@ -12,5 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="14dp" />
+        android:paddingStart="@dimen/space_16"
+        android:paddingTop="@dimen/space_8"
+        android:paddingEnd="@dimen/space_16" />
 </ScrollView>

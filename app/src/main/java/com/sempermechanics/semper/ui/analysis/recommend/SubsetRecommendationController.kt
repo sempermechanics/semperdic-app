@@ -30,9 +30,11 @@ import timber.log.Timber
  * seeding the slider once the user sets a size of their own.
  *
  * Owns the speckle feedback too: the low-texture and speckle-size chips on
- * page 1, the span chip and the readout on page 2. The readout says "Measuring
- * speckle…" while a measurement lasts past 300 ms, and the slider glides to
- * the size the measurement chose.
+ * page 1; on page 2 the speckle chip beside the subset size, the band of
+ * sizes that hold enough speckle shaded behind the slider ([SubsetBand]),
+ * its caption, and the span chip. The caption says "Measuring speckle…"
+ * while a measurement lasts past 300 ms, and the slider glides to the size
+ * the measurement chose.
  */
 class SubsetRecommendationController(
     private val activity: AppCompatActivity,
@@ -48,6 +50,7 @@ class SubsetRecommendationController(
     private val speckleChip = WarnChip(binding.speckleWarnRow.root, host::confirmOpenFaq)
     private val speckleSpanChip = WarnChip(settings.speckleSpanWarnRow.root, host::confirmOpenFaq)
     private val measuring = InlineBusy(activity, settings.tvSpeckleReadout)
+    private val band = SubsetBand.attach(settings.sliderSubsetSize)
 
     /** The slider's glide to a new recommendation, while it runs. */
     private var seeding: ValueAnimator? = null
@@ -117,7 +120,7 @@ class SubsetRecommendationController(
             lowTextureChip.hide()
             speckleChip.hide()
             speckleSpanChip.hide()
-            settings.tvSpeckleReadout.isVisible = false
+            showReadout()
             return
         }
         // The one thing the measurement knows that the slider cannot show: even
@@ -191,26 +194,24 @@ class SubsetRecommendationController(
     }
 
     /**
-     * The readout under the slider, with the good-practice band: "Set to 31 px
-     * from speckle 4.3 px" while the slider holds the recommendation, the bare
-     * measurement once the user has set a size of their own. Hidden, and null
-     * returned, without a measured speckle.
+     * The band behind the slider and its caption ("Set to 31 px · shaded: 25 px
+     * and up hold enough speckle" while the slider holds the recommendation),
+     * and the speckle chip beside the size, amber outside the good-practice
+     * band. Returns the measured diameter, or null without one.
      */
     private fun showReadout(): Double? {
+        val rec = viewModel.subsetRecommendation
+        val slider = settings.sliderSubsetSize
+        val range = rec?.let { SubsetBand.rangeFor(it, slider.valueFrom.toInt()..slider.valueTo.toInt()) }
+        band.range = range
         val readout = settings.tvSpeckleReadout
-        val diameter = viewModel.subsetRecommendation?.speckleDiameterPx
-        if (diameter == null) {
-            readout.isVisible = false
-            return null
+        readout.isVisible = range != null
+        if (range != null) {
+            val setTo = defaultSubsetSize().takeUnless { viewModel.subsetUserModified }
+            readout.text = SubsetBand.caption(activity.resources, range, setTo)
         }
-        val min = DicGoodPractice.MIN_SPECKLE_PX.toInt()
-        val max = DicGoodPractice.MAX_SPECKLE_PX.toInt()
-        readout.text = if (viewModel.subsetUserModified) {
-            activity.getString(R.string.speckle_readout_fmt, diameter, min, max)
-        } else {
-            activity.getString(R.string.speckle_set_from_fmt, defaultSubsetSize(), diameter, min, max)
-        }
-        readout.isVisible = true
+        val diameter = rec?.speckleDiameterPx
+        SubsetBand.showChip(settings.chipSpeckle, diameter)
         return diameter
     }
 

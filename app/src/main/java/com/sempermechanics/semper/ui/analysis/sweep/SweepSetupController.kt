@@ -62,6 +62,7 @@ class SweepSetupController(
     private lateinit var tvSweepPlan: TextView
     private lateinit var sweepPlanWarn: WarnChip
     private lateinit var lineCutPreview: LineCutPreviewView
+    private lateinit var roiThumb: LineCutPreviewView
     private lateinit var sweepLatticePreview: SweepLatticeView
     lateinit var btnRunSweep: Button
         private set
@@ -84,6 +85,7 @@ class SweepSetupController(
         tvSweepPlan = activity.findViewById(R.id.tvSweepPlan)
         sweepPlanWarn = WarnChip(activity.findViewById(R.id.sweepPlanWarnRow), callbacks::confirmOpenFaq)
         lineCutPreview = activity.findViewById(R.id.lineCutPreview)
+        roiThumb = activity.findViewById<LineCutPreviewView>(R.id.roiThumb).apply { compact = true }
         sweepLatticePreview = activity.findViewById(R.id.sweepLatticePreview)
         // Same compact axes as the result lattice, now that the preview is the
         // same 136dp height -- full/default mode needs more room than that.
@@ -250,29 +252,25 @@ class SweepSetupController(
         point.window,
     )
 
-    /** Centre-line cut over the reference image and current ROI. */
+    /** The reference with the current ROI: the line-cut preview, and the ROI row's thumbnail. */
     fun refreshLineCutPreview() {
         if (!::lineCutPreview.isInitialized) return
         val size = ImageSize(viewModel.realRefWidth, viewModel.realRefHeight)
         val drawn = Roi(viewModel.roiX, viewModel.roiY, viewModel.roiW, viewModel.roiH)
         val roi = drawn.orFullFrame(viewModel.hasCustomRoi, size)
-        if (roi == null) {
-            lineCutPreview.setPreview(
-                bitmap = null,
-                image = ImageSize(1, 1),
-                roi = Roi(0, 0, 1, 1),
-                horizontal = viewModel.lineCutHorizontal,
-                maskBytes = null,
-            )
-            return
+        for (view in listOf(lineCutPreview, roiThumb)) {
+            if (roi == null) {
+                view.setPreview(null, ImageSize(1, 1), Roi(0, 0, 1, 1), viewModel.lineCutHorizontal)
+            } else {
+                view.setPreview(
+                    bitmap = callbacks.refPreviewBitmap(),
+                    image = size,
+                    roi = roi,
+                    horizontal = viewModel.lineCutHorizontal,
+                    maskBytes = viewModel.roiMaskBytes,
+                )
+            }
         }
-        lineCutPreview.setPreview(
-            bitmap = callbacks.refPreviewBitmap(),
-            image = size,
-            roi = roi,
-            horizontal = viewModel.lineCutHorizontal,
-            maskBytes = viewModel.roiMaskBytes,
-        )
     }
 
     fun setRunSweepEnabled(enabled: Boolean) {

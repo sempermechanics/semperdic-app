@@ -25,7 +25,7 @@ distort.
 | `new-analysis-source.png` | §4 | Images tab open, gallery grid populated, a video tile showing its badge |
 | `step1-frames.png` | §4 | Reference + 3 deformed frames loaded, order badges visible |
 | `frame-order-menu.png` | §4 | The sort menu open over the loaded strip |
-| `step2-parameters.png` | §4 | *(2026-09-09, dark)* Advanced parameters expanded, **Compute** button visible, and the muted speckle readout under the subset slider ("Speckle measures about 4.3 px across…") |
+| `step2-parameters.png` | §4 | *(2026-10-09, light, Pixel_5 emulator)* Flat list: Single/Sweep at the top, the ROI row with its thumbnail, the Correlation section with the "Speckle D px" chip, the shaded band behind the subset slider and its caption, "N points in the region" under the step, the Interpolation dropdown, and "N points × F frames · about T" above **Compute** |
 | `speckle-warning.png` | §4 (new) | *(2026-09-09, dark)* Step 1 with the over-resolved speckle chip — a 12.8 px pattern against the 9 px ceiling |
 | `speckle-span-warning.png` | §4 (new) | *(2026-09-10, dark)* Step 2 with the subset-span chip under the slider — a 7.1 px pattern against a 15 px subset, asking for 23 |
 | `running.png` | §4 | *(2026-10-08, light, Pixel_5 AVD)* Mid-run: "Frame N of M", time left, the convergence line over several frames, "Correlating frame N · X%" under it |

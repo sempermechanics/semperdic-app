@@ -1,0 +1,111 @@
+package com.sempermechanics.semper.ui.analysis.wizard
+
+import android.app.Application
+import android.view.View
+import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.prefs.AppSettings
+import com.sempermechanics.semper.databinding.WizardStepSweepBinding
+import com.sempermechanics.semper.field.ImageSize
+import com.sempermechanics.semper.field.Roi
+import com.sempermechanics.semper.ui.analysis.WizardTestBed
+import com.sempermechanics.semper.ui.analysis.frames.DeformedFrame
+import com.sempermechanics.semper.ui.common.dialog.WarnChip
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+/**
+ * The parameters page's chrome: the toolbar names the page and shows a dot
+ * per page; the step slider says how many points the region holds; the line
+ * above Compute says what a run solves and, once this phone has run one,
+ * about how long it takes.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(application = Application::class)
+class ParametersPageTest {
+
+    private val bed = WizardTestBed()
+    private val gate = AnalysisReadyGate(
+        bed.viewModel,
+        bed.binding,
+        bed.settings,
+        WarnChip(bed.settings.frameSizeWarnRow.root) {},
+    )
+
+    @After
+    fun tearDown() = bed.close()
+
+    /** A 1200 × 900 reference with a 1100 × 800 region, 40 frames, a 10 px step: 8,800 points. */
+    private fun loadRun() {
+        bed.viewModel.refSize = ImageSize(1200, 900)
+        bed.viewModel.hasCustomRoi = true
+        bed.viewModel.roi = Roi(50, 50, 1100, 800)
+        bed.viewModel.deformedFrames = List(40) { DeformedFrame("/tmp/def$it.png", "def$it.png") }
+        bed.viewModel.step = WizardStep.SETTINGS
+        bed.settings.sliderSubsetSize.value = 31f
+        bed.settings.sliderStepSize.value = 10f
+    }
+
+    @Test
+    fun `the step caption counts the region's points and the line above Compute adds the frames`() {
+        loadRun()
+
+        gate.apply(isProcessing = false, sweepController = null)
+
+        assertEquals("8,800 points in the region", bed.settings.tvStepPoints.text.toString())
+        assertEquals(View.VISIBLE, bed.binding.tvRunEstimate.visibility)
+        assertEquals("8,800 points × 40 frames", bed.binding.tvRunEstimate.text.toString())
+    }
+
+    @Test
+    fun `once this phone has a rate the line gives the time too`() {
+        loadRun()
+        AppSettings.setRunPointsPerSecond(bed.activity, 5000)
+
+        gate.apply(isProcessing = false, sweepController = null)
+
+        assertEquals("8,800 points × 40 frames · about 71 s", bed.binding.tvRunEstimate.text.toString())
+    }
+
+    @Test
+    fun `a sweep or another page shows no estimate above the buttons`() {
+        loadRun()
+        bed.viewModel.sweepMode = true
+        gate.apply(isProcessing = false, sweepController = null)
+        assertEquals(View.GONE, bed.binding.tvRunEstimate.visibility)
+
+        bed.viewModel.sweepMode = false
+        bed.viewModel.step = WizardStep.IMAGES
+        gate.apply(isProcessing = false, sweepController = null)
+        assertEquals(View.GONE, bed.binding.tvRunEstimate.visibility)
+    }
+
+    @Test
+    fun `the toolbar names each page and marks it among the dots`() {
+        val sweepPage = WizardStepSweepBinding.bind(bed.binding.stubStepSweep.inflate())
+        val settingsPage = com.sempermechanics.semper.databinding.WizardStepSettingsBinding.bind(
+            bed.binding.root.findViewById(R.id.scrollStepSettings),
+        )
+        val chrome = AnalysisWizardChrome(bed.activity, bed.binding, settingsPage, sweepPage)
+
+        chrome.updateBottomNav(WizardStep.IMAGES, sweepMode = false)
+        assertEquals("New analysis", bed.binding.toolbar.title.toString())
+        assertEquals("● ●", bed.binding.tvStepDots.text.toString())
+        assertEquals("Step 1 of 2", bed.binding.tvStepDots.contentDescription.toString())
+
+        chrome.updateBottomNav(WizardStep.SETTINGS, sweepMode = false)
+        assertEquals("Parameters", bed.binding.toolbar.title.toString())
+
+        chrome.updateBottomNav(WizardStep.SETTINGS, sweepMode = true)
+        assertEquals("Sweep setup", bed.binding.toolbar.title.toString())
+        assertEquals("● ● ●", bed.binding.tvStepDots.text.toString())
+        assertEquals("Step 2 of 3", bed.binding.tvStepDots.contentDescription.toString())
+
+        chrome.updateBottomNav(WizardStep.SWEEP, sweepMode = true)
+        assertEquals("Sweep settings", bed.binding.toolbar.title.toString())
+        assertEquals(null, bed.binding.toolbar.subtitle)
+    }
+}

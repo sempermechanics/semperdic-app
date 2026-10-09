@@ -199,19 +199,26 @@ deformed frame the control is hidden.
 
 <img src="images/step2-parameters.png" width="300" alt="Step 2 parameters">
 
-Three decisions, in this order:
+The toolbar names the page (**Parameters**, or **Sweep setup** in sweep mode)
+and shows a dot per page, the current one in blue. The page is one flat list,
+top to bottom:
 
-- **Single setting** or **Parameter sweep** — Single solves every frame once. A
-  parameter sweep solves one frame many times ([§7](#7-parameter-sweeps)).
-- **Region of interest** — defaults to the full image. **Edit** opens the editor
-  ([§6](#6-region-of-interest)).
-- **Parameters** — in Single, the advanced set ([§5](#5-parameters)). In Sweep,
-  the subset range, strain-window range, and step as subset ÷ N (default 3),
-  with overlap shown at the end of that row.
-  If you copied a set of parameters from a sweep lattice, a **Paste params**
-  chip appears in Single and fills subset, step and strain window in one tap.
+- **Single** or **Sweep** — Single solves every frame once. A parameter sweep
+  solves one frame many times ([§7](#7-parameter-sweeps)).
+- **Region of interest** — a thumbnail of the reference with the region drawn on
+  it, and its size: "Full image · W × H px", or "1100 × 800 of 1200 × 900 px"
+  once you draw one. **Edit** opens the editor ([§6](#6-region-of-interest)).
+- **Correlation** (Single) — subset size, step, strain window and interpolation
+  ([§5](#5-parameters)), with **Reset** at the right of the heading. If you
+  copied a set of parameters from a sweep lattice, a paste icon sits beside
+  Reset and fills subset, step and strain window in one tap. In Sweep, the
+  subset range, strain-window range, and step as subset ÷ N (default 3), with
+  overlap shown at the end of that row.
 
-Then **Compute** (Single) or **Next: Summary →** (Sweep).
+Above **Compute** a line says what the run solves: "8,800 points × 40 frames",
+then "· about 1 min" once this phone has finished a run — the time is a running
+mean of the points per second your own runs reached, never a guess. Then
+**Compute** (Single) or **Next: Summary →** (Sweep).
 
 ### While it runs
 
@@ -281,7 +288,7 @@ share a title row; the overlap ratio sits beside the step readout.
 | Step size | 1–`min(30, subset/2)` | 5 |
 | Subset overlap | 0.50–0.99 (`1 − step / subset`) | Follows step |
 | Strain window | 3–31 points, odd | 5 |
-| Kernel | 4×4 Bicubic / 6×6 Keys | 4×4 Bicubic |
+| Interpolation | 4×4 bicubic / 6×6 Keys | 4×4 bicubic |
 
 ### Subset and step
 
@@ -295,17 +302,25 @@ for 0.007 px accuracy, sampled on a 4×4 grid and taken as the median.
 It is a starting point. Touch the slider and it stops tracking the image.
 **Reset** brings it back.
 
-A muted line under the subset slider carries the measurement. While it runs
-(past about a third of a second) the line reads **Measuring speckle…**. When it
-lands, the slider slides to the recommended size (it jumps when animations are
-off) and the line reads **"Set to 31 px from speckle 4.3 px. Good practice
-asks for 3–9 px."**. Once you set a size of your own it reads **"Speckle
-measures about N px across. Good practice asks for 3–9 px."** — the same
-measurement as the step 1 chip, kept in front of you while you move the
-slider. It updates as the reference changes, and disappears if the reference is
-removed or the measurement fails. Below it, a
-warning chip appears if the subset you are on cannot span three speckles, and
-names the size that would; it clears as soon as the slider passes that size.
+While the speckle is measured (past about a third of a second) the line under
+the subset slider reads **Measuring speckle…**. When it lands:
+
+- A chip beside **Subset size** reads **Speckle 4.3 px** — the same measurement
+  as the step 1 chip, in amber when it is outside the 3–9 px good-practice band.
+  TalkBack reads the band out with it.
+- The slider slides to the recommended size (it jumps when animations are off).
+- A blue band is shaded behind the slider track from the smallest size that both
+  clears the SSSIG threshold and spans three speckles, up to the slider's end.
+  Larger subsets still correlate; they only blur the field more.
+- The line under the slider reads **"Set to 31 px · shaded: 25 px and up hold
+  enough speckle"**, and once you set a size of your own just **"Shaded: 25 px
+  and up hold enough speckle"**.
+
+They update as the reference changes, and go if the reference is removed or the
+measurement fails. Below them, a warning chip appears if the subset you are on
+cannot span three speckles, and names the size that would; it clears as soon as
+the slider passes that size. Under the step slider a line counts the points the
+region holds at that step ("30,968 points in the region"), the overlap beside it.
 
 On a pattern coarser than about 40 px no allowed subset spans three dots, so no
 size is named — the over-resolved chip on step 1 is the honest answer there, and
@@ -319,7 +334,8 @@ typical values are about 0.50–0.75.
 ### Strain window and VSG
 
 The strain window is a count of data points. The line under the slider shows the
-VSG it gives at the current step, and follows as you change either. Sessions from
+VSG it gives at the current step — "Fits a plane over 41 px (VSG)" — and follows
+as you change either. Sessions from
 before the window was counted in points show their VSG alone.
 
 ![Virtual strain gauge](images/vsg.svg)
@@ -332,10 +348,10 @@ Quote the VSG, not the window: it is the distance one strain value actually
 covers. The sweep varies the **window** and reports the resulting VSG per node —
 the window is the knob, the VSG is the number you publish.
 
-### Kernel
+### Interpolation
 
-Sub-pixel interpolation. Leave it on 4×4 Bicubic unless interpolation bias is
-your subject.
+Sub-pixel interpolation, a dropdown at the end of the list. Leave it on 4×4
+bicubic unless interpolation bias is your subject.
 
 ### Max frames
 
@@ -727,7 +743,7 @@ Write above that block; leave it in place.
 | Subset | 15–121, odd | Recommended | Speckle is weak; correlation fails | You need resolution across a sharp gradient |
 | Step | 1–30 | 5 | Runtime matters | You need a denser field |
 | Strain window | 3–31 points, odd | 5 | Strain is noisy | Detail is being smoothed away |
-| Kernel | 4×4 / 6×6 | 4×4 Bicubic | Studying interpolation bias | — |
+| Interpolation | 4×4 / 6×6 | 4×4 bicubic | Studying interpolation bias | — |
 | Max frames | 10–500 | 50 | Long sequences | Runs are killed for memory |
 | Sweep subset range | 15–121, odd | Around recommended | — | — |
 | Sweep strain window range | 3–31 points, odd | 3–11 | Strain is noisy | Detail is being smoothed away |

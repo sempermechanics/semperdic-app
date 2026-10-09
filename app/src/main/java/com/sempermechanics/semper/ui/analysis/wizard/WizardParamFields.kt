@@ -21,6 +21,8 @@ class WizardParamFields(
     private val settings: WizardStepSettingsContentBinding,
     private val subsets: SubsetRecommendationController,
     private val host: AnalysisWizardHost,
+    /** A slider moved: the step's point count and the run estimate follow. */
+    onGeometryChanged: () -> Unit = {},
 ) {
     private val sheet = AnalysisSettingsSheetController(
         activity,
@@ -39,10 +41,20 @@ class WizardParamFields(
 
             override fun onParamsChanged() = host.clearRunStatus()
         },
+        onGeometryChanged,
     )
 
-    /** Wires the sliders, their fields and the advanced card's buttons. */
-    fun bind() = sheet.bind()
+    private val bicubic get() = activity.getString(R.string.label_4_4_bicubic)
+    private val keys get() = activity.getString(R.string.label_6_6_keys)
+
+    /** Wires the sliders, their fields, the interpolation dropdown and the section's buttons. */
+    fun bind() {
+        sheet.bind()
+        val dropdown = settings.ddInterpolator
+        dropdown.setSimpleItems(arrayOf(bicubic, keys))
+        if (dropdown.text.isNullOrEmpty()) dropdown.setText(bicubic, false)
+        dropdown.setOnItemClickListener { _, _, _, _ -> host.clearRunStatus() }
+    }
 
     /** The subset size the slider holds, after landing a recommendation still gliding there. */
     fun subsetSize(): Int {
@@ -50,15 +62,15 @@ class WizardParamFields(
         return settings.sliderSubsetSize.value.toInt()
     }
 
-    private fun stepSize(): Int = settings.sliderStepSize.value.toInt()
-
-    /** The settings a run uses; the strain window in px, as the engine takes it. */
-    fun dicParams(): DicParams = DicParams(subsetSize(), stepSize(), strainWindow())
+    private val stepSize: Int get() = settings.sliderStepSize.value.toInt()
 
     /** The VSG in px handed to the engine: the slider's window is in data points. */
-    private fun strainWindow(): Int = SweepStudy.vsgFor(settings.sliderStrainWindow.value.toInt(), stepSize())
+    private val strainWindow: Int get() = SweepStudy.vsgFor(settings.sliderStrainWindow.value.toInt(), stepSize)
 
-    fun isKeysInterpolatorSelected(): Boolean = settings.rgInterpolator.checkedButtonId == R.id.rbKeys
+    /** The settings a run uses; the strain window in px, as the engine takes it. */
+    fun dicParams(): DicParams = DicParams(subsetSize(), stepSize, strainWindow)
+
+    fun isKeysInterpolatorSelected(): Boolean = settings.ddInterpolator.text.toString() == keys
 
     /** Flushes any in-progress typing into the sliders (focus loss commits). */
     fun commit() {
@@ -78,7 +90,7 @@ class WizardParamFields(
         settings.sliderSubsetSize.value = subsets.defaultSubsetSize().toFloat()
         settings.sliderStepSize.value = DicParams.DEFAULT_STEP.toFloat()
         settings.sliderStrainWindow.value = SweepStudy.DEFAULT_WINDOW_POINTS.toFloat()
-        settings.rgInterpolator.check(R.id.rbBicubic)
+        settings.ddInterpolator.setText(bicubic, false)
         sheet.syncFromStep()
         subsets.showSpeckleFeedback()
         host.resetSweepInputs()
@@ -93,12 +105,12 @@ class WizardParamFields(
         settings.sliderSubsetSize.value = snapToSlider(settings.sliderSubsetSize, params.subset).toFloat()
         settings.sliderStepSize.value = snapToSlider(settings.sliderStepSize, params.step).toFloat()
         // The clipboard holds a VSG in px; the slider takes points at the pasted step.
-        settings.sliderStrainWindow.value = SweepStudy.nearestWindowPoints(params.vsg, stepSize()).toFloat()
+        settings.sliderStrainWindow.value = SweepStudy.nearestWindowPoints(params.vsg, stepSize).toFloat()
         sheet.syncFromStep()
         subsets.showSpeckleFeedback()
         host.onSweepInputsChanged()
         host.clearRunStatus()
-        // Bring the advanced-params card into view so the pasted values are visible.
+        // Bring the correlation section into view so the pasted values are visible.
         val card = settings.advancedParamsCard
         card.post { card.requestRectangleOnScreen(Rect(0, 0, card.width, card.height), false) }
     }
