@@ -211,13 +211,14 @@ top to bottom:
 - **Correlation** (Single) — subset size, step, strain window and interpolation
   ([§5](#5-parameters)), with **Reset** at the right of the heading. If you
   copied a set of parameters from a sweep lattice, a paste icon sits beside
-  Reset and fills subset, step and strain window in one tap. In Sweep, the
-  subset range, strain-window range, and step as subset ÷ N (default 3), with
-  overlap shown at the end of that row.
+  Reset and fills subset, step and strain window in one tap.
+- **Frame to sweep** and **Planned lattice** (Sweep) — in place of Correlation;
+  see [§7](#7-parameter-sweeps).
 
 Once this phone has finished a run, **Compute** reads "Compute · about 1 min":
 a running mean of the points per second your own runs reached, never a guess.
-Before that it reads **Compute**. In Sweep the button is **Next: Summary →**.
+Before that it reads **Compute**. In Sweep the button is **Next: sweep
+settings**.
 
 ### While it runs
 
@@ -397,18 +398,45 @@ A sweep uses **one** deformed frame.
 
 ### Setting it up (step 2, then step 3)
 
-Sweep parameters live on step 2. Step 3 is the summary: planned lattice, then
-the line cut, then **Compute**.
+Step 2 (**Sweep setup**) picks what is swept and shows the plan:
+
+- **Frame to sweep** — the picked frame's name, "Frame 23 of 40" under it, and
+  a thumbnail beside it. It starts on the middle frame. Tap the field to open
+  the frame picker: a scrolling list of the frames, a frame-number field, and a
+  preview of the frame you are on; **OK** makes it the swept frame. Tap the
+  thumbnail to see the frame at full width; tap it again to close it. Pick the
+  frame with the most deformation; the sweep solves only that one. With a
+  single deformed frame there is nothing to pick and the row is hidden.
+- **Planned lattice** — one node per analysis, subset across and VSG up, with
+  the summary "9 analyses · subset 21–41 px · window 3–11 points" under it. The
+  gear on its heading shows **No. of subsets** and **No. of strain windows**,
+  the samples per range.
+
+Step 3 (**Sweep settings**) sets the ranges. The lattice on step 2 follows any
+change, so **Back** shows the new plan:
+
+- **Subset size range** and **Strain window range**, the latter with "Fits
+  planes over 15–101 px (VSG)", the span of VSGs the plan covers.
+- **Step size** as subset ÷ N, with the overlap beside it.
+- **Line cut axis** — **Along X** or **Along Y**, over a strip preview of the
+  reference with the region and the cut through its centre. Tap the strip to
+  open it larger, in the reference's own shape; a wide reference then runs past
+  the screen edge and scrolls sideways. Tap again to close it.
+
+The run button reads "Run 9 analyses", and "Run 9 analyses · about 33 s" once
+this phone has finished a run: each analysis solves the one frame at its own
+step, timed at the points per second your runs reached.
 
 <img src="images/step3-sweep.png" width="300" alt="Sweep summary, step 3">
 
 | Control | Range |
 |---|---|
-| Subset range | 15–121, odd (step 2) |
-| Strain window range | 3–31 points, odd, default 3–11 — min and max (step 2) |
-| Step size | subset ÷ N, N 2–9, default 3. Overlap on the same row is `1 − 1/N`. Pixel step is `round(subset / N)` (step 2) |
-| Frame to sweep | radio list + number + preview (step 2) |
-| Samples | 1–8 per axis (step 3, lattice gear) |
+| Frame to sweep | list + number + preview, opened from the field (step 2) |
+| Subset range | 15–121, odd (step 3) |
+| Strain window range | 3–31 points, odd, default 3–11 — min and max (step 3) |
+| Samples | 1–8 per axis (step 2, lattice gear) |
+| Step size | subset ÷ N, N 2–9, default 3. Overlap on the same row is `1 − 1/N`. Pixel step is `round(subset / N)` (step 3) |
+| Line cut axis | Along X / Along Y (step 3) |
 
 Runtime is the product of the two sample counts. 8 × 8 is 64 solves. Start at
 3 × 3.

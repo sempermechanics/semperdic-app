@@ -4,12 +4,15 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ImageView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.radiobutton.MaterialRadioButton
+import com.google.android.material.textfield.TextInputLayout
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.SemperNativeLib
 import com.sempermechanics.semper.data.session.originalNameOr
@@ -17,6 +20,7 @@ import com.sempermechanics.semper.databinding.DialogSweepFramePickBinding
 import com.sempermechanics.semper.imaging.BitmapDecoder
 import com.sempermechanics.semper.imaging.RawRgba
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
+import com.sempermechanics.semper.ui.common.Motion
 import com.sempermechanics.semper.ui.common.SerialJob
 import com.sempermechanics.semper.ui.common.commitOnDone
 import com.sempermechanics.semper.ui.common.dp
@@ -26,25 +30,106 @@ import java.io.File
 import java.util.Locale
 
 /**
- * The dialog that picks which deformed frame a sweep solves: a scrolling list
- * of the frames, a typed frame number, and a preview of the one picked.
- * OK hands the picked index to [onPicked].
+ * "Frame to sweep" on the sweep setup page: a field naming the picked frame,
+ * "Frame 23 of 40" under it, and a thumbnail beside it. A tap on the field
+ * opens the frame dialog -- a scrolling list of the frames, a typed frame
+ * number, and a preview of the one picked -- whose OK hands the index to
+ * [onPicked]. A tap on the thumbnail shows the frame at full width under the
+ * row; a tap on that closes it. The block hides for a sequence of one frame.
  */
 internal class SweepFramePicker(
     private val activity: AppCompatActivity,
     private val viewModel: AnalysisViewModel,
     private val onPicked: (Int) -> Unit,
 ) {
-    /** The frame-pick preview decode; a new pick or closing the dialog cancels it. */
-    private val framePreview = SerialJob()
+    /** The thumbnail decode; a new pick cancels it. */
+    private val thumbDecode = SerialJob()
+
+    /** The dialog's preview decode; a new pick in the dialog or closing it cancels it. */
+    private val dialogDecode = SerialJob()
+
+    private var block: View? = null
+    private lateinit var field: TextInputLayout
+    private lateinit var name: EditText
+    private lateinit var thumb: ImageView
+    private lateinit var large: ImageView
+
+    /** The frame the field shows; the dialog opens on it. */
+    private var picked = 0
+
+    /** The frame the thumbnail shows or is decoding. */
+    private var thumbPath: String? = null
 
     /** A frame's file name, or "Frame n" when it has none (or a restored draft padded it blank). */
     fun frameLabel(index: Int): String = viewModel.defOriginalNames
         .originalNameOr(index, activity.getString(R.string.sweep_frame_btn_fmt, index + 1))
         .substringAfterLast('/')
 
-    /** Opens the dialog on frame [initial]; does nothing for a sequence of one frame. */
-    fun show(initial: Int) {
+    /** Finds the views; call once the settings page is inflated. */
+    fun bind() {
+        block = activity.findViewById(R.id.sweepFrameBlock)
+        field = activity.findViewById(R.id.tilSweepFrame)
+        name = activity.findViewById(R.id.ddSweepFrame)
+        thumb = activity.findViewById(R.id.imgSweepFrame)
+        large = activity.findViewById(R.id.imgSweepFrameLarge)
+        name.setOnClickListener { openDialog(picked) }
+        field.setEndIconOnClickListener { openDialog(picked) }
+        thumb.setOnClickListener { showLarge(!large.isVisible) }
+        large.setOnClickListener { showLarge(false) }
+        showLarge(false)
+    }
+
+    /** Shows frame [index] as the one picked. */
+    fun show(index: Int) {
+        val block = block ?: return
+        val count = viewModel.defCount
+        block.isVisible = count > 1
+        if (count <= 1) {
+            thumbDecode.cancel()
+            thumbPath = null
+            return
+        }
+        picked = index.coerceIn(0, count - 1)
+        name.setText(frameLabel(picked))
+        field.helperText = activity.getString(R.string.sweep_frame_position_fmt, picked + 1, count)
+        showThumb(viewModel.defFilePaths.getOrNull(picked))
+    }
+
+    /** Opens or closes the full-width view of the picked frame; TalkBack hears what a tap will do. */
+    private fun showLarge(open: Boolean) {
+        (block as? ViewGroup)?.let(Motion::animateExpandCollapse)
+        large.isVisible = open && large.drawable != null
+        val label = activity.getString(R.string.sweep_frame)
+        val fmt = if (large.isVisible) R.string.preview_shrink_fmt else R.string.preview_enlarge_fmt
+        thumb.contentDescription = activity.getString(fmt, label)
+        large.contentDescription = activity.getString(R.string.preview_shrink_fmt, label)
+    }
+
+    /** Decodes the frame at [path] into the thumbnail; a result for a frame no longer picked is dropped. */
+    private fun showThumb(path: String?) {
+        if (path == thumbPath) return
+        thumbPath = path
+        thumbDecode.cancel()
+        thumb.setImageDrawable(null)
+        large.setImageDrawable(null)
+        if (path.isNullOrBlank()) {
+            showLarge(false)
+            return
+        }
+        thumbDecode.launch(activity.lifecycleScope) {
+            val bmp = decodeFramePreview(path, viewModel.defFrameSizes[path])
+            if (path != thumbPath) {
+                bmp?.recycle()
+                return@launch
+            }
+            thumb.setImageBitmap(bmp)
+            large.setImageBitmap(bmp)
+            if (bmp == null) showLarge(false)
+        }
+    }
+
+    /** Opens the frame dialog on frame [initial]; does nothing for a sequence of one frame. */
+    private fun openDialog(initial: Int) {
         val count = viewModel.defCount
         if (count <= 1) return
         var selected = initial.coerceIn(0, count - 1)
@@ -55,11 +140,11 @@ internal class SweepFramePicker(
         val numberField = content.etSweepFrameNumber
         content.tvSweepFrameTotal.text = activity.getString(R.string.sweep_frame_out_of_fmt, count)
 
-        bindPreview(content, selected) { selected }
+        bindDialogPreview(content, selected) { selected }
         val rows = fillFrameChoices(content, count, selected) { which ->
             selected = which
             numberField.setText(frameNumberText(which + 1))
-            bindPreview(content, which) { selected }
+            bindDialogPreview(content, which) { selected }
         }
         numberField.setText(frameNumberText(selected + 1))
         wireFrameNumberField(numberField, current = { selected + 1 }) { typed ->
@@ -68,7 +153,7 @@ internal class SweepFramePicker(
                 row.isChecked = true
                 scrollFrameRowIntoView(content, row)
             }
-            // Also normalises what was typed — "007" or an out-of-range number.
+            // Also normalises what was typed -- "007" or an out-of-range number.
             numberField.setText(frameNumberText(index + 1))
         }
 
@@ -76,11 +161,11 @@ internal class SweepFramePicker(
             .setTitle(R.string.sweep_frame)
             .setView(content.root)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                framePreview.cancel()
+                dialogDecode.cancel()
                 onPicked(selected)
             }
-            .setNegativeButton(R.string.cancel) { _, _ -> framePreview.cancel() }
-            .setOnDismissListener { framePreview.cancel() }
+            .setNegativeButton(R.string.cancel) { _, _ -> dialogDecode.cancel() }
+            .setOnDismissListener { dialogDecode.cancel() }
             .show()
     }
 
@@ -88,18 +173,18 @@ internal class SweepFramePicker(
      * Decodes frame [index] into the dialog's preview; a result that arrives
      * after [selected] has moved on is dropped.
      */
-    private fun bindPreview(content: DialogSweepFramePickBinding, index: Int, selected: () -> Int) {
+    private fun bindDialogPreview(content: DialogSweepFramePickBinding, index: Int, selected: () -> Int) {
         val preview = content.imgSweepFramePreview
         val progress = content.progressSweepFramePreview
         val path = viewModel.defFilePaths.getOrNull(index)
-        framePreview.cancel()
+        dialogDecode.cancel()
         if (path.isNullOrBlank()) {
             preview.setImageDrawable(null)
             progress.isVisible = false
             return
         }
         progress.isVisible = true
-        framePreview.launch(activity.lifecycleScope) {
+        dialogDecode.launch(activity.lifecycleScope) {
             val bmp = decodeFramePreview(path, viewModel.defFrameSizes[path])
             if (index != selected()) {
                 bmp?.recycle()
@@ -146,14 +231,6 @@ internal class SweepFramePicker(
         return rows
     }
 
-    /** ASCII digits, so the field round-trips through toIntOrNull() in any locale. */
-    private fun frameNumberText(oneBased: Int): String = String.format(Locale.US, "%d", oneBased)
-
-    private fun scrollFrameRowIntoView(content: DialogSweepFramePickBinding, row: View) {
-        val scroll = content.scrollSweepFrames
-        scroll.post { scroll.scrollTo(0, row.top) }
-    }
-
     /**
      * Frame number entry: commits on focus loss (IME Done just drops focus, as
      * the sweep fields do). Anything unparseable reverts to [current].
@@ -167,48 +244,56 @@ internal class SweepFramePicker(
         field.commitOnDone()
     }
 
-    /**
-     * Decode a deformed-frame path for the pick dialog. Handles ordinary
-     * containers, native-only formats (TIFF), and RAW RGBA blobs written at import
-     * ([size] is the frame's measured size, for those).
-     *
-     * Each rung runs where it belongs: file reads on IO, the native decoder on
-     * [SemperNativeLib.nativeDispatcher] (every JNI call is pinned there), the
-     * JVM decodes on Default.
-     */
-    @Suppress("ReturnCount") // a ladder of decoders; each rung returns what it managed
-    private suspend fun decodeFramePreview(path: String, size: Pair<Int, Int>?): Bitmap? {
-        withContext(Dispatchers.IO) {
-            BitmapDecoder.decodeFileForView(path, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE)
-        }?.let { return it }
-
-        val bytes = withContext(Dispatchers.IO) {
-            File(path).takeIf(File::exists)?.let { runCatching { it.readBytes() }.getOrNull() }
-        } ?: return null
-
-        withContext(SemperNativeLib.nativeDispatcher) {
-            runCatching { SemperNativeLib.getPreviewFromBytes(bytes, PREVIEW_MAX_EDGE) }.getOrNull()
-        }?.let { return it }
-
-        return withContext(Dispatchers.Default) {
-            decodeRawRgba(bytes, size)
-                // Last resort: bounds-free BitmapFactory (may still fail for RAW).
-                ?: BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-        }
-    }
-
-    /** A RAW RGBA blob written at import, sampled down to preview size. */
-    private fun decodeRawRgba(bytes: ByteArray, size: Pair<Int, Int>?): Bitmap? {
-        val (w, h) = size ?: return null
-        return RawRgba.preview(bytes, w, h, PREVIEW_MAX_EDGE)
-    }
-
     private companion object {
-        /** Longest edge of a frame thumbnail in the pick dialog. */
-        const val PREVIEW_MAX_EDGE = 480
+        /** Longest edge of a decoded frame: enough for the full-width view and the dialog preview. */
+        const val PREVIEW_MAX_EDGE = 1080
 
         /** A frame row in the pick dialog: vertical padding and touch-target height. */
         const val FRAME_ROW_PADDING_DP = 8f
         const val FRAME_ROW_MIN_HEIGHT_DP = 48f
+
+        /** ASCII digits, so the field round-trips through toIntOrNull() in any locale. */
+        fun frameNumberText(oneBased: Int): String = String.format(Locale.US, "%d", oneBased)
+
+        fun scrollFrameRowIntoView(content: DialogSweepFramePickBinding, row: View) {
+            val scroll = content.scrollSweepFrames
+            scroll.post { scroll.scrollTo(0, row.top) }
+        }
+
+        /**
+         * Decode a deformed-frame path for the thumbnail and the dialog. Handles
+         * ordinary containers, native-only formats (TIFF), and RAW RGBA blobs
+         * written at import ([size] is the frame's measured size, for those).
+         *
+         * Each rung runs where it belongs: file reads on IO, the native decoder on
+         * [SemperNativeLib.nativeDispatcher] (every JNI call is pinned there), the
+         * JVM decodes on Default.
+         */
+        @Suppress("ReturnCount") // a ladder of decoders; each rung returns what it managed
+        suspend fun decodeFramePreview(path: String, size: Pair<Int, Int>?): Bitmap? {
+            withContext(Dispatchers.IO) {
+                BitmapDecoder.decodeFileForView(path, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE, PREVIEW_MAX_EDGE)
+            }?.let { return it }
+
+            val bytes = withContext(Dispatchers.IO) {
+                File(path).takeIf(File::exists)?.let { runCatching { it.readBytes() }.getOrNull() }
+            } ?: return null
+
+            withContext(SemperNativeLib.nativeDispatcher) {
+                runCatching { SemperNativeLib.getPreviewFromBytes(bytes, PREVIEW_MAX_EDGE) }.getOrNull()
+            }?.let { return it }
+
+            return withContext(Dispatchers.Default) {
+                decodeRawRgba(bytes, size)
+                    // Last resort: bounds-free BitmapFactory (may still fail for RAW).
+                    ?: BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            }
+        }
+
+        /** A RAW RGBA blob written at import, sampled down to preview size. */
+        fun decodeRawRgba(bytes: ByteArray, size: Pair<Int, Int>?): Bitmap? {
+            val (w, h) = size ?: return null
+            return RawRgba.preview(bytes, w, h, PREVIEW_MAX_EDGE)
+        }
     }
 }

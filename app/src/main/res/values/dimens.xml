@@ -10,4 +10,8 @@
     <dimen name="space_12">12dp</dimen>
     <dimen name="space_16">16dp</dimen>
     <dimen name="space_24">24dp</dimen>
+    <!-- Sweep page: the line-cut preview as a strip, and the frame shown at full width. -->
+    <dimen name="line_cut_preview_strip">96dp</dimen>
+    <dimen name="line_cut_preview_open_min">240dp</dimen>
+    <dimen name="sweep_frame_large_max">360dp</dimen>
 </resources>

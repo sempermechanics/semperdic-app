@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Sweep settings (page 3): the ranges the sweep covers, then the axis its
+     strain is read along. The lattice they plan is on page 2. -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -16,217 +18,347 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="14dp">
+        android:paddingStart="16dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="16dp">
 
-        <!-- Always visible: planned lattice -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/plannedLatticeCard"
+        <!-- Subset size range: min text | range slider | max text -->
+        <LinearLayout
+            android:id="@+id/subsetRangeBlock"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardBackgroundColor="@android:color/transparent"
-            app:strokeColor="@color/surface_outline">
+            android:orientation="vertical">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:text="@string/subset_range"
+                android:textColor="@color/viewer_chrome_text"
+                android:textStyle="bold" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+            <ImageButton
+                android:id="@+id/btnSubsetRangeInfo"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginStart="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/info"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_info_min"
+                app:tint="@color/viewer_chrome_muted" />
+        </LinearLayout>
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/planned_lattice_heading"
-                        android:textAppearance="@style/TextAppearance.Semper.SectionHeader"
-                        android:textColor="@color/viewer_chrome_text" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-                    <!-- bg_chrome_ghost, not a borderless ripple: a standalone
-                         40dp icon-only button, same role as the toolbar buttons
-                         it now matches (activity_result_viewer.xml, activity_vsg_lattice.xml). -->
-                    <ImageButton
-                        android:id="@+id/btnLatticeSamples"
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:background="@drawable/bg_chrome_ghost"
-                        android:contentDescription="@string/lattice_samples_settings"
-                        android:padding="8dp"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/ic_settings_gear"
-                        app:tint="@color/viewer_chrome_text" />
-                </LinearLayout>
+            <EditText
+                android:id="@+id/etSubsetMinValue"
+                android:layout_width="46dp"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:gravity="center"
+                android:hint="@string/subset_min"
+                android:imeOptions="actionDone"
+                android:importantForAutofill="no"
+                android:inputType="number"
+                android:maxLength="3"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
+                android:textColor="@color/sky_primary"
+                android:textStyle="bold"
+                tools:text="41" />
 
-                <LinearLayout
-                    android:id="@+id/latticeSamplesBody"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingTop="4dp"
-                    android:visibility="gone">
+            <com.google.android.material.slider.RangeSlider
+                android:id="@+id/rangeSubset"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:stepSize="2"
+                android:valueFrom="15"
+                android:valueTo="121"
+                app:values="@array/subset_range_default" />
 
-                    <ImageButton
-                        android:id="@+id/btnSamplesInfo"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:layout_marginEnd="4dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/info"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/ic_info_min"
-                        app:tint="@color/viewer_chrome_muted" />
+            <EditText
+                android:id="@+id/etSubsetMaxValue"
+                android:layout_width="46dp"
+                android:layout_height="wrap_content"
+                android:background="@android:color/transparent"
+                android:gravity="center"
+                android:hint="@string/subset_max"
+                android:imeOptions="actionDone"
+                android:importantForAutofill="no"
+                android:inputType="number"
+                android:maxLength="3"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp"
+                android:textColor="@color/sky_primary"
+                android:textStyle="bold"
+                tools:text="61" />
+        </LinearLayout>
+        </LinearLayout>
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilSubsetSamples"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="6dp"
-                        android:layout_weight="1"
-                        android:hint="@string/subset_samples"
-                        app:boxStrokeColor="@color/input_box_stroke"
-                        app:hintTextColor="@color/viewer_chrome_muted">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etSubsetSamplesValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:imeOptions="actionDone"
-                            android:importantForAutofill="no"
-                            android:inputType="number"
-                            android:maxLength="1"
-                            android:textColor="@color/viewer_chrome_text"
-                            tools:text="3" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilVsgSamples"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:hint="@string/vsg_samples"
-                        app:boxStrokeColor="@color/input_box_stroke"
-                        app:hintTextColor="@color/viewer_chrome_muted">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etVsgSamplesValue"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:imeOptions="actionDone"
-                            android:importantForAutofill="no"
-                            android:inputType="number"
-                            android:maxLength="1"
-                            android:textColor="@color/viewer_chrome_text"
-                            tools:text="3" />
-                    </com.google.android.material.textfield.TextInputLayout>
-                </LinearLayout>
-
-                <!-- Matches the result lattice's height (compact=true set in
-                     SweepSetupController.setup()) so the planned and solved lattices
-                     read as the same element at two points in the flow. -->
-                <com.sempermechanics.semper.ui.analysis.sweep.SweepLatticeView
-                    android:id="@+id/sweepLatticePreview"
-                    android:layout_width="match_parent"
-                    android:layout_height="136dp"
-                    android:layout_marginTop="10dp" />
-
-                <TextView
-                    android:id="@+id/tvSweepPlan"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:textColor="@color/viewer_chrome_muted"
-                    android:textSize="12sp"
-                    tools:text="8 analyses" />
-
-                <include
-                    android:id="@+id/sweepPlanWarnRow"
-                    layout="@layout/view_warn_chip"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:visibility="gone" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Line-cut preview: Parameter sweep only -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/lineCutPreviewCard"
+        <!-- Strain window range: titled and full-width, the
+             twin of the subset range above it. -->
+        <LinearLayout
+            android:id="@+id/strainWinRangeBlock"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            app:cardBackgroundColor="@android:color/transparent"
-            app:strokeColor="@color/surface_outline">
+            android:orientation="vertical">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:orientation="horizontal">
 
-                <LinearLayout
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/strain_win_range"
+                    android:textColor="@color/viewer_chrome_text"
+                    android:textStyle="bold" />
+
+                <ImageButton
+                    android:id="@+id/btnVsgMaxInfo"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="6dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/info"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_info_min"
+                    app:tint="@color/viewer_chrome_muted" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/etStrainWinMinValue"
+                    android:layout_width="46dp"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:gravity="center"
+                    android:hint="@string/strain_win_min"
+                    android:imeOptions="actionDone"
+                    android:importantForAutofill="no"
+                    android:inputType="number"
+                    android:maxLength="3"
+                    android:paddingTop="0dp"
+                    android:paddingBottom="0dp"
+                    android:textColor="@color/sky_primary"
+                    android:textStyle="bold"
+                    tools:text="3" />
+
+                <com.google.android.material.slider.RangeSlider
+                    android:id="@+id/rangeStrainWin"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:stepSize="2"
+                    android:valueFrom="3"
+                    android:valueTo="31"
+                    app:values="@array/strain_window_range_default" />
+
+                <EditText
+                    android:id="@+id/etStrainWinMaxValue"
+                    android:layout_width="46dp"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:gravity="center"
+                    android:hint="@string/strain_win_max"
+                    android:imeOptions="actionDone"
+                    android:importantForAutofill="no"
+                    android:inputType="number"
+                    android:maxLength="3"
+                    android:paddingTop="0dp"
+                    android:paddingBottom="0dp"
+                    android:textColor="@color/sky_primary"
+                    android:textStyle="bold"
+                    tools:text="11" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvStrainWinVsg"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Semper.Caption"
+                tools:text="Fits planes over 15–101 px (VSG)" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginTop="10dp">
+
+            <ImageButton
+                android:id="@+id/btnStepDepthInfo"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginEnd="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/info"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_info_min"
+                app:tint="@color/viewer_chrome_muted" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilStepDepth"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:hint="@string/step_depth"
+                app:boxStrokeColor="@color/input_box_stroke"
+                app:hintTextColor="@color/viewer_chrome_muted"
+                app:prefixText="@string/step_depth_prefix">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etStepDepthValue"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:imeOptions="actionDone"
+                    android:importantForAutofill="no"
+                    android:inputType="number"
+                    android:maxLength="1"
+                    android:textColor="@color/viewer_chrome_text"
+                    tools:text="3" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/line_cut_preview_heading"
-                        android:textAppearance="@style/TextAppearance.Semper.SectionHeader"
-                        android:textColor="@color/viewer_chrome_text" />
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilSweepOverlap"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="@string/overlap"
+                app:boxStrokeColor="@color/input_box_stroke"
+                app:hintTextColor="@color/viewer_chrome_muted">
 
-                    <ImageButton
-                        android:id="@+id/btnLineCutInfo"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:layout_marginStart="6dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/info"
-                        android:scaleType="fitCenter"
-                        android:src="@drawable/ic_info_min"
-                        app:tint="@color/viewer_chrome_muted" />
-                </LinearLayout>
-
-                <com.google.android.material.button.MaterialButtonToggleGroup
-                    android:id="@+id/rgLineCutAxis"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etSweepOverlapValue"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    app:checkedButton="@+id/rbAxisX"
-                    app:selectionRequired="true"
-                    app:singleSelection="true">
+                    android:imeOptions="actionDone"
+                    android:importantForAutofill="no"
+                    android:inputType="numberDecimal"
+                    android:maxLength="4"
+                    android:textColor="@color/viewer_chrome_text"
+                    tools:text="0.67" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/rbAxisX"
-                        style="@style/Widget.Semper.SegmentedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/axis_x" />
+            <ImageButton
+                android:id="@+id/btnSweepOverlapInfo"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/info"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_info_min"
+                app:tint="@color/viewer_chrome_muted" />
+        </LinearLayout>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/rbAxisY"
-                        style="@style/Widget.Semper.SegmentedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/axis_y" />
-                </com.google.android.material.button.MaterialButtonToggleGroup>
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="@dimen/space_12"
+            android:background="@color/surface_outline" />
+
+        <!-- Line cut axis. Id kept from the card it replaced: the coach mark points here. -->
+        <LinearLayout
+            android:id="@+id/lineCutPreviewCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="@dimen/space_12">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/line_cut_axis"
+                    android:textAppearance="@style/TextAppearance.Semper.SectionHeader"
+                    android:textColor="@color/viewer_chrome_text" />
+
+                <ImageButton
+                    android:id="@+id/btnLineCutInfo"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="6dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/info"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_info_min"
+                    app:tint="@color/viewer_chrome_muted" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/rgLineCutAxis"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_8"
+                app:checkedButton="@+id/rbAxisX"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rbAxisX"
+                    style="@style/Widget.Semper.SegmentedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/line_cut_along_x" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/rbAxisY"
+                    style="@style/Widget.Semper.SegmentedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/line_cut_along_y" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <!-- Tap to open it larger; tap again for the strip. Opened, a wide
+                 reference runs past the screen edge and scrolls sideways. -->
+            <HorizontalScrollView
+                android:id="@+id/lineCutScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_8"
+                android:fillViewport="true"
+                android:scrollbars="none">
 
                 <com.sempermechanics.semper.ui.analysis.sweep.LineCutPreviewView
                     android:id="@+id/lineCutPreview"
                     android:layout_width="match_parent"
-                    android:layout_height="220dp"
-                    android:layout_marginTop="10dp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
+                    android:layout_height="@dimen/line_cut_preview_strip"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </HorizontalScrollView>
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>
