@@ -9,6 +9,7 @@ import com.sempermechanics.semper.imaging.video.ExtractionRequest
 import com.sempermechanics.semper.ui.analysis.run.RunChrome
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.common.dialog.Feedback
+import com.sempermechanics.semper.ui.common.media.displayNameOf
 import kotlinx.coroutines.Job
 import java.io.File
 

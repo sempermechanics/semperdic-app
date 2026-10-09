@@ -135,7 +135,8 @@ class RunKindOwnRecordTest {
 
         val saved = checkNotNull(SessionStore.get(ctx, sweep.id))
         assertEquals(listOf(21, 31), saved.sweepSubsets)
-        assertTrue("a new sweep gets the sweep auto-name", saved.name.startsWith("Parameter sweep"))
+        val frameBase = names()[SWEEP_FRAME].substringBeforeLast('.')
+        assertEquals("a new sweep is named after its frame", "$frameBase sweep", saved.name)
         val copy = SessionLayout(sweep.dir).rawDeformed(names()[SWEEP_FRAME])
         assertEquals("image ${names()[SWEEP_FRAME]}", copy.readText())
         // A single re-run reads these paths: they must all still be there.

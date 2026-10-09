@@ -18,7 +18,7 @@ import org.robolectric.annotation.Config
  *
  * [baseBundle] is that Bundle written out by hand, key by key, as the build
  * before the wizard's value types (`Roi`, `ImageSize`, `SweepRanges`,
- * `WizardStep`) wrote it. `workingIsSweep` came later ([currentBundle]).
+ * `WizardStep`) wrote it. `workingIsSweep` and `videoName` came later ([currentBundle]).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -50,8 +50,11 @@ class WizardStateBundleFormatTest {
         putString("framesFingerprint", WizardState.fingerprint(WizardState.encodeFrames(WizardState.Frames())))
     }
 
-    /** [baseBundle] as this build writes it: with the working session's kind. */
-    private fun currentBundle(): Bundle = baseBundle().apply { putBoolean("workingIsSweep", true) }
+    /** [baseBundle] as this build writes it: with the working session's kind and the video's name. */
+    private fun currentBundle(): Bundle = baseBundle().apply {
+        putBoolean("workingIsSweep", true)
+        putString("videoName", "tensile_03")
+    }
 
     @Test
     fun `a Bundle this build saved restores and saves again unchanged`() {
@@ -69,6 +72,7 @@ class WizardStateBundleFormatTest {
         val expected = baseBundle().apply {
             putString("workingLocalId", null)
             putBoolean("workingIsSweep", false)
+            putString("videoName", null)
         }
         assertSameBundle(expected, restored.saveWizardState())
     }
@@ -91,6 +95,7 @@ class WizardStateBundleFormatTest {
             putString("orderDirection", "ASCENDING")
             putString("frameSizeError", null)
             putBoolean("fromVideo", false)
+            putString("videoName", null)
             putBoolean("sweepMode", false)
             putIntArray("sweepRanges", intArrayOf(0, 0, 0, 0, 3, 3, 3))
             putDouble("subsetOverlap", SweepStudy.overlapForDenominator(SweepStudy.DEFAULT_STEP_DENOM))

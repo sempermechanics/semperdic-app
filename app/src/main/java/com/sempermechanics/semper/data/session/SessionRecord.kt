@@ -107,6 +107,17 @@ data class SessionRecord(
      */
     val renamedByUser: Boolean = false,
 
+    // ── Video
+    // Set only for an analysis of frames sampled from a video. Neither goes to
+    // the cloud copy's metadata, so a restored session has neither and its
+    // frames are known by their names.
+
+    /** The clip the frames were sampled from, without its extension ("tensile_03"), or "Video". */
+    val videoName: String? = null,
+
+    /** Each deformed frame's time in the clip, ms, index-aligned with [defNames]. */
+    val frameTimesMs: List<Long>? = null,
+
 ) {
 
     /**
@@ -121,6 +132,9 @@ data class SessionRecord(
 
     /** True when the frames are parameter combinations rather than images. */
     val isSweep: Boolean get() = sweepSteps.isNotEmpty()
+
+    /** True when the frames were sampled from a video. */
+    val isVideo: Boolean get() = videoName != null || frameTimesMs != null
 
     /**
      * What each frame is called in the viewer and its reports: a sweep's

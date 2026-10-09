@@ -5,10 +5,11 @@ import com.sempermechanics.semper.field.ImageSize
 /**
  * One deformed frame the wizard holds: its staged [path], the [name] the user
  * picked it as, its best-effort capture [date] ([UNKNOWN_DATE] when unknown,
- * which sorts last), and its pixel [size] (null until measured).
+ * which sorts last), its pixel [size] (null until measured), and, for a
+ * frame sampled from a video, its time in the clip [timeMs] (null otherwise).
  *
- * A batch is a `List<DeformedFrame>` in run order, so a frame's name, date and
- * size move with it whenever the list is reordered. The wizard's draft
+ * A batch is a `List<DeformedFrame>` in run order, so a frame's name, date,
+ * size and time move with it whenever the list is reordered. The wizard's draft
  * (`WizardState.Frames`) and the view model's read-only list views keep the
  * older parallel-list shape; [unzip] makes it.
  */
@@ -17,6 +18,7 @@ data class DeformedFrame(
     val name: String,
     val date: Long = UNKNOWN_DATE,
     val size: ImageSize? = null,
+    val timeMs: Long? = null,
 ) {
 
     /** The four parallel fields of a batch, in the view model's shapes. */
@@ -38,5 +40,12 @@ data class DeformedFrame(
             dates = frames.map { it.date },
             sizes = frames.mapNotNull { f -> f.size?.let { f.path to it.toPair() } }.toMap(),
         )
+
+        /**
+         * Each of [frames]' clip times, index-aligned with them; null unless
+         * every frame has one, so a list never pairs a time with the wrong frame.
+         */
+        fun timesOf(frames: List<DeformedFrame>): List<Long>? =
+            frames.mapNotNull { it.timeMs }.takeIf { it.isNotEmpty() && it.size == frames.size }
     }
 }

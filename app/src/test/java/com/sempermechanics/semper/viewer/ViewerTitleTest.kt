@@ -29,7 +29,8 @@ import java.time.Duration
 /**
  * The viewer's edge title and the pill under the frame. The field chip names
  * the field, so the title names what is on screen — "Summary", the frame's
- * file name, or a sweep node's subset and window — and the pill only counts.
+ * file name, a video frame's time in its clip, or a sweep node's subset and
+ * window — and the pill only counts.
  */
 @RunWith(RobolectricTestRunner::class)
 class ViewerTitleTest {
@@ -72,6 +73,14 @@ class ViewerTitleTest {
     }
 
     @Test
+    fun `a video frame is titled by its time in the clip`() {
+        assertEquals("0:01.25", ViewerCaptions.frameTitle(resources, "frame_0003.png", timeMs = 1_250L))
+        assertEquals("1:05.00", ViewerCaptions.frameTitle(resources, "frame_0001.png", timeMs = 65_000L))
+        assertEquals("0:00.04", ViewerCaptions.frameTitle(resources, "frame_0001.png", timeMs = 40L))
+        assertEquals("no time: its name", "frame_0003", ViewerCaptions.frameTitle(resources, "frame_0003.png"))
+    }
+
+    @Test
     fun `a sweep node is titled by its subset and its window in points`() {
         // A 3-point window at step 5 is an 11 px VSG; the label said W3, the engine got 11.
         val node = DicParams(subset = 15, step = 5, strainWindow = 11)
@@ -101,6 +110,18 @@ class ViewerTitleTest {
         shadowOf(activity.mainLooper).idleFor(Duration.ofMillis(100))
         idleUntil("the second frame's title") { activity.title() == "steel_02" }
         assertEquals("2 / 3", activity.pill())
+    }
+
+    @Test
+    fun `a video frame on the viewer is titled by its clip time`() {
+        val names = (1..FRAMES).map { "frame_000$it.png" }
+        val args = viewerArgs(batchDir, GRID, STEP, names).copy(frameTimesMs = listOf(40L, 1_250L, 2_500L))
+        val activity = viewer(args)
+        idleUntil("the first title") { activity.title() == "0:00.04" }
+
+        activity.click(R.id.btnNextFrame)
+        shadowOf(activity.mainLooper).idleFor(Duration.ofMillis(100))
+        idleUntil("the second frame's title") { activity.title() == "0:01.25" }
     }
 
     @Test

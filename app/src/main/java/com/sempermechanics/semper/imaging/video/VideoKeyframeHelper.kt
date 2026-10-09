@@ -37,6 +37,19 @@ internal object VideoKeyframeHelper {
         return String.format(Locale.US, "%d:%02d", minutes, seconds)
     }
 
+    /** Formats milliseconds as a frame's clip time, M:SS.cc: 1250 reads "0:01.25". */
+    fun formatFrameTime(ms: Long): String {
+        val centis = ms.coerceAtLeast(0L) / 10
+        val totalSeconds = centis / 100
+        return String.format(
+            Locale.US,
+            "%d:%02d.%02d",
+            totalSeconds / SECONDS_PER_MINUTE,
+            totalSeconds % SECONDS_PER_MINUTE,
+            centis % 100,
+        )
+    }
+
     /**
      * Discovers all sync keyframes (I-frames) within [[startUs], [endUs]].
      */

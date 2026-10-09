@@ -130,6 +130,15 @@ class AnalysisViewModel(private val saved: SavedStateHandle) : ViewModel() {
      */
     var defFromVideo: Boolean = false
 
+    /** The clip [defFilePaths] were sampled from ("tensile_03", or "Video"); null for picked images. */
+    var defVideoName: String? = null
+
+    /**
+     * Each deformed frame's time in its clip, index-aligned with [defFilePaths];
+     * null unless every frame has one (picked images have none).
+     */
+    val defFrameTimesMs: List<Long>? get() = DeformedFrame.timesOf(deformedFrames)
+
     /** The reference's true pixel size, as the engine measures it; [ImageSize.UNKNOWN] before one is picked. */
     var refSize: ImageSize = ImageSize.UNKNOWN
 

@@ -2,6 +2,7 @@ package com.sempermechanics.semper.imaging.video
 
 import android.content.Context
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.session.SessionNaming
 import com.sempermechanics.semper.field.ImageSize
 import com.sempermechanics.semper.imaging.BitmapDecoder
 import com.sempermechanics.semper.imaging.GrayPngEncoder
@@ -25,15 +26,23 @@ import java.util.Locale
  * not decode, or a batch with nothing deformed in it, aborts the write where it
  * is found rather than part-writing a session.
  *
- * @param startMs where the sampled segment starts; it names the reference.
+ * Each deformed frame keeps its time in the clip, so a frame the AVI rung
+ * dropped as a repeat, or one the retriever could not read, takes no time
+ * with it: the times stay aligned with the frames written.
+ *
+ * @param clipName the clip's display name (`tensile_03.mp4`); the reference,
+ *   and so the analysis, is named after it (`tensile_03`), else "Video".
  */
 internal class FrameSink(
     private val context: Context,
     private val cacheDir: File,
     private val stagingDir: File,
-    private val startMs: Long,
+    private val clipName: String?,
     private val onProgress: (percent: Int, status: String) -> Unit,
 ) {
+
+    /** The name the reference, the batch and the analysis take from the clip. */
+    val videoName: String get() = SessionNaming.clipName(clipName) ?: context.getString(R.string.video)
 
     /** The staged file of the frame at sample [index] (index 0 is the reference). */
     fun deformedFile(index: Int): File = File(stagingDir, String.format(Locale.US, "%04d_frame.png", index))
@@ -45,12 +54,18 @@ internal class FrameSink(
     }
 
     /**
-     * Writes [count] decoded frames as lossless grayscale PNGs: frame 0 is the
-     * reference, the rest are the deformed batch. Null when a frame fails to
-     * decode or nothing deformed came out.
+     * Writes one decoded frame per entry of [timesMs] (each frame's time in
+     * the clip) as lossless grayscale PNGs: frame 0 is the reference, the rest
+     * are the deformed batch. Null when a frame fails to decode or nothing
+     * deformed came out.
      */
-    suspend fun write(count: Int, lumaAt: (Int) -> GrayPngEncoder.Luma?): VideoFrameExtractor.ExtractionResult? {
+    suspend fun write(
+        timesMs: List<Long>,
+        lumaAt: (Int) -> GrayPngEncoder.Luma?,
+    ): VideoFrameExtractor.ExtractionResult? {
+        val count = timesMs.size
         val defPaths = mutableListOf<String>()
+        val defTimesMs = mutableListOf<Long>()
         var reference: ReferenceFrame? = null
 
         for (i in 0 until count) {
@@ -71,27 +86,43 @@ internal class FrameSink(
                 val f = deformedFile(i)
                 FileOutputStream(f).use { out -> GrayPngEncoder.encode(out, luma) }
                 defPaths.add(f.absolutePath)
+                defTimesMs.add(timesMs[i])
             }
             progress(i, count)
         }
-        return finish(reference, defPaths)
+        return finish(reference, defPaths, defTimesMs)
     }
 
-    /** [assemble], once there is a reference and at least one deformed frame; else null. */
-    suspend fun finish(reference: ReferenceFrame?, defPaths: List<String>): VideoFrameExtractor.ExtractionResult? =
-        if (reference == null || defPaths.isEmpty()) null else assemble(reference, defPaths)
+    /**
+     * [assemble], once there is a reference and at least one deformed frame;
+     * else null. [defTimesMs] is each of [defPaths]' time in the clip.
+     */
+    suspend fun finish(
+        reference: ReferenceFrame?,
+        defPaths: List<String>,
+        defTimesMs: List<Long>,
+    ): VideoFrameExtractor.ExtractionResult? =
+        if (reference == null || defPaths.isEmpty()) null else assemble(reference, defPaths, defTimesMs)
 
-    /** Commits the staged PNGs as an [ImportedBatch] and names the reference frame. */
-    suspend fun assemble(reference: ReferenceFrame, defPaths: List<String>): VideoFrameExtractor.ExtractionResult {
+    /** Commits the staged PNGs, each with its clip time, as an [ImportedBatch] and names the reference frame. */
+    suspend fun assemble(
+        reference: ReferenceFrame,
+        defPaths: List<String>,
+        defTimesMs: List<Long>,
+    ): VideoFrameExtractor.ExtractionResult {
+        require(defTimesMs.size == defPaths.size) { "One clip time per deformed frame" }
+        val name = videoName
         val stagedBatch = ImportedBatch(
-            frames = defPaths.sorted().mapIndexed { idx, path ->
+            frames = defPaths.zip(defTimesMs).sortedBy { it.first }.mapIndexed { idx, (path, timeMs) ->
                 DeformedFrame(
                     path = path,
                     name = String.format(Locale.US, "frame_%04d.png", idx + 1),
                     size = reference.size,
+                    timeMs = timeMs,
                 )
             },
             fromVideo = true,
+            videoName = name,
         )
         currentCoroutineContext().ensureActive()
         val batch = requireNotNull(
@@ -100,7 +131,7 @@ internal class FrameSink(
 
         return VideoFrameExtractor.ExtractionResult(
             reference = reference,
-            refName = "video @ ${VideoFrameExtractor.formatClock(startMs)}",
+            refName = name,
             batch = batch,
         )
     }

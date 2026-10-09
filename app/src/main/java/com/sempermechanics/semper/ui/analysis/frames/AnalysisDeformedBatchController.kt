@@ -137,9 +137,11 @@ class AnalysisDeformedBatchController(
             val ordered = FrameOrderHelper.reorder(batch.frames, FrameOrderMode.NAME)
             viewModel.deformedFrames = withContext(io) { FrameOrderHelper.reprefixTempFiles(ordered) }
             viewModel.defFromVideo = batch.fromVideo
+            viewModel.defVideoName = batch.videoName
         } else {
             viewModel.deformedFrames = emptyList()
             viewModel.defFromVideo = false
+            viewModel.defVideoName = null
         }
     }
 

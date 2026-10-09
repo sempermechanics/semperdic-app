@@ -4,6 +4,7 @@ import android.content.res.Resources
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.field.DicParams
 import com.sempermechanics.semper.field.DicResult
+import com.sempermechanics.semper.imaging.video.VideoKeyframeHelper
 import com.sempermechanics.semper.report.ReportBuilder
 import com.sempermechanics.semper.ui.analysis.sweep.SweepStudy
 import com.sempermechanics.semper.ui.common.InlineBusy
@@ -53,13 +54,15 @@ internal class ViewerCaptions(private val host: ResultViewerActivity) {
     /**
      * The edge title. The field chip names the field, and the pill under the
      * frame counts it, so the title names what is on screen: "Summary", the
-     * frame's file name, or a sweep node's subset and window ([frameTitle]).
+     * frame's file name, a video frame's time in its clip, or a sweep node's
+     * subset and window ([frameTitle]).
      */
     fun title(): String {
         if (host.isShowingSummary) return host.getString(R.string.summary_title)
         val position = host.currentFrameIndex
         val node = if (host.isSweep) host.frameParams.at(position) else null
-        return frameTitle(host.resources, host.frameDisplayName(position), node)
+        val timeMs = host.args.frameTimesMs?.getOrNull(host.plannedFrameIndex(position))
+        return frameTitle(host.resources, host.frameDisplayName(position), node, timeMs)
     }
 
     /** Edge title + peek-sheet stats for [index], from pre-computed [metrics]. Main thread only. */
@@ -112,14 +115,18 @@ internal class ViewerCaptions(private val host: ResultViewerActivity) {
          * strain window counted in data points as the lattice and the wizard
          * count it (the step is always subset ÷ N, so it is left out); a node
          * whose VSG is no whole window, from before windows were counted in
-         * points, keeps its stored label [name]. Any other frame is [name]
+         * points, keeps its stored label [name]. A video frame with its clip
+         * time [timeMs] reads that time, "0:01.25". Any other frame is [name]
          * without its extension: "steel_03", or "Frame 3" for an unnamed one.
          */
-        fun frameTitle(resources: Resources, name: String, node: DicParams? = null): String {
-            if (node == null) return name.substringBeforeLast('.').ifBlank { name }
-            val window = SweepStudy.windowPointsFor(node.strainWindow, node.step)
-            return window?.let { resources.getString(R.string.viewer_sweep_title_fmt, node.subset, it) } ?: name
-        }
+        fun frameTitle(resources: Resources, name: String, node: DicParams? = null, timeMs: Long? = null): String =
+            when {
+                node != null -> SweepStudy.windowPointsFor(node.strainWindow, node.step)
+                    ?.let { resources.getString(R.string.viewer_sweep_title_fmt, node.subset, it) }
+                    ?: name
+                timeMs != null -> VideoKeyframeHelper.formatFrameTime(timeMs)
+                else -> name.substringBeforeLast('.').ifBlank { name }
+            }
 
         /**
          * "Opening steel_00 · 40 frames": the reference's name without its

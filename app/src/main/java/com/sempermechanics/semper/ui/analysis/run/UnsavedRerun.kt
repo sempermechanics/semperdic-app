@@ -9,6 +9,8 @@ import com.sempermechanics.semper.data.session.SessionRecordSettings
  * @property settings what the run solved with, which the frames on disk now
  *   reflect
  * @property defNames the frame names on disk, as a saved run records them
+ * @property videoName the clip the run's frames came from, when they did
+ * @property frameTimesMs each frame's time in that clip, index-aligned with [defNames]
  */
 internal data class UnsavedRerun(
     val framesOnDisk: Int,
@@ -16,6 +18,8 @@ internal data class UnsavedRerun(
     val plannedFrames: Int,
     val settings: SessionRecordSettings,
     val defNames: List<String>,
+    val videoName: String? = null,
+    val frameTimesMs: List<Long>? = null,
 )
 
 /**
@@ -28,9 +32,9 @@ internal data class UnsavedRerun(
  * - Nothing on disk and no cloud copy: null, the row goes. There is no
  *   analysis left anywhere for it to open.
  * - Some frames on disk: it describes those. They are this run's, so the row
- *   takes its settings and frame names, and is an ordinary analysis even if
- *   it was a sweep; it keeps no headline or stats from the run that is gone,
- *   and is not backed up.
+ *   takes its settings, frame names and video fields, and is an ordinary
+ *   analysis even if it was a sweep; it keeps no headline or stats from the
+ *   run that is gone, and is not backed up.
  */
 internal fun afterUnsavedRerun(previous: SessionRecord, run: UnsavedRerun): SessionRecord? = when {
     run.framesOnDisk == 0 && previous.syncState == SessionRecord.SyncState.SYNCED -> previous
@@ -47,6 +51,8 @@ internal fun afterUnsavedRerun(previous: SessionRecord, run: UnsavedRerun): Sess
         roiW = run.settings.roiW,
         roiH = run.settings.roiH,
         defNames = run.defNames,
+        videoName = run.videoName,
+        frameTimesMs = run.frameTimesMs,
         stopCode = run.stopCode,
         plannedFrameCount = run.plannedFrames,
         headline = "",

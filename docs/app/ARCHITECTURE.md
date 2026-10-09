@@ -60,7 +60,7 @@ on 2026-10-03.
 | `ui/common/` | 17 | Cross-screen basics: insets, motion (`Motion.reduced` for animations off), `CollapsibleSection` (the wizard's closed **Advanced** sections), keyboard (`Keyboard`, `ImeReveal`), toggle groups, `dp`, `SerialJob`, `ConflatedRefresh`, `Busy` (`setBusy`), `InlineBusy` (a slot's busy state for a wait past 300 ms: the reference slot, the speckle chip, the video read, the viewer's opening pill), `ViewportMath`, `ByteSize`, `EtaEstimator` (time left for runs, exports and transfers), `ProgressText` (their "34.6%", "4.2 of 12.0 MB · 1.1 MB/s" wording), coach marks, the settings section header |
 | `ui/common/dialog/` | 8 | `Feedback.toast`, `CrispToast`, `Dialogs` (info, confirm, i-buttons), `Sheet` (`inflateSheet`), `WarnChip`, `FaqRedirect`, delete-choice and progress dialogs |
 | `ui/common/auth/` | 6 | `AuthRoute` (re-authentication), sign-out confirm and run, `ExternalLinks`, `SupportMail` |
-| `ui/common/media/` | 6 | `MediaPickerSheet` (Home **+** and the wizard dropzones), `MediaStoreBrowser`, `MediaSourceChooser`, `ThumbnailLoader` |
+| `ui/common/media/` | 7 | `MediaPickerSheet` (Home **+** and the wizard dropzones), `MediaStoreBrowser`, `MediaSourceChooser`, `ThumbnailLoader`, `DisplayNames` (a picked image's or video's file name) |
 | `ui/common/transfer/` | 4 | `TransferBannerController`, `TransferWorkObserver` (one reading of WorkManager jobs for Home and Settings), `DeleteFeedback`, `RestoreFailureNotice` |
 | `data/` | 11 | The six WorkManager workers (WorkManager stores their class names, so they never move) and the backup's steps beside `DicUploadWorker`: `UploadStaging`, `UploadSessionPlanner`, `UploadRun`, `UploadFailures`, `UploadTuning` |
 | `data/session/` | 17 | `SessionStore` / `SessionRecord`, `SessionPaths` / `SessionLayout`, `SessionRepository`, `SessionNaming`, zip and `.dat` codecs, storage budget, cache janitor |
@@ -109,6 +109,16 @@ The constants `SessionPaths.RAW_DEFORMED_SUBDIR`, `FRAME_DAT_FMT`, and
 `SessionPaths.frameDat` are shared by the ViewModel / `BatchAnalysis`,
 [`DicUploadWorker`](../../app/src/main/java/com/sempermechanics/semper/data/DicUploadWorker.kt),
 and cloud restore so path segments and `frame_0000.dat` names never diverge.
+
+The Home list's rows are `SessionRecord`s in `sessions/index.json`. Fields added
+since the first index are optional with a default, and the encoder leaves a
+default out, so an older index loads and an older row writes as it did
+(`SessionIndexGoldenTest`). A video analysis adds two: `videoName` (the clip's
+name without its extension, or "Video") and `frameTimesMs` (each deformed
+frame's time in the clip, index-aligned with `defNames`). Home's row line and
+the viewer's frame title read them. Neither goes to the cloud copy's
+`metadata.json`, so a restored video analysis has neither and its frames are
+known by their names.
 
 ## Sync workers
 
