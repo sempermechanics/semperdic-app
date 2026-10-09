@@ -262,13 +262,13 @@ test("Remove asks first; declining sends nothing", async () => {
 test("a refused seat change is explained", async () => {
   const cases = [
     ["seat_revoked", "That member was removed. Add their address again to restore them."],
-    ["license_revoked", "This licence has been revoked, so its seats cannot be changed."],
+    ["license_revoked", "This licence has been revoked, so its seats cannot be changed.", 403],
     ["seat_busy", "That seat changed while you were acting on it. Try again."],
     ["strange", "Could not complete that: strange"],
   ];
-  for (const [code, text] of cases) {
+  for (const [code, text, httpStatus = 409] of cases) {
     reset();
-    await act("hold", "u1", () => json(409, { detail: code }));
+    await act("hold", "u1", () => json(httpStatus, { detail: code }));
     assert.deepEqual(status(), [text, "muted err"], code);
   }
 });

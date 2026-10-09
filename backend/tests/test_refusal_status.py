@@ -2,9 +2,10 @@
 
 Each case stubs the repo call behind a route so that it refuses with one code,
 and records the status and detail the client receives. The table is what the
-routes answered before refusals had one status table (`errors.STATUS`); a change
-that moves any of these is a wire change, and the Android client and the
-consoles branch on both halves.
+routes answered before refusals had one status table (`errors.STATUS`), less
+the two overrides TD-185 dropped: `license_revoked` is 403 and
+`license_seat_disabled` 409 on every route, since no client read those
+statuses. A change that moves any of these is a wire change.
 """
 import pytest
 
@@ -30,7 +31,7 @@ CASES = [
           ("user_not_found", 404), ("license_not_found", 404), ("license_expired", 403),
           ("already_licensed", 409), ("license_revoked", 403), ("license_email_mismatch", 403),
           ("license_device_mismatch", 403), ("license_already_redeemed", 409),
-          ("license_seats_exhausted", 409), ("license_seat_disabled", 403),
+          ("license_seats_exhausted", 409), ("license_seat_disabled", 409),
           ("claim_contended", 503),
       ]],
     # The floating-seat lease.
@@ -65,7 +66,7 @@ CASES = [
        {"domainLock": "uni.edu", "adminEmails": ["it@uni.edu"]}, "convert_to_institution",
        code, status)
       for code, status in [
-          ("license_not_found", 404), ("license_revoked", 409), ("license_not_convertible", 409),
+          ("license_not_found", 404), ("license_revoked", 403), ("license_not_convertible", 409),
           ("convert_domain_mismatch", 422), ("claim_contended", 503),
           ("license_seats_exhausted", 409),
       ]],
@@ -86,7 +87,7 @@ CASES = [
     *[("PATCH", "/v1/institutions/licenses/L1/seats/u1", {"enabled": False},
        "set_seat_enabled", code, status)
       for code, status in [("seat_not_found", 404), ("seat_revoked", 409),
-                           ("license_revoked", 409), ("seat_busy", 409)]],
+                           ("license_revoked", 403), ("seat_busy", 409)]],
     ("PATCH", "/v1/institutions/licenses/L1/seats/u1", {"clearDeviceLock": True},
      "clear_device_lock", "seat_not_found", 404),
 ]

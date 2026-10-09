@@ -760,7 +760,7 @@ test("the roster is read and changed through the staff routes, whoever IT lists"
 test("a refused roster change is said in the roster card", async () => {
   await open({ routes: {
     [`GET ${STAFF_SEATS}`]: () => json(200, UNI_ROSTER),
-    [`PATCH ${STAFF_SEATS}/u1`]: () => json(409, { detail: "license_revoked" }),
+    [`PATCH ${STAFF_SEATS}/u1`]: () => json(403, { detail: "license_revoked" }),
   } });
   rowButton("roster", UNI.id).click();
   await settle();
