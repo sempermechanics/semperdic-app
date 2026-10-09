@@ -69,6 +69,19 @@ class SessionSelectionControllerTest : SessionSelectionFixture() {
     }
 
     @Test
+    fun `select-all over several days counts analyses, not day headers`() {
+        val day = 24L * 60L * 60L * 1000L
+        list(a.copy(createdAt = 3 * day), b.copy(createdAt = 2 * day), c.copy(createdAt = day))
+        assertEquals("three days, three headers", 6, adapter.itemCount)
+
+        controller.selectAll()
+
+        assertEquals("3 selected", count.text.toString())
+        assertTrue(selectAll.isChecked)
+        assertEquals(listOf("a", "b", "c"), controller.selectedRecords().map { it.id })
+    }
+
+    @Test
     fun `unticking select-all clears the selection`() {
         list(a, b)
         controller.selectAll()
