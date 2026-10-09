@@ -17,7 +17,7 @@ on:
         type: boolean
         default: false
       run_benchmark:
-        description: 'Run the benchmarks on an emulator (Macrobenchmark + HotPathMicroBenchmark smoke)'
+        description: 'Run the benchmarks on an emulator (Macrobenchmark + HotPathMicroBenchmark smoke; no A/B without a PR base)'
         type: boolean
         default: false
 
@@ -245,6 +245,17 @@ jobs:
               - 'app/build.gradle.kts'
               - 'app/proguard-rules.pro'
               - 'gradle/libs.versions.toml'
+            # What HotPathMicroBenchmark times, the benchmark itself and its
+            # gate: a PR touching one runs the benchmark job, whose A/B against
+            # the PR's base fails a slowdown (TD-199).
+            hot_path:
+              - 'app/src/main/java/com/sempermechanics/semper/report/**'
+              - 'app/src/main/java/com/sempermechanics/semper/field/DicResult.kt'
+              - 'app/src/main/java/com/sempermechanics/semper/ui/viewer/inspect/PointSpatialIndex.kt'
+              - 'app/src/main/java/com/sempermechanics/semper/ui/analysis/sweep/SweepStudy.kt'
+              - 'app/src/androidTest/java/com/sempermechanics/semper/benchmark/HotPathMicroBenchmark.kt'
+              - 'scripts/micro_ab.py'
+              - 'benchmark/gates.json'
 
       - name: Resolve tier flags
         id: flags
@@ -256,6 +267,7 @@ jobs:
           FILTER_CI_WORKFLOW: ${{ steps.filter.outputs.ci_workflow }}
           FILTER_ANDROID_TEST: ${{ steps.filter.outputs.android_test }}
           FILTER_PACKAGING: ${{ steps.filter.outputs.packaging }}
+          FILTER_HOT_PATH: ${{ steps.filter.outputs.hot_path }}
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           HEAD_REF: ${{ github.head_ref }}
@@ -333,6 +345,11 @@ jobs:
             if [ "$E2E_LABEL" = "true" ] || [ "$RELEASE_LABEL" = "true" ]; then
               emulator=true
               release_build=true
+            fi
+            # A hot-path change on a PR is timed against its base (TD-199).
+            # Not on main: the A/B needs a PR's base, and the PR already ran it.
+            if [ "$FILTER_HOT_PATH" = "true" ] && [ "$EVENT_NAME" = "pull_request" ]; then
+              benchmark=true
             fi
             # Main always reruns the light tiers on the merged tree: they are
             # minutes, and the heavy ones above still follow the diff.
@@ -686,9 +703,11 @@ jobs:
           except-key: ccache-arm64-${{ steps.native-ci.outputs.cache-infix }}
 
   # ===================================================================
-  # Benchmarks — opt-in only (label `benchmark` or dispatch run_benchmark).
-  # Macrobenchmark startup (:benchmark) and the :app HotPathMicroBenchmark
-  # share one emulator boot; both are smoke, with their numbers uploaded.
+  # Benchmarks — label `benchmark`, dispatch run_benchmark, or a PR that
+  # touches a hot path (the `hot_path` filter). Macrobenchmark startup
+  # (:benchmark) and the :app HotPathMicroBenchmark share one emulator boot.
+  # The macro numbers and the micro smoke run are uploaded, not gated; on a PR
+  # the micro suite also runs A/B against the PR's base, which is a gate.
   # ===================================================================
   tier-benchmark:
     name: Benchmarks (macro + micro)
@@ -736,6 +755,32 @@ jobs:
           test -n "$APP_ID" && test "$(printf '%s\n' "$APP_ID" | wc -l)" -eq 1
           echo "APP_ID=$APP_ID" >> "$GITHUB_ENV"
 
+      # The micro A/B's two builds (TD-199): the PR's base (A) and the PR (B),
+      # each a debug app APK and its androidTest APK. Both build in this
+      # checkout, base first, so the PR's build is the one left in app/build
+      # and the base's native objects are reused where the engine is the same.
+      - name: Build the PR's base and the PR for the microbenchmark A/B
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          ab="$RUNNER_TEMP/micro-ab"
+          head=$(git rev-parse HEAD)
+          build() {
+            ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest -PabiFilters=x86_64 -PnativeCompilerLauncher=ccache --console=plain
+            mkdir -p "$ab/$1"
+            cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk "$ab/$1/"
+          }
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git -c advice.detachedHead=false checkout "$BASE_SHA"
+          git submodule update --init --recursive
+          build A
+          git -c advice.detachedHead=false checkout "$head"
+          git submodule update --init --recursive
+          build B
+          ls -l "$ab"/*
+
       # One emulator boot, two suites; each line is its own command, and a failing
       # one fails the step. The micro run is a debug build on an emulator, hence
       # DEBUGGABLE in its suppress list: its numbers are relative, not absolutes.
@@ -743,9 +788,15 @@ jobs:
       # instrumentation argument passed through Gradle arrives cut at its first
       # comma (only EMULATOR was suppressed, TD-86), and API 34 raises
       # ACTIVITY-MISSING and NOT-AOT-COMPILED too. `am instrument` exits 0 on test
-      # failures, so the grep on its summary line is the pass/fail.
+      # failures, so the grep on its summary line is the pass/fail. On a PR the
+      # last line runs the micro A/B (scripts/micro_ab.py): A B B A on this
+      # emulator, failing a hot path whose median is over microAbMargin
+      # (benchmark/gates.json) above the base's. The `perf-accepted` label makes
+      # it report without failing, for a slowdown the PR means to make.
       - name: Run startup Macrobenchmarks and hot-path Microbenchmarks
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        env:
+          MICRO_AB_FLAGS: ${{ contains(github.event.pull_request.labels.*.name, 'perf-accepted') && '--advisory' || '' }}
         with:
           # Same image as tier 3. API 37 empties gfxinfo framestats, so
           # startActivityAndWait cannot confirm launch.
@@ -762,11 +813,11 @@ jobs:
             "$ANDROID_HOME/platform-tools/adb" pull "/sdcard/Android/media/$APP_ID" app/build/outputs/connected_android_test_additional_output || true
             "$ANDROID_HOME/platform-tools/adb" logcat -d -s Benchmark:I || true
             grep -q "^OK (" micro-instrument.txt
+            if [ -d "$RUNNER_TEMP/micro-ab/A" ]; then python3 scripts/micro_ab.py --a "$RUNNER_TEMP/micro-ab/A" --b "$RUNNER_TEMP/micro-ab/B" --out micro-ab --package "$APP_ID" $MICRO_AB_FLAGS; fi
 
-      # Numbers are smoke on an emulator, not a regression gate (see
-      # docs/app/TESTING.md), but leaving them uncaptured means every run answers
-      # only pass/fail. Keep the raw *-benchmarkData.json/.perfetto-trace files so
-      # a real regression is at least visible by hand until thresholds exist.
+      # The smoke runs' numbers are not gated (absolute times on an emulator say
+      # nothing; the micro A/B above is the gate), but keep the raw
+      # *-benchmarkData.json/.perfetto-trace files so a run can be read by hand.
       # Failing test names and each benchmark's min / median / max into the log.
       - name: Report benchmark results
         if: always()
@@ -792,6 +843,15 @@ jobs:
         with:
           name: microbenchmark-results
           path: app/build/outputs/connected_android_test_additional_output/**
+          if-no-files-found: warn
+
+      # Each A/B round's instrument output and benchmark JSON (1-A, 2-B, ...).
+      - name: Upload microbenchmark A/B rounds
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: microbenchmark-ab
+          path: micro-ab/**
           if-no-files-found: warn
 
   # ===================================================================

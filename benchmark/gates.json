@@ -4,6 +4,8 @@
   "_state": "A result is gated only if its test ran at or below maxThermalStatus (PowerManager; 0 = none) and on a charger, at start and end, as recorded in *deviceState.json (TD-135, ADR-008). abMargin: scripts/startup_ab.py fails a candidate whose pooled median is more than this over the reference build's, run interleaved on the same phone.",
   "state": { "maxThermalStatus": 0, "requirePlugged": true },
   "abMargin": 0.10,
+  "_micro": "microAbMargin: scripts/micro_ab.py, in the CI benchmark job, fails a PR whose HotPathMicroBenchmark median timeNs is more than this over its base build's, both run interleaved (A B B A) on the same emulator (TD-199).",
+  "microAbMargin": 0.15,
   "devices": {
     "oriole": {
       "label": "Pixel 6, API 37, 2026-10-05, d4b86d91, signed in, diagnostics off, AC, thermal 0",
