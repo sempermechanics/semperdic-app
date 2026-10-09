@@ -68,10 +68,15 @@ Pick the home by how long the work must live and who must see its outcome.
 **The wizard is the exception, on purpose.** `StaticAnalysisActivity`
 absorbs every configuration change (`app/src/main/AndroidManifest.xml:154-158`),
 so rotation never recreates it. Its batch and sweep runs sit on
-`viewModelScope` (`ui/analysis/wizard/RunChannels.kt:74`, `:133`), but
-`onDestroy` cancels them (`ui/analysis/StaticAnalysisActivity.kt:243`): a
-solve belongs to the screen that shows it. Process death is covered by the
+`viewModelScope` (`ui/analysis/wizard/RunChannels.kt:112`, `:171`), but
+`onDestroy` raises the run's cancel flag on every destroy
+(`ui/analysis/StaticAnalysisActivity.kt:246`), and a destroy that is not a
+configuration change also clears the view model and its scope: a solve
+belongs to the screen that shows it. Process death is covered by the
 draft ([ADR-005](ADR-005-wizard-process-death.md)), not by keeping the run.
+A run's outcome is held in the view model until a started screen takes it,
+once (`PendingOutcome`, `ui/analysis/wizard/RunChannels.kt:73`), so a run
+that ends while the wizard is in the background is handled when it returns.
 
 **Rule for new code.**
 
@@ -138,10 +143,11 @@ time, a `StateFlow`, and a consume.
   An erase that never answered is settled by a device-signed probe
   (`CloudErase.probeErasedAccount`): wiped only when the account is known
   gone, asked again at the next start when there is no answer. Tests:
-  `AccountDeletionDeathTest`.
-- The wizard's run outcome is a `SharedFlow` with no replay, collected only
-  while the wizard is started, so an outcome emitted while it is in the
-  background is dropped (TD-168).
+  `AccountDeletionDeathTest`, `test_account_deletion_probe.py`.
+- The wizard's run outcome was a `SharedFlow` with no replay, collected only
+  while the wizard was started, so an outcome emitted while it was in the
+  background was dropped (TD-168). It is now held until consumed
+  (`PendingOutcome`); test: `RunOutcomeDeliveryTest`.
 
 ## Action items
 
@@ -153,5 +159,5 @@ time, a `StateFlow`, and a consume.
    (#316, #329).
 4. [x] TD-165: persist the deletion stage and finish the wipe at startup
    (`AccountDeletionMarker`, `AccountDeletionRun.resumeInterrupted`).
-5. [ ] TD-168: give the wizard's run outcome a replay, or hold it in the
-   ViewModel's state.
+5. [x] TD-168: the wizard's run outcome is held in the ViewModel until a
+   screen consumes it (`PendingOutcome`).
