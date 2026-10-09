@@ -22,6 +22,9 @@ object PrefFiles {
         val DIAGNOSTICS_ENABLED = PrefKey.boolean("diagnostics_enabled")
         val DIAGNOSTICS_ASKED = PrefKey.boolean("diagnostics_asked")
 
+        /** Running mean of grid points solved per second on this phone; 0 before the first run. */
+        val RUN_POINTS_PER_SECOND = PrefKey.int("run_points_per_second")
+
         /** Retired; [AppSettings.migrate] removes it. */
         val KEEP_EVERY_RERUN = PrefKey.boolean("keep_every_rerun")
     }
@@ -162,6 +165,21 @@ object PrefFiles {
         val SHOWN_OUTCOMES = PrefKey.stringSet("shown_outcomes")
     }
 
+    /**
+     * [AccountDeletionMarker]: an account erase that was sent, and how far it
+     * got, so a deletion the process did not live to finish ends at the next start.
+     * Outlives sign-out and the local wipe on purpose.
+     */
+    object AccountDeletion {
+        const val NAME = "semper_account_deletion"
+
+        /** An [AccountDeletionMarker.Stage] name, or absent when nothing is owed. */
+        val STAGE = PrefKey.string("stage")
+
+        /** The account the erase was sent for (`AccountCache.cachedUid`), "" when unknown. */
+        val UID = PrefKey.string("uid", "")
+    }
+
     /** Every file name above, for a test or a wipe that must not miss one. */
     val ALL_NAMES: List<String> = listOf(
         Settings.NAME,
@@ -176,5 +194,6 @@ object PrefFiles {
         RestoreOutcomes.NAME,
         EmailLink.NAME,
         SessionDeletesPrefs.NAME,
+        AccountDeletion.NAME,
     )
 }

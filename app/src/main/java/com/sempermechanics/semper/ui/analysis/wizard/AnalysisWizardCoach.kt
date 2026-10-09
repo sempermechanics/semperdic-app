@@ -39,23 +39,23 @@ class AnalysisWizardCoach(
     )
 
     private fun settingsSteps(): List<CoachMarkController.Step> {
-        val settingsAnchor: View = settings.advancedParamsCard
-            .takeIf { it.isVisible }
-            ?: settings.sweepSettingsHeader
+        val single = settings.advancedParamsCard.isVisible
+        val settingsAnchor: View = if (single) settings.advancedParamsCard else settings.sweepSettingsHeader
+        val settingsText = if (single) R.string.coach_analysis_advanced else R.string.coach_sweep_lattice
         return listOf(
             CoachMarkController.Step(
                 settings.rgAnalysisMode,
                 activity.getString(R.string.coach_analysis_mode),
             ),
             CoachMarkController.Step(settings.btnDefineRoi, activity.getString(R.string.coach_analysis_roi)),
-            CoachMarkController.Step(settingsAnchor, activity.getString(R.string.coach_analysis_advanced)),
+            CoachMarkController.Step(settingsAnchor, activity.getString(settingsText)),
         )
     }
 
     private fun sweepSteps() = listOf(
         CoachMarkController.Step(
-            sweepPage.plannedLatticeCard,
-            activity.getString(R.string.coach_sweep_lattice),
+            sweepPage.subsetRangeBlock,
+            activity.getString(R.string.coach_sweep_ranges),
         ),
         CoachMarkController.Step(
             sweepPage.lineCutPreviewCard,

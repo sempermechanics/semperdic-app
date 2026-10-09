@@ -107,7 +107,7 @@ class ClientNonceTest {
             assertFalse(ClientNonce.isUsable())
 
             val api = OkHttpClient.Builder()
-                .addInterceptor(ClientNonce.ServerDateObserver(server.hostName))
+                .addInterceptor(ClientNonce.ServerDateObserver("${server.hostName}:${server.port}"))
                 .build()
             api.newCall(Request.Builder().url(server.url("/v1/me")).build()).execute().close()
             assertTrue(ClientNonce.isUsable())

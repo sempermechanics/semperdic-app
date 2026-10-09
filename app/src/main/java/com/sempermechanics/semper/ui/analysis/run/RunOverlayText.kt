@@ -2,11 +2,12 @@ package com.sempermechanics.semper.ui.analysis.run
 
 import android.content.res.Resources
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.ui.analysis.sweep.SweepStudyRunner
 import com.sempermechanics.semper.ui.analysis.wizard.BatchProgressUpdate
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/** What the run overlay says for a batch run's tick, worded from its frame fields. */
+/** What the run overlay says for a batch run's or a sweep's tick. */
 object RunOverlayText {
 
     private const val MS_PER_SECOND = 1000.0
@@ -43,6 +44,24 @@ object RunOverlayText {
         val finished = tick.frameIndex.coerceAtMost(tick.plannedFrames)
         if (tick.plannedFrames <= 1 || finished <= 0) return null
         return res.getString(R.string.run_pace_fmt, elapsedMs / MS_PER_SECOND / finished)
+    }
+
+    /** "Analysis 7 of 20": the sweep's count beside the title. */
+    fun sweepCount(res: Resources, tick: SweepStudyRunner.Progress): String =
+        res.getString(R.string.run_analysis_of_fmt, minOf(tick.runIndex + 1, tick.totalRuns), tick.totalRuns)
+
+    /**
+     * The line under the sweep lattice: the combination being solved, then,
+     * once every combination has an outcome, how many solved while it saves.
+     */
+    fun sweepStatus(res: Resources, tick: SweepStudyRunner.Progress): String {
+        val outcomes = tick.outcomes
+        if (outcomes.isNotEmpty() && SweepStudyRunner.NodeOutcome.PENDING !in outcomes) {
+            val solved = outcomes.count { it == SweepStudyRunner.NodeOutcome.SOLVED }
+            return res.getQuantityString(R.plurals.sweep_completed_fmt, tick.totalRuns, solved, tick.totalRuns)
+        }
+        val point = tick.point
+        return res.getString(R.string.sweep_running_fmt, point.subset, point.step, point.window)
     }
 
     /** The one-strike warning, or null when no frame leaves the run one low frame from stopping. */

@@ -85,6 +85,13 @@ class LineCutPreviewView @JvmOverloads constructor(
     private var roi = Roi(0, 0, 0, 0)
     private var horizontal = true
 
+    /** The parameters page's ROI thumbnail: no padding and no cut line. */
+    var compact = false
+        set(value) {
+            field = value
+            invalidate()
+        }
+
     /**
      * @param bitmap preview of the reference image (may be scaled down)
      * @param image full reference size in engine pixels; each side at least 1
@@ -173,7 +180,7 @@ class LineCutPreviewView @JvmOverloads constructor(
         super.onDraw(canvas)
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), dimPaint)
 
-        val pad = dp(PAD_DP)
+        val pad = if (compact) 0f else dp(PAD_DP)
         val availW = width - 2 * pad
         val availH = height - 2 * pad
         if (availW <= 0f || availH <= 0f) return
@@ -211,6 +218,7 @@ class LineCutPreviewView @JvmOverloads constructor(
             canvas.drawRect(roiRect, roiFillPaint)
         }
         canvas.drawRect(roiRect, roiStrokePaint)
+        if (compact) return
 
         val line = SweepStudy.centreLine(roi, horizontal)
         if (line.horizontal) {

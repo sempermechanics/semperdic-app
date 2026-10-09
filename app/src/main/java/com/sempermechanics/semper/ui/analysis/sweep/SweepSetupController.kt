@@ -2,28 +2,37 @@ package com.sempermechanics.semper.ui.analysis.sweep
 
 import android.graphics.Bitmap
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import androidx.annotation.IdRes
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.doOnNextLayout
 import androidx.core.view.isVisible
+import androidx.core.view.updateLayoutParams
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.prefs.AppSettings
 import com.sempermechanics.semper.field.ImageSize
 import com.sempermechanics.semper.field.Roi
+import com.sempermechanics.semper.ui.analysis.recommend.RunEstimate
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.WizardStep
+import com.sempermechanics.semper.ui.common.Motion
 import com.sempermechanics.semper.ui.common.dialog.WarnChip
 import com.sempermechanics.semper.ui.common.dialog.bindInfo
 import com.sempermechanics.semper.ui.common.onButtonChecked
 
 /**
- * Parameter-sweep setup UI for the analysis wizard (§5.4.5 parameter sweep): mode
- * toggle, subset/VSG/sample fields, lattice + line-cut previews, and plan
- * summary. Orchestration ([startSweep], progress, lifecycle) stays in the
- * Activity. The range inputs are [SweepRangeFields]; the frame dialog is
+ * Parameter-sweep setup UI for the analysis wizard (§5.4.5 parameter sweep).
+ * Page 2 (sweep setup): the mode toggle, the frame to sweep, and the planned
+ * lattice with its summary and, under its gear, the sample counts. Page 3
+ * (sweep settings): the subset, window and step inputs, the line cut axis over
+ * a preview that opens on a tap, and "Run 9 analyses · about 33 s".
+ * Orchestration ([startSweep], progress, lifecycle) stays in the Activity.
+ * The range inputs are [SweepRangeFields]; the frame dropdown is
  * [SweepFramePicker].
  */
 @Suppress("TooManyFunctions") // the wizard-facing API StaticAnalysisActivity calls, and its Callbacks
@@ -52,20 +61,30 @@ class SweepSetupController(
         /** Hard bounds on strain window input, in data points — the guardrail against a mistyped huge number. */
         const val STRAIN_WIN_MIN_INPUT = SweepStudy.MIN_WINDOW_POINTS
         const val STRAIN_WIN_MAX_INPUT = SweepStudy.MAX_WINDOW_POINTS
+
+        /** The open line-cut preview takes at most this share of the screen height. */
+        private const val EXPANDED_MAX_SCREEN = 0.6f
+
+        /** Height over width of the open preview before a reference is known. */
+        private const val DEFAULT_ASPECT = 0.75f
     }
 
     private lateinit var rgAnalysisMode: MaterialButtonToggleGroup
     private lateinit var advancedParamsCard: View
     private lateinit var sweepSettingsCard: View
     private lateinit var rgLineCutAxis: MaterialButtonToggleGroup
-    private lateinit var btnPickSweepFrame: Button
     private lateinit var tvSweepPlan: TextView
+    private lateinit var tvStrainWinVsg: TextView
     private lateinit var sweepPlanWarn: WarnChip
     private lateinit var lineCutPreview: LineCutPreviewView
+    private lateinit var roiThumb: LineCutPreviewView
     private lateinit var sweepLatticePreview: SweepLatticeView
     lateinit var btnRunSweep: Button
         private set
     private lateinit var latticeSamplesBody: View
+
+    /** True while the line-cut preview is open at full width rather than the strip. */
+    private var lineCutExpanded = false
 
     /** The subset, window, step and sample inputs; null until [setup]. */
     private var rangeFields: SweepRangeFields? = null
@@ -80,16 +99,18 @@ class SweepSetupController(
         advancedParamsCard = activity.findViewById(R.id.advancedParamsCard)
         sweepSettingsCard = activity.findViewById(R.id.sweepSettingsCard)
         rgLineCutAxis = activity.findViewById(R.id.rgLineCutAxis)
-        btnPickSweepFrame = activity.findViewById(R.id.btnPickSweepFrame)
         tvSweepPlan = activity.findViewById(R.id.tvSweepPlan)
+        tvStrainWinVsg = activity.findViewById(R.id.tvStrainWinVsg)
         sweepPlanWarn = WarnChip(activity.findViewById(R.id.sweepPlanWarnRow), callbacks::confirmOpenFaq)
         lineCutPreview = activity.findViewById(R.id.lineCutPreview)
+        roiThumb = activity.findViewById<LineCutPreviewView>(R.id.roiThumb).apply { compact = true }
         sweepLatticePreview = activity.findViewById(R.id.sweepLatticePreview)
         // Same compact axes as the result lattice, now that the preview is the
         // same 136dp height -- full/default mode needs more room than that.
         sweepLatticePreview.compact = true
         btnRunSweep = activity.findViewById(R.id.btnRunSweep)
         latticeSamplesBody = activity.findViewById(R.id.latticeSamplesBody)
+        framePicker.bind()
         val fields = SweepRangeFields(activity, viewModel, callbacks, onChanged = ::refreshSweepPlan)
         rangeFields = fields
 
@@ -111,17 +132,17 @@ class SweepSetupController(
             refreshLineCutPreview()
         }
 
-        btnPickSweepFrame.setOnClickListener { framePicker.show(resolvedSweepFrame()) }
-
         btnRunSweep.setOnClickListener {
             callbacks.commitParamFields()
             callbacks.startSweep()
         }
 
         activity.findViewById<View>(R.id.btnLatticeSamples).setOnClickListener {
-            val expanded = latticeSamplesBody.isVisible
-            latticeSamplesBody.isVisible = !expanded
+            (latticeSamplesBody.parent as? ViewGroup)?.let(Motion::animateExpandCollapse)
+            latticeSamplesBody.isVisible = !latticeSamplesBody.isVisible
         }
+        lineCutPreview.setOnClickListener { expandLineCut(!lineCutExpanded) }
+        expandLineCut(false)
 
         wireSweepInfoButtons()
 
@@ -131,8 +152,9 @@ class SweepSetupController(
     }
 
     /**
-     * Single setting keeps Advanced + Compute on page 2. Parameter sweep shows
-     * sweep settings on page 2 and routes through Next → page 3 (summary).
+     * Single setting keeps the correlation section and Compute on page 2.
+     * Parameter sweep shows the frame and planned lattice on page 2 and routes
+     * through Next → page 3 (sweep settings).
      */
     fun applyAnalysisModeUi() {
         val sweep = viewModel.sweepMode
@@ -189,11 +211,18 @@ class SweepSetupController(
         refreshSweepFrameUi()
 
         val plan = currentPlan()
+        tvStrainWinVsg.isVisible = plan.isNotEmpty()
+        btnRunSweep.text = runLabel(plan)
         when {
             plan.isNotEmpty() -> {
                 tvSweepPlan.isVisible = true
                 sweepPlanWarn.hide()
                 tvSweepPlan.text = planSummary(plan)
+                tvStrainWinVsg.text = activity.getString(
+                    R.string.strain_win_vsg_range_fmt,
+                    plan.minOf { it.vsg },
+                    plan.maxOf { it.vsg },
+                )
             }
             viewModel.subsetMin > callbacks.maxSubsetForRoi() -> {
                 tvSweepPlan.isVisible = false
@@ -242,6 +271,27 @@ class SweepSetupController(
         plan.maxOf { it.window },
     )
 
+    /**
+     * "Run 9 analyses · about 33 s": each analysis solves the sweep frame once
+     * over the region its subset leaves, at its own step. The time comes from
+     * this phone's finished runs; without any, the count alone.
+     */
+    fun runLabel(plan: List<SweepStudy.Point>): String {
+        val points = plan.sumOf { point ->
+            Roi.forSolve(point.subset, viewModel.hasCustomRoi, viewModel.roi, viewModel.refSize)
+                ?.let { RunEstimate.gridPoints(it.w, it.h, point.step) } ?: 0
+        }
+        val res = activity.resources
+        val seconds = RunEstimate.seconds(points, 1, AppSettings.runPointsPerSecond(activity))
+            ?: return res.getQuantityString(R.plurals.run_sweep_fmt, plan.size, plan.size)
+        return res.getQuantityString(
+            R.plurals.run_sweep_eta_fmt,
+            plan.size,
+            plan.size,
+            RunEstimate.duration(res, seconds),
+        )
+    }
+
     /** Short per-combination label; becomes the frame name in viewer and report. */
     fun combinationLabel(point: SweepStudy.Point): String = activity.getString(
         R.string.sweep_frame_label_fmt,
@@ -250,29 +300,63 @@ class SweepSetupController(
         point.window,
     )
 
-    /** Centre-line cut over the reference image and current ROI. */
+    /** The reference with the current ROI: the line-cut preview, and the ROI row's thumbnail. */
     fun refreshLineCutPreview() {
         if (!::lineCutPreview.isInitialized) return
         val size = ImageSize(viewModel.realRefWidth, viewModel.realRefHeight)
         val drawn = Roi(viewModel.roiX, viewModel.roiY, viewModel.roiW, viewModel.roiH)
         val roi = drawn.orFullFrame(viewModel.hasCustomRoi, size)
-        if (roi == null) {
-            lineCutPreview.setPreview(
-                bitmap = null,
-                image = ImageSize(1, 1),
-                roi = Roi(0, 0, 1, 1),
-                horizontal = viewModel.lineCutHorizontal,
-                maskBytes = null,
-            )
-            return
+        for (view in listOf(lineCutPreview, roiThumb)) {
+            if (roi == null) {
+                view.setPreview(null, ImageSize(1, 1), Roi(0, 0, 1, 1), viewModel.lineCutHorizontal)
+            } else {
+                view.setPreview(
+                    bitmap = callbacks.refPreviewBitmap(),
+                    image = size,
+                    roi = roi,
+                    horizontal = viewModel.lineCutHorizontal,
+                    maskBytes = viewModel.roiMaskBytes,
+                )
+            }
         }
-        lineCutPreview.setPreview(
-            bitmap = callbacks.refPreviewBitmap(),
-            image = size,
-            roi = roi,
-            horizontal = viewModel.lineCutHorizontal,
-            maskBytes = viewModel.roiMaskBytes,
-        )
+    }
+
+    /**
+     * The line-cut preview as a strip, or [open]: at the reference's own
+     * aspect across the page, at least `line_cut_preview_open_min` tall and at
+     * most [EXPANDED_MAX_SCREEN] of the screen. A reference too wide for that
+     * height runs past the page edge; its scroll starts centred.
+     */
+    private fun expandLineCut(open: Boolean) {
+        lineCutExpanded = open
+        val res = activity.resources
+        val scroll = lineCutPreview.parent as ViewGroup
+        val strip = res.getDimensionPixelSize(R.dimen.line_cut_preview_strip)
+        var width = ViewGroup.LayoutParams.WRAP_CONTENT
+        var height = strip
+        if (open) {
+            val w = viewModel.realRefWidth
+            val h = viewModel.realRefHeight
+            val aspect = if (w > 0 && h > 0) h.toFloat() / w else DEFAULT_ASPECT
+            val cap = (res.displayMetrics.heightPixels * EXPANDED_MAX_SCREEN).toInt()
+            val floor = res.getDimensionPixelSize(R.dimen.line_cut_preview_open_min).coerceAtMost(cap)
+            height = (scroll.width * aspect).toInt().coerceIn(floor, cap.coerceAtLeast(floor))
+            val needed = (height / aspect).toInt()
+            if (needed > scroll.width) width = needed
+        }
+        (scroll.parent as? ViewGroup)?.let(Motion::animateExpandCollapse)
+        // The scroll measures its child's width unspecified, so the minimum carries it.
+        lineCutPreview.minimumWidth = width.coerceAtLeast(0)
+        lineCutPreview.updateLayoutParams {
+            this.width = width
+            this.height = height
+        }
+        lineCutPreview.doOnNextLayout {
+            scroll.scrollTo(((it.width - scroll.width) / 2).coerceAtLeast(0), 0)
+        }
+        val name = activity.getString(R.string.line_cut_axis)
+        lineCutPreview.contentDescription =
+            activity.getString(if (open) R.string.preview_shrink_fmt else R.string.preview_enlarge_fmt, name)
     }
 
     fun setRunSweepEnabled(enabled: Boolean) {
@@ -292,22 +376,7 @@ class SweepSetupController(
         info(R.id.btnLineCutInfo, R.string.line_cut_axis, R.string.info_line_cut_axis)
     }
 
-    private fun refreshSweepFrameUi() {
-        if (!::btnPickSweepFrame.isInitialized) return
-        val count = viewModel.defCount
-        if (count <= 1) {
-            btnPickSweepFrame.isVisible = false
-            return
-        }
-        val index = resolvedSweepFrame()
-        btnPickSweepFrame.isVisible = true
-        btnPickSweepFrame.text = activity.getString(
-            R.string.sweep_frame_summary_fmt,
-            framePicker.frameLabel(index),
-            index + 1,
-            count,
-        )
-    }
+    private fun refreshSweepFrameUi() = framePicker.show(resolvedSweepFrame())
 
     private fun refreshLatticePreview(plan: List<SweepStudy.Point>) {
         if (!::sweepLatticePreview.isInitialized) return

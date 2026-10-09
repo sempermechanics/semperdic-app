@@ -46,10 +46,10 @@ on 2026-10-03.
 | `ui/analysis/` | 3 | The three analysis Activities only: `StaticAnalysisActivity` (the wizard), `RoiDrawActivity`, `VsgLatticeActivity` |
 | `ui/analysis/wizard/` | 22 | `AnalysisViewModel` with `RunChannels` (launch batch and sweep) and `SweepAnalysis`; `WizardStep`, `AnalysisWizardChrome.applyStep`, `AnalysisWizardHost`; `WizardState` / `WizardDraftBinding` (process death, [ADR-005](../adr/ADR-005-wizard-process-death.md)); slots, coach, nav, ready / cancel / leave gates; parameter fields and sliders; settings sheet |
 | `ui/analysis/run/` | 19 | `BatchAnalysis.kt` (`runBatchAnalysisBody`, the one JNI loop, and `afterSave`) + `DicFieldIo`; `RunRecordSave` (`saveRunRecord`); `BatchRunController`, `WizardRunLauncher`, `WizardRunOutcomes`, `RunStatusLine`, `RunChrome`; the run overlay `ComputeOverlayController` with its wording (`RunOverlayText`) and convergence graph (`ConvergenceLineView`, `ConvergenceTrace`, which warns one strike before `ConvergenceGate` stops a run); `RunSpec` ([ADR-004](../adr/ADR-004-runspec.md)); `EngineFailure`, `ConvergenceGate`, `UnsavedRerun`, `SemperEngine` |
-| `ui/analysis/frames/` | 12 | Reference and frame import (`ReferenceImportController`, `FrameImportController`, `WizardMediaPickers`), ordering (`FrameOrderController`, adapter, menu), deformed batch, video (`VideoSamplingSheet`, extract controller) |
+| `ui/analysis/frames/` | 13 | Reference and frame import (`ReferenceImportController` with `ReferenceSlotBusy`, `FrameImportController`, `WizardMediaPickers`), ordering (`FrameOrderController`, adapter, menu), deformed batch, video (`VideoSamplingSheet`, extract controller) |
 | `ui/analysis/roi/` | 7 | ROI studio: `StudioOverlayView` with its geometry, viewport and mask encoder; `RoiViewport`, `RoiResolveHelper`, `RoiStudioLauncher` |
-| `ui/analysis/recommend/` | 9 | `SubsetRecommender` and `SubsetRecommendationController`, speckle scale, noise floor, good-practice and strain-window copy, EXIF patch map |
-| `ui/analysis/sweep/` | 17 | Parameter sweep: `SweepSetupController` with `SweepRangeFields` / `SweepFramePicker`, `SweepStudy` / `SweepStudyRunner`, the lattice (`SweepControls`, `SweepProfiles`, `SweepGraphExport`) and plot views (`SweepPlotView` with viewport, axes, palette; `PlotStyle`), line-cut preview |
+| `ui/analysis/recommend/` | 11 | `SubsetRecommender` and `SubsetRecommendationController` with the `SubsetBand` shaded behind the subset slider, `RunEstimate` (points and time above Compute), speckle scale, noise floor, good-practice and strain-window copy, EXIF patch map |
+| `ui/analysis/sweep/` | 18 | Parameter sweep: `SweepSetupController` with `SweepRangeFields` / `SweepFramePicker` (the step-2 frame field and its picker dialog), `SweepStudy` / `SweepStudyRunner`, the lattice (`SweepControls`, `SweepProfiles`, `SweepGraphExport`), the run overlay's `LiveSweepLattice`, and plot views (`SweepPlotView` with viewport, axes, palette; `PlotStyle`), line-cut preview |
 | `ui/viewer/` | 19 | `ResultViewerActivity` and its controllers (`ViewerChromeController`, `ViewerImageLoader`, `ViewerFrameLoader`, `ViewerScaleController`, `FrameJumpController`, `ViewerCaptions`, `ViewerShareController`, `FieldPopup`), `SaveExportActivity`, their ViewModels, `ViewerArgs` ([ADR-003](../adr/ADR-003-viewerargs-read-side.md)), scrub cache, `ViewerFieldPills`, the ⓘ details sheet; heatmaps draw each frame on its own photo at the displaced positions ([ADR-011](../adr/ADR-011-viewer-deformed-frame.md)) |
 | `ui/viewer/share/` | 11 | `ShareCenter` → `ShareExportJobs` (held by `ResultViewerViewModel`) → `ShareExportBuilder` (`FieldImageExport`, `BundleExport`, `DataExport`); `ShareExportController`, `ShareKind`, `SendToSheet`, `ViewerReportFactory` |
 | `ui/viewer/summary/` | 3 | Summary GIF (`SummaryAnimation`), caption, `ViewerSummaryController` |
@@ -57,7 +57,7 @@ on 2026-10-03.
 | `ui/settings/` | 15 | `SettingsActivity` (restore, download, delete) and its sections: account, cloud, analyses, storage, preferences, your data, help, footer; `AccountDeletionRun`, `BusyTransfers`; scroll body via `SettingsScrollContentView` |
 | `ui/admin/` | 1 | Admin screen — approve/revoke users via `/v1/admin/*` |
 | `ui/limit/` | 2 | Session-quota and seat-required screens |
-| `ui/common/` | 14 | Cross-screen basics: insets, motion, keyboard (`Keyboard`, `ImeReveal`), toggle groups, `dp`, `SerialJob`, `ConflatedRefresh`, `Busy` (`setBusy`), `ViewportMath`, `ByteSize`, `EtaEstimator` (time left for runs, exports and transfers), coach marks, the settings section header |
+| `ui/common/` | 15 | Cross-screen basics: insets, motion (`Motion.reduced` for animations off), keyboard (`Keyboard`, `ImeReveal`), toggle groups, `dp`, `SerialJob`, `ConflatedRefresh`, `Busy` (`setBusy`), `InlineBusy` (a slot's busy state for a wait past 300 ms: the reference slot, the speckle readout, the video read, the viewer's opening pill), `ViewportMath`, `ByteSize`, `EtaEstimator` (time left for runs, exports and transfers), coach marks, the settings section header |
 | `ui/common/dialog/` | 8 | `Feedback.toast`, `CrispToast`, `Dialogs` (info, confirm, i-buttons), `Sheet` (`inflateSheet`), `WarnChip`, `FaqRedirect`, delete-choice and progress dialogs |
 | `ui/common/auth/` | 6 | `AuthRoute` (re-authentication), sign-out confirm and run, `ExternalLinks`, `SupportMail` |
 | `ui/common/media/` | 6 | `MediaPickerSheet` (Home **+** and the wizard dropzones), `MediaStoreBrowser`, `MediaSourceChooser`, `ThumbnailLoader` |
@@ -67,7 +67,7 @@ on 2026-10-03.
 | `data/cloud/` | 18 | `CloudSync` with `CloudErase` / `CloudReconcile`, upload bundling / metadata / outcomes, `SessionMetadataDoc`, deletes, backup listing, account export, `WorkTags` / `TransferWork`, transfer log and notifications |
 | `data/cloud/restore/` | 10 | `CloudRestore` with `RestoreBundleFetcher`, `RestoreUnpacker`, `RestoreZipVerifier`; `DownloadFailure`, restore start, download outcomes and progress |
 | `data/account/` | 15 | `AuthRepository` with `AuthLinks`, `AccessStatusResolver`, `FirebaseOp`, `ReauthCredentials`; device key and env, licence entitlements / errors, seat lease and heartbeat, legal terms, TOTP |
-| `data/prefs/` | 6 | `AppSettings`, `CoachPrefs`, `ParamClipboard`, `WizardDraft`, `PrefKey` / `PrefFiles` |
+| `data/prefs/` | 7 | `AppSettings`, `CoachPrefs`, `ParamClipboard`, `WizardDraft`, `AccountDeletionMarker`, `PrefKey` / `PrefFiles` |
 | `data/net/` | 23 | `SemperApi` with `SemperApiCalls`, `SemperApiSigning`, `SemperApiClients` (the shared OkHttp clients), `Paging`, `ApiHost`; the interceptors; `Authed` / `HttpFailure`; token store/provider; remote config |
 | `data/net/drive/` | 5 | `DriveTransfer` over `DriveUploader` and `DriveDownloader` (one `DriveDownload` per call) — bytes straight to and from Drive |
 | `report/` | 22 | PDF (`ReportBuilder` with extrema, annotations, colour bar; `PdfReportGenerator`), CSV, GIF, heatmaps (`VisualizationEngine` over `HeatmapColorScale`, `HeatmapRenderer`, `DeformedHeatmap`) |
@@ -158,6 +158,15 @@ decision to refuse belongs to the backend, which is the side that knows whether
 it is in `monitor` or `enforce`. See
 [AUTH_SETUP.md §3.2](../backend/AUTH_SETUP.md).
 
+"The API host" is the base URL's host **and port** (`ApiHost`, `host:port` with
+the default port spelled out), for `AppCheckHeader`, `AppIdHeader` and
+`ClientNonce.ServerDateObserver` alike; the `SEMPER_API_CERT_PINS` pins are
+registered for the bare host name, the only pattern OkHttp's pinner accepts.
+The shared clients follow **no redirects** (`SemperApiClients`): OkHttp drops
+only `Authorization` on a cross-host hop, so a followed redirect would carry
+`X-App-Id`, `X-Firebase-AppCheck`, `X-Device-Id`, `X-Nonce` and `X-Signature`
+to the new host. A 30x reaches the caller as an unexpected status.
+
 ## Licensing & entitlements
 
 The app never decides its own plan — `data/account/LicenseEntitlements.kt` is the one
@@ -197,7 +206,7 @@ with no framework behind it:
 | Local disk budget | `data/session/StorageBudget.kt`, `data/session/CacheJanitor.kt` | Measures analyses and cache; frees the local frames of **backed-up** analyses only. A user-set GB budget is enforced from `SemperApp.onCreate`, so it runs before any screen |
 | Crash reporting | `Diagnostics.kt`, `CrashReportingTree.kt` | Crashlytics collection is **off in the manifest** and enabled only on consent (first-run prompt or the Settings toggle). `CrashReportingTree` is a release-only Timber tree feeding breadcrumbs and non-fatals |
 | Product analytics | `diagnostics/SemperAnalytics.kt` | Same consent flag as Crashlytics (`AppSettings.diagnosticsEnabled`) — events are dropped, not queued, when it is off. Params must stay PII-free: enums, coarse buckets, success/fail. The consent copy names both halves (**Send crash reports and usage data**) — keep it and [PRIVACY_POLICY.md](../legal/PRIVACY_POLICY.md) §2.4 in step with the event set |
-| Parameter hand-off | `data/prefs/ParamClipboard.kt` | Holds one subset/step/VSG (px) triple, copied from the sweep lattice's parameter chip and pasted into the analysis wizard's advanced parameters |
+| Parameter hand-off | `data/prefs/ParamClipboard.kt` | Holds one subset/step/VSG (px) triple, copied from the sweep lattice's parameter chip and pasted into the analysis wizard's correlation section |
 
 An analysis whose local frames were freed becomes a **cloud-only row**: Home
 still lists it, badges it, and downloads it on open rather than reporting the

@@ -12,6 +12,9 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.databinding.ActivityStaticAnalysisBinding
+import com.sempermechanics.semper.ui.analysis.sweep.LiveSweepLattice
+import com.sempermechanics.semper.ui.analysis.sweep.SweepStudy
+import com.sempermechanics.semper.ui.analysis.sweep.SweepStudyRunner
 import com.sempermechanics.semper.ui.analysis.wizard.BatchProgressUpdate
 import com.sempermechanics.semper.ui.common.EtaEstimator
 import com.sempermechanics.semper.util.OverlayFormats
@@ -20,7 +23,8 @@ import kotlin.math.roundToInt
 /**
  * Owns the compute / import progress overlay: visibility, the progress ring,
  * time left and elapsed, the status line and, for a batch run, the frame count,
- * pace and convergence-per-frame graph with its one-strike warning.
+ * pace and convergence-per-frame graph with its one-strike warning; for a
+ * sweep, the analysis count and the lattice filling in as combinations end.
  *
  * Progress ticks are coalesced (~100 ms) into a single main-thread post that
  * updates all wired widgets together.
@@ -39,6 +43,7 @@ class ComputeOverlayController(
     private val convergenceLatest: TextView? = null,
     private val convergenceLine: ConvergenceLineView? = null,
     private val strikeWarn: TextView? = null,
+    private val sweepLattice: LiveSweepLattice? = null,
 ) {
     /** The wizard's overlay, with its run detail. */
     constructor(wizard: ActivityStaticAnalysisBinding) : this(
@@ -55,6 +60,7 @@ class ComputeOverlayController(
         convergenceLatest = wizard.tvRunConvergenceLatest,
         convergenceLine = wizard.convergenceLine,
         strikeWarn = wizard.tvRunStrikeWarn,
+        sweepLattice = LiveSweepLattice(wizard.runSweepGroup, wizard.runSweepLattice),
     )
 
     private val res get() = overlay.resources
@@ -62,7 +68,7 @@ class ComputeOverlayController(
     private val etaEstimator = EtaEstimator()
     private val elapsedTicker = object : Runnable {
         override fun run() {
-            elapsed.text = res.getString(R.string.run_elapsed_fmt, OverlayFormats.elapsed(elapsedMs()))
+            elapsed.text = res.getString(R.string.run_elapsed_fmt, OverlayFormats.elapsed(elapsedMs))
             mainHandler.postDelayed(this, TICK_MS)
         }
     }
@@ -79,6 +85,8 @@ class ComputeOverlayController(
 
     @Volatile private var pendingRun: BatchProgressUpdate? = null
 
+    @Volatile private var pendingSweep: SweepStudyRunner.Progress? = null
+
     private var lastFlushUptimeMs = 0L
     private var flushScheduled = false
 
@@ -89,13 +97,15 @@ class ComputeOverlayController(
 
     /**
      * Shows the overlay from zero. [showConvergence] is for a batch run: the
-     * frame count, pace and convergence graph. An import, a video extraction
-     * and a sweep show the ring, time left and status only.
+     * frame count, pace and convergence graph. A sweep passes its
+     * [sweepPlan] instead and gets the lattice. An import and a video
+     * extraction show the ring, time left and status only.
      */
     fun show(
         title: String = res.getString(R.string.computing_strain_field),
         status: String = res.getString(R.string.initializing_engine),
         showConvergence: Boolean = true,
+        sweepPlan: List<SweepStudy.Point> = emptyList(),
     ) {
         mainHandler.removeCallbacks(flushRunnable)
         flushScheduled = false
@@ -116,6 +126,7 @@ class ComputeOverlayController(
         convergenceLatest?.text = null
         convergenceLine?.setValues(FloatArray(0))
         convergenceGroup?.visibility = if (showConvergence) View.VISIBLE else View.GONE
+        sweepLattice?.show(sweepPlan)
         overlay.visibility = View.VISIBLE
         mainHandler.removeCallbacks(elapsedTicker)
         mainHandler.post(elapsedTicker)
@@ -164,6 +175,13 @@ class ComputeOverlayController(
         scheduleFlush()
     }
 
+    /** A sweep's tick: the ring, the analysis count, the status and the lattice. */
+    fun updateSweep(tick: SweepStudyRunner.Progress) {
+        pendingPercent = tick.percent.toFloat().coerceIn(0f, PERCENT)
+        pendingSweep = tick
+        scheduleFlush()
+    }
+
     private fun scheduleFlush() {
         if (flushScheduled) return
         flushScheduled = true
@@ -202,12 +220,18 @@ class ComputeOverlayController(
             applyRun(it)
             pendingRun = null
         }
+        pendingSweep?.let {
+            frameCount.showText(RunOverlayText.sweepCount(res, it))
+            status.text = RunOverlayText.sweepStatus(res, it)
+            sweepLattice?.apply(it)
+            pendingSweep = null
+        }
     }
 
     private fun applyRun(tick: BatchProgressUpdate) {
         frameCount.showText(RunOverlayText.frameCount(res, tick))
         status.text = RunOverlayText.status(res, tick)
-        pace.showText(RunOverlayText.pace(res, tick, elapsedMs()))
+        pace.showText(RunOverlayText.pace(res, tick, elapsedMs))
         val values = tick.perFrameConvergence ?: return
         convergenceLine?.setValues(values)
         convergenceLatest?.text = ConvergenceTrace.latest(values)?.let {
@@ -216,13 +240,14 @@ class ComputeOverlayController(
         strikeWarn.showText(RunOverlayText.strikeWarning(res, values))
     }
 
-    private fun elapsedMs(): Long = System.currentTimeMillis() - processingStartTime
+    private val elapsedMs: Long get() = System.currentTimeMillis() - processingStartTime
 
     private fun clearPending() {
         pendingPercent = null
         pendingStatus = null
         pendingTitle = null
         pendingRun = null
+        pendingSweep = null
     }
 
     companion object {

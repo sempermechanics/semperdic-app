@@ -13,4 +13,7 @@
 
     <!-- Home row thumbnail edge; its result render is cached at twice this in px (SessionThumbs). -->
     <dimen name="session_thumb_size">48dp</dimen>
+    <!-- Sweep page: the line-cut preview as a strip, and opened. -->
+    <dimen name="line_cut_preview_strip">96dp</dimen>
+    <dimen name="line_cut_preview_open_min">240dp</dimen>
 </resources>

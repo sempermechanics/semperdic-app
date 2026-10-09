@@ -162,12 +162,12 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="strain_window">Strain window</string>
     <string name="strain_window_unit_points">points</string>
     <!-- Under the strain-window slider: the window in points gives this VSG at the current step. -->
-    <string name="strain_window_vsg_fmt">VSG %1$d px at step %2$d px</string>
+    <string name="strain_window_vsg_fmt">Fits a plane over %1$d px (VSG)</string>
     <!-- A stored window: points when the VSG is a whole odd count of steps (StrainWindowText), else the VSG alone. -->
     <string name="strain_window_points_vsg_fmt">%1$d-point window · VSG %2$d px</string>
     <string name="strain_window_vsg_only_fmt">VSG %1$d px</string>
     <string name="sub_pixel_interpolation_kernel">Sub-pixel interpolation kernel</string>
-    <string name="label_4_4_bicubic">4×4 Bicubic</string>
+    <string name="label_4_4_bicubic">4×4 bicubic</string>
     <string name="label_6_6_keys">6×6 Keys</string>
     <string name="result">Result: --</string>
     <string name="back">Back</string>
@@ -414,7 +414,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="settings_terms_not_accepted">Terms not yet accepted on this device</string>
     <string name="settings_view_terms">View Terms</string>
     
-    <string name="advanced_parameters">Advanced parameters</string>
     
 
     <!-- Parameter sweep / virtual strain gauge study (Good Practices Guide §5.4.5) -->
@@ -451,14 +450,24 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     
     <string name="sweep_plan_empty">No combination fits this ceiling — raise Max strain window or lower the subset range.</string>
     <string name="sweep_plan_subset_too_big_fmt">Subset range starts above what this image and ROI can hold (max %1$d px). Lower the minimum subset, or draw a larger region of interest.</string>
-    <string name="next_sweep">Next: Summary →</string>
+    <string name="next_sweep">Next: sweep settings</string>
     <string name="sweep_settings">Sweep settings</string>
     <string name="lattice_samples_settings">Sample counts</string>
-    <string name="sweep_frame_summary_fmt">%1$s · Frame %2$d of %3$d</string>
+    <string name="preview_enlarge_fmt">%1$s, tap to enlarge</string>
+    <string name="preview_shrink_fmt">%1$s, tap to shrink</string>
     <string name="sweep_frame_out_of_fmt">out of %1$d</string>
-    <string name="line_cut_preview_heading">Line cut</string>
+    <string name="sweep_frame_enlarge">Frame to sweep, tap to enlarge</string>
+    <string name="sweep_frame_overlay_close">Tap to close</string>
+    <string name="sweep_frame_overlay_caption_fmt">%1$s · %2$s</string>
+    <string name="sweep_frame_position_fmt">Frame %1$d of %2$d</string>
+    <string name="sweep_frame_hint">Pick the frame with the most deformation; the sweep solves only this one.</string>
+    <string name="line_cut_along_x">Along X</string>
+    <string name="line_cut_along_y">Along Y</string>
+    <string name="strain_win_vsg_range_fmt">Fits planes over %1$d–%2$d px (VSG)</string>
     <string name="planned_lattice_heading">Planned lattice</string>
-    <string name="sweep_running_fmt">Analysis %1$d of %2$d · subset %3$d · step %4$d · %5$d-point window</string>
+    <string name="run_sweep_legend">Filled: solved · grey: waiting · red: skipped</string>
+    <string name="sweep_running_fmt">Solving subset %1$d · step %2$d · %3$d-point window</string>
+    <string name="run_analysis_of_fmt">Analysis %1$d of %2$d</string>
     <!-- W is the strain window in data points; with St it fixes the VSG,
          (W − 1) × St + 1 px, so the label needs no VSG of its own. -->
     <string name="sweep_frame_label_fmt">S%1$d · St%2$d · W%3$d</string>
@@ -567,6 +576,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="one">Completed %1$d of %2$d frame · saving</item>
         <item quantity="other">Completed %1$d of %2$d frames · saving</item>
     </plurals>
+    <plurals name="sweep_completed_fmt">
+        <item quantity="one">Solved %1$d of %2$d analysis · saving</item>
+        <item quantity="other">Solved %1$d of %2$d analyses · saving</item>
+    </plurals>
     <string name="run_strike_warn_fmt">Frame %1$d: %2$.0f%% converged. One more low frame stops the run.</string>
     <string name="eta_estimating">Estimating time left…</string>
     <string name="eta_seconds_left">About %1$d s left</string>
@@ -597,12 +610,41 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="speckle_under_resolved_fmt">Speckle measures about %1$.1f px across, below the %2$d px minimum. The pattern may be too fine for this frame to resolve, and points can fail to correlate. Shoot closer, or use a coarser pattern.</string>
     <string name="speckle_over_resolved_fmt">Speckle measures about %1$.1f px across, above the %2$d px the method needs. It will correlate, but a finer pattern would give more measurement points across the same area.</string>
     <string name="speckle_subset_span_fmt">A %1$d px subset spans too few speckles on this pattern to be unambiguous. Good practice asks for at least %2$d px here.</string>
+    <!-- The readout while the speckle is measured (shown past 300 ms), and once the
+         measurement has set the slider: the size it chose, the speckle it chose from. -->
+    <string name="speckle_measuring">Measuring speckle…</string>
+    <string name="speckle_chip_fmt">Speckle %1$.1f px</string>
+    <string name="speckle_band_fmt">Shaded: %1$d px and up hold enough speckle</string>
+    <string name="speckle_band_set_fmt">Set to %1$d px · shaded: %2$d px and up hold enough speckle</string>
     <string name="next_reason_ref">add a reference image to continue</string>
     <string name="next_reason_def">add at least one deformed frame to continue</string>
     <string name="run_analysis">Compute</string>
     <string name="new_analysis_title">New analysis</string>
     <string name="step_of_fmt">Step %1$d of %2$d</string>
+    <string name="wizard_title_sweep_setup">Sweep setup</string>
+    <string name="param_section_correlation">Correlation</string>
+    <string name="param_step">Step</string>
+    <string name="param_interpolation">Interpolation</string>
+    <plurals name="run_estimate_region_fmt">
+        <item quantity="one">%1$s point in the region</item>
+        <item quantity="other">%1$s points in the region</item>
+    </plurals>
+    <string name="run_compute_eta_fmt">Compute · %1$s</string>
+    <string name="run_estimate_seconds_fmt">about %1$d s</string>
+    <string name="run_estimate_minutes_fmt">about %1$d min</string>
     <string name="reference_meta_fmt">Reference · %1$d × %2$d px</string>
+    <!-- The reference slot while a pick is read (ReferenceSlotBusy). -->
+    <string name="reference_decoding_image">Decoding image</string>
+    <string name="reference_decoding_raw">Decoding RAW</string>
+    <string name="reference_decoding_raw_mp_fmt">Decoding RAW · %1$d MP</string>
+    <string name="video_reading">Reading video…</string>
+    <!-- The viewer while its first frame loads (ViewerCaptions.showOpening). -->
+    <string name="viewer_opening_fmt">Opening %1$s</string>
+    <string name="viewer_opening_unnamed">analysis</string>
+    <plurals name="viewer_opening_frames_fmt">
+        <item quantity="one">Opening %1$s · %2$d frame</item>
+        <item quantity="other">Opening %1$s · %2$d frames</item>
+    </plurals>
     
     <string name="frame_order_label">Analysis order</string>
     <string name="frame_order_name_asc">Name · A–Z</string>
@@ -625,10 +667,11 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="coach_sweep_line_cut">Strain will be read along this centre line of the region of interest.</string>
     <string name="coach_sweep_graph">Each node is one combination: subset size across, strain window up. Filled nodes solved — tap one to focus its curve, double-tap to open it. Hollow ones failed; tap for the reason.</string>
     <string name="coach_sweep_scrub">Drag across the plot to read the focused curve\'s value at any position — it\'s marked with a dot in its own colour.</string>
+    <string name="coach_sweep_ranges">Set the ranges the sweep covers; each pair of subset and strain window is one analysis.</string>
     <string name="coach_sweep_run">Run the sweep when the plan looks right.</string>
     
     <string name="roi_full_fmt">Full image · %1$d × %2$d px</string>
-    <string name="roi_custom_fmt">%1$d × %2$d px at (%3$d, %4$d)</string>
+    <string name="roi_custom_fmt">%1$d × %2$d of %3$d × %4$d px</string>
     <string name="picker_select_reference_toast">Select the reference image or video</string>
     <string name="picker_select_deformed">Select the deformed frames — tap several</string>
     <string name="source_images">Images</string>
@@ -956,6 +999,14 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <plurals name="frames_size_mismatch_and_more_fmt">
         <item quantity="one">%1$s, and %2$d more</item>
         <item quantity="other">%1$s, and %2$d more</item>
+    </plurals>
+    <plurals name="run_sweep_fmt">
+        <item quantity="one">Run %1$d analysis</item>
+        <item quantity="other">Run %1$d analyses</item>
+    </plurals>
+    <plurals name="run_sweep_eta_fmt">
+        <item quantity="one">Run %1$d analysis · %2$s</item>
+        <item quantity="other">Run %1$d analyses · %2$s</item>
     </plurals>
     <plurals name="sweep_plan_grid_fmt">
         <item quantity="one">1 analysis · subset %2$d–%3$d px · window %4$d–%5$d points</item>

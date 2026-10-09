@@ -80,7 +80,7 @@ class WizardRunLauncher(
         activity.lifecycleScope.launch {
             if (!AnalysisNavHelper.ensureCanStart(activity, viewModel)) return@launch
 
-            chrome.beginRun(activity.getString(R.string.mode_sweep), sweep.planSummary(plan)) {
+            chrome.beginRun(activity.getString(R.string.mode_sweep), sweep.planSummary(plan), plan) {
                 viewModel.cancelRequested = true
             }
             checkReady()

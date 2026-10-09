@@ -117,8 +117,8 @@ class PrefKeyTest {
     // ── The catalogue, file by file ────────────────────────────────────────
 
     @Test
-    fun `the catalogue names twelve distinct files`() {
-        assertEquals(12, PrefFiles.ALL_NAMES.toSet().size)
+    fun `the catalogue names thirteen distinct files`() {
+        assertEquals(13, PrefFiles.ALL_NAMES.toSet().size)
     }
 
     @Test

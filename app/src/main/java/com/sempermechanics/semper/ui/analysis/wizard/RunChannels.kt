@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -43,12 +44,12 @@ internal class RunChannels {
         extraBufferCapacity = PROGRESS_BUFFER,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
-    val batchOutcome = MutableSharedFlow<Result<BatchAnalysisOutcome>>(extraBufferCapacity = 1)
+    val batchOutcome = PendingOutcome<Result<BatchAnalysisOutcome>>()
     val sweepProgress = MutableSharedFlow<SweepStudyRunner.Progress?>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
-    val sweepOutcome = MutableSharedFlow<Result<BatchAnalysisOutcome>>(extraBufferCapacity = 1)
+    val sweepOutcome = PendingOutcome<Result<BatchAnalysisOutcome>>()
     var batchJob: Job? = null
     var sweepJob: Job? = null
 
@@ -58,10 +59,47 @@ internal class RunChannels {
 }
 
 /**
+ * A run's outcome, held until a started screen takes it, and taken once.
+ *
+ * The outcomes used to be a `MutableSharedFlow` with no replay, collected
+ * only while the wizard is started. An emission with no collector is
+ * dropped, so a run that ended while the wizard was in the background never
+ * tore its chrome down or opened its result. Held here instead, in
+ * the view model as ADR-016 asks: [post] keeps the outcome, and
+ * [consumeEach] hands it over when a collector starts and clears it in the
+ * same atomic step, so a later collector (the screen started again) does not
+ * handle it a second time.
+ */
+internal class PendingOutcome<T : Any> {
+    /** A box compared by identity, so taking one outcome never takes an equal one posted after it. */
+    private class Posted<T>(val value: T)
+
+    private val slot = MutableStateFlow<Posted<T>?>(null)
+
+    /** True while an outcome waits for a screen to take it. */
+    val isPending: Boolean get() = slot.value != null
+
+    /** Holds [value] until a screen takes it. Any thread. */
+    fun post(value: T) {
+        slot.value = Posted(value)
+    }
+
+    /**
+     * Hands each posted outcome to [handle] exactly once, the one held now
+     * included, and clears it. The compare-and-set is the claim: of two
+     * collectors that see the same outcome, only one handles it. Never
+     * returns; run it on a scope bound to the screen's lifecycle.
+     */
+    suspend fun consumeEach(handle: (T) -> Unit): Nothing = slot.collect { posted ->
+        if (posted != null && slot.compareAndSet(posted, null)) handle(posted.value)
+    }
+}
+
+/**
  * Runs the batch on [viewModelScope] so destroying the Activity mid-run does
  * not cancel a minutes-long native solve. Progress is published on
- * [AnalysisViewModel.progress]; completion (or failure) on
- * [AnalysisViewModel.batchOutcome].
+ * [AnalysisViewModel.progress]; completion (or failure) is held on
+ * [AnalysisViewModel.batchOutcome] until the screen takes it.
  */
 @Suppress("TooGenericExceptionCaught") // any failure is the run's outcome
 fun AnalysisViewModel.launchBatchAnalysis(
@@ -85,7 +123,7 @@ fun AnalysisViewModel.launchBatchAnalysis(
             val outcome = runBatchAnalysis(appContext, spec, cacheDir, processingStartTime) { update ->
                 if (isActive) runs.progress.tryEmit(update)
             }
-            runs.batchOutcome.emit(Result.success(outcome))
+            runs.batchOutcome.post(Result.success(outcome))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -95,7 +133,7 @@ fun AnalysisViewModel.launchBatchAnalysis(
                 SemperAnalytics.ANALYSIS_FAILED,
                 mapOf("mode" to "batch", "reason" to "exception"),
             )
-            runs.batchOutcome.emit(Result.failure(e))
+            runs.batchOutcome.post(Result.failure(e))
         } finally {
             runs.progress.tryEmit(null)
         }
@@ -124,7 +162,7 @@ private suspend fun AnalysisViewModel.runBatchAnalysis(
  * and was equally worth not losing to a rotation. It ran on the Activity's
  * own scope until now, which cancelled it on destroy and left the partial
  * session behind. Progress arrives on [AnalysisViewModel.sweepProgress], the
- * result on [AnalysisViewModel.sweepOutcome].
+ * result is held on [AnalysisViewModel.sweepOutcome] until the screen takes it.
  */
 @Suppress("TooGenericExceptionCaught") // any failure is the sweep's outcome
 fun AnalysisViewModel.launchSweep(appContext: Context, spec: RunSpec) {
@@ -136,12 +174,12 @@ fun AnalysisViewModel.launchSweep(appContext: Context, spec: RunSpec) {
             val outcome = runSweep(appContext, spec) { update ->
                 if (isActive) runs.sweepProgress.tryEmit(update)
             }
-            runs.sweepOutcome.emit(Result.success(outcome))
+            runs.sweepOutcome.post(Result.success(outcome))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Timber.e(e, "Parameter sweep failed")
-            runs.sweepOutcome.emit(Result.failure(e))
+            runs.sweepOutcome.post(Result.failure(e))
         } finally {
             runs.sweepProgress.tryEmit(null)
         }

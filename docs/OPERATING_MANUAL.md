@@ -133,7 +133,16 @@ warning naming a bigger subset size. Treat it as a comment on the pattern, not
 just a setting.
 
 **Video.** Pick a video and a sampling sheet opens: frame rate, time segment,
-live frame-count estimate. Frame 0 becomes the reference.
+live frame-count estimate. Frame 0 becomes the reference. While the video's
+length and frame rate are read, the reference slot shows a small spinner and
+**Reading video…**.
+
+**While a reference decodes.** If it takes longer than about a third of a
+second, the reference slot shows a grey placeholder thumbnail and **Decoding
+image**, or **Decoding RAW · 24 MP** for a RAW or DNG (the megapixels only when
+the file's header gives its size). A quick decode shows nothing. With
+animations turned off in Android's settings, the placeholder holds still and
+spinners are left out.
 
 ---
 
@@ -207,19 +216,26 @@ deformed frame the control is hidden.
 
 <img src="images/step2-parameters.png" width="300" alt="Step 2 parameters">
 
-Three decisions, in this order:
+The toolbar names the page (**Parameters**, or **Sweep setup** in sweep mode)
+and shows a dot per page, the current one in blue. The page is one flat list,
+top to bottom:
 
-- **Single setting** or **Parameter sweep** — Single solves every frame once. A
-  parameter sweep solves one frame many times ([§7](#7-parameter-sweeps)).
-- **Region of interest** — defaults to the full image. **Edit** opens the editor
-  ([§6](#6-region-of-interest)).
-- **Parameters** — in Single, the advanced set ([§5](#5-parameters)). In Sweep,
-  the subset range, strain-window range, and step as subset ÷ N (default 3),
-  with overlap shown at the end of that row.
-  If you copied a set of parameters from a sweep lattice, a **Paste params**
-  chip appears in Single and fills subset, step and strain window in one tap.
+- **Single** or **Sweep** — Single solves every frame once. A parameter sweep
+  solves one frame many times ([§7](#7-parameter-sweeps)).
+- **Region of interest** — a thumbnail of the reference with the region drawn on
+  it, and its size: "Full image · W × H px", or "1100 × 800 of 1200 × 900 px"
+  once you draw one. **Edit** opens the editor ([§6](#6-region-of-interest)).
+- **Correlation** (Single) — subset size, step, strain window and interpolation
+  ([§5](#5-parameters)), with **Reset** at the right of the heading. If you
+  copied a set of parameters from a sweep lattice, a paste icon sits beside
+  Reset and fills subset, step and strain window in one tap.
+- **Frame to sweep** and **Planned lattice** (Sweep) — in place of Correlation;
+  see [§7](#7-parameter-sweeps).
 
-Then **Compute** (Single) or **Next: Summary →** (Sweep).
+Once this phone has finished a run, **Compute** reads "Compute · about 1 min":
+a running mean of the points per second your own runs reached, never a guess.
+Before that it reads **Compute**. In Sweep the button is **Next: sweep
+settings**.
 
 ### While it runs
 
@@ -238,8 +254,11 @@ sweep, not just the combination in flight.
 
 The same overlay covers importing frames and extracting video, but there it
 counts frames instead: the convergence graph is hidden, because nothing is being
-solved yet. A parameter sweep shows the percentage, time left and the
-combination being solved, without the graph. Cancelling an import asks for confirmation and leaves nothing behind.
+solved yet. A parameter sweep shows *Analysis 7 of 9*, the percentage and time
+left, and its planned lattice in place of the graph: every combination starts
+as a grey ring, fills when it solves, turns into a red ring if it is skipped,
+and the one being solved is circled. The status under it names that
+combination, then *Solved 9 of 9 analyses · saving*. Cancelling an import asks for confirmation and leaves nothing behind.
 
 **A run stops itself if the images decorrelate.** Two consecutive frames below
 50% convergence end it — the frames after them would be no better, and the
@@ -286,7 +305,7 @@ share a title row; the overlap ratio sits beside the step readout.
 | Step size | 1–`min(30, subset/2)` | 5 |
 | Subset overlap | 0.50–0.99 (`1 − step / subset`) | Follows step |
 | Strain window | 3–31 points, odd | 5 |
-| Kernel | 4×4 Bicubic / 6×6 Keys | 4×4 Bicubic |
+| Interpolation | 4×4 bicubic / 6×6 Keys | 4×4 bicubic |
 
 ### Subset and step
 
@@ -300,12 +319,25 @@ for 0.007 px accuracy, sampled on a 4×4 grid and taken as the median.
 It is a starting point. Touch the slider and it stops tracking the image.
 **Reset** brings it back.
 
-A muted line under the subset slider reads **"Speckle measures about N px
-across. Good practice asks for 3–9 px."** — the same measurement as the step 1
-chip, kept in front of you while you move the slider. It updates as the
-reference changes and disappears if the reference is removed. Below it, a
-warning chip appears if the subset you are on cannot span three speckles, and
-names the size that would; it clears as soon as the slider passes that size.
+While the speckle is measured (past about a third of a second) the line under
+the subset slider reads **Measuring speckle…**. When it lands:
+
+- A chip beside **Subset size** reads **Speckle 4.3 px** — the same measurement
+  as the step 1 chip, in amber when it is outside the 3–9 px good-practice band.
+  TalkBack reads the band out with it.
+- The slider slides to the recommended size (it jumps when animations are off).
+- A blue band is shaded behind the slider track from the smallest size that both
+  clears the SSSIG threshold and spans three speckles, up to the slider's end.
+  Larger subsets still correlate; they only blur the field more.
+- The line under the slider reads **"Set to 31 px · shaded: 25 px and up hold
+  enough speckle"**, and once you set a size of your own just **"Shaded: 25 px
+  and up hold enough speckle"**.
+
+They update as the reference changes, and go if the reference is removed or the
+measurement fails. Below them, a warning chip appears if the subset you are on
+cannot span three speckles, and names the size that would; it clears as soon as
+the slider passes that size. Under the step slider a line counts the points the
+region holds at that step ("30,968 points in the region"), the overlap beside it.
 
 On a pattern coarser than about 40 px no allowed subset spans three dots, so no
 size is named — the over-resolved chip on step 1 is the honest answer there, and
@@ -319,7 +351,8 @@ typical values are about 0.50–0.75.
 ### Strain window and VSG
 
 The strain window is a count of data points. The line under the slider shows the
-VSG it gives at the current step, and follows as you change either. Sessions from
+VSG it gives at the current step — "Fits a plane over 41 px (VSG)" — and follows
+as you change either. Sessions from
 before the window was counted in points show their VSG alone.
 
 ![Virtual strain gauge](images/vsg.svg)
@@ -332,10 +365,10 @@ Quote the VSG, not the window: it is the distance one strain value actually
 covers. The sweep varies the **window** and reports the resulting VSG per node —
 the window is the knob, the VSG is the number you publish.
 
-### Kernel
+### Interpolation
 
-Sub-pixel interpolation. Leave it on 4×4 Bicubic unless interpolation bias is
-your subject.
+Sub-pixel interpolation, a dropdown at the end of the list. Leave it on 4×4
+bicubic unless interpolation bias is your subject.
 
 ### Max frames
 
@@ -382,18 +415,46 @@ A sweep uses **one** deformed frame.
 
 ### Setting it up (step 2, then step 3)
 
-Sweep parameters live on step 2. Step 3 is the summary: planned lattice, then
-the line cut, then **Compute**.
+Step 2 (**Sweep setup**) picks what is swept and shows the plan:
+
+- **Frame to sweep** — the picked frame's name, "Frame 23 of 40" under it, and
+  a thumbnail beside it. It starts on the middle frame. Tap the field to open
+  the frame picker: a scrolling list of the frames, a frame-number field, and a
+  preview of the frame you are on; **OK** makes it the swept frame. Tap the
+  thumbnail to see the frame large over the dimmed page; tap anywhere to close
+  it. Pick the
+  frame with the most deformation; the sweep solves only that one. With a
+  single deformed frame there is nothing to pick and the row is hidden.
+- **Planned lattice** — one node per analysis, subset across and VSG up, with
+  the summary "9 analyses · subset 21–41 px · window 3–11 points" under it. The
+  gear on its heading shows **No. of subsets** and **No. of strain windows**,
+  the samples per range.
+
+Step 3 (**Sweep settings**) sets the ranges. The lattice on step 2 follows any
+change, so **Back** shows the new plan:
+
+- **Subset size range** and **Strain window range**, the latter with "Fits
+  planes over 15–101 px (VSG)", the span of VSGs the plan covers.
+- **Step size** as subset ÷ N, with the overlap beside it.
+- **Line cut axis** — **Along X** or **Along Y**, over a strip preview of the
+  reference with the region and the cut through its centre. Tap the strip to
+  open it larger, in the reference's own shape; a wide reference then runs past
+  the screen edge and scrolls sideways. Tap again to close it.
+
+The run button reads "Run 9 analyses", and "Run 9 analyses · about 33 s" once
+this phone has finished a run: each analysis solves the one frame at its own
+step, timed at the points per second your runs reached.
 
 <img src="images/step3-sweep.png" width="300" alt="Sweep summary, step 3">
 
 | Control | Range |
 |---|---|
-| Subset range | 15–121, odd (step 2) |
-| Strain window range | 3–31 points, odd, default 3–11 — min and max (step 2) |
-| Step size | subset ÷ N, N 2–9, default 3. Overlap on the same row is `1 − 1/N`. Pixel step is `round(subset / N)` (step 2) |
-| Frame to sweep | radio list + number + preview (step 2) |
-| Samples | 1–8 per axis (step 3, lattice gear) |
+| Frame to sweep | list + number + preview, opened from the field (step 2) |
+| Subset range | 15–121, odd (step 3) |
+| Strain window range | 3–31 points, odd, default 3–11 — min and max (step 3) |
+| Samples | 1–8 per axis (step 2, lattice gear) |
+| Step size | subset ÷ N, N 2–9, default 3. Overlap on the same row is `1 − 1/N`. Pixel step is `round(subset / N)` (step 3) |
+| Line cut axis | Along X / Along Y (step 3) |
 
 Runtime is the product of the two sample counts. 8 × 8 is 64 solves. Start at
 3 × 3.
@@ -469,6 +530,10 @@ Look for the VSG where the curves stop separating.
 ## 8. Reading results
 
 <img src="images/result-viewer.png" width="300" alt="Result viewer">
+
+**Opening.** If the first frame takes longer than about a third of a second to
+appear, a small pill in the middle reads **Opening steel_00 · 40 frames** (the
+reference's name and the frame count) until that frame draws.
 
 Field pills switch field. Pinch to zoom (~10×), drag to pan; both survive a
 field change. Double-tap zooms or resets. A horizontal fling while fit-to-screen
@@ -724,7 +789,7 @@ Write above that block; leave it in place.
 | Subset | 15–121, odd | Recommended | Speckle is weak; correlation fails | You need resolution across a sharp gradient |
 | Step | 1–30 | 5 | Runtime matters | You need a denser field |
 | Strain window | 3–31 points, odd | 5 | Strain is noisy | Detail is being smoothed away |
-| Kernel | 4×4 / 6×6 | 4×4 Bicubic | Studying interpolation bias | — |
+| Interpolation | 4×4 / 6×6 | 4×4 bicubic | Studying interpolation bias | — |
 | Max frames | 10–500 | 50 | Long sequences | Runs are killed for memory |
 | Sweep subset range | 15–121, odd | Around recommended | — | — |
 | Sweep strain window range | 3–31 points, odd | 3–11 | Strain is noisy | Detail is being smoothed away |
