@@ -5,6 +5,7 @@ import com.sempermechanics.semper.report.EngineStats
 import com.sempermechanics.semper.report.FieldResult
 import com.sempermechanics.semper.report.PdfReportGenerator
 import com.sempermechanics.semper.report.PdfReportGenerator.Progress
+import com.sempermechanics.semper.report.PdfReportGenerator.Stage
 import com.sempermechanics.semper.report.ReportData
 import com.sempermechanics.semper.report.RoiData
 import com.sempermechanics.semper.report.TelemetrySummary
@@ -38,7 +39,7 @@ class PdfReportGeneratorTest {
             PdfReportGenerator.generateBatch(4, { null }, ByteArrayOutputStream()).toList()
         }
         assertEquals(listOf(2, 25, 48, 71), statuses(events).map { it.percent })
-        assertEquals("Frame 1 of 4…", statuses(events).first().message)
+        assertEquals(Progress.Status(Stage.FRAME, 2, frame = 1, frameCount = 4), statuses(events).first())
     }
 
     @Test
@@ -46,7 +47,7 @@ class PdfReportGeneratorTest {
         val events = runBlocking {
             PdfReportGenerator.generateBatch(2, { null }, ByteArrayOutputStream()).toList()
         }
-        assertTrue(statuses(events).none { it.message.startsWith("Compiling") })
+        assertTrue(statuses(events).none { it.stage == Stage.TELEMETRY })
     }
 
     @Test
