@@ -57,4 +57,13 @@ class RunEstimateTest {
         assertEquals("about 2 min", RunEstimate.duration(res, 100))
         assertEquals("about 12 min", RunEstimate.duration(res, 700))
     }
+
+    @Test
+    fun `the short time drops the about, and the spoken one spells its unit`() {
+        assertEquals("7 s", RunEstimate.shortDuration(res, 7))
+        assertEquals("2 min", RunEstimate.shortDuration(res, 100))
+        assertEquals("about 7 seconds", RunEstimate.spokenDuration(res, 7))
+        assertEquals("about 1 second", RunEstimate.spokenDuration(res, 1))
+        assertEquals("about 12 minutes", RunEstimate.spokenDuration(res, 700))
+    }
 }

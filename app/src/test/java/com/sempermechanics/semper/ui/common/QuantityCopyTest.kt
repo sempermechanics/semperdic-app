@@ -46,11 +46,13 @@ class QuantityCopyTest {
     }
 
     @Test
-    fun `a one-combination sweep names its real ranges`() {
+    fun `a one-combination sweep counts one run and names its real ranges`() {
         assertEquals(
             "1 analysis · subset 21–21 px · window 5–5 points",
             res.getQuantityString(R.plurals.sweep_plan_grid_fmt, 1, 1, 21, 21, 5, 5),
         )
+        assertEquals("1 run", res.getQuantityString(R.plurals.sweep_plan_runs_fmt, 1, 1))
+        assertEquals("Run 1 analysis", res.getQuantityString(R.plurals.run_sweep_fmt, 1, 1))
         assertEquals(
             "1 combination · 0 solved · 1 skipped · step subset÷3",
             res.getQuantityString(R.plurals.vsg_lattice_summary_fmt, 1, 1, 0, 1, 3),

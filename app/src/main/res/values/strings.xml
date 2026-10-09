@@ -433,6 +433,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="subset_min">Subset size (min)</string>
     <string name="subset_max">Subset size (max)</string>
     <string name="subset_range">Subset size range</string>
+    <!-- The sweep settings page's label over the subset range. -->
+    <string name="sweep_subset">Subset</string>
     <string name="subset_samples">No. of subsets</string>
     <string name="vsg_samples">No. of strain windows</string>
     <string name="step_depth">Step size</string>
@@ -458,7 +460,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     
     <string name="sweep_plan_empty">No combination fits this ceiling — raise Max strain window or lower the subset range.</string>
     <string name="sweep_plan_subset_too_big_fmt">Subset range starts above what this image and ROI can hold (max %1$d px). Lower the minimum subset, or draw a larger region of interest.</string>
-    <string name="next_sweep">Next: sweep settings</string>
+    <string name="next_sweep">Next</string>
     <string name="sweep_settings">Sweep settings</string>
     <string name="lattice_samples_settings">Sample counts</string>
     <string name="preview_enlarge_fmt">%1$s, tap to enlarge</string>
@@ -468,10 +470,16 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="sweep_frame_overlay_close">Tap to close</string>
     <string name="sweep_frame_overlay_caption_fmt">%1$s · %2$s</string>
     <string name="sweep_frame_position_fmt">Frame %1$d of %2$d</string>
+    <!-- The end of the frame-to-sweep field: the picked frame's position. -->
+    <string name="sweep_frame_count_fmt">%1$d / %2$d</string>
     <string name="sweep_frame_hint">Pick the frame with the most deformation; the sweep solves only this one.</string>
+    <!-- The line-cut toggle reads X / Y; TalkBack reads Along X / Along Y. -->
+    <string name="line_cut_x">X</string>
+    <string name="line_cut_y">Y</string>
     <string name="line_cut_along_x">Along X</string>
     <string name="line_cut_along_y">Along Y</string>
-    <string name="strain_win_vsg_range_fmt">Fits planes over %1$d–%2$d px (VSG)</string>
+    <!-- Beside the sweep's strain-window title: the smallest and largest VSG the plan fits. -->
+    <string name="strain_win_vsg_range_fmt">%1$d–%2$d px VSG</string>
     <string name="planned_lattice_heading">Planned lattice</string>
     <string name="run_sweep_legend">Filled: solved · grey: waiting · red: skipped</string>
     <string name="sweep_running_fmt">Solving subset %1$d · step %2$d · %3$d-point window</string>
@@ -640,6 +648,17 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="run_compute_eta_fmt">Compute · %1$s</string>
     <string name="run_estimate_seconds_fmt">about %1$d s</string>
     <string name="run_estimate_minutes_fmt">about %1$d min</string>
+    <!-- The same times without "about", for the sweep's short run button, and spoken in full. -->
+    <string name="run_estimate_seconds_short_fmt">%1$d s</string>
+    <string name="run_estimate_minutes_short_fmt">%1$d min</string>
+    <plurals name="run_estimate_seconds_spoken_fmt">
+        <item quantity="one">about %1$d second</item>
+        <item quantity="other">about %1$d seconds</item>
+    </plurals>
+    <plurals name="run_estimate_minutes_spoken_fmt">
+        <item quantity="one">about %1$d minute</item>
+        <item quantity="other">about %1$d minutes</item>
+    </plurals>
     <string name="reference_meta_fmt">Reference · %1$d × %2$d px</string>
     <!-- The reference slot while a pick is read (ReferenceSlotBusy). -->
     <string name="reference_decoding_image">Decoding image</string>
@@ -1021,17 +1040,27 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="one">%1$s, and %2$d more</item>
         <item quantity="other">%1$s, and %2$d more</item>
     </plurals>
+    <!-- The sweep's run button reads "Run 9 · 7 s" (or "Run 9" before this phone
+         has a rate); run_sweep_fmt / run_sweep_eta_fmt are what TalkBack reads. -->
+    <string name="run_sweep_short_fmt">Run %1$d</string>
+    <string name="run_sweep_eta_short_fmt">Run %1$d · %2$s</string>
     <plurals name="run_sweep_fmt">
         <item quantity="one">Run %1$d analysis</item>
         <item quantity="other">Run %1$d analyses</item>
     </plurals>
     <plurals name="run_sweep_eta_fmt">
-        <item quantity="one">Run %1$d analysis · %2$s</item>
-        <item quantity="other">Run %1$d analyses · %2$s</item>
+        <item quantity="one">Run %1$d analysis, %2$s</item>
+        <item quantity="other">Run %1$d analyses, %2$s</item>
     </plurals>
+    <!-- The run overlay's status as a sweep starts. -->
     <plurals name="sweep_plan_grid_fmt">
         <item quantity="one">1 analysis · subset %2$d–%3$d px · window %4$d–%5$d points</item>
         <item quantity="other">%1$d analyses · subset %2$d–%3$d px · window %4$d–%5$d points</item>
+    </plurals>
+    <!-- Beside the Planned lattice heading: how many analyses the plan holds. -->
+    <plurals name="sweep_plan_runs_fmt">
+        <item quantity="one">%1$d run</item>
+        <item quantity="other">%1$d runs</item>
     </plurals>
     <plurals name="sweep_partial_fmt">
         <item quantity="one">1 of %2$d combinations could not be solved and was skipped — the rest are shown.</item>

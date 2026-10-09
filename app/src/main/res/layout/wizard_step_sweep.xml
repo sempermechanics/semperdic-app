@@ -23,7 +23,7 @@
         android:paddingEnd="16dp"
         android:paddingBottom="16dp">
 
-        <!-- Subset size range: min text | range slider | max text -->
+        <!-- Subset range: min text | range slider | max text -->
         <LinearLayout
             android:id="@+id/subsetRangeBlock"
             android:layout_width="match_parent"
@@ -38,7 +38,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/subset_range"
+                android:text="@string/sweep_subset"
                 android:textColor="@color/viewer_chrome_text"
                 android:textStyle="bold" />
 
@@ -107,8 +107,8 @@
         </LinearLayout>
         </LinearLayout>
 
-        <!-- Strain window range: titled and full-width, the
-             twin of the subset range above it. -->
+        <!-- Strain window range: titled and full-width, the twin of the subset
+             range above it, with the VSG span it plans on its title row. -->
         <LinearLayout
             android:id="@+id/strainWinRangeBlock"
             android:layout_width="match_parent"
@@ -119,12 +119,13 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/strain_win_range"
+                    android:text="@string/strain_window"
                     android:textColor="@color/viewer_chrome_text"
                     android:textStyle="bold" />
 
@@ -138,6 +139,18 @@
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_info_min"
                     app:tint="@color/viewer_chrome_muted" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/tvStrainWinVsg"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="@style/TextAppearance.Semper.Caption"
+                    tools:text="11–121 px VSG" />
             </LinearLayout>
 
             <LinearLayout
@@ -191,13 +204,6 @@
                     android:textStyle="bold"
                     tools:text="11" />
             </LinearLayout>
-
-            <TextView
-                android:id="@+id/tvStrainWinVsg"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.Semper.Caption"
-                tools:text="Fits planes over 15–101 px (VSG)" />
         </LinearLayout>
 
         <LinearLayout
@@ -223,7 +229,6 @@
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
                 android:layout_weight="1"
                 android:hint="@string/step_depth"
                 app:boxStrokeColor="@color/input_box_stroke"
@@ -241,6 +246,26 @@
                     android:textColor="@color/viewer_chrome_text"
                     tools:text="3" />
             </com.google.android.material.textfield.TextInputLayout>
+        </LinearLayout>
+
+        <!-- Advanced: the overlap the step gives, closed until opened.
+             CollapsibleSection opens and closes it, as on the parameters page. -->
+        <include
+            android:id="@+id/sweepAdvancedHeader"
+            layout="@layout/view_advanced_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_12" />
+
+        <LinearLayout
+            android:id="@+id/sweepAdvancedBody"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_4"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/tilSweepOverlap"
@@ -330,7 +355,8 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="@string/line_cut_along_x" />
+                    android:contentDescription="@string/line_cut_along_x"
+                    android:text="@string/line_cut_x" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/rbAxisY"
@@ -338,7 +364,8 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="@string/line_cut_along_y" />
+                    android:contentDescription="@string/line_cut_along_y"
+                    android:text="@string/line_cut_y" />
             </com.google.android.material.button.MaterialButtonToggleGroup>
 
             <!-- Tap to open it larger; tap again for the strip. Opened, a wide

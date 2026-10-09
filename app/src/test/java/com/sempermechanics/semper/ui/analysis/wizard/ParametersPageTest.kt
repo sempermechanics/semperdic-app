@@ -113,6 +113,7 @@ class ParametersPageTest {
 
         chrome.updateBottomNav(WizardStep.SETTINGS, sweepMode = true)
         assertEquals("Sweep setup", bed.binding.toolbar.title.toString())
+        assertEquals("Next", bed.binding.btnNext.text.toString())
         assertEquals("● ● ●", bed.binding.tvStepDots.text.toString())
         assertEquals("Step 2 of 3", bed.binding.tvStepDots.contentDescription.toString())
 

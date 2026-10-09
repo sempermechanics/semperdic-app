@@ -6,11 +6,15 @@ import com.sempermechanics.semper.ui.analysis.WizardTestBed
 import com.sempermechanics.semper.ui.analysis.wizard.WizardStep
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** Switching the analysis mode to single while on the sweep page goes back to settings. */
+/**
+ * Switching the analysis mode to single while on the sweep page goes back to
+ * settings, and switching it either way drops the last run's status line.
+ */
 @RunWith(RobolectricTestRunner::class)
 class SweepModeToggleTest {
 
@@ -40,5 +44,26 @@ class SweepModeToggleTest {
     @Test
     fun `on the settings page it stays`() {
         assertEquals(emptyList<String>(), stepsAfterLeavingSweepMode(on = WizardStep.SETTINGS))
+    }
+
+    @Test
+    fun `switching to sweep after a single run drops its status line`() {
+        bed.binding.stubStepSweep.inflate()
+        bed.viewModel.step = WizardStep.SETTINGS
+        SweepSetupController(bed.activity, bed.viewModel, bed.host).setup()
+        bed.host.calls.clear()
+
+        bed.activity.findViewById<MaterialButtonToggleGroup>(R.id.rgAnalysisMode).check(R.id.rbModeSweep)
+        bed.idle()
+
+        assertEquals(1, bed.host.count("clearRunStatus"))
+        assertTrue(bed.viewModel.sweepMode)
+    }
+
+    @Test
+    fun `switching back to single drops it too`() {
+        stepsAfterLeavingSweepMode(on = WizardStep.SETTINGS)
+
+        assertTrue(bed.host.count("clearRunStatus") >= 1)
     }
 }

@@ -539,6 +539,8 @@
                         android:foreground="?attr/selectableItemBackground"
                         android:scaleType="centerCrop" />
 
+                    <!-- No floating label: the hint stays on the field for TalkBack,
+                         and the frame's position ("3 / 5") is its suffix. -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilSweepFrame"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
@@ -546,13 +548,12 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="@dimen/space_12"
                         android:layout_weight="1"
-                        android:hint="@string/sweep_frame"
                         app:boxStrokeColor="@color/input_box_stroke"
                         app:endIconContentDescription="@string/sweep_frame"
                         app:endIconDrawable="@drawable/ic_expand_more"
                         app:endIconMode="custom"
-                        app:helperTextEnabled="true"
-                        app:hintTextColor="@color/viewer_chrome_muted">
+                        app:hintEnabled="false"
+                        app:suffixTextColor="@color/viewer_chrome_muted">
 
                         <!-- Looks like a dropdown; a tap opens the frame dialog with its preview. -->
                         <com.google.android.material.textfield.TextInputEditText
@@ -562,20 +563,26 @@
                             android:cursorVisible="false"
                             android:ellipsize="middle"
                             android:focusable="false"
+                            android:hint="@string/sweep_frame"
                             android:importantForAutofill="no"
                             android:inputType="none"
                             android:maxLines="1"
                             android:textSize="14sp"
                             tools:text="steel_23.tif" />
                     </com.google.android.material.textfield.TextInputLayout>
-                </LinearLayout>
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/space_4"
-                    android:text="@string/sweep_frame_hint"
-                    android:textAppearance="@style/TextAppearance.Semper.Caption" />
+                    <!-- Which frame to pick (sweep_frame_hint). -->
+                    <ImageButton
+                        android:id="@+id/btnSweepFrameInfo"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="6dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="@string/info"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_info_min"
+                        app:tint="@color/viewer_chrome_muted" />
+                </LinearLayout>
 
                 <View
                     android:layout_width="match_parent"
@@ -594,12 +601,25 @@
                 android:orientation="horizontal">
 
                 <TextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:text="@string/planned_lattice_heading"
                     android:textAppearance="@style/TextAppearance.Semper.SectionHeader"
                     android:textColor="@color/viewer_chrome_text" />
+
+                <!-- "9 runs": how many analyses the plan holds; gone when it holds none. -->
+                <TextView
+                    android:id="@+id/tvSweepRunCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_8"
+                    android:textAppearance="@style/TextAppearance.Semper.Caption"
+                    tools:text="9 runs" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
 
                 <!-- bg_chrome_ghost, not a borderless ripple: a standalone
                      40dp icon-only button, same role as the toolbar buttons
@@ -692,14 +712,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="136dp"
                 android:layout_marginTop="@dimen/space_8" />
-
-            <TextView
-                android:id="@+id/tvSweepPlan"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/space_8"
-                android:textAppearance="@style/TextAppearance.Semper.Caption"
-                tools:text="9 analyses · subset 21–41 px · window 3–11 points" />
 
             <include
                 android:id="@+id/sweepPlanWarnRow"
