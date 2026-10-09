@@ -20,6 +20,7 @@ import com.sempermechanics.semper.navigation.IntentKeys
 import com.sempermechanics.semper.ui.common.auth.SignOutRun
 import com.sempermechanics.semper.ui.common.dialog.Feedback
 import com.sempermechanics.semper.ui.home.HomeActivity
+import com.sempermechanics.semper.ui.settings.AccountDeletionRun
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -84,6 +85,11 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private suspend fun performRoutingCheck() {
+        // An account deletion the last process left is finished first: it may
+        // sign out, and the status check must not run for an erased account.
+        AccountDeletionRun.awaitResumed()
+        AccountDeletionRun.consume()?.let { Feedback.toast(this, it.message, long = true) }
+
         // Dev shortcuts: emulator bypass, or no backend configured at all.
         // Then the two answers that need no server round-trip.
         if (routeDevShortcut() || routeWithoutWaiting()) return

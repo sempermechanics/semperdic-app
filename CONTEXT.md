@@ -108,12 +108,13 @@ non-modal `TransferBannerController` strip.
 Baselines, `targetSdk`, Kover and the backend lock: see CLAUDE.md. `OldTargetApi` stays
 disabled until the `targetSdk` bump. Settings / wizard XML stay under `TooManyViews` via
 `SettingsScrollContentView` / `WizardStepSettingsContentView`. Macrobenchmark CI is smoke,
-no thresholds ([TESTING.md](docs/app/TESTING.md)); the phone-run gates (`benchmark/gates.json`,
+no thresholds; the hot-path microbenchmarks gate a PR A/B against its base on the CI
+emulator (`scripts/micro_ab.py`, [TESTING.md](docs/app/TESTING.md)); the phone-run gates (`benchmark/gates.json`,
 [ADR-008](docs/adr/ADR-008-startup-gates-phone-state.md)) list the Pixel 6 for five metrics; its startup cold and warm start and wizard cold start are owed (TD-155); the engine floor (≥ 4557 solves/s,
 [PERF_BASELINE_bd44af0.md](docs/engine/PERF_BASELINE_bd44af0.md)) is a manual reference.
 Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 
-## Current state (2026-10-08)
+## Current state (2026-10-09)
 
 - **Quality program (on `main`, #310–#332, 2026-10-05).** Bug fixes, the package layout
   ([ADR-015](docs/adr/ADR-015-package-layout.md)), ViewBinding and the `ui/common` kit
@@ -153,8 +154,13 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 - **Testing program (2026-10-08, merged #366–#371).** CI tiers follow the diff (weekly
   full matrix), coverage floors at measured − 2 raised by every test PR
   ([TESTING.md](docs/app/TESTING.md#coverage-floors)), golden `.dat` / GIF files, shared
-  `contracts/`. Open: TD-199, TD-200. `main` requires `CI OK` (ruleset,
+  `contracts/`; nothing left open. `main` requires `CI OK` (ruleset,
   2026-10-08).
+- **Security and data-loss fixes (on `main` 2026-10-09, #393–#397; not in a release yet).**
+  Drive uploads resume where Drive's `Range` says (TD-158); the API client matches the
+  backend by host and port and follows no redirects (TD-160, TD-161); an account deletion
+  the process died in is finished at the next start (TD-165, `AccountDeletionMarker`);
+  a wizard run's outcome waits for the screen (TD-168, `PendingOutcome`).
 - **Dependabot** opens monthly PRs for major versions only (pip, Gradle, Actions; #337);
   minor and patch fixes arrive as Dependabot security updates, which are on.
 - **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke

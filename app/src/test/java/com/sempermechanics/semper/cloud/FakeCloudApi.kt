@@ -38,6 +38,8 @@ class FakeCloudApi(override var enabled: Boolean = true) : CloudApi {
     var onListSessions: suspend (String, Boolean) -> SessionsResponse = { _, _ -> unscripted("listSessions") }
     var onDeleteAccount: suspend (String) -> Unit = { unscripted("deleteAccount") }
     var onDeleteSession: suspend (String, String) -> Unit = { _, _ -> unscripted("deleteSession") }
+    var onListSessionUploads: suspend (String, String) -> SessionUploadsResponse =
+        { _, _ -> unscripted("listSessionUploads") }
     var onReplaceSessionMetadata: suspend (String, String, String) -> Unit =
         { _, _, _ -> unscripted("replaceSessionMetadata") }
 
@@ -74,12 +76,12 @@ class FakeCloudApi(override var enabled: Boolean = true) : CloudApi {
     override suspend fun replaceSessionMetadata(idToken: String, sessionId: String, metadataJson: String) =
         record("replaceSessionMetadata") { onReplaceSessionMetadata(idToken, sessionId, metadataJson) }
 
+    override suspend fun listSessionUploads(idToken: String, sessionId: String): SessionUploadsResponse =
+        record("listSessionUploads") { onListSessionUploads(idToken, sessionId) }
+
     // The upload and restore paths are not driven through this fake yet.
     override suspend fun createSession(idToken: String, request: SessionCreateRequest): SessionCreateResponse =
         unscripted("createSession")
-
-    override suspend fun listSessionUploads(idToken: String, sessionId: String): SessionUploadsResponse =
-        unscripted("listSessionUploads")
 
     override suspend fun completeFile(idToken: String, fileId: String, request: FileCompleteRequest): Unit =
         unscripted("completeFile")

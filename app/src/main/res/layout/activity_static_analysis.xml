@@ -26,6 +26,17 @@
         app:navigationIconTint="@color/viewer_chrome_text"
         app:titleCentered="false"
         android:elevation="0dp">
+
+        <!-- One dot per wizard page; the toolbar title names the page. -->
+        <TextView
+            android:id="@+id/tvStepDots"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="@dimen/space_16"
+            android:letterSpacing="0.1"
+            android:textSize="12sp"
+            tools:text="● ● ○" />
     </com.google.android.material.appbar.MaterialToolbar>
 
     <!-- ===================== Pages ===================== -->
@@ -143,6 +154,49 @@
                                 android:text="@string/action_change" />
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Over the dropzone or card while a pick is read (ReferenceSlotBusy):
+                         a skeleton thumbnail while an image decodes, a spinner while a
+                         video's metadata is read. Shown only past 300 ms. -->
+                    <LinearLayout
+                        android:id="@+id/refBusy"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/bg_slot_busy"
+                        android:gravity="center_vertical"
+                        android:minHeight="46dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <View
+                            android:id="@+id/refBusySkeleton"
+                            android:layout_width="46dp"
+                            android:layout_height="46dp"
+                            android:background="@drawable/bg_skeleton_thumb" />
+
+                        <com.google.android.material.progressindicator.CircularProgressIndicator
+                            android:id="@+id/refBusySpinner"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/space_16"
+                            android:indeterminate="true"
+                            android:visibility="gone"
+                            app:indicatorColor="@color/sky_primary"
+                            app:indicatorSize="18dp"
+                            app:trackThickness="2dp" />
+
+                        <TextView
+                            android:id="@+id/tvRefBusy"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/space_12"
+                            android:layout_weight="1"
+                            android:maxLines="1"
+                            android:ellipsize="end"
+                            android:textColor="@color/viewer_chrome_muted"
+                            android:textSize="12sp"
+                            tools:text="Decoding RAW · 24 MP" />
+                    </LinearLayout>
                 </FrameLayout>
 
                 <!-- Deformed frames slot -->
@@ -340,6 +394,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
+        android:baselineAligned="false"
         android:background="@color/viewer_canvas"
         android:elevation="0dp"
         android:padding="12dp">
@@ -362,6 +417,10 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCalculateFullField"
             style="@style/Widget.Semper.Button.Cta"
+            android:maxLines="1"
+            app:autoSizeMaxTextSize="16sp"
+            app:autoSizeMinTextSize="12sp"
+            app:autoSizeTextType="uniform"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_marginStart="6dp"
@@ -378,6 +437,10 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRunSweep"
             style="@style/Widget.Semper.Button.Cta"
+            android:maxLines="1"
+            app:autoSizeMaxTextSize="16sp"
+            app:autoSizeMinTextSize="12sp"
+            app:autoSizeTextType="uniform"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_marginStart="6dp"
@@ -394,6 +457,10 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNext"
             style="@style/Widget.Semper.Button.Cta"
+            android:maxLines="1"
+            app:autoSizeMaxTextSize="16sp"
+            app:autoSizeMinTextSize="12sp"
+            app:autoSizeTextType="uniform"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_marginStart="6dp"
@@ -529,6 +596,28 @@
                             android:text="@string/elapsed_0s"
                             android:textAppearance="@style/TextAppearance.Semper.Numeric" />
                     </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/runSweepGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_16"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <com.sempermechanics.semper.ui.analysis.sweep.SweepLatticeView
+                        android:id="@+id/runSweepLattice"
+                        android:layout_width="match_parent"
+                        android:layout_height="136dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/space_4"
+                        android:text="@string/run_sweep_legend"
+                        android:textAppearance="@style/TextAppearance.Semper.Caption" />
                 </LinearLayout>
 
                 <LinearLayout

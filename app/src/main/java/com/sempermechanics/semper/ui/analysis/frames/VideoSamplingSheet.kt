@@ -28,16 +28,21 @@ import kotlin.math.ceil
  *
  * Step 1: read metadata, show resolution/fps/length + sampling options.
  * Step 2: [onExtract] the chosen frame rate over the chosen time segment.
+ *
+ * While the metadata is read, [busy] (when given) shows "Reading video…" in
+ * the reference slot, where the video's first frame will land.
  */
 class VideoSamplingSheet(
     private val activity: AppCompatActivity,
     private val onExtract: (ExtractionRequest) -> Unit,
+    private val busy: ReferenceSlotBusy? = null,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
     /** Reads [uri]'s metadata on [io], then offers the sampling sheet; a video it cannot read gets a snackbar. */
     fun open(uri: Uri) {
         activity.lifecycleScope.launch {
-            val meta = withContext(io) { VideoFrameExtractor.readMeta(activity, uri) }
+            val read = suspend { withContext(io) { VideoFrameExtractor.readMeta(activity, uri) } }
+            val meta = busy?.readingVideo(read) ?: read()
             // An AVI we could demux but not decode can say which codec it is,
             // which beats "could not read this video" by a mile.
             val unsupported = meta.unsupportedCodec

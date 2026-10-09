@@ -25,8 +25,17 @@ internal object SemperApiClients {
         .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS) // large chunk PUTs to Drive
         .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        // No redirects (TD-161): OkHttp would carry every header but
+        // Authorization to the new host, X-App-Id, X-Firebase-AppCheck,
+        // X-Device-Id, X-Nonce and X-Signature among them. Neither the
+        // gateway nor Cloud Run sends one, and nothing on this client needs
+        // one: Drive downloads come through the backend, and a Drive upload's
+        // 308 is "resume incomplete", which DriveUploader reads itself. A 30x
+        // reaches the caller like any other status it did not expect.
+        .followRedirects(false)
+        .followSslRedirects(false)
         // Application interceptors, so each sees the logical call once
-        // rather than once per redirect hop. Retry first, so a retried
+        // rather than once per retry. Retry first, so a retried
         // request gets a freshly read App Check token rather than replaying
         // the one that may have expired while it waited. [download]
         // inherits them all through newBuilder() below.
@@ -44,10 +53,18 @@ internal object SemperApiClients {
         .build()
 
     /** `SEMPER_API_CERT_PINS` for the backend host, or null when there are none. */
-    private fun certificatePins(): CertificatePinner? {
-        val pins = BuildConfig.SEMPER_API_CERT_PINS.split(',').map { it.trim() }.filter { it.isNotEmpty() }
-        val host = ApiHost.configured
-        if (pins.isEmpty() || host.isEmpty()) return null
-        return CertificatePinner.Builder().apply { pins.forEach { add(host, it) } }.build()
+    private fun certificatePins(): CertificatePinner? =
+        certificatePinner(BuildConfig.SEMPER_API_CERT_PINS, BuildConfig.SEMPER_API_BASE_URL)
+
+    /**
+     * The comma-separated [pins] for [baseUrl]'s host, or null when there are
+     * none or no backend. Registered for the bare host name: the pinner matches
+     * host names only and refuses a `host:port` pattern (TD-160).
+     */
+    internal fun certificatePinner(pins: String, baseUrl: String): CertificatePinner? {
+        val hashes = pins.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        val host = ApiHost.hostNameOf(baseUrl)
+        if (hashes.isEmpty() || host.isEmpty()) return null
+        return CertificatePinner.Builder().apply { hashes.forEach { add(host, it) } }.build()
     }
 }

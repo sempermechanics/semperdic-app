@@ -35,9 +35,9 @@ Pick the home by how long the work must live and who must see its outcome.
 | The work must survive | Home | Built as |
 |---|---|---|
 | A configuration change, while the user stays on the screen | The screen's ViewModel (`viewModelScope`) | Viewer exports: `ResultViewerViewModel.exports` (`ui/viewer/ResultViewerViewModel.kt:37`) runs `ShareExportJobs` (`ui/viewer/share/ShareExportJobs.kt:47`); the custom colour scales (`:34`) and the field-metrics cache (`:72`) live there too. Save to Files: `SaveExportViewModel` (`ui/viewer/SaveExportViewModel.kt:32`) |
-| The screen closing, but not the process | An application-lifetime scope in a singleton `object` that exposes a `StateFlow` | Account deletion: `AccountDeletionRun` (`ui/settings/AccountDeletionRun.kt:34`, scope `:59`). Sign-out: `SignOutRun` (`ui/common/auth/SignOutRun.kt:42`, scope `:56`) |
-| Cancellation of the caller, for a short sequence that must not stop half-way | `withContext(NonCancellable)` around that sequence only | The erase → wipe → sign-out sequence, `CloudErase.deleteAccount` (`data/cloud/CloudErase.kt:42-62`) |
-| Process death, or the app leaving the screen | WorkManager unique work | `oneTimeWork` + `enqueueUnique` (`data/cloud/WorkTags.kt:90`, `:113`): upload (`data/cloud/CloudSync.kt:377-383`), restore and bundle download (`data/cloud/restore/CloudRestore.kt:73-81`, `:102-112`), backup deletes (`data/cloud/SessionDeletes.kt:91-96`), metadata sends (`data/cloud/SessionMetadataSync.kt:135-139`); the licence refresh is periodic (`data/LicenseConfigWorker.kt:45`) |
+| The screen closing, but not the process | An application-lifetime scope in a singleton `object` that exposes a `StateFlow` | Account deletion: `AccountDeletionRun` (`ui/settings/AccountDeletionRun.kt:48`, scope `:73`), with its stage on disk (`data/prefs/AccountDeletionMarker.kt`) so a new process finishes it (`resumeInterrupted`, `:141`, from `SemperApp.onCreate`). Sign-out: `SignOutRun` (`ui/common/auth/SignOutRun.kt:42`, scope `:56`) |
+| Cancellation of the caller, for a short sequence that must not stop half-way | `withContext(NonCancellable)` around that sequence only | The erase → wipe → sign-out sequence, `CloudErase.deleteAccount` (`data/cloud/CloudErase.kt:46-66`) |
+| Process death, or the app leaving the screen | WorkManager unique work | `oneTimeWork` + `enqueueUnique` (`data/cloud/WorkTags.kt:90`, `:113`): upload (`data/cloud/CloudSync.kt:392-398`), restore and bundle download (`data/cloud/restore/CloudRestore.kt:73-81`, `:102-112`), backup deletes (`data/cloud/SessionDeletes.kt:91-96`), metadata sends (`data/cloud/SessionMetadataSync.kt:135-139`); the licence refresh is periodic (`data/LicenseConfigWorker.kt:45`) |
 
 **What each home promises.**
 
@@ -48,7 +48,7 @@ Pick the home by how long the work must live and who must see its outcome.
   screen re-attaches to the job's state and takes each finished outcome once.
 - **Application-lifetime object.** The run has an explicit state
   (`Idle` → `Running` → `Done`), and an outcome is consumed once
-  (`AccountDeletionRun.consume`, `:100`; `SignOutRun.consume`, `:114`), so a
+  (`AccountDeletionRun.consume`, `:165`; `SignOutRun.consume`, `:114`), so a
   recreated screen renders it and a second screen does not repeat it.
   `SignOutRun` also counts the live screens of each class (`:65`, `:124-141`)
   and, when the screen that asked has closed, routes to sign-in from the
@@ -68,10 +68,15 @@ Pick the home by how long the work must live and who must see its outcome.
 **The wizard is the exception, on purpose.** `StaticAnalysisActivity`
 absorbs every configuration change (`app/src/main/AndroidManifest.xml:154-158`),
 so rotation never recreates it. Its batch and sweep runs sit on
-`viewModelScope` (`ui/analysis/wizard/RunChannels.kt:74`, `:133`), but
-`onDestroy` cancels them (`ui/analysis/StaticAnalysisActivity.kt:243`): a
-solve belongs to the screen that shows it. Process death is covered by the
+`viewModelScope` (`ui/analysis/wizard/RunChannels.kt:112`, `:171`), but
+`onDestroy` raises the run's cancel flag on every destroy
+(`ui/analysis/StaticAnalysisActivity.kt:246`), and a destroy that is not a
+configuration change also clears the view model and its scope: a solve
+belongs to the screen that shows it. Process death is covered by the
 draft ([ADR-005](ADR-005-wizard-process-death.md)), not by keeping the run.
+A run's outcome is held in the view model until a started screen takes it,
+once (`PendingOutcome`, `ui/analysis/wizard/RunChannels.kt:73`), so a run
+that ends while the wizard is in the background is handled when it returns.
 
 **Rule for new code.**
 
@@ -88,7 +93,7 @@ draft ([ADR-005](ADR-005-wizard-process-death.md)), not by keeping the run.
    `CancellationException` everywhere else (ADR-018).
 
 Other application-lifetime scopes exist for housekeeping, not for user
-requests: startup cleanup and the seat heartbeat (`SemperApp.kt:27`, `:45-52`),
+requests: startup cleanup and the seat heartbeat (`SemperApp.kt:28`, `:46-53`),
 the status re-check after splash (`ui/auth/StatusRecheck.kt:27`), the wizard
 draft's write lane (`data/prefs/WizardDraft.kt:101`) and the shared config
 fetch (`data/net/SingleFlight.kt:18`). The summary GIF's build records and
@@ -132,20 +137,27 @@ time, a `StateFlow`, and a consume.
   `AccountDeletionRotationTest`, `AccountDeletionStagesTest`,
   `SignOutRunTest`, `EraseCancellationTest`.
 - Application-lifetime runs still end with the process. Account deletion
-  killed between the cloud erase and the local wipe leaves the phone's data
-  in place (TD-165).
-- The wizard's run outcome is a `SharedFlow` with no replay, collected only
-  while the wizard is started, so an outcome emitted while it is in the
-  background is dropped (TD-168).
+  is the one that writes down how far it got: `AccountDeletionMarker` is
+  committed before the erase is sent and when it answers, and the next
+  process finishes the wipe and sign-out (`AccountDeletionRun.resumeInterrupted`).
+  An erase that never answered is settled by a device-signed probe
+  (`CloudErase.probeErasedAccount`): wiped only when the account is known
+  gone, asked again at the next start when there is no answer. Tests:
+  `AccountDeletionDeathTest`, `test_account_deletion_probe.py`.
+- The wizard's run outcome was a `SharedFlow` with no replay, collected only
+  while the wizard was started, so an outcome emitted while it was in the
+  background was dropped (TD-168). It is now held until consumed
+  (`PendingOutcome`); test: `RunOutcomeDeliveryTest`.
 
 ## Action items
 
 1. [x] Viewer exports in the ViewModel (#314), then the field metrics (#328).
 2. [x] Account deletion under `NonCancellable` (#311), on an application
    scope with a consume-once outcome (#316), with the erase stage recorded
-   (`ErasureWatch`, `AccountDeletionRun.kt:123-132`, #329).
+   (`ErasureWatch`, `AccountDeletionRun.kt:243-267`, #329).
 3. [x] `SignOutRun` with live-screen tracking and the `Unclaimed` outcome
    (#316, #329).
-4. [ ] TD-165: persist the deletion stage and finish the wipe at startup.
-5. [ ] TD-168: give the wizard's run outcome a replay, or hold it in the
-   ViewModel's state.
+4. [x] TD-165: persist the deletion stage and finish the wipe at startup
+   (`AccountDeletionMarker`, `AccountDeletionRun.resumeInterrupted`).
+5. [x] TD-168: the wizard's run outcome is held in the ViewModel until a
+   screen consumes it (`PendingOutcome`).

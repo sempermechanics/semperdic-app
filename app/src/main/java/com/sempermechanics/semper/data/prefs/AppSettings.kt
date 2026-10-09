@@ -113,6 +113,15 @@ object AppSettings {
         put(Settings.AUTO_FREE_GB, clampAutoFree(value))
     }
 
+    /**
+     * Grid points this phone solves per second, from the runs it has finished;
+     * 0 before the first. The parameters page turns it into a time estimate.
+     */
+    fun runPointsPerSecond(context: Context): Int = prefs(context)[Settings.RUN_POINTS_PER_SECOND]
+
+    fun setRunPointsPerSecond(context: Context, value: Int) =
+        prefs(context).edit { put(Settings.RUN_POINTS_PER_SECOND, value.coerceAtLeast(0)) }
+
     private fun clampMaxFrames(value: Int, remoteMaxFrames: Int): Int =
         value.coerceIn(MIN_MAX_FRAMES, frameCeiling(remoteMaxFrames))
 

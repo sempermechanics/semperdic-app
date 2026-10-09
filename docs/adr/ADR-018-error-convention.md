@@ -25,7 +25,7 @@ the user is told and to whether to retry, in one `when`.
 
 | Domain | Type | Where | User message | Retry |
 |---|---|---|---|---|
-| A backend call | `Authed<T>`: `Ok`, `Disabled` (no backend), `NoToken`, `Failed(HttpFailure)` | `data/net/Authed.kt:9`, made by `CloudApi.authed` (`:37`) | The caller maps the outcome, e.g. an erase to `EraseOutcome` (`data/cloud/CloudErase.kt:101-112`), a status check to an access status (`data/account/AccessStatusResolver.kt:82-95`) | Per caller; `HttpFailure.isRetryable` (429, 5xx, no answer) is only the generic rule (`data/net/HttpFailure.kt:92`) |
+| A backend call | `Authed<T>`: `Ok`, `Disabled` (no backend), `NoToken`, `Failed(HttpFailure)` | `data/net/Authed.kt:9`, made by `CloudApi.authed` (`:37`) | The caller maps the outcome, e.g. an erase to `EraseOutcome` (`data/cloud/CloudErase.kt:173-184`), a status check to an access status (`data/account/AccessStatusResolver.kt:82-95`) | Per caller; `HttpFailure.isRetryable` (429, 5xx, no answer) is only the generic rule (`data/net/HttpFailure.kt:92`) |
 | What a thrown call means | `HttpFailure(kind, cause)`, `HttpFailure.classify(e)` | `data/net/HttpFailure.kt:17`, `:98` | From `kind`; the backend's `detail` code is in `body`, its request id in `requestId` for the "(ref: …)" suffix | `isRetryable`; `isGoneOrNotOurs` (404/403) means give up |
 | A non-200 backend answer, inside the client | `ApiAnswer(code, body, requestId)` with per-route mappers (`failSigned`, `failMe`, `failApprovedOnly`) | `data/net/SemperApiHttp.kt:78`, `data/net/SemperApiCalls.kt:61-93` | Becomes the specific exception (`DeviceConflictException`, `NotApprovedException`, …) or an `ApiException` that `HttpFailure` classifies | — |
 | Why a run stopped | `RunStop` (sealed; `wireCode` is the stored `Int`, `fromWireCode` maps any `Int` back) | `field/RunStop.kt` | `EngineFailure.reasonRes` / `shortReason` (`ui/analysis/run/EngineFailure.kt:46`, `:72`); an unknown code is shown with its number, never as a known cause | A run is not retried; Compute is re-enabled after every outcome (`BatchRunController.kt:116`) |
@@ -47,7 +47,7 @@ the user is told and to whether to retry, in one `when`.
   cancelled, so the rest is mapped as an ordinary failure. `authed` does this
   for every backend call (`data/net/Authed.kt:47-52`).
 - **`NonCancellable` only for cleanup that must finish**, such as the
-  erase → wipe → sign-out sequence (`data/cloud/CloudErase.kt:47`) or putting
+  erase → wipe → sign-out sequence (`data/cloud/CloudErase.kt:51`) or putting
   the UI back after a cancelled import (`ui/analysis/frames/AnalysisVideoExtractController.kt:69`,
   `:99`). Never to make a cancellation disappear. See
   [ADR-016](ADR-016-work-that-outlives-the-activity.md) for long work.
@@ -55,7 +55,7 @@ the user is told and to whether to retry, in one `when`.
   `DownloadFailure.of` read a `CancellationException` as an ordinary
   (unexpected) failure, so they must not see the caller's own.
 - A scope that is never cancelled may use `runCatching` and must say so
-  (`ui/settings/AccountDeletionRun.kt:83-87`, `ui/common/auth/SignOutRun.kt:77-80`).
+  (`ui/settings/AccountDeletionRun.kt:110-115`, `ui/common/auth/SignOutRun.kt:77-80`).
 
 **Rule for new code.** A new backend call goes through `authed` and maps the
 `Authed` outcome where it is used; a new failure domain gets a sealed type (or

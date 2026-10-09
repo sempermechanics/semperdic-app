@@ -22,6 +22,8 @@ class AnalysisSettingsSheetController(
     private val activity: Activity,
     private val settings: WizardStepSettingsContentBinding,
     private val listener: Listener,
+    /** A slider moved: what the run solves, and its estimate, may have changed. */
+    private val onGeometryChanged: () -> Unit = {},
 ) {
     /** What the sheet's controls ask of the wizard. */
     interface Listener {
@@ -63,6 +65,10 @@ class AnalysisSettingsSheetController(
             strainValue.showUnlessEditing(strain.value.toInt().toString())
             strainVsg.text = StrainWindowText.vsgAt(strainVsg.context, strain.value.toInt(), step.value.toInt())
         }
+        val moved = {
+            updateLabels()
+            onGeometryChanged()
+        }
         applyStepRangeForSubset()
         syncOverlapFromStep()
         updateLabels()
@@ -91,12 +97,12 @@ class AnalysisSettingsSheetController(
                 listener.onParamsChanged()
             }
             if (!bindingOverlap) syncOverlapFromStep()
-            updateLabels()
+            moved()
         }
         step.addOnChangeListener { _, _, fromUser ->
             if (fromUser) listener.onParamsChanged()
             if (!bindingOverlap) syncOverlapFromStep()
-            updateLabels()
+            moved()
         }
         overlap.addOnChangeListener { _, value, fromUser ->
             if (bindingOverlap) return@addOnChangeListener
@@ -108,7 +114,7 @@ class AnalysisSettingsSheetController(
         }
         strain.addOnChangeListener { _, _, fromUser ->
             if (fromUser) listener.onParamsChanged()
-            updateLabels()
+            moved()
         }
     }
 

@@ -322,8 +322,10 @@ account data**.
 ## 5. Analysis
 
 `StaticAnalysisActivity` is a three-page wizard in one Activity. Page 3 exists
-only in sweep mode, so the toolbar reads "Step N of 2" or "of 3" depending on the
-mode chosen on page 2.
+only in sweep mode, so the toolbar shows two or three dots, the current page in
+blue, depending on the mode chosen on page 2. The toolbar title names the page:
+"New analysis", then "Parameters" (single) or "Sweep setup" (sweep), then
+"Sweep settings".
 
 **Entry:** the Home FAB, after picking a source. **Exit:** Result viewer,
 Lattice, Session limit, or back to Home.
@@ -334,6 +336,7 @@ Lattice, Session limit, or back to Home.
 |---|---|---|
 | [ ] 5.1.1 | Tap the reference dropzone | The **New analysis** sheet (§3a) opens on Images — the same sheet the Home FAB uses |
 | [ ] 5.1.2 | Pick a `.dng` or `.tif` via **Files** | Card shows the filename and `W × H`; no decode error |
+| [ ] 5.1.2a | Pick a large `.dng` via **Files**, then a large JPEG | While each decodes (past ~0.3 s) the reference slot shows a grey placeholder thumbnail and "Decoding RAW · N MP" (no "· N MP" when the header gives no size), then "Decoding image" for the JPEG; a quick decode shows nothing; with animations off the placeholder does not pulse (`ReferenceSlotBusy`) |
 | [ ] 5.1.3 | Tap **Change** on the reference card | Source chooser reopens; the new image replaces the old |
 | [ ] 5.1.4 | Pick deformed frames from the sheet's grid (multi-select, then **Use N**) | Card shows "N frames" and the first…last filenames |
 | [ ] 5.1.5 | Pick more frames than *Max frames* | The first N are kept, with a "capped" toast |
@@ -342,7 +345,9 @@ Lattice, Session limit, or back to Home.
 | [ ] 5.1.8 | Include one frame of a different pixel size | **Compute** stays disabled. On step 2 a warning chip says the image resolution isn't matching the reference (W×H) and lists the mismatched filename(s); its info icon asks first whether to leave the app, then opens the frame-size FAQ |
 | [ ] 5.1.9 | Load JPEGs | A non-blocking accuracy warning chip appears; its info icon asks first whether to leave the app, then opens the JPEG FAQ |
 | [ ] 5.1.10 | Load a poorly speckled reference | A low-texture warning names a suggested subset size; its info icon opens the speckle FAQ behind the same leave-the-app confirm |
-| [ ] 5.1.11 | Load any speckled reference and open step 2 | A muted line under the subset slider reads "Speckle measures about N px across. Good practice asks for 3–9 px." |
+| [ ] 5.1.11 | Load any speckled reference and open step 2 | While the speckle is measured (past ~0.3 s) the muted line under the subset slider reads "Measuring speckle…". Then the slider slides to the recommendation (~250 ms), a "Speckle D px" chip appears beside **Subset size** (amber outside 3–9 px), a band is shaded behind the track from the smallest size that holds enough speckle, and the line reads "Set to N px · shaded: M px and up hold enough speckle" |
+| [ ] 5.1.11a | Move the subset slider after 5.1.11 | The line reads "Shaded: M px and up hold enough speckle". **Reset** brings back "Set to …" |
+| [ ] 5.1.11b | Turn animations off (Developer options, Animator duration scale off) and repeat 5.1.11 | The slider jumps to the recommendation instead of sliding |
 | [ ] 5.1.12 | Load a reference shot far back, so the dots are 1–2 px | A chip **on step 1** says the speckle is below the 3 px minimum and to shoot closer or use a coarser pattern |
 | [ ] 5.1.13 | Load a close-up whose dots span more than 9 px | The step 1 chip says the pattern is over-resolved — correlates fine, but a finer pattern would give more points. No span chip appears on step 2: the size verdict suppresses it |
 | [ ] 5.1.14 | Load a reference inside the band whose speckle needs a larger subset than the slider is on (e.g. dots ~7 px against a subset of 15) | A chip appears **on step 2, under the subset slider**, naming the subset in use and the one wanted. Raise the slider past it and the chip clears in place, without leaving step 2 |
@@ -361,6 +366,7 @@ Reached whenever the file picked — from the grid or through Files — is a vid
 | # | Action | Expected |
 |---|---|---|
 | [ ] 5.1a.1 | Pick a video (a badged tile in the grid, or via Files) | Sampling sheet opens with resolution, source fps and duration |
+| [ ] 5.1a.1a | Pick a long video from Home **+** | While its metadata is read (past ~0.3 s) the wizard's reference slot shows a small spinner and "Reading video…"; it goes when the sampling sheet opens or the read fails |
 | [ ] 5.1a.2 | Switch the mode between **Keyframes (DIC)** and **Fixed interval** | Keyframes hides the fps slider and notes it extracts sync I-frames; Fixed interval shows the slider, and dragging it updates the estimated frame count live |
 | [ ] 5.1a.2a | Extract in **Fixed interval** over the whole clip, then scrub the deformed frames | Consecutive frames differ — not runs of repeats of the same I-frame |
 | [ ] 5.1a.3 | Drag the time-segment handles | Estimate updates; the button relabels to "Extract N frames" |
@@ -384,49 +390,53 @@ vendor decoders and camera AVIs.
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 5.2.1 | Arrive on step 2 | Analysis mode is at the top; there is no inputs-summary card |
-| [ ] 5.2.2 | Read the ROI line before editing | "Full image W × H" |
-| [ ] 5.2.3 | Tap **Edit** → draw an ROI → save | The line becomes "W × H at (x, y)" |
+| [ ] 5.2.1 | Arrive on step 2 | Toolbar reads "Parameters" with two dots, the second blue. Single / Sweep is at the top; the page is one flat list split by dividers, no cards |
+| [ ] 5.2.2 | Read the ROI row before editing | A thumbnail of the reference shaded green, and "Full image · W × H px" |
+| [ ] 5.2.3 | Tap **Edit** → draw an ROI → save | The thumbnail shows the region (holes in red) and the line becomes "w × h of W × H px" |
 | [ ] 5.2.4 | Tap **Edit** → cancel | Falls back to full image; any mask is cleared |
-| [ ] 5.2.5 | Switch to **Parameter sweep** | Advanced parameters hide; sweep settings appear. Bottom nav reads **Next: Summary →** |
-| [ ] 5.2.6 | Type **step size** as subset ÷ N in sweep settings | N is 2–9 (default 3); overlap on the same row is `1 − 1/N`; each subset uses `step = round(subset / N)` |
+| [ ] 5.2.5 | Switch to **Parameter sweep** | The correlation section hides; **Frame to sweep** (multi-frame only) and the **Planned lattice** appear, no range controls. Toolbar reads "Sweep setup" with three dots. Bottom nav reads **Next: sweep settings** |
+| [ ] 5.2.6 | Type **step size** as subset ÷ N on step 3 | N is 2–9 (default 3); overlap on the same row is `1 − 1/N`; each subset uses `step = round(subset / N)` |
 | [ ] 5.2.7 | Tap the ⓘ next to the mode toggle | Explains single setting vs sweep |
-| [ ] 5.2.8 | Switch back to **Single setting** | Advanced parameters return with their previous values |
+| [ ] 5.2.8 | Switch back to **Single** | The correlation section returns with its previous values |
 | [ ] 5.2.9 | Drag the **subset size** slider | Only odd values between 15 and 121; the field mirrors it; overlap updates from the current step |
 | [ ] 5.2.10 | Type an even subset size and press Done | Snapped to the nearest valid odd value |
 | [ ] 5.2.11 | Type nonsense in a parameter field | Reverts to the previous value on commit |
-| [ ] 5.2.12 | Drag **step size** | Max is `min(30, subset/2)` so overlap stays ≥ 0.5; the overlap field mirrors it |
-| [ ] 5.2.12a | Type **overlap** on the step-size row | 0.50–0.99; step size rewrites to `round(subset × (1 − overlap))` |
-| [ ] 5.2.13 | Drag **strain window** | Odd values 3–31, in **points**; the field mirrors it and the line under the slider reads "VSG N px at step S px", N = (window − 1) × step + 1. It starts at 5 |
-| [ ] 5.2.13a | Open step 2 having never copied params from a lattice | No **Paste params** chip — it only appears when the clipboard holds a set |
-| [ ] 5.2.13b | Copy params from a sweep lattice (§7.3), then return here | The chip appears beside **Reset**; tapping it fills subset, step and strain window (overlap follows step) and scrolls them into view. The window is the one whose VSG at the pasted step matches the node's |
-| [ ] 5.2.13c | Change the **step** with the window fixed | The VSG line follows: window 5 reads VSG 21 px at step 5, 41 px at step 10 |
+| [ ] 5.2.12 | Drag **step** | Max is `min(30, subset/2)` so overlap stays ≥ 0.5; the overlap field mirrors it; the line under the slider counts "N points in the region" = (ROI w ÷ step) × (ROI h ÷ step) |
+| [ ] 5.2.12a | Type **overlap** under the step slider | 0.50–0.99; step rewrites to `round(subset × (1 − overlap))` |
+| [ ] 5.2.12b | Read **Compute** before any run on this phone | "Compute", no time |
+| [ ] 5.2.12c | Run once, come back to step 2 | The button reads "Compute · about S s" (minutes past 90 s), from the points per second this phone's runs reached, frames × points; the text shrinks to stay on one line |
+| [ ] 5.2.13 | Drag **strain window** | Odd values 3–31, in **points**; the field mirrors it and the line under the slider reads "Fits a plane over N px (VSG)", N = (window − 1) × step + 1. It starts at 5 |
+| [ ] 5.2.13a | Open step 2 having never copied params from a lattice | No paste icon beside **Reset** — it only appears when the clipboard holds a set |
+| [ ] 5.2.13b | Copy params from a sweep lattice (§7.3), then return here | The paste icon appears beside **Reset**; tapping it fills subset, step and strain window (overlap follows step) and scrolls them into view. The window is the one whose VSG at the pasted step matches the node's |
+| [ ] 5.2.13c | Change the **step** with the window fixed | The VSG line follows: window 5 reads 21 px at step 5, 41 px at step 10 |
 | [ ] 5.2.14 | Tap each ⓘ | Subset, step, overlap and strain window each explain themselves |
-| [ ] 5.2.15 | Switch the interpolator to **Keys 6×6** | Selection sticks; the run uses it |
-| [ ] 5.2.16 | Change several parameters, then tap **Reset** | Subset returns to the recommended value, step to 5, overlap follows step, strain window to 5 points, interpolator to Bicubic |
+| [ ] 5.2.15 | Pick **6×6 Keys** in the **Interpolation** dropdown | Selection sticks; the run uses it |
+| [ ] 5.2.16 | Change several parameters, then tap **Reset** (the circular-arrow icon) | Subset returns to the recommended value, step to 5, overlap follows step, strain window to 5 points, interpolation to 4×4 bicubic |
 | [ ] 5.2.16a | After a failed run leaves an ❌ line on step 2, change subset / paste params / replace frames | The run-status line clears; the frame-size chip (if any) only shows when sizes still mismatch |
 | [ ] 5.2.17 | Load a well-speckled reference and watch the subset | It is pre-seeded from the SSSIG recommendation — until you touch it |
 | [ ] 5.2.18 | Draw an ROI smaller than the subset and tap **Compute** | "ROI too small" snackbar with a **Why?** action; that asks first whether to leave the app, then opens the ROI FAQ. The run does not start |
 | [ ] 5.2.19 | Edit a parameter field and tap **Compute** without pressing Done | The typed value is committed and used |
-| [ ] 5.2.20 | Open step 2 for the first time | Coach marks point at the analysis-mode toggle, the ROI card, then the advanced-parameters header |
-| [ ] 5.2.21 | Tap **Pick frame** (sweep, multi-frame) | Dialog with a radio list, a frame-number field and a live preview |
-| [ ] 5.2.23 | Drag the subset range handles | Both ends stay odd; min never crosses max |
+| [ ] 5.2.20 | Open step 2 for the first time | Coach marks point at the analysis-mode toggle, the ROI row, then the Correlation section (Single) or the planned lattice (Sweep) |
+| [ ] 5.2.21 | Tap the **Frame to sweep** field (sweep, multi-frame) | The frame picker opens on the picked frame: a radio list, a frame-number field and a live preview. **OK** updates the name, "Frame n of N" and the thumbnail; **Cancel** changes nothing. With one deformed frame the row is hidden |
+| [ ] 5.2.21a | Tap the frame thumbnail, then anywhere | The frame shows large over the dimmed page with "name · Frame n of N" and "Tap to close" under it; a tap anywhere or Back closes it |
+| [ ] 5.2.23 | Drag the subset range handles (step 3) | Both ends stay odd; min never crosses max |
 | [ ] 5.2.24 | Type a subset min above the max | Clamped so min ≤ max |
-| [ ] 5.2.25 | Drag the strain window range | Two handles like the subset's, in points (3–31, default 3–11); the min and max boxes track it |
+| [ ] 5.2.25 | Drag the strain window range (step 3) | Two handles like the subset's, in points (3–31, default 3–11); the min and max boxes track it, and the line under it reads "Fits planes over a–b px (VSG)" for the plan's smallest and largest VSG |
 
-### 5.3 Step 3 — Sweep summary `[sweep]`
+### 5.3 Step 3 — Sweep settings `[sweep]`
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 5.3.1 | Arrive on step 3 | Toolbar reads "Step 3 of 3"; planned lattice is first, line cut below it |
-| [ ] 5.3.6 | Tap each ⓘ | Line-cut axis and samples each explain themselves |
-| [ ] 5.3.6a | Open the summary page for the first time | Three coach marks in order: the planned lattice, the line cut, then the **Compute** button |
-| [ ] 5.3.6f | Toggle the line-cut axis X ↔ Y | The preview redraws the cut line through the ROI centre |
-| [ ] 5.3.11 | Look at the planned lattice | Grid of nodes, subset across, VSG up; taps do nothing (it's a preview) |
-| [ ] 5.3.12 | Open the samples panel (gear) and set 4 × 4 | The plan summary reads 16 analyses and the lattice redraws |
+| [ ] 5.3.1 | Arrive on step 3 | Toolbar reads "Sweep settings" with the third of three dots blue; the ranges come first, then **Line cut axis**; no lattice on this page |
+| [ ] 5.3.6 | Tap each ⓘ | The ranges, step and line-cut axis each explain themselves |
+| [ ] 5.3.6a | Open step 3 for the first time | Three coach marks in order: the subset range, the line cut axis, then the run button |
+| [ ] 5.3.6f | Toggle the line-cut axis **Along X** ↔ **Along Y**, then tap the strip twice | The strip redraws the cut line through the ROI centre; a tap opens it in the reference's aspect, 240dp tall at least and at most 60% of the screen. A reference too wide for that scrolls sideways, starting centred. A second tap closes it |
+| [ ] 5.3.11 | Look at the planned lattice on step 2 | Grid of nodes, subset across, VSG up; taps do nothing (it's a preview) |
+| [ ] 5.3.12 | On step 2 tap the gear on **Planned lattice** and set 4 × 4 | The sample counts show under the heading (hidden until the gear); the plan summary reads 16 analyses and the lattice redraws; on step 3 the run button reads "Run 16 analyses" |
+| [ ] 5.3.12a | Read the run button before and after a run on this phone | "Run N analyses", then "Run N analyses · about S s" once a run has finished; it follows the ranges as they change |
 | [ ] 5.3.13 | Set samples to 9 | Clamped to 8 |
-| [ ] 5.3.14 | Set the subset min (on step 2) above what the ROI can hold | Warning chip: "Subset range starts above what this image and ROI can hold"; info icon opens the sweep-subset FAQ behind the leave-the-app confirm. **Compute** is disabled |
-| [ ] 5.3.15 | Set a strain window range that no subset can satisfy | Warning chip: "No combination fits this ceiling — raise Max strain window or lower the subset range"; info icon opens the empty-plan FAQ behind the same confirm. **Compute** is disabled |
+| [ ] 5.3.14 | Set the subset min above what the ROI can hold | Warning chip under the lattice on step 2: "Subset range starts above what this image and ROI can hold"; info icon opens the sweep-subset FAQ behind the leave-the-app confirm. The run button is disabled |
+| [ ] 5.3.15 | Set a strain window range that no subset can satisfy | Warning chip under the lattice on step 2: "No combination fits this ceiling — raise Max strain window or lower the subset range"; info icon opens the empty-plan FAQ behind the same confirm. The run button is disabled |
 | [ ] 5.3.16 | Read a valid plan summary | "N analyses · subset a–b px · window c–d points"; a one-combination plan reads "1 analysis" with its real subset and window, not "1–1" |
 
 ### 5.4 Running
@@ -449,7 +459,8 @@ extraction show determinate progress and time left instead.
 | [ ] 5.4.6a | Cancel a long frame (big ROI, small step) | Same: no multi-second wait on the progress overlay after confirming |
 | [ ] 5.4.6b | Start a new run straight after cancelling one | It runs normally — the cancel does not carry over |
 | [ ] 5.4.6c | Cancel a sweep at combination 3 of 16 | The **whole sweep** stops — it does not go on to combination 4 |
-| [ ] 5.4.7 | Start a sweep | Status reads "Run i/N · subset · step · VSG" |
+| [ ] 5.4.7 | Start a sweep | "Analysis i of N" beside the title; the planned lattice replaces the graph, all grey rings, with the combination being solved circled; the status under it reads "Solving subset S · step T · W-point window" |
+| [ ] 5.4.7a | Watch the sweep lattice | Each combination fills as it solves or becomes a red ring if skipped; percentage and time left advance per combination; at the end the status reads "Solved K of N analyses · saving" |
 | [ ] 5.4.8 | Background the app mid-run | The run does not survive process death — no resume is offered |
 
 ### 5.5 Terminal states
@@ -610,6 +621,7 @@ node. **Exit:** Home, or back to the Lattice.
 | # | Action | Expected |
 |---|---|---|
 | [ ] 8.1.1 | Open a result | The U field is shown as a jet heatmap over that frame's own photo, drawn where the points moved to |
+| [ ] 8.1.1c | Open a large result (many frames, a big image) | Past ~0.3 s a centred pill with a spinner reads "Opening <reference name> · N frames" ("1 frame" for one); it goes once the first frame's heatmap draws, or when the frame cannot be read. Nothing else on screen moves for it |
 | [ ] 8.1.1a | Step through the frames of a run whose specimen visibly deforms | The photo under the map changes with each frame and the map stays on the specimen. A sweep shows its one deformed photo under every node |
 | [ ] 8.1.1b | Open a session whose deformed photos are not on the phone | Each frame falls back to the reference photo, with the map at the reference positions, still lined up |
 | [ ] 8.1.2 | Tap the field FAB, then pick V / Exx / Eyy / Exy | Heatmap and colour scale follow; edge title updates; the live field stays checked in the popup |
@@ -921,7 +933,10 @@ verified, both are live; §1.13a covers the in-app reset form it opens.
 - **Account deletion re-authenticates first** (password prompt, or a fresh Google
   credential), so `delete()` is no longer refused as stale and the identity goes
   with the data. If it still fails the user is told the data is gone but the
-  sign-in survived, and is signed out regardless.
+  sign-in survived, and is signed out regardless. Killed mid-deletion, the app
+  finishes it at the next start: the wipe and sign-out when the erase had
+  answered, or when a probe shows the account gone; nothing when the account
+  is still there; the question waits for the start after when offline.
 - **Email verification is enforced for password accounts.** Sign-up and every
   later sign-in are blocked until the address is confirmed; the session is torn
   down and a fresh link sent. Google and email-link users are exempt — both

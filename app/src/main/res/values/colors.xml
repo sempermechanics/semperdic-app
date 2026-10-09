@@ -70,6 +70,7 @@
     <color name="viewer_pill_on_text">#FFFFFFFF</color>
 
     <color name="viewer_peek_scrim">#FFFFFFFF</color>       <!-- peek sheet surface -->
+    <color name="image_overlay_scrim">#EB000000</color>     <!-- behind an image shown over the page -->
     <color name="viewer_peek_handle">#40152430</color>
     <color name="viewer_peek_text">#152430</color>
 

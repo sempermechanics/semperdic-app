@@ -26,8 +26,8 @@ class AppCheckHeaderTest {
     val serverRule = MockWebServerRule()
     private val server get() = serverRule.server
 
-    /** The fake backend's host, which is what the interceptor is scoped to. */
-    private val apiHost: String get() = server.hostName
+    /** The fake backend's `host:port`, which is what the interceptor is scoped to. */
+    private val apiHost: String get() = "${server.hostName}:${server.port}"
 
     private fun clientWith(token: () -> String?): OkHttpClient =
         OkHttpClient.Builder().addInterceptor(AppCheckHeader(apiHost, token)).build()

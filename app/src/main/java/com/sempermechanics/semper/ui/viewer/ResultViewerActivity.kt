@@ -234,6 +234,8 @@ class ResultViewerActivity : AppCompatActivity() {
 
         summary = ViewerSummaryController(this)
 
+        // Past 300 ms, "Opening … · N frames" until the first frame draws.
+        captions.showOpening()
         // The directory listings, and a stat per frame, used to run here on the
         // main thread on every open. The first frame (and, with it, everything
         // the batch drives) starts once they are read, as it did before.
@@ -334,6 +336,7 @@ class ResultViewerActivity : AppCompatActivity() {
             }
         } else {
             frameJump.showingSummary = false
+            captions.openingDone()
             FaqRedirect.snackbar(this, R.string.no_batch_data, R.string.url_faq_no_batch_data)
         }
         val waiting = afterFrameSet.toList()

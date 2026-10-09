@@ -102,7 +102,12 @@ internal class ViewerFrameLoader(private val host: ResultViewerActivity) {
 
         loadFrameJob.launch(host.lifecycleScope, Dispatchers.IO) {
             try {
-                val data = readFrameDat(index) ?: return@launch
+                val data = readFrameDat(index)
+                if (data == null) {
+                    // Nothing to draw: the opening pill must not wait on it.
+                    withContext(Dispatchers.Main) { host.captions.openingDone() }
+                    return@launch
+                }
                 scrubCache.putData(index, data)
 
                 withContext(Dispatchers.Main) {
@@ -117,6 +122,7 @@ internal class ViewerFrameLoader(private val host: ResultViewerActivity) {
                 Timber.e(e, "OOM loading frame $index")
                 scrubCache.clear()
                 withContext(Dispatchers.Main) {
+                    host.captions.openingDone()
                     FaqRedirect.snackbar(
                         host,
                         R.string.viewer_frame_oom,
@@ -125,6 +131,7 @@ internal class ViewerFrameLoader(private val host: ResultViewerActivity) {
                 }
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 Timber.e(e, "Failed to load frame $index")
+                withContext(Dispatchers.Main) { host.captions.openingDone() }
             }
         }
     }

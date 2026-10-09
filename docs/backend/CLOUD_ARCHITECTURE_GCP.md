@@ -397,7 +397,12 @@ sequenceDiagram
 week. On restart the worker issues `PUT uploadUrl` with
 `Content-Range: bytes */TOTAL` (zero-length body) → Drive replies `308` with the
 last-received byte in the `Range` header → worker resumes from there. No bytes
-re-sent. WorkManager's `BackoffPolicy.EXPONENTIAL` + network constraint handles
+re-sent. Every chunk's `308` is read the same way: the next chunk starts at
+`Range` end + 1 (no `Range` = 0), not after the bytes just sent, since Drive
+may keep fewer; the running md5 is then rebuilt over what Drive holds. An
+unreadable or out-of-file `Range`, or three PUTs in a row that Drive keeps
+nothing new from, fails the attempt for a WorkManager retry
+(`data/net/drive/DriveUploader.kt`). WorkManager's `BackoffPolicy.EXPONENTIAL` + network constraint handles
 retry/offline.
 
 **Integrity.** At `:complete` the backend asks Drive for the object's real

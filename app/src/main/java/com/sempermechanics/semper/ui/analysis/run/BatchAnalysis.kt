@@ -5,6 +5,7 @@ import androidx.annotation.WorkerThread
 import com.sempermechanics.semper.ProgressCallback
 import com.sempermechanics.semper.SemperNativeLib
 import com.sempermechanics.semper.data.cloud.CloudSync
+import com.sempermechanics.semper.data.prefs.AppSettings
 import com.sempermechanics.semper.data.session.RunInput
 import com.sempermechanics.semper.data.session.RunMetrics
 import com.sempermechanics.semper.data.session.RunOutcome
@@ -21,6 +22,7 @@ import com.sempermechanics.semper.report.FieldRangesStore
 import com.sempermechanics.semper.report.VisualizationEngine
 import com.sempermechanics.semper.report.newMetrics
 import com.sempermechanics.semper.ui.analysis.frames.FrameImportHelper
+import com.sempermechanics.semper.ui.analysis.recommend.RunEstimate
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.BatchAnalysisOutcome
 import com.sempermechanics.semper.ui.analysis.wizard.BatchProgressUpdate
@@ -338,6 +340,13 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
         ?.delete()
 
     val executionTimeMs = (System.currentTimeMillis() - run.startedAtMs).toInt()
+    // The parameters page estimates a run's time from what this phone has solved.
+    if (solvedFrames > 0 && stop != RunStop.Cancelled) {
+        val points = RunEstimate.gridPoints(spec.roi.w, spec.roi.h, spec.params.step)
+        val previous = AppSettings.runPointsPerSecond(appContext)
+        val rate = RunEstimate.nextRate(previous, points, solvedFrames, executionTimeMs.toLong())
+        AppSettings.setRunPointsPerSecond(appContext, rate)
+    }
     var recordSaved = false
     var indexUnavailable = false
     // The names actually on disk in raw_deformed/ — reopening a session,

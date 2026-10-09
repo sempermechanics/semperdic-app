@@ -1,5 +1,6 @@
 package com.sempermechanics.semper.ui.analysis.recommend
 
+import android.animation.ValueAnimator
 import android.graphics.Rect
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
@@ -12,8 +13,11 @@ import com.sempermechanics.semper.field.DicParams
 import com.sempermechanics.semper.field.toRect
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisWizardHost
+import com.sempermechanics.semper.ui.analysis.wizard.glideTo
 import com.sempermechanics.semper.ui.analysis.wizard.snapToSlider
+import com.sempermechanics.semper.ui.common.InlineBusy
 import com.sempermechanics.semper.ui.common.dialog.WarnChip
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -26,7 +30,11 @@ import timber.log.Timber
  * seeding the slider once the user sets a size of their own.
  *
  * Owns the speckle feedback too: the low-texture and speckle-size chips on
- * page 1, the span chip and the readout on page 2.
+ * page 1; on page 2 the speckle chip beside the subset size, the band of
+ * sizes that hold enough speckle shaded behind the slider ([SubsetBand]),
+ * its caption, and the span chip. The caption says "Measuring speckle…"
+ * while a measurement lasts past 300 ms, and the slider glides to the size
+ * the measurement chose.
  */
 class SubsetRecommendationController(
     private val activity: AppCompatActivity,
@@ -34,11 +42,18 @@ class SubsetRecommendationController(
     binding: ActivityStaticAnalysisBinding,
     private val settings: WizardStepSettingsContentBinding,
     private val host: AnalysisWizardHost,
+    /** Where the measurement runs: the engine's thread. A function, so the engine loads only when one is asked. */
+    private val measureOn: () -> CoroutineDispatcher = { SemperNativeLib.nativeDispatcher },
 ) {
     private val lowTextureChip = WarnChip(binding.lowTextureWarnRow.root, host::confirmOpenFaq)
         .apply { setFaq(activity.getString(R.string.url_faq_speckle)) }
     private val speckleChip = WarnChip(binding.speckleWarnRow.root, host::confirmOpenFaq)
     private val speckleSpanChip = WarnChip(settings.speckleSpanWarnRow.root, host::confirmOpenFaq)
+    private val measuring = InlineBusy(activity, settings.tvSpeckleReadout)
+    private val band = SubsetBand.attach(settings.sliderSubsetSize)
+
+    /** The slider's glide to a new recommendation, while it runs. */
+    private var seeding: ValueAnimator? = null
 
     /**
      * Measures the reference over the ROI, unless that measurement is already
@@ -62,7 +77,8 @@ class SubsetRecommendationController(
             sizes = settings.sliderSubsetSize.valueFrom.toInt()..settings.sliderSubsetSize.valueTo.toInt(),
         )
 
-        activity.lifecycleScope.launch(SemperNativeLib.nativeDispatcher) {
+        val started = measuring.start { settings.tvSpeckleReadout.setText(R.string.speckle_measuring) }
+        activity.lifecycleScope.launch(measureOn()) {
             val result = runCatching {
                 SubsetRecommender.recommend(
                     refBytes = bytes,
@@ -75,6 +91,7 @@ class SubsetRecommendationController(
 
             // A newer reference/ROI landed while we were measuring.
             withContext(Dispatchers.Main) {
+                measuring.stop(started)
                 if (viewModel.subsetRecommendationKey != key) return@withContext
                 viewModel.subsetRecommendation = result
                 apply()
@@ -91,13 +108,19 @@ class SubsetRecommendationController(
         return snapToSlider(settings.sliderSubsetSize, rec.subsetSize)
     }
 
+    /** Lands a glide still running, so whoever reads the slider next reads the recommendation. */
+    fun settle() {
+        seeding?.takeIf { it.isStarted }?.end()
+    }
+
     /** Seeds the slider with the recommendation, until the user overrides it. */
     fun apply() {
+        settle()
         val rec = viewModel.subsetRecommendation ?: run {
             lowTextureChip.hide()
             speckleChip.hide()
             speckleSpanChip.hide()
-            settings.tvSpeckleReadout.isVisible = false
+            showReadout()
             return
         }
         // The one thing the measurement knows that the slider cannot show: even
@@ -107,9 +130,19 @@ class SubsetRecommendationController(
             val snapped = snapToSlider(settings.sliderSubsetSize, rec.subsetSize)
             if (settings.sliderSubsetSize.value.toInt() != snapped) {
                 host.commitParamFields()
-                settings.sliderSubsetSize.value = snapped.toFloat()
+                // The readout states the new size now; the rest waits for the slider to get there.
+                showReadout()
+                seeding = settings.sliderSubsetSize.glideTo(snapped, { viewModel.subsetUserModified }) {
+                    seeding = null
+                    afterSeeding()
+                }
+                return
             }
         }
+        afterSeeding()
+    }
+
+    private fun afterSeeding() {
         // A new recommendation re-seeds the sweep's suggested inputs (unless the
         // user has already set their own).
         host.onSweepInputsChanged()
@@ -137,24 +170,15 @@ class SubsetRecommendationController(
      * ahead of it and suppresses the span chip entirely.
      */
     fun showSpeckleFeedback() {
-        val diameter = viewModel.subsetRecommendation?.speckleDiameterPx
+        val diameter = showReadout()
         if (diameter == null) {
             // No measurable pattern in any sample patch. The low-texture chip
             // already covers the case where that is the user's problem; saying
             // nothing here is better than reporting a number we do not have.
             speckleChip.hide()
             speckleSpanChip.hide()
-            settings.tvSpeckleReadout.isVisible = false
             return
         }
-
-        settings.tvSpeckleReadout.text = activity.getString(
-            R.string.speckle_readout_fmt,
-            diameter,
-            DicGoodPractice.MIN_SPECKLE_PX.toInt(),
-            DicGoodPractice.MAX_SPECKLE_PX.toInt(),
-        )
-        settings.tvSpeckleReadout.isVisible = true
 
         val sizeMessage = sizeMessage(diameter)
         // Read off the slider, not off the recommendation: the user may have
@@ -167,6 +191,28 @@ class SubsetRecommendationController(
         val faqUrl = activity.getString(R.string.url_faq_speckle)
         speckleChip.showOrHide(sizeMessage, faqUrl)
         speckleSpanChip.showOrHide(spanMessage, faqUrl)
+    }
+
+    /**
+     * The band behind the slider and its caption ("Set to 31 px · shaded: 25 px
+     * and up hold enough speckle" while the slider holds the recommendation),
+     * and the speckle chip beside the size, amber outside the good-practice
+     * band. Returns the measured diameter, or null without one.
+     */
+    private fun showReadout(): Double? {
+        val rec = viewModel.subsetRecommendation
+        val slider = settings.sliderSubsetSize
+        val range = rec?.let { SubsetBand.rangeFor(it, slider.valueFrom.toInt()..slider.valueTo.toInt()) }
+        band.range = range
+        val readout = settings.tvSpeckleReadout
+        readout.isVisible = range != null
+        if (range != null) {
+            val setTo = defaultSubsetSize().takeUnless { viewModel.subsetUserModified }
+            readout.text = SubsetBand.caption(activity.resources, range, setTo)
+        }
+        val diameter = rec?.speckleDiameterPx
+        SubsetBand.showChip(settings.chipSpeckle, diameter)
+        return diameter
     }
 
     private fun sizeMessage(diameter: Double): String? = when (DicGoodPractice.verdictFor(diameter)) {

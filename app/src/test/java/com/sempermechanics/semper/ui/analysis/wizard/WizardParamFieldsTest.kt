@@ -75,7 +75,8 @@ class WizardParamFieldsTest {
         bed.settings.sliderSubsetSize.value = 61f
         bed.settings.sliderStepSize.value = 9f
         bed.settings.sliderStrainWindow.value = 11f
-        bed.settings.rgInterpolator.check(R.id.rbKeys)
+        bed.settings.ddInterpolator.setText(bed.activity.getString(R.string.label_6_6_keys), false)
+        assertTrue(fields.isKeysInterpolatorSelected())
         bed.host.calls.clear()
 
         fields.reset()
