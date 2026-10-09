@@ -158,8 +158,11 @@ class ViewerSummaryController(private val host: ResultViewerActivity) {
     fun boundsFor(dataIndex: Int): Pair<Float, Float>? =
         host.customBoundsFor(dataIndex)?.toPair() ?: ranges[dataIndex]
 
-    /** The label the frame counter shows while the summary is up. */
-    fun counterText(): String = host.getString(R.string.summary_gif)
+    /** The label the frame counter shows while the summary is up: how many frames it plays, "5 frames". */
+    fun counterText(): String {
+        val frames = host.frameCount()
+        return host.resources.getQuantityString(R.plurals.session_frames_fmt, frames, frames)
+    }
 
     private fun render(dataIndex: Int) {
         if (shownField == dataIndex && image.drawable != null) {

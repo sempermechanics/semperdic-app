@@ -6,33 +6,40 @@ package com.sempermechanics.semper.ui.home
 
 import android.annotation.SuppressLint
 import android.content.res.ColorStateList
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.view.ViewCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.cloud.TransferPhase
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.databinding.ItemSessionBinding
+import com.sempermechanics.semper.databinding.ItemSessionHeaderBinding
 import com.sempermechanics.semper.ui.common.transfer.TransferWorkObserver
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
- * Home session list. Selection state lives with the owner ([isSelected]); this
- * adapter only paints rows and forwards clicks.
+ * Home session list: cards under day headers ([SessionDays]). Selection
+ * state lives with the owner ([isSelected]); this adapter only paints rows
+ * and forwards clicks. Everything the owner asks is by session id, so the
+ * headers never count as rows.
  */
 class SessionListAdapter(
     private val isSelected: (String) -> Boolean,
     private val onClick: (SessionRecord) -> Unit,
     private val onLongClick: (SessionRecord) -> Unit,
     private val onBadgeClick: (SessionRecord) -> Unit = {},
-) : RecyclerView.Adapter<SessionListAdapter.Holder>() {
+    /** The time "Today" and "Yesterday" are counted from when a header binds. */
+    private val clock: () -> Long = System::currentTimeMillis,
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    private var items: List<SessionRecord> = emptyList()
-    private val dateFmt = SimpleDateFormat("MMM d", Locale.getDefault())
+    private var records: List<SessionRecord> = emptyList()
+
+    /** [records] with a header above each day: what the list shows, position for position. */
+    private var rows: List<SessionRow> = emptyList()
+
+    /** Session id → its adapter position in [rows]. */
+    private var positions: Map<String, Int> = emptyMap()
 
     /** id → live transfer progress; empty except for rows currently backing up or restoring. */
     private var progress: Map<String, TransferWorkObserver.RowProgress> = emptyMap()
@@ -56,11 +63,16 @@ class SessionListAdapter(
     private var thumbs: SessionThumbs? = null
 
     /**
-     * Shows [newItems]. [withoutLocalData] are the ids among them with no frame
-     * data on this phone, from [SessionRecord.hasLocalData] read on IO.
+     * Shows [newItems], newest first, under their days. [withoutLocalData] are
+     * the ids among them with no frame data on this phone, from
+     * [SessionRecord.hasLocalData] read on IO.
      */
     fun submit(newItems: List<SessionRecord>, withoutLocalData: Set<String>) {
-        items = newItems
+        records = newItems
+        rows = SessionDays.rows(newItems)
+        positions = buildMap {
+            rows.forEachIndexed { position, row -> if (row is SessionRow.Session) put(row.record.id, position) }
+        }
         this.withoutLocalData = withoutLocalData
         notifyDataSetChanged()
     }
@@ -68,7 +80,8 @@ class SessionListAdapter(
     /** Whether [id]'s frames were on this phone when the list was read; no disk access. */
     fun hasLocalData(id: String): Boolean = id !in withoutLocalData
 
-    fun allIds(): List<String> = items.map { it.id }
+    /** Every session's id in list order; never a header. */
+    fun allIds(): List<String> = records.map { it.id }
 
     fun setSyncVisible(visible: Boolean) {
         if (syncVisible == visible) return
@@ -76,10 +89,13 @@ class SessionListAdapter(
         notifyDataSetChanged()
     }
 
+    /** [id]'s adapter position, counting the headers above it; -1 when it is not listed. */
+    internal fun positionOf(id: String): Int = positions[id] ?: RecyclerView.NO_POSITION
+
     /** Redraws one row by id — selection changes never touch the whole list. */
     fun rebindRow(id: String) {
-        val index = items.indexOfFirst { it.id == id }
-        if (index >= 0) notifyItemChanged(index)
+        val position = positionOf(id)
+        if (position >= 0) notifyItemChanged(position)
     }
 
     /** Update live transfer progress; rebinds only the rows whose progress changed. */
@@ -94,7 +110,7 @@ class SessionListAdapter(
 
     /** Rows whose ids are in [ids], in list order. */
     fun recordsFor(ids: Collection<String>): List<SessionRecord> =
-        items.filter { it.id in ids }
+        records.filter { it.id in ids }
 
     /** Drop cached thumbs (e.g. when Home is destroyed). */
     fun clearThumbCache() {
@@ -103,26 +119,48 @@ class SessionListAdapter(
 
     class Holder(val row: ItemSessionBinding) : RecyclerView.ViewHolder(row.root)
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
+    class DayHolder(val day: ItemSessionHeaderBinding) : RecyclerView.ViewHolder(day.root)
+
+    override fun getItemViewType(position: Int): Int = when (rows[position]) {
+        is SessionRow.Header -> TYPE_DAY
+        is SessionRow.Session -> TYPE_SESSION
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        if (viewType == TYPE_DAY) {
+            val day = ItemSessionHeaderBinding.inflate(inflater, parent, false)
+            ViewCompat.setAccessibilityHeading(day.root, true)
+            return DayHolder(day)
+        }
         if (thumbs == null) {
             val edge = parent.resources.getDimensionPixelSize(R.dimen.session_thumb_size) * THUMB_OVERSAMPLE
             thumbs = SessionThumbs(edge)
         }
-        return Holder(ItemSessionBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+        return Holder(ItemSessionBinding.inflate(inflater, parent, false))
     }
 
-    override fun getItemCount() = items.size
+    override fun getItemCount() = rows.size
 
-    override fun onBindViewHolder(holder: Holder, position: Int) {
-        val r = items[position]
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        when (val row = rows[position]) {
+            is SessionRow.Header -> (holder as DayHolder).day.sessionDay.text =
+                SessionDays.label(holder.itemView.context, row.millis, now = clock())
+            is SessionRow.Session -> bindSession(holder as Holder, row.record)
+        }
+    }
+
+    private fun bindSession(holder: Holder, r: SessionRecord) {
         val row = holder.row
         val context = holder.itemView.context
         val prog = progress[r.id]?.takeIf { syncVisible }
         row.sessionTitle.text = r.name
-        row.sessionSubtitle.text = if (prog != null) {
-            SessionRowText.transfer(context, prog)
+        if (prog != null) {
+            row.sessionSubtitle.text = SessionRowText.transfer(context, prog)
+            row.sessionSubtitle.contentDescription = null
         } else {
-            SessionRowText.subtitle(context, r, dateFmt.format(Date(r.createdAt)))
+            row.sessionSubtitle.text = SessionRowText.subtitle(context, r)
+            row.sessionSubtitle.contentDescription = SessionRowText.spokenSubtitle(context, r)
         }
 
         bindState(holder, r, prog)
@@ -130,7 +168,10 @@ class SessionListAdapter(
 
         val selected = isSelected(r.id)
         row.sessionCheck.isVisible = selected
-        row.sessionRow.setBackgroundColor(if (selected) context.getColor(R.color.sky_container) else Color.TRANSPARENT)
+        row.sessionCard.setCardBackgroundColor(
+            context.getColor(if (selected) R.color.sky_container else R.color.surface_muted),
+        )
+        row.sessionCard.strokeColor = context.getColor(if (selected) R.color.sky_primary else R.color.surface_outline)
 
         // Outside selection mode a tap opens the analysis and a long-press
         // starts selecting; inside it, every tap just toggles a row. That
@@ -182,9 +223,13 @@ class SessionListAdapter(
         }
     }
 
-    private companion object {
+    internal companion object {
+        /** View types: a day header ([DayHolder]) and an analysis card ([Holder]). */
+        const val TYPE_DAY = 0
+        const val TYPE_SESSION = 1
+
         /** The cached result render is twice the thumb view's edge in px. */
-        const val THUMB_OVERSAMPLE = 2
-        const val PERCENT = 100
+        private const val THUMB_OVERSAMPLE = 2
+        private const val PERCENT = 100
     }
 }

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A day above Home's cards: "Today", "Yesterday", then "Oct 7"
+     (SessionDays.label). Not clickable and never selected. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sessionDay"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="@dimen/space_4"
+    android:paddingTop="@dimen/space_12"
+    android:paddingEnd="@dimen/space_4"
+    android:paddingBottom="@dimen/space_4"
+    android:textColor="@color/text_secondary"
+    android:textSize="12sp"
+    tools:text="Yesterday" />

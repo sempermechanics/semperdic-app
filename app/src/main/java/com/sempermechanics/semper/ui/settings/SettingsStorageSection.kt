@@ -33,7 +33,6 @@ class SettingsStorageSection(
         // also refuses, so a stale budget pref cannot drop anything).
         if (!LicenseEntitlements.cloudBackupEnabled(activity)) {
             listOf(
-                views.tvStorageFreeUpSub,
                 views.btnStorageFreeUp,
                 views.rowAutoFreeHeader,
                 views.tvAutoFreeValue,
@@ -69,6 +68,7 @@ class SettingsStorageSection(
         refreshStorageTotals()
     }
 
+    /** The slider's short value, "Off" or "Over 8 GB"; the ⓘ explains what it does. */
     private fun autoFreeText(gb: Int): String =
         if (gb <= AppSettings.AUTO_FREE_OFF) {
             activity.getString(R.string.storage_auto_free_off)
@@ -91,14 +91,14 @@ class SettingsStorageSection(
             val (analyses, cache, reclaimable) = sizes
             views.tvStorageAnalysesSize.text = ByteSize.format(analyses)
             views.tvStorageCacheSize.text = ByteSize.format(cache)
+            // Clear only while there is something to clear: hidden and disabled together.
+            views.btnStorageClearCache.isVisible = cache > 0
             views.btnStorageClearCache.isEnabled = cache > 0
 
-            views.btnStorageFreeUp.isEnabled = reclaimable > 0
-            views.tvStorageFreeUpSub.text = if (reclaimable > 0) {
-                activity.getString(R.string.storage_free_up_sub_fmt, ByteSize.format(reclaimable))
-            } else {
-                activity.getString(R.string.storage_free_up_none)
-            }
+            // "Free up N MB" only while a backed-up analysis holds local data,
+            // and never without cloud restore (wire() hides it for a demo).
+            views.btnStorageFreeUp.isVisible = LicenseEntitlements.cloudBackupEnabled(activity) && reclaimable > 0
+            views.btnStorageFreeUp.text = activity.getString(R.string.storage_free_up_fmt, ByteSize.format(reclaimable))
         }
     }
 

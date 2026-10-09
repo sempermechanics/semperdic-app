@@ -2,7 +2,6 @@ package com.sempermechanics.semper.analysis
 
 import android.app.Application
 import android.view.View
-import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -68,11 +67,9 @@ class BatchRunControllerTest {
             .get()
         val overlay = ComputeOverlayController(
             overlay = View(activity),
-            title = TextView(activity),
-            progress = ProgressBar(activity),
+            header = TextView(activity),
             percent = TextView(activity),
             status = TextView(activity),
-            elapsed = TextView(activity),
             eta = TextView(activity),
         )
         // The run is in flight when its outcome arrives.

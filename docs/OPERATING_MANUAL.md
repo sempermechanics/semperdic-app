@@ -95,10 +95,16 @@ delete. Pull down to sync. **+** goes straight to the picker — pick existing
 photos or a video. There is no in-app camera; the app measures images you
 already have. (The shot above is the empty state, before any analysis exists.)
 
-Each row shows the last frame's U displacement as its thumbnail (the reference
-image until that is drawn, or when the frames are not on the phone), the name,
-and a line such as `40 frames · 96.3% converged · Oct 5`. A convergence under
-85% is amber. A new analysis is named after its reference image, `steel_00`;
+The list is grouped by day under small headers: *Today*, *Yesterday*, then a
+date such as *Oct 7* (with the year for an earlier year), in your phone's
+language and timezone. Each analysis is a card showing the last frame's U
+displacement as its thumbnail (the reference image until that is drawn, or when
+the frames are not on the phone), the name, and a line such as
+`40 frames · 96.3%`: the frame count and the share of points that converged.
+A convergence under 85% is amber. A run that stopped early reads
+`39 of 50 frames` and ends with why it stopped; a parameter sweep reads
+`9 of 9 solved`. A selected card turns light blue.
+A new analysis is named after its reference image, `steel_00`;
 a second one from the same image becomes `steel_00 (2)`. The cloud icon at the
 row's end says where the backup stands:
 
@@ -247,24 +253,29 @@ status line.
 
 <img src="images/running.png" width="300" alt="Progress dialog">
 
-The card shows the percentage, the time left (once a few seconds of progress
-give a steady rate), seconds per frame and elapsed time. **Convergence per frame**
-is a line across all planned frames with a dashed line at 50%; frames under it
-get a red dot. Under the graph, the status reads *Correlating frame 23 · 40%*,
-then *Completed 40 of 40 frames · saving* while the run writes the analysis.
-After one low frame an amber line warns that one more stops the run.
+The card's header reads *Frame 23 of 40* with the whole run's percentage at its
+end, then the time left (once a few seconds of progress give a steady rate).
+Under it, one bin per planned frame shows **convergence per frame**: a finished
+frame is a blue bar as tall as its convergence, red under the dashed line at
+50%; the frame being solved is a pale outlined bar rising with its progress;
+frames still to come are empty slots. Over 100 frames, neighbouring frames share
+a bin that shows the lowest of them, so a low frame is never hidden. Once every
+frame is solved the header reads *Completed 40 of 40 frames · saving* while the
+run writes the analysis. After one low frame an amber line warns that one more
+stops the run.
 **Cancel** stops the run
 where it is, within a moment — it does not wait out the frame being solved.
 Nothing is kept. Back is blocked. Cancelling a parameter sweep abandons the whole
 sweep, not just the combination in flight.
 
 The same overlay covers importing frames and extracting video, but there it
-counts frames instead: the convergence graph is hidden, because nothing is being
-solved yet. A parameter sweep shows *Analysis 7 of 9*, the percentage and time
-left, and its planned lattice in place of the graph: every combination starts
-as a grey ring, fills when it solves, turns into a red ring if it is skipped,
-and the one being solved is circled. The status under it names that
-combination, then *Solved 9 of 9 analyses · saving*. Cancelling an import asks for confirmation and leaves nothing behind.
+shows a progress bar and counts frames instead: the convergence bins are hidden,
+because nothing is being solved yet. A parameter sweep's header reads *Analysis
+7 of 9* with the percentage, then the time left, and its planned lattice takes
+the bins' place: every combination starts as a grey ring, fills when it solves,
+turns into a red ring if it is skipped, and the one being solved is circled. The
+status under it names that combination; at the end the header reads *Solved 9
+of 9 analyses · saving*. Cancelling an import asks for confirmation and leaves nothing behind.
 
 **A run stops itself if the images decorrelate.** Two consecutive frames below
 50% convergence end it — the frames after them would be no better, and the
@@ -585,11 +596,14 @@ the lattice onto one combination instead; there is no overview slot.
 (Playback needs Android 9 or newer. Below that you get the first frame
 and a note; single-setting field GIFs still export.)
 
-**Frames.** Prev / Next step through; the counter shows the filename and
-`(i / N)`. Type a number in the small field under it and press Go to jump
-straight to that frame — useful at 150 frames. Anything out of range leaves you
-where you are. On a sweep each frame is a parameter combination, labelled like
-`S15 · St5 · W13 · VSG 61`.
+**Frames.** Prev / Next step through. The title at the top names what is on
+screen — *Summary*, or the frame's file name without its extension — and the
+field button beside it names the field. The pill under the frame counts:
+`i / N` on a frame, `5 frames` on the summary. Type a number in the small field
+under it and press Go to jump straight to that frame — useful at 150 frames.
+Anything out of range leaves you where you are. On a sweep each frame is a
+parameter combination, titled like `Subset 15 · window 3` (the strain window in
+data points; the step is always the subset divided by the sweep's N).
 
 ### Settings used
 
@@ -611,7 +625,11 @@ provenance record.
 
 ## 9. Exports
 
-**Share** gives six targets. Each ends at a **Send to** sheet with two rows:
+**Share** gives six targets, one line each: a title and, at the end, the file type
+(**This field** PNG, **All fields** 5 PNG, **Animations** 5 GIF, **Report** PDF,
+**Data** CSV, **Everything** ZIP). The header names the frame the photos come from
+("frame 2 of 5"; "combination 2 of 5" on a sweep). With TalkBack, each row says
+what it shares. Each ends at a **Send to** sheet with two rows:
 **Save to Files** (a folder picker, so it lands somewhere you choose and stays) or
 **Share** (the usual system chooser). For everything but the single photo the
 sheet comes up **first**, so the file is written straight into the folder you
@@ -624,12 +642,12 @@ a strip at the top, with the same progress and a Cancel.
 
 | Export | Contents |
 |---|---|
-| Single Field | One PNG: current field and frame, annotated, composited to a 1280 px long edge |
-| All fields | Five PNGs for this frame, zipped; the sheet and each stamp name the source image |
+| This field | One PNG: current field and frame, annotated, composited to a 1280 px long edge |
+| All fields | Five PNGs for this frame, zipped; each stamp names the source image |
 | Animations | Single-setting only: five looping field GIFs on one whole-sequence scale, zipped |
-| PDF report | Every frame, plus a telemetry page |
-| CSV data | `image,x_px,y_px,u_px,v_px,exx,eyy,exy,znssd` — a sweep adds `subset_px, step_px, strain_window, vsg_px` |
-| Everything (.zip) | Raw photos + all fields + CSV + PDF; single-setting also includes the field GIFs |
+| Report | One PDF: every frame, plus a telemetry page |
+| Data | One CSV: `image,x_px,y_px,u_px,v_px,exx,eyy,exy,znssd` — a sweep adds `subset_px, step_px, strain_window, vsg_px` |
+| Everything | One ZIP: raw photos + all fields + CSV + PDF; single-setting also includes the field GIFs |
 
 On a single-setting analysis the field GIFs are shared as a set, not one at a
 time — they are only comparable because they share a scale, and the set is what
@@ -676,8 +694,10 @@ from being local again, so freeing space is a reversible decision.
 
 <img src="images/settings.png" width="300" alt="Settings sections">
 
-**Cloud backup**: turn it on and it offers to back up what is already
-local. **Wi-Fi only** holds uploads until Wi-Fi. **Analyses data management**
+**Cloud backup**: turn **Save to cloud** on and it offers to back up what is
+already local; off, new analyses stay on the phone and existing cloud copies
+remain. **Wi-Fi only** holds uploads until Wi-Fi. The line under the switches
+says whether everything is backed up, or how many analyses are not. **Analyses data management**
 lists local and cloud together, with three actions per row:
 
 | Action | Does | Shows when |
@@ -690,13 +710,13 @@ Downloads and restores keep running if you leave Settings, and report back when
 they land.
 
 **Storage** is the section to reach for when the phone fills up. It measures what
-the analyses and the cache actually occupy, and gives you three tools:
+the analyses and the temporary files actually occupy, and gives you three tools:
 
 | Control | Does |
 |---|---|
-| **Free up space** | Drops the local frames of analyses that are already backed up. They become "Only in cloud" rows; nothing un-backed-up is touched |
-| **Clear cache** | Removes regenerable files — previews, exports waiting to be shared |
-| **Auto-free budget** | A slider, 0 (off) to 64 GB. Set it and the app reclaims space at start-up whenever usage is over the budget, oldest backed-up analyses first |
+| **Free up N MB** | Drops the local frames of analyses that are already backed up, N being what that frees. They become "Only in cloud" rows; nothing un-backed-up is touched. It shows only when there is something to free |
+| **Clear** | At the end of the **Temporary files** row: removes regenerable files — import leftovers, transfer scratch, exports waiting to be shared. Gone when there is nothing to clear |
+| **Auto-free space** | A slider, 0 (Off) to 64 GB, its value beside the title ("Over 8 GB"); the ⓘ explains it. Set it and the app reclaims space at start-up whenever usage is over the budget, oldest backed-up analyses first |
 
 **Background transfers survive leaving the screen and are honest about failure.**
 An upload or restore runs even if you navigate away, showing a system
@@ -779,7 +799,7 @@ Write above that block; leave it in place.
 | Cloud icon crossed out in red | The backup failed. Tap the icon — the dialog names why (device conflict, too large, ran out of memory) and offers **Try again** |
 | Restore never arrived | If it failed for good, Home and Settings both show a message saying so; otherwise it retries on a flaky network |
 | Row says "Only in cloud" | Its local frames were freed (by you, or by the auto-free budget). Tap it and choose **Restore** |
-| Phone out of space | **Settings → Storage → Free up space**, and consider setting an auto-free budget |
+| Phone out of space | **Settings → Storage → Free up N MB**, and consider setting an auto-free budget |
 | Still pending approval | Tap **Check status** — it never polls |
 | Sign-in refused after signing up | Open the verification link in your email, then try again |
 | Nothing here matches | **Settings → Help & support** — [Support](https://sempermechanics.com/support/) or **Email support** (the mail carries your account, device and build) |
