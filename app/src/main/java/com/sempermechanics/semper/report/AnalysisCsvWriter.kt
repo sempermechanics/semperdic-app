@@ -65,8 +65,10 @@ object AnalysisCsvWriter {
     /**
      * Writes [frames] in two passes: every frame's field statistics, then every
      * frame's point rows. [onFrame] hears (point rows?, frames done) before each
-     * frame of each pass and once at the end of each; it only watches, so the
-     * bytes are the same with or without it.
+     * frame of each pass and once at the end of each. A frame's point rows can
+     * take seconds, so [onRows] also hears (frames done, fraction of the frame in
+     * progress) every [ROWS_PER_REPORT] rows of it, the fraction in [0, 1).
+     * Both only watch, so the bytes are the same with or without them.
      */
     fun write(
         out: File,
@@ -74,6 +76,7 @@ object AnalysisCsvWriter {
         frames: List<Frame>,
         metadata: Metadata,
         onFrame: (pointRows: Boolean, done: Int) -> Unit = { _, _ -> },
+        onRows: (done: Int, fraction: Double) -> Unit = { _, _ -> },
     ) {
         open(out, sweep, metadata).use { appender ->
             frames.forEachIndexed { done, frame ->
@@ -84,11 +87,14 @@ object AnalysisCsvWriter {
             appender.startPointSection()
             frames.forEachIndexed { done, frame ->
                 onFrame(true, done)
-                appender.append(frame)
+                appender.append(frame) { fraction -> onRows(done, fraction) }
             }
             onFrame(true, frames.size)
         }
     }
+
+    /** Point rows a frame writes between two `onRows` reports of [write] / [Appender.append]. */
+    const val ROWS_PER_REPORT = 4096
 
     /**
      * Streaming writer. Two ways to drive it, both giving [write]'s layout:
@@ -228,7 +234,11 @@ object AnalysisCsvWriter {
             }
         }
 
-        fun append(frame: Frame) {
+        /**
+         * [frame]'s point rows. [onRows] hears the fraction of the frame written
+         * every [ROWS_PER_REPORT] rows; it only watches.
+         */
+        fun append(frame: Frame, onRows: (fraction: Double) -> Unit = {}) {
             val target = if (pointSectionStarted) writer else stagedWriter()
             writeFrame(
                 target,
@@ -236,6 +246,7 @@ object AnalysisCsvWriter {
                 prefix(frame, sweep),
                 row,
                 formatter,
+                onRows,
             )
         }
 
@@ -253,16 +264,22 @@ object AnalysisCsvWriter {
         }
     }
 
-    /** Appends one frame's solved points, each row led by [prefix]. */
+    /**
+     * Appends one frame's solved points, each row led by [prefix]. After every
+     * [ROWS_PER_REPORT]th row, [onRows] hears the share of the frame's points
+     * before that row's point: rising, and below 1 since that point is not in it.
+     */
     private fun writeFrame(
         w: Writer,
         frame: Frame,
         prefix: String,
         row: StringBuffer,
         formatter: DicResult.CsvPointFormatter,
+        onRows: (fraction: Double) -> Unit,
     ) {
         val data = frame.data() ?: return
         val suffix = motionSuffixColumns(RigidBodyFit.fit(data))
+        var rows = 0
         var i = 0
         while (i < data.size) {
             if (DicResult.isSolvedPoint(data[i + DicResult.IDX_ZNSSD])) {
@@ -273,6 +290,7 @@ object AnalysisCsvWriter {
                 row.append(suffix)
                 row.append('\n')
                 w.append(row)
+                if (++rows % ROWS_PER_REPORT == 0) onRows(i.toDouble() / data.size)
             }
             i += DicResult.STRIDE
         }

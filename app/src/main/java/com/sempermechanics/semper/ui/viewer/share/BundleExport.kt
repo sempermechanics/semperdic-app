@@ -43,40 +43,52 @@ internal class BundleExport(
      * ```
      */
     suspend fun everythingZip(report: ExportReport = NO_REPORT): File {
-        // The PDF is the long pole: the first 55% of the bar. Each later stage
-        // reports its own frames inside its share, so the bar never stands
-        // still between stages (a sweep has no animations; its CSV takes theirs).
-        val pdf = dataFiles.allFramesPdf(report.within(0.0, 55.0))
-        val csvEnd = if (s.isSweep) 72.0 else 62.0
-        val csv = dataFiles.batchCsv(report.within(55.0, csvEnd))
-        val animations = if (s.isSweep) emptyList() else dataFiles.fieldAnimations(report.within(csvEnd, 72.0))
-        report(72.0, resources.getString(R.string.share_progress_zip_photos))
+        // Each stage reports inside its share of the bar ([ZipBudget]): frame by
+        // frame, the CSV also within a frame, and the copies into the archive by
+        // bytes, so the bar never stands still between stages.
+        val budget = ZipBudget(s.isSweep)
+        val pdf = dataFiles.allFramesPdf(report.within(budget.pdf))
+        val csv = dataFiles.batchCsv(report.within(budget.csv))
+        val animations = if (s.isSweep) emptyList() else dataFiles.fieldAnimations(report.within(budget.animations))
+        val photos = report.within(budget.photos)
+        val adding = resources.getString(R.string.share_progress_zip_photos)
+        photos(0.0, adding)
         val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
         val f = File(outDir, "${s.baseName}_everything_$ts.zip")
-        val heatmaps = report.within(75.0, 98.0)
+        val heatmaps = report.within(budget.heatmaps)
+        val archive = report.within(budget.archive)
         val writing = resources.getString(R.string.share_progress_zip_writing)
         ZipOutputStream(f.outputStream().buffered()).use { zip ->
-            addRawPhotos(zip, ts)
-            for (gif in animations) Zips.putFile(zip, "photos_$ts/animations/${gif.name}", gif)
+            val copies = rawPhotos(zip, ts) + animations.map { "photos_$ts/animations/${it.name}" to it }
+            putAll(zip, copies, photos.byteCounter(copies.sumOf { it.second.length() }, adding))
             addResultImages(zip, ts) { done, total ->
                 heatmaps.step(resources, done, total, R.string.share_progress_zip_heatmaps_fmt)
             }
-            report(98.0, writing)
+            archive(0.0, writing)
             // Home of the archive: the data table and the full report.
-            Zips.putFile(zip, "${s.baseName}_data.csv", csv)
-            Zips.putFile(zip, "${s.baseName}_report.pdf", pdf)
+            val home = listOf("${s.baseName}_data.csv" to csv, "${s.baseName}_report.pdf" to pdf)
+            putAll(zip, home, archive.byteCounter(home.sumOf { it.second.length() }, writing))
         }
         report(100.0, writing)
         return f
     }
 
-    /** `photos_{ts}/raw photos/` — the reference and (best-effort) deformed originals. */
-    private fun addRawPhotos(zip: ZipOutputStream, ts: String) {
+    private fun putAll(zip: ZipOutputStream, entries: List<Pair<String, File>>, onBytes: (Long) -> Unit) {
+        for ((name, file) in entries) Zips.putFile(zip, name, file, onBytes)
+    }
+
+    /**
+     * `photos_{ts}/raw photos/` — the reference and (best-effort) deformed
+     * originals, as entries to copy, reference first. With no reference file on
+     * disk the in-memory base image is written to [zip] at once instead.
+     */
+    private fun rawPhotos(zip: ZipOutputStream, ts: String): List<Pair<String, File>> {
         val dir = "photos_$ts/raw photos"
+        val entries = mutableListOf<Pair<String, File>>()
 
         val refFile = s.refImagePath?.let { File(it) }?.takeIf { it.exists() }
         if (refFile != null) {
-            Zips.putFile(zip, "$dir/reference_${refFile.name}", refFile)
+            entries += "$dir/reference_${refFile.name}" to refFile
         } else {
             // No persisted reference file (shouldn't happen) — fall back to the
             // in-memory base image so the folder is never empty.
@@ -94,8 +106,9 @@ internal class BundleExport(
         // sortable NNNN_ prefix. Guarded so a missing file can't abort the export.
         for (path in s.defImagePaths) {
             val df = File(path)
-            if (df.exists()) Zips.putFile(zip, "$dir/${df.name}", df)
+            if (df.exists()) entries += "$dir/${df.name}" to df
         }
+        return entries
     }
 
     /**
@@ -149,4 +162,31 @@ internal class BundleExport(
             }
         }
     }
+}
+
+/**
+ * Where each stage of the everything ZIP sits on its progress bar, percent of
+ * the whole, in the order the stages run; each starts where the last ended.
+ *
+ * Shares follow each stage's work. The PDF builds every frame's report images
+ * and draws its pages, then writes the document in one `PdfDocument.writeTo`
+ * ("Finalizing PDF..."), its last few percent. The CSV's
+ * point rows run six `DecimalFormat` calls per solved point, seconds a frame on
+ * a dense grid. The heatmaps render five fields a frame and compress each as a
+ * PNG. The GIFs are 640 px at most, the raw photos are copied, and the CSV and
+ * PDF are deflated into the archive last, which a large CSV makes slow.
+ */
+internal class ZipBudget(sweep: Boolean) {
+    val pdf = 0.0..45.0
+
+    /** A sweep has no animations: its CSV takes their share. */
+    val csv = 45.0..(if (sweep) 72.0 else 62.0)
+    val animations = csv.endInclusive..72.0
+    val photos = 72.0..75.0
+    val heatmaps = 75.0..96.0
+    val archive = 96.0..100.0
+
+    /** Every stage, in the order it runs. */
+    val stages: List<ClosedFloatingPointRange<Double>>
+        get() = listOf(pdf, csv, animations, photos, heatmaps, archive)
 }

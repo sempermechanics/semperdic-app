@@ -37,8 +37,10 @@ class PdfReportGeneratorTest {
         val events = runBlocking {
             PdfReportGenerator.generateBatch(4, { null }, ByteArrayOutputStream()).toList()
         }
-        assertEquals(listOf(2, 25, 48, 71), statuses(events).map { it.percent })
+        // The write, last, has its own status rather than the last frame's.
+        assertEquals(listOf(2, 25, 48, 71, 98), statuses(events).map { it.percent })
         assertEquals("Frame 1 of 4…", statuses(events).first().message)
+        assertEquals("Finalizing PDF...", statuses(events).last().message)
     }
 
     @Test
