@@ -214,14 +214,17 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="transfer_row_bytes_fmt">%1$s · %2$s of %3$s</string>
     <string name="transfer_row_percent_fmt">%1$s · %2$s%%</string>
     <string name="session_converged_fmt">%1$s%% converged</string>
+    <string name="session_convergence_fmt">%1$s%%</string>
+    <string name="home_day_today">Today</string>
+    <string name="home_day_yesterday">Yesterday</string>
 
     <plurals name="session_frames_of_fmt">
         <item quantity="one">%1$d of %2$d frame</item>
         <item quantity="other">%1$d of %2$d frames</item>
     </plurals>
     <plurals name="session_sweep_row_fmt">
-        <item quantity="one">%1$d of %2$d solved · subset %3$d–%4$d px</item>
-        <item quantity="other">%1$d of %2$d solved · subset %3$d–%4$d px</item>
+        <item quantity="one">%1$d of %2$d solved</item>
+        <item quantity="other">%1$d of %2$d solved</item>
     </plurals>
     <string name="session_sweep_name_fmt">Parameter sweep · %1$s</string>
     

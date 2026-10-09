@@ -95,10 +95,16 @@ delete. Pull down to sync. **+** goes straight to the picker — pick existing
 photos or a video. There is no in-app camera; the app measures images you
 already have. (The shot above is the empty state, before any analysis exists.)
 
-Each row shows the last frame's U displacement as its thumbnail (the reference
-image until that is drawn, or when the frames are not on the phone), the name,
-and a line such as `40 frames · 96.3% converged · Oct 5`. A convergence under
-85% is amber. A new analysis is named after its reference image, `steel_00`;
+The list is grouped by day under small headers: *Today*, *Yesterday*, then a
+date such as *Oct 7* (with the year for an earlier year), in your phone's
+language and timezone. Each analysis is a card showing the last frame's U
+displacement as its thumbnail (the reference image until that is drawn, or when
+the frames are not on the phone), the name, and a line such as
+`40 frames · 96.3%`: the frame count and the share of points that converged.
+A convergence under 85% is amber. A run that stopped early reads
+`39 of 50 frames` and ends with why it stopped; a parameter sweep reads
+`9 of 9 solved`. A selected card turns light blue.
+A new analysis is named after its reference image, `steel_00`;
 a second one from the same image becomes `steel_00 (2)`. The cloud icon at the
 row's end says where the backup stands:
 

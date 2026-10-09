@@ -1,23 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One Home row. Rows sit flat on the list's surface, split by a 1dp divider
-     (a view background, so force-dark inverts it with the surface); a
-     selected row is tinted (SessionListAdapter). -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- One Home row: a card on the list's surface; a selected row takes the
+     sky fill and stroke (SessionListAdapter). Day headers between the cards
+     are item_session_header. -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/sessionRow"
+    android:id="@+id/sessionCard"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:foreground="?attr/selectableItemBackground"
-    android:orientation="vertical">
+    android:layout_marginVertical="5dp"
+    app:cardBackgroundColor="@color/surface_muted"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/surface_outline"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="@dimen/space_16"
-        android:paddingVertical="@dimen/space_12">
+        android:padding="@dimen/space_12">
 
         <!-- The result heatmap covers the reference once it has rendered;
              until then, or with no frames on the phone, the reference shows
@@ -80,7 +83,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textAppearance="@style/TextAppearance.Semper.Numeric"
-                tools:text="40 frames · 96.3% converged · Oct 5" />
+                tools:text="40 frames · 96.3%" />
 
             <!-- Shown only while this session's transfer is running. -->
             <com.google.android.material.progressindicator.LinearProgressIndicator
@@ -107,10 +110,4 @@
             android:src="@drawable/ic_cloud_off"
             app:tint="@color/text_secondary" />
     </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginHorizontal="@dimen/space_16"
-        android:background="@color/surface_outline" />
-</LinearLayout>
+</com.google.android.material.card.MaterialCardView>

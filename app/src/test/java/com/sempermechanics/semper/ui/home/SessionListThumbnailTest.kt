@@ -71,8 +71,15 @@ class SessionListThumbnailTest {
         )
     }
 
-    private fun holder(position: Int) =
-        adapter.createViewHolder(parent, 0).also { adapter.bindViewHolder(it, position) }
+    /** An analysis card, never a day header. */
+    private fun card() =
+        adapter.createViewHolder(parent, SessionListAdapter.TYPE_SESSION) as SessionListAdapter.Holder
+
+    /** The adapter position of the [index]th session, past the day header above them. */
+    private fun at(index: Int) = adapter.positionOf(adapter.allIds()[index])
+
+    /** A card bound to the [index]th session. */
+    private fun holder(index: Int) = card().also { adapter.bindViewHolder(it, at(index)) }
 
     private fun SessionListAdapter.Holder.bitmap(): Bitmap? = (row.sessionThumb.drawable as? BitmapDrawable)?.bitmap
 
@@ -86,9 +93,9 @@ class SessionListThumbnailTest {
 
         // A recycled holder starts on a (decode queued), then scrolls to b,
         // which is served from the cache before a's decode has landed.
-        val recycled = adapter.createViewHolder(parent, 0)
-        adapter.bindViewHolder(recycled, 0)
-        adapter.bindViewHolder(recycled, 1)
+        val recycled = card()
+        adapter.bindViewHolder(recycled, at(0))
+        adapter.bindViewHolder(recycled, at(1))
         assertSame(bThumb, recycled.bitmap())
 
         // A second decode of a, queued after the first on the single decode
