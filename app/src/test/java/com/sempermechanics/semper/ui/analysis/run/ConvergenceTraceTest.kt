@@ -44,10 +44,4 @@ class ConvergenceTraceTest {
     fun `exactly the threshold is not low`() {
         assertNull(ConvergenceTrace.pendingStrike(floatArrayOf(50f, nan)))
     }
-
-    @Test
-    fun `latest skips frames not solved yet`() {
-        assertEquals(94f, ConvergenceTrace.latest(floatArrayOf(96f, 94f, nan, nan)))
-        assertNull(ConvergenceTrace.latest(floatArrayOf(nan, nan)))
-    }
 }

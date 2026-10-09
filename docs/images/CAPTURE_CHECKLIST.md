@@ -28,7 +28,7 @@ distort.
 | `step2-parameters.png` | §4 | *(2026-10-09, light, Pixel_5 emulator)* Flat list: Single/Sweep at the top, the ROI row with its thumbnail, the Correlation section with the "Speckle D px" chip, the shaded band behind the subset slider and its caption, "N points in the region" under the step, the Interpolation dropdown, and **Compute**. **Stale** since the parameters trim: recapture with the count on the ROI row ("Full image · N points"), no band caption, "N px VSG" beside the strain window, and **Advanced** closed |
 | `speckle-warning.png` | §4 (new) | *(2026-09-09, dark)* Step 1 with the over-resolved speckle chip — a 12.8 px pattern against the 9 px ceiling |
 | `speckle-span-warning.png` | §4 (new) | *(2026-09-10, dark)* Step 2 with the subset-span chip under the slider — a 7.1 px pattern against a 15 px subset, asking for 23 |
-| `running.png` | §4 | *(2026-10-08, light, Pixel_5 AVD)* Mid-run: "Frame N of M", time left, the convergence line over several frames, "Correlating frame N · X%" under it |
+| `running.png` | §4 | *(2026-10-08, light, Pixel_5 AVD; **owed a recapture**: it still shows the line graph the convergence bins replaced on 2026-10-09)* Mid-run: header "Frame N of M" with the percentage, time left, the convergence bins over several frames with the frame in progress pale and outlined |
 | `roi-editor.png` | §6 | Draw + Crop mode, one rectangle drawn, HUD showing `W × H at (x, y)` |
 | `step3-sweep.png` | §7 | Sweep settings: subset and strain window ranges with the VSG caption, step ÷ N with overlap, **Line cut axis** over the small preview, and "Run N analyses · about T" |
 | `result-lattice.png` | §7 | Summary line above the lattice, hollow (skipped) nodes, **All / Node** pill visible |

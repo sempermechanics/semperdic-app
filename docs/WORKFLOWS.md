@@ -204,9 +204,9 @@ progress is a buffered `SharedFlow`, not a `StateFlow`.
 | Field | Value |
 |---|---|
 | Entry | `ui/analysis/RoiDrawActivity` (started for result by A5.2) |
-| Chain | `ui/analysis/roi/StudioOverlayView` (draw / hit-test / mask) → `StudioOverlayMaskEncoder` → `util/OverlayFormats`; resolved back by `ui/analysis/roi/RoiResolveHelper` |
+| Chain | `ui/analysis/roi/StudioOverlayView` (draw / hit-test / mask) → `StudioOverlayMaskEncoder`; resolved back by `ui/analysis/roi/RoiResolveHelper` |
 | Writes | Mask file at `IntentKeys.MASK_FILE_PATH`; ROI rect in `IntentKeys.ROI_*` |
-| Tests | `util/OverlayFormatsTest` |
+| Tests | `ui/analysis/roi/StudioOverlayViewTest`, `StudioOverlayGeometryTest`, `StudioOverlayViewportTest`, `RoiResolveHelperTest`, `ui/analysis/RoiDrawActivityTest` |
 
 Circle / ellipse / freeform are implemented in `StudioOverlayView` but not
 exposed by `activity_roi_draw.xml` — see §11 of [app/WORKFLOWS.md](app/WORKFLOWS.md).

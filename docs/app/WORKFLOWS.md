@@ -447,15 +447,16 @@ vendor decoders and camera AVIs.
 ### 5.4 Running
 
 The same overlay is reused for importing frames and extracting video, but the
-convergence graph is **hidden** there — nothing is being solved. Import and
-extraction show determinate progress and time left instead.
+convergence bins are **hidden** there — nothing is being solved. Import and
+extraction show a determinate progress bar, their status line and time left instead.
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 5.4.1 | Start a run | Overlay with title, "Frame N of M", percentage, "Estimating time left…" then "About N s left", seconds per frame, elapsed |
-| [ ] 5.4.2 | Watch the graph during a solve | **Convergence per frame** draws a point per finished frame; the status under it reads "Correlating frame N · X%", then "Completed M of M frames · saving" |
+| [ ] 5.4.1 | Start a run | Header row: "Frame N of M" with the percentage at its end (one decimal); under it "Estimating time left…" then "About N s left"; no title, ring, pace, elapsed or "Keep Semper open" line |
+| [ ] 5.4.2 | Watch the bins during a solve | One bin per planned frame: finished frames blue at their convergence height (red under the dashed 50% line), the frame being solved a pale outlined bin rising with its own progress, the rest empty slots. After the last frame the header reads "Completed M of M frames · saving" |
+| [ ] 5.4.2d | Run more than 100 frames | Neighbouring frames share a bin that shows the lowest of them; a low frame still shows red |
 | [ ] 5.4.2c | Run a pair that decorrelates (blurred or swapped frames) | After the first frame under 50% an amber line names it and warns one more stops the run; the second stops it as before |
-| [ ] 5.4.2a | Watch the overlay while frames import or a video extracts | The graph is absent; progress is a determinate count of frames with time left |
+| [ ] 5.4.2a | Watch the overlay while frames import or a video extracts | The bins are absent; the header is the import's title with its percentage, then a determinate bar, the count of frames under it, and time left |
 | [ ] 5.4.2b | Tap **Cancel** during an import | A confirm dialog ("Cancel this import?"); confirming leaves no half-imported frames behind |
 | [ ] 5.4.3 | Leave the device untouched during a long run | The screen does not sleep |
 | [ ] 5.4.4 | Press Back mid-run | Blocked, with a toast |
@@ -464,8 +465,8 @@ extraction show determinate progress and time left instead.
 | [ ] 5.4.6a | Cancel a long frame (big ROI, small step) | Same: no multi-second wait on the progress overlay after confirming |
 | [ ] 5.4.6b | Start a new run straight after cancelling one | It runs normally — the cancel does not carry over |
 | [ ] 5.4.6c | Cancel a sweep at combination 3 of 16 | The **whole sweep** stops — it does not go on to combination 4 |
-| [ ] 5.4.7 | Start a sweep | "Analysis i of N" beside the title; the planned lattice replaces the graph, all grey rings, with the combination being solved circled; the status under it reads "Solving subset S · step T · W-point window" |
-| [ ] 5.4.7a | Watch the sweep lattice | Each combination fills as it solves or becomes a red ring if skipped; percentage and time left advance per combination; at the end the status reads "Solved K of N analyses · saving" |
+| [ ] 5.4.7 | Start a sweep | Header row "Analysis i of N" with the percentage; the planned lattice replaces the bins, all grey rings, with the combination being solved circled; the status under it reads "Solving subset S · step T · W-point window" |
+| [ ] 5.4.7a | Watch the sweep lattice | Each combination fills as it solves or becomes a red ring if skipped; percentage and time left advance per combination; at the end the header reads "Solved K of N analyses · saving" |
 | [ ] 5.4.8 | Background the app mid-run | The run does not survive process death — no resume is offered |
 
 ### 5.5 Terminal states

@@ -29,9 +29,10 @@ import java.util.concurrent.TimeUnit
 class ComputeOverlaySweepTest {
 
     private lateinit var status: TextView
-    private lateinit var frameCount: TextView
+    private lateinit var header: TextView
     private lateinit var percent: TextView
-    private lateinit var convergenceGroup: View
+    private lateinit var bar: ProgressBar
+    private lateinit var bins: ConvergenceBinsView
     private lateinit var sweepGroup: FrameLayout
     private lateinit var overlay: ComputeOverlayController
 
@@ -49,20 +50,19 @@ class ComputeOverlaySweepTest {
             .setup()
             .get()
         status = TextView(activity)
-        frameCount = TextView(activity)
+        header = TextView(activity)
         percent = TextView(activity)
-        convergenceGroup = View(activity)
+        bar = ProgressBar(activity)
+        bins = ConvergenceBinsView(activity)
         sweepGroup = FrameLayout(activity)
         overlay = ComputeOverlayController(
             overlay = View(activity),
-            title = TextView(activity),
-            progress = ProgressBar(activity),
+            header = header,
             percent = percent,
             status = status,
-            elapsed = TextView(activity),
             eta = TextView(activity),
-            frameCount = frameCount,
-            convergenceGroup = convergenceGroup,
+            bar = bar,
+            bins = bins,
             sweepLattice = LiveSweepLattice(sweepGroup, SweepLatticeView(activity)),
         )
     }
@@ -82,40 +82,42 @@ class ComputeOverlaySweepTest {
     )
 
     @Test
-    fun `a sweep shows its lattice instead of the graph, and a batch run swaps back`() {
+    fun `a sweep shows its lattice instead of the bins or the bar, and a batch run swaps back`() {
         overlay.show("Sweep", "4 analyses", showConvergence = false, sweepPlan = plan)
         assertEquals(View.VISIBLE, sweepGroup.visibility)
-        assertEquals(View.GONE, convergenceGroup.visibility)
+        assertEquals(View.GONE, bins.visibility)
+        assertEquals(View.GONE, bar.visibility)
+        assertEquals("Sweep", header.text.toString())
+        assertEquals("4 analyses", status.text.toString())
 
         overlay.show()
         assertEquals(View.GONE, sweepGroup.visibility)
-        assertEquals(View.VISIBLE, convergenceGroup.visibility)
+        assertEquals(View.VISIBLE, bins.visibility)
     }
 
     @Test
-    fun `a tick names the analysis and the combination being solved`() {
+    fun `the header names the analysis and the status the combination being solved`() {
         overlay.show("Sweep", "4 analyses", showConvergence = false, sweepPlan = plan)
 
         val outcomes = listOf(NodeOutcome.SOLVED, NodeOutcome.SKIPPED, NodeOutcome.PENDING, NodeOutcome.PENDING)
         overlay.updateSweep(tick(2, outcomes))
         flush()
 
-        assertEquals(View.VISIBLE, frameCount.visibility)
-        assertEquals("Analysis 3 of 4", frameCount.text.toString())
+        assertEquals("Analysis 3 of 4", header.text.toString())
         assertEquals("Solving subset 31 · step 10 · 9-point window", status.text.toString())
         assertEquals("50.0%", percent.text.toString())
     }
 
     @Test
-    fun `once every combination has ended the status counts the solved ones while it saves`() {
+    fun `once every combination has ended the header counts the solved ones while it saves`() {
         overlay.show("Sweep", "4 analyses", showConvergence = false, sweepPlan = plan)
 
         val outcomes = listOf(NodeOutcome.SOLVED, NodeOutcome.SKIPPED, NodeOutcome.SOLVED, NodeOutcome.SOLVED)
         overlay.updateSweep(tick(3, outcomes))
         flush()
 
-        assertEquals("Analysis 4 of 4", frameCount.text.toString())
-        assertEquals("Solved 3 of 4 analyses · saving", status.text.toString())
+        assertEquals("Solved 3 of 4 analyses · saving", header.text.toString())
+        assertEquals(View.GONE, status.visibility)
         assertEquals("100.0%", percent.text.toString())
     }
 }

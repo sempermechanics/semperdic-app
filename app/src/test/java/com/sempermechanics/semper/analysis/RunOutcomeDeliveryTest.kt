@@ -3,7 +3,6 @@ package com.sempermechanics.semper.analysis
 import android.app.Application
 import android.os.Looper
 import android.view.View
-import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.sempermechanics.semper.R
@@ -66,11 +65,9 @@ class RunOutcomeDeliveryTest {
         val activity = ac.get()
         val overlay = ComputeOverlayController(
             overlay = View(activity),
-            title = TextView(activity),
-            progress = ProgressBar(activity),
+            header = TextView(activity),
             percent = TextView(activity),
             status = TextView(activity),
-            elapsed = TextView(activity),
             eta = TextView(activity),
         )
         val chrome = RunChrome(activity, overlay, cancelButton = View(activity))
