@@ -16,272 +16,150 @@
         android:layout_marginBottom="12dp"
         android:background="@color/surface_outline" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/action_share"
-        android:textColor="@color/text_primary"
-        android:textSize="17sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/tvShareCaption"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="6dp"
-        android:textColor="@color/text_secondary"
-        android:textSize="12sp" />
+        android:baselineAligned="true"
+        android:orientation="horizontal">
 
-    <LinearLayout
-        android:id="@+id/rowSharePhoto"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_share_row"
-        android:foreground="?attr/selectableItemBackground"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="12dp">
-
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:contentDescription="@string/share_photo"
-            android:src="@drawable/ic_photo_share"
-            app:tint="@color/text_secondary" />
-
-        <LinearLayout
+        <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
             android:layout_weight="1"
-            android:orientation="vertical">
+            android:text="@string/action_share"
+            android:textColor="@color/text_primary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/share_photo"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvSharePhotoSub"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
+        <TextView
+            android:id="@+id/tvSharePosition"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            tools:text="frame 1 of 5" />
     </LinearLayout>
 
+    <!-- Flat rows split by hairlines; LinearLayout skips the divider of a gone
+         row (a sweep's Animations), so no two hairlines ever meet. -->
     <LinearLayout
-        android:id="@+id/rowShareAllPhotos"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_share_row"
-        android:foreground="?attr/selectableItemBackground"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="12dp">
-
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:contentDescription="@string/share_all_photos"
-            android:src="@drawable/ic_photos_share"
-            app:tint="@color/text_secondary" />
+        android:divider="@drawable/divider_hairline"
+        android:orientation="vertical"
+        android:showDividers="middle">
 
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:id="@+id/rowSharePhoto"
+            style="@style/Widget.Semper.ShareRow">
+
+            <ImageView
+                style="@style/Widget.Semper.ShareRowIcon"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_photo_share" />
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/share_all_photos"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                style="@style/Widget.Semper.ShareRowTitle"
+                android:text="@string/share_photo" />
 
             <TextView
-                android:id="@+id/tvShareAllPhotosSub"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                tools:text="5 fields of frame.jpg" />
+                style="@style/Widget.Semper.ShareRowType"
+                android:text="@string/share_type_png" />
         </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/rowShareAnimations"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_share_row"
-        android:foreground="?attr/selectableItemBackground"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="12dp">
-
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:contentDescription="@string/share_animations"
-            android:src="@drawable/ic_photos_share"
-            app:tint="@color/text_secondary" />
 
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:id="@+id/rowShareAllPhotos"
+            style="@style/Widget.Semper.ShareRow">
+
+            <ImageView
+                style="@style/Widget.Semper.ShareRowIcon"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_photos_share" />
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/share_animations"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                style="@style/Widget.Semper.ShareRowTitle"
+                android:text="@string/share_all_photos" />
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/share_animations_sub"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+                android:id="@+id/tvShareAllPhotosType"
+                style="@style/Widget.Semper.ShareRowType"
+                tools:text="5 PNG" />
         </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/rowSharePdf"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_share_row"
-        android:foreground="?attr/selectableItemBackground"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="12dp">
-
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:contentDescription="@string/share_pdf"
-            android:src="@drawable/ic_doc_share"
-            app:tint="@color/text_secondary" />
 
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:id="@+id/rowShareAnimations"
+            style="@style/Widget.Semper.ShareRow">
+
+            <ImageView
+                style="@style/Widget.Semper.ShareRowIcon"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_photos_share" />
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/share_pdf"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                style="@style/Widget.Semper.ShareRowTitle"
+                android:text="@string/share_animations" />
 
             <TextView
-                android:id="@+id/tvSharePdfSub"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+                android:id="@+id/tvShareAnimationsType"
+                style="@style/Widget.Semper.ShareRowType"
+                tools:text="5 GIF" />
         </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/rowShareCsv"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_share_row"
-        android:foreground="?attr/selectableItemBackground"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="12dp">
-
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:contentDescription="@string/share_csv"
-            android:src="@drawable/ic_table_share"
-            app:tint="@color/text_secondary" />
 
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:id="@+id/rowSharePdf"
+            style="@style/Widget.Semper.ShareRow">
+
+            <ImageView
+                style="@style/Widget.Semper.ShareRowIcon"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_doc_share" />
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/share_csv"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                style="@style/Widget.Semper.ShareRowTitle"
+                android:text="@string/share_pdf" />
 
             <TextView
-                android:id="@+id/tvShareCsvSub"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+                style="@style/Widget.Semper.ShareRowType"
+                android:text="@string/share_type_pdf" />
         </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/rowShareZip"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_share_row"
-        android:foreground="?attr/selectableItemBackground"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="12dp">
-
-        <ImageView
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:contentDescription="@string/share_zip"
-            android:src="@drawable/ic_zip_share"
-            app:tint="@color/sky_primary" />
 
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:id="@+id/rowShareCsv"
+            style="@style/Widget.Semper.ShareRow">
+
+            <ImageView
+                style="@style/Widget.Semper.ShareRowIcon"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_table_share" />
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/share_zip"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                style="@style/Widget.Semper.ShareRowTitle"
+                android:text="@string/share_csv" />
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/share_zip_sub"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
+                style="@style/Widget.Semper.ShareRowType"
+                android:text="@string/share_type_csv" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/rowShareZip"
+            style="@style/Widget.Semper.ShareRow">
+
+            <ImageView
+                style="@style/Widget.Semper.ShareRowIcon"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_zip_share"
+                app:tint="@color/sky_primary" />
+
+            <TextView
+                style="@style/Widget.Semper.ShareRowTitle"
+                android:text="@string/share_zip" />
+
+            <TextView
+                style="@style/Widget.Semper.ShareRowType"
+                android:text="@string/share_type_zip" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
