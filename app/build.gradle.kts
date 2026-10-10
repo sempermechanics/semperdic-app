@@ -421,7 +421,7 @@ kover {
             // unrelated PRs while a real drop does. Every PR that adds tests
             // re-measures (`koverXmlReport`, the totals in
             // build/reports/kover/report.xml) and raises both to measured − 2;
-            // never lower them. 2026-10-10: lines 77.10 %, branches 59.87 %.
+            // never lower them. 2026-10-10: lines 77.12 %, branches 59.99 %.
             // 2026-10-09: lines 76.38 %, branches 59.15 %.
             // 2026-10-08: lines 74.50 %, branches 56.41 %, the
             // first figure with the screens counted (76.84 / 60.80 % on the old,

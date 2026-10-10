@@ -18,19 +18,30 @@ object SessionNaming {
     private const val CACHE_ID_HEX = 12
 
     /**
-     * The name a run gives its session: the reference's base name, e.g.
-     * `specimen`. The Home row already shows the date, so the name does not
-     * repeat it; a name another session already has ([taken]) gets the first
-     * free ` (2)`, ` (3)`, … suffix ([uniqueName]).
+     * The extensions an auto-name drops: the image and video files a run can
+     * start from. Any other dotted tail (`tensile.v2`) is part of the name.
+     */
+    private val MEDIA_EXTENSIONS = setOf(
+        "png", "jpg", "jpeg", "jpe", "jfif", "tif", "tiff", "bmp", "webp", "gif", "heic", "heif",
+        "dng", "raw", "pgm", "ppm", "pnm", "mp4", "m4v", "mov", "3gp", "3gpp", "mkv", "webm", "avi",
+    )
+
+    /** A name's ` (n)` suffix, as [uniqueName] adds it. */
+    private val NUMBER_SUFFIX = Regex("""^(.+) \((\d+)\)$""")
+
+    /**
+     * The name a run gives its session: the reference's name without its image
+     * extension ([withoutMediaExtension]), e.g. `specimen`. The Home row already
+     * shows the date, so the name does not repeat it; a name another session
+     * already has ([taken]) gets the first free ` (2)`, ` (3)`, … suffix ([uniqueName]).
      */
     fun defaultSessionName(refFileName: String, taken: Collection<String>): String =
-        uniqueName(refFileName.substringBeforeLast('.').ifBlank { "Analysis" }, taken)
+        uniqueName(withoutMediaExtension(refFileName).trim().ifBlank { "Analysis" }, taken)
 
     /**
      * A run's auto-name: [defaultSessionName] of its reference [refName],
      * except when the reference is the first frame of video [videoName]. A
-     * clip's name has no extension left to drop and may hold a dot of its own
-     * (`tensile.v2`), so it is taken whole.
+     * clip's name ([clipName]) has no extension left to drop, so it is taken whole.
      */
     fun runSessionName(refName: String, videoName: String?, taken: Collection<String>): String =
         if (videoName != null && videoName == refName) {
@@ -45,14 +56,33 @@ object SessionNaming {
      * then says "Video".
      */
     fun clipName(displayName: String?): String? =
-        displayName?.substringBeforeLast('.')?.trim()?.takeIf { it.isNotEmpty() }
+        displayName?.let(::withoutMediaExtension)?.trim()?.takeIf { it.isNotEmpty() }
 
-    /** [base] itself when no name in [taken] is it, else `base (n)` for the first free n ≥ 2. */
+    /**
+     * [fileName] without an image or video extension, in any case:
+     * `steel_00.png` reads `steel_00`, `tensile.v2.mp4` reads `tensile.v2`.
+     * A dotted tail that is not one (`tensile.v2`) stays, as does a name
+     * with no dot.
+     */
+    fun withoutMediaExtension(fileName: String): String {
+        val dot = fileName.lastIndexOf('.')
+        if (dot < 0) return fileName
+        val extension = fileName.substring(dot + 1).lowercase()
+        return if (extension in MEDIA_EXTENSIONS) fileName.substring(0, dot) else fileName
+    }
+
+    /**
+     * [base] itself when no name in [taken] is it, else the first free
+     * `base (n)`, n ≥ 2. A [base] that already ends in ` (n)` (a rename to
+     * `steel_00 (2)`, or two saves racing for it) counts on from its stem:
+     * `steel_00 (3)`, never `steel_00 (2) (2)`.
+     */
     fun uniqueName(base: String, taken: Collection<String>): String {
         if (base !in taken) return base
+        val stem = NUMBER_SUFFIX.matchEntire(base)?.groupValues?.get(1) ?: base
         var n = 2
-        while ("$base ($n)" in taken) n++
-        return "$base ($n)"
+        while ("$stem ($n)" in taken) n++
+        return "$stem ($n)"
     }
 
     /**
