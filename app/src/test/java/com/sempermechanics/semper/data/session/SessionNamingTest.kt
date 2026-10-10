@@ -45,6 +45,29 @@ class SessionNamingTest {
     }
 
     @Test
+    fun `only an image or video extension is dropped, in any case`() {
+        assertEquals("steel_00", SessionNaming.withoutMediaExtension("steel_00.PNG"))
+        assertEquals("tensile.v2", SessionNaming.withoutMediaExtension("tensile.v2.mp4"))
+        val dotted = SessionNaming.withoutMediaExtension("tensile.v2")
+        assertEquals("a dotted tail that is no extension stays", "tensile.v2", dotted)
+        assertEquals("frame.0001", SessionNaming.withoutMediaExtension("frame.0001"))
+        assertEquals("no dot", SessionNaming.withoutMediaExtension("no dot"))
+        assertEquals("tensile.v2", SessionNaming.defaultSessionName("tensile.v2", emptySet()))
+        assertEquals("tensile.v2", SessionNaming.defaultSessionName("tensile.v2.tif", emptySet()))
+        assertEquals("tensile.v2", SessionNaming.clipName("tensile.v2.mov"))
+        assertEquals("tensile.v2", SessionNaming.clipName("tensile.v2"))
+    }
+
+    @Test
+    fun `a name that already carries a number counts on from its stem`() {
+        val taken = setOf("steel_00", "steel_00 (2)")
+        assertEquals("steel_00 (3)", SessionNaming.uniqueName("steel_00 (2)", taken))
+        assertEquals("a free numbered name stays", "steel_00 (5)", SessionNaming.uniqueName("steel_00 (5)", taken))
+        assertEquals("Test (2)", SessionNaming.uniqueName("Test (1)", setOf("Test (1)")))
+        assertEquals("a bare number is a name", "(2) (2)", SessionNaming.uniqueName("(2)", setOf("(2)")))
+    }
+
+    @Test
     fun `a file-safe name collapses unsafe runs, trims, falls back and caps`() {
         assertEquals("Plate_A-1.v2", SessionNaming.fileSafe("  Plate A-1.v2 ", "x"))
         assertEquals("x", SessionNaming.fileSafe("///", "x"))

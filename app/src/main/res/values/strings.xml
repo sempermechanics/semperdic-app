@@ -230,6 +230,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="session_data_gone_title">Not on this phone</string>
     <string name="session_data_gone_body">If it was backed up, it\'s still in the cloud.</string>
     <string name="action_rename">Rename</string>
+    <!-- After a rename to a name another analysis has. -->
+    <string name="rename_saved_as_fmt">Saved as %1$s</string>
     <string name="action_delete">Delete</string>
 
     <!-- Home multi-select -->

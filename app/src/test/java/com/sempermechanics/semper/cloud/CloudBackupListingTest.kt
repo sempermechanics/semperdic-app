@@ -81,6 +81,30 @@ class CloudBackupListingTest {
         assertEquals(emptyList<String>(), CloudBackupListing.offered(context).map { it.cloudId })
     }
 
+    // ── Labels ──────────────────────────────────────────────────────────────
+
+    @Test
+    fun `offered backups read as their rows will, without an extension and never alike`() {
+        store(record("mine", cloudId = "").copy(name = "steel_00"))
+        CloudBackupListing.record(
+            context,
+            listOf(
+                dto("c1", "s1", name = "steel_00.png", bytes = 128L),
+                dto("c2", "s2", name = "pmma_00.png", bytes = 216L),
+                dto("c3", "s3", name = "pmma_00.png", bytes = 216L),
+                dto("c4", "s4", name = "concrete_00.jpg"),
+                dto("c5", "s5", name = null),
+            ),
+        )
+
+        assertEquals(
+            listOf("steel_00 (2)", "pmma_00", "pmma_00 (2)", "concrete_00", ""),
+            CloudBackupListing.offered(context).map { it.name },
+        )
+        val saved = CloudBackupListing.read(context)[0].name
+        assertEquals("the saved listing keeps the backend's name", "steel_00.png", saved)
+    }
+
     // ── Hide ────────────────────────────────────────────────────────────────
 
     @Test
@@ -191,6 +215,22 @@ class CloudBackupListingTest {
 
         assertEquals(RestoreStart.Counts(started = 0, alreadyRunning = 0), counts)
         assertTrue(SessionStore.list(context).isEmpty())
+    }
+
+    @Test
+    fun `backups of one analysis restored together each get a row of their own`() {
+        // Three backups of one analysis share its local id.
+        val targets = listOf(
+            RestoreStart.Target("c1aaaaaaaaaaaa", "s1", "pmma_00"),
+            RestoreStart.Target("c2bbbbbbbbbbbb", "s1", "pmma_00 (2)"),
+            RestoreStart.Target("c3cccccccccccc", "s1", "pmma_00 (3)"),
+            RestoreStart.Target("c4dddddddddddd", "s4", "steel_00"),
+        )
+
+        val rows = RestoreStart.withDistinctRows(targets).map { it.targetLocalId }
+
+        assertEquals(listOf("s1", "restored-c2bbbbbbbbbb", "restored-c3cccccccccc", "s4"), rows)
+        assertEquals(targets.map { it.name }, RestoreStart.withDistinctRows(targets).map { it.name })
     }
 
     private fun dto(

@@ -232,7 +232,7 @@
     },
     "e1": {
         "id": "r1",
-        "name": "",
+        "name": "Restored",
         "createdAt": 0,
         "updatedAt": 1700000000000,
         "frameCount": 1,
@@ -738,7 +738,7 @@
     },
     "a sweep with no subsets uses the engine subset, else 0, for its span": {
         "id": "r1",
-        "name": "spec.png",
+        "name": "spec",
         "createdAt": 1700000000000,
         "updatedAt": 1700000000000,
         "frameCount": 0,

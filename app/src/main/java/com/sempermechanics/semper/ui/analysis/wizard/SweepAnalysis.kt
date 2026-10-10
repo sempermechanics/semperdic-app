@@ -306,7 +306,7 @@ private fun sweepSummary(
         SessionNaming.uniqueName(
             appContext.getString(
                 R.string.session_sweep_name_fmt,
-                defDisplay.substringBeforeLast('.').ifBlank { defDisplay },
+                SessionNaming.withoutMediaExtension(defDisplay).ifBlank { defDisplay },
             ),
             SessionStore.namesOtherThan(appContext, localSessionId),
         )
