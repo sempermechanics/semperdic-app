@@ -22,13 +22,24 @@ private const val SIGNATURE_HEADER = "X-Signature"
  * body, which can fail (a connection reset mid-body); [resp] is closed then,
  * since the caller never gets it back to close.
  */
-internal fun isClientNonceRefusal(resp: Response): Boolean {
+internal fun isClientNonceRefusal(resp: Response): Boolean =
+    isUnauthorizedWith(resp) { body -> ClientNonce.isRefusal(resp.code, body) }
+
+/**
+ * Whether [resp] is a `401 bad_signature`: the backend holds another key for
+ * this device id ([DeviceKeyRecovery]). Reads the body as [isClientNonceRefusal] does.
+ */
+internal fun isBadSignature(resp: Response): Boolean =
+    isUnauthorizedWith(resp) { body -> ApiErrors.hasCode(body, ApiErrors.BAD_SIGNATURE) }
+
+/** A 401 whose peeked body passes [test]; [resp] is closed if the peek fails. */
+private inline fun isUnauthorizedWith(resp: Response, test: (body: String) -> Boolean): Boolean {
     if (resp.code != HttpStatus.UNAUTHORIZED) return false
     var read = false
     try {
-        val refused = ClientNonce.isRefusal(resp.code, resp.peekBody(REFUSAL_PEEK_BYTES).string())
+        val body = resp.peekBody(REFUSAL_PEEK_BYTES).string()
         read = true
-        return refused
+        return test(body)
     } finally {
         if (!read) resp.close()
     }

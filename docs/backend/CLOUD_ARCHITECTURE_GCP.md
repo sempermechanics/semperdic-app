@@ -190,8 +190,11 @@ signup cannot claim a privileged domain it does not own.
 
 Device identity = an EC P-256 key pair generated **inside** Android Keystore
 (`StrongBox` when available). The private key is non-exportable; only the
-public key and a stable `deviceId` (a random UUID, *not* IMEI/serial/MAC) leave
-the device.
+public key and a stable `deviceId` leave the device: `and-{ANDROID_ID}`, or a
+random `dev-{uuid}` where `ANDROID_ID` is unusable, kept in the app's own
+preferences after first use (`DeviceKeys.deviceId`); never IMEI/serial/MAC.
+`ANDROID_ID` is scoped to the signing key, so every app signed with one key
+reports the same id (see *One key per device id* below).
 
 ```mermaid
 sequenceDiagram
@@ -215,7 +218,7 @@ sequenceDiagram
     A->>A: sig = Keystore.sign(nonce || method || path[?query] || bodySHA256)
     A->>R: POST /v1/sessions ... headers: X-Device-Id, X-Nonce, X-Signature
     R->>F: load devices/{deviceId}.publicKeyPem; verify sig; consume nonce
-    R-->>A: 200 (or 401 bad_signature / 409 nonce_replay)
+    R-->>A: 200 (or 401 bad_signature / 401 nonce_invalid_or_replayed)
 ```
 
 **One-user-one-device binding.** `devices/{deviceId}.uid` is unique per active
@@ -226,9 +229,39 @@ the stored public key and returns `201` with `healed: true` (see
 new hardware means an admin revokes the prior device first. (There is no
 `:rebind` endpoint — that was a design idea, not something implemented.)
 
+**One key per device id.** `devices/{deviceId}` holds one public key and names
+no app in its id (`repo/devices.py` `register_device`). Apps signed with the
+same key share an `ANDROID_ID`, so they share the id and the key slot:
+whichever registered last holds it, and the other's signed calls fail
+`401 bad_signature` (2026-10-10: the retired `com.indicvision.semper`, still
+installed, took the Pixel's slot and Semper's backups failed). Two changes
+bound it:
+
+- **Retired ids may not register.** `POST /v1/devices/register` answers
+  `410 app_retired` (audited `DEVICE_REGISTER` / `DENIED`) to an `X-App-Id` in
+  `apps.RETIRED` (`com.indicvision.semper`, `com.indicvision.semper.materialtesting`)
+  and writes nothing. Their other routes are served as before: they no longer
+  replace a key, and the access log still has to show when none is left
+  (TD-176).
+- **The app takes its key back.** A signed call refused `bad_signature`
+  registers again, the same id for the same account, and is sent once more
+  (`DeviceKeyRecovery`, `data/net/SemperApiCalls.kt`). For that request the
+  route is a plain overwrite: the device document is rewritten (key, `app`,
+  model, `registeredAt`) with status ACTIVE, the app's `activeDeviceId` is
+  unchanged, the release-hold fields are deleted, no other device is retired
+  (`previous == deviceId`), no licence or seat lock moves, and
+  `ensure_entitlement` acts only as on any registration (an account with no
+  licence yet, or a Demo account whose failed invite claim is due a retry). Audited
+  `DEVICE_REBIND`; it spends one `device_register_bucket` token.
+
+Two apps with one signing key on one phone (debug builds of Semper and
+Material Testing) still take the slot from each other, at most once a minute
+per app process; keying devices by app needs a migration of the shared
+database (TD-208).
+
 **One device per app, not per account** ([ADR-010](../adr/ADR-010-device-binding-per-app.md)).
-Semper and Material Testing share accounts, and Android gives each app on a
-phone its own `ANDROID_ID`, so the same phone is two device ids. Every app
+Semper and Material Testing share accounts, and Android gives apps signed with
+different keys different `ANDROID_ID`s, so the same phone is two device ids. Every app
 call carries `X-App-Id` (its `applicationId`; none means Semper, an unlisted
 one is `400 unknown_app`), and "the account's device" above means that app's:
 Semper's is `activeDeviceId`, Material Testing's `activeDeviceIdMaterialTesting`

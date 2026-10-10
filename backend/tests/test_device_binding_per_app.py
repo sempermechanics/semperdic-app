@@ -20,7 +20,7 @@ from license_helpers import (  # noqa: F401
 from refusals import attempt
 
 MT = apps.MATERIAL_TESTING
-MT_HEADER = {"X-App-Id": "com.indicvision.semper.materialtesting"}
+MT_HEADER = {"X-App-Id": "com.sempermechanics.materialtesting"}
 
 
 def _licensed(store, uid="solo-1", email="solo@lab.org"):

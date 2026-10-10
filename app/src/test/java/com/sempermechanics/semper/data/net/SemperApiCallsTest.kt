@@ -40,8 +40,20 @@ class SemperApiCallsTest {
                 "device-1"
             },
             sign = { Digests.toHex(it) },
+            recovery = DeviceKeyRecovery(
+                reRegister = { token ->
+                    reRegistered += token
+                    reRegisterFailure?.let { throw it }
+                },
+            ),
         )
     }
+
+    /** The tokens [DeviceKeyRecovery] registered the key again with. */
+    private val reRegistered = mutableListOf<String>()
+
+    /** What registering again throws, when it should fail. */
+    private var reRegisterFailure: Exception? = null
 
     private fun endpoint(path: String) = server.url("/").toString().trimEnd('/') + path
 
@@ -136,5 +148,139 @@ class SemperApiCallsTest {
         val e = assertThrows(ApiException::class.java) { ApiAnswer(500, "", null).failApprovedOnly() }
         assertEquals(500, e.code)
         assertNull(e.requestId)
+    }
+
+    // ------------------------------------------------- device key recovery
+
+    private fun refuse(detail: String) =
+        server.enqueue(MockResponse(code = 401, body = """{"detail":"$detail"}"""))
+
+    private fun signedPut(): String = runBlocking {
+        calls.signed("tok", SignedCall("PUT", "/v1/sessions/s1/metadata", "{}".toByteArray())) { it.body.string() }
+    }
+
+    @Test
+    fun `a bad signature registers the key again and sends the call once more`() {
+        refuse("bad_signature")
+        server.enqueue(MockResponse(code = 200, body = "ok"))
+
+        assertEquals("ok", signedPut())
+
+        assertEquals(listOf("tok"), reRegistered)
+        assertEquals(2, server.requestCount)
+        val first = server.takeRequest()
+        val second = server.takeRequest()
+        assertEquals("/v1/sessions/s1/metadata", second.target)
+        assertTrue("re-signed under a fresh nonce", first.headers["X-Nonce"] != second.headers["X-Nonce"])
+        assertEquals("{}", second.body?.utf8())
+    }
+
+    @Test
+    fun `a second bad signature is the failure, after one registration`() {
+        refuse("bad_signature")
+        refuse("bad_signature")
+
+        val e = assertThrows(ApiException::class.java) { signedPut() }
+
+        assertEquals(401, e.code)
+        assertTrue(e.isBadSignature())
+        assertEquals(listOf("tok"), reRegistered)
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun `a registration that fails leaves the bad signature as the failure, not re-sent`() {
+        reRegisterFailure = DeviceConflictException("r9")
+        refuse("bad_signature")
+
+        val e = assertThrows(ApiException::class.java) { signedPut() }
+
+        assertTrue(e.isBadSignature())
+        assertEquals(1, reRegistered.size)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `another 401 is not a key problem and is neither recovered nor re-sent`() {
+        refuse("invalid_token")
+
+        val e = assertThrows(ApiException::class.java) { signedPut() }
+
+        assertEquals(401, e.code)
+        assertEquals("invalid_token", e.parsedDetail)
+        assertTrue(reRegistered.isEmpty())
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `a refused client nonce still falls back to a challenge, without a registration`() {
+        refuse("nonce_invalid_or_replayed")
+        server.enqueue(MockResponse(code = 200, body = """{"nonce":"n1"}"""))
+        server.enqueue(MockResponse(code = 200, body = "ok"))
+
+        assertEquals("ok", signedPut())
+
+        assertTrue(reRegistered.isEmpty())
+        server.takeRequest()
+        assertEquals("/v1/challenge", server.takeRequest().url.encodedPath)
+        assertEquals("n1", server.takeRequest().headers["X-Nonce"])
+    }
+
+    @Test
+    fun `a bad signature after the nonce fallback is recovered with a fresh challenge`() {
+        refuse("nonce_invalid_or_replayed")
+        server.enqueue(MockResponse(code = 200, body = """{"nonce":"n1"}"""))
+        refuse("bad_signature")
+        server.enqueue(MockResponse(code = 200, body = """{"nonce":"n2"}"""))
+        server.enqueue(MockResponse(code = 200, body = "ok"))
+
+        assertEquals("ok", signedPut())
+
+        assertEquals(listOf("tok"), reRegistered)
+        val nonces = (1..5).map { server.takeRequest() }.filter { it.headers["X-Signature"] != null }
+        assertEquals(listOf("n1", "n2"), nonces.map { it.headers["X-Nonce"] }.takeLast(2))
+    }
+
+    @Test
+    fun `a download refused with a bad signature is run once more after a registration`() = runBlocking {
+        var runs = 0
+        val got = calls.signedDownload("tok") { headersFor ->
+            runs++
+            assertEquals("Bearer tok", headersFor("/v1/files/f1/content")["Authorization"])
+            if (runs == 1) throw ApiException(401, """{"detail":"bad_signature"}""", "r1")
+            "bytes"
+        }
+
+        assertEquals("bytes", got)
+        assertEquals(2, runs)
+        assertEquals(listOf("tok"), reRegistered)
+    }
+
+    @Test
+    fun `a download's other refusals and a second bad signature are thrown as they are`() {
+        var runs = 0
+        val gone = assertThrows(ApiException::class.java) {
+            runBlocking {
+                calls.signedDownload("tok") {
+                    runs++
+                    throw ApiException(404, """{"detail":"drive_file_gone"}""", "r1")
+                }
+            }
+        }
+        assertEquals(404, gone.code)
+        assertEquals(1, runs)
+        assertTrue(reRegistered.isEmpty())
+
+        val bad = assertThrows(ApiException::class.java) {
+            runBlocking {
+                calls.signedDownload("tok") {
+                    runs++
+                    throw ApiException(401, """{"detail":"bad_signature"}""", "r2")
+                }
+            }
+        }
+        assertEquals("r2", bad.requestId)
+        assertEquals(3, runs)
+        assertEquals(listOf("tok"), reRegistered)
     }
 }

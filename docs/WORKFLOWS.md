@@ -394,7 +394,8 @@ Tests: `diagnostics/SemperAnalyticsTest`.
 |---|---|
 | Key | `data/account/DeviceKeys` — EC P-256 in the AndroidKeyStore, private key never leaves it |
 | Register | `SemperApi.registerDevice` → C2 (409 = this account or device is bound elsewhere) |
-| Per call | `SemperApi.fetchChallenge` → C3, then `signedHeaders` signs `(nonce ‖ METHOD ‖ path) ‖ SHA-256(body)` → verified by `C4` |
+| Per call | `SemperApiSigning`: a client nonce (`ClientNonce`), or `fetchChallenge` → C3 once the server refused one; `signedHeaders` signs `(nonce ‖ METHOD ‖ path) ‖ SHA-256(body)` → verified by `C4` |
+| Recover | A `401 bad_signature` (another app with this signing key registered the same device id, TD-208) → `DeviceKeyRecovery` registers again (C2, same id, a key overwrite) and the call is sent once more: `SemperApiCalls.signed`, and `signedDownload` for restores. At most one registration per call and one a minute per process; the second refusal is the failure |
 | Tokens | `data/net/TokenProvider` / `AccountCache` — Firebase ID tokens are held in memory, never persisted |
 
 ### B12 Local session index
@@ -467,7 +468,7 @@ pieces are `deps.py` (auth), `repo/` (all Firestore access, one module per aggre
 | Id | Workflow | Entry | Chain |
 |---|---|---|---|
 | C1 | Identify the caller | `deps.current_user` | `google_auth.verify_id_token` → `repo.get_or_create_user` (auto-approve rules, device binding, `DeviceInUseError` → 409) → 403 unless APPROVED. First PENDING user triggers C19 |
-| C2 | Register a device | `POST /v1/devices/register` (`routers/devices.py`) | One account per device and one device per account: a different bound device is `device_conflict`, a device owned by another uid is `device_in_use` (audited). Re-registering the same id heals the stored public key |
+| C2 | Register a device | `POST /v1/devices/register` (`routers/devices.py`) | One account per device and one device per account: a different bound device is `device_conflict`, a device owned by another uid is `device_in_use` (audited). Re-registering the same id heals the stored public key (`DEVICE_REBIND`; no device retired, no lock moved). A retired `com.indicvision.*` `X-App-Id` is `410 app_retired` (audited), since it shares the device id of its successor |
 | C3 | Mint a nonce | `POST /v1/challenge` | `repo.issue_nonce(uid, deviceId)` — single-use, bound to the pair |
 | C1t | Token only | `deps.token_uid` | `google_auth.verify_id_token` (plus App Check when a device is named) and nothing else: no profile read or created. Only `GET /v1/me/erasure`, which must not bring back an erased account |
 | C4 | Verify a device-signed call | `deps.verified_device` | ACTIVE device → `consume_nonce` (replay = 401) → ECDSA P-256 over `(nonce ‖ METHOD ‖ path) ‖ SHA-256(body)` → `bad_signature` audited on failure |

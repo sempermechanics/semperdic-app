@@ -41,9 +41,18 @@ class SemperApiRoutesTest {
             chain.proceed(chain.request().newBuilder().url(target).build())
         }.build()
         SemperApi(ApplicationProvider.getApplicationContext<Context>(), "https://api.test") { endpoint ->
-            SemperApiCalls(toServer, endpoint, deviceId = { "device-1" }, sign = { Digests.toHex(it) })
+            SemperApiCalls(
+                toServer,
+                endpoint,
+                deviceId = { "device-1" },
+                sign = { Digests.toHex(it) },
+                recovery = DeviceKeyRecovery(reRegister = { reRegistered++ }),
+            )
         }
     }
+
+    /** How often the device key was registered again ([DeviceKeyRecovery]). */
+    private var reRegistered = 0
 
     @Before
     fun setUp() = ClientNonce.observeServerTime(System.currentTimeMillis())
@@ -118,6 +127,17 @@ class SemperApiRoutesTest {
         answer(409, "device_not_active")
         val e = fails<ApiException> { api.setUserStatus("tok", "u1", "approve") }
         assertEquals(409, e.code)
+    }
+
+    @Test
+    fun `a signed route recovers a bad signature whatever its own refusal mapping`() {
+        answer(401, "bad_signature")
+        answer(200)
+        runBlocking { api.setUserStatus("tok", "u1", "approve") }
+
+        assertEquals(1, reRegistered)
+        assertEquals("/v1/admin/users/u1/approve", server.takeRequest().target)
+        assertEquals("/v1/admin/users/u1/approve", server.takeRequest().target)
     }
 
     @Test
