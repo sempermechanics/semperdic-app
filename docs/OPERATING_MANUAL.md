@@ -108,11 +108,18 @@ A convergence under 85% is amber. A run that stopped early reads
 `39 of 50 frames` and ends with why it stopped; a parameter sweep reads
 `9 of 9 solved`. A video analysis says so, with where its frames sit in the
 clip: `Video · 40 frames, 0:00–0:12 · 91.2%`. A selected card turns light blue.
-A new analysis is named after its reference image, `steel_00`;
+A new analysis is named after its reference image without the image's
+extension, `steel_00` (a dotted name such as `tensile.v2` stays whole);
 a second one from the same image becomes `steel_00 (2)`. A video analysis is
 named after the clip, `tensile_03` from `tensile_03.mp4` (`Video` when the
 clip's name cannot be read), and a sweep after its frame, `steel_24 sweep`.
-Analyses named before keep their names. The cloud icon at the
+No two analyses on the phone share a name: a restored one, or a rename to a
+name already in the list, takes the next `(2)`, `(3)` (a rename says
+"Saved as …"). A restore keeps the name the analysis had when it was backed
+up; an old auto-name reads as today's (`steel_00 · Oct 9, 17:57:31` and
+`steel_00.png` restore as `steel_00`). Rows an earlier version left sharing a
+name, or named `steel_00.png`, are put right the same way when the list
+loads (the oldest keeps the plain name); other names stay. The cloud icon at the
 row's end says where the backup stands:
 
 | Icon | Means |

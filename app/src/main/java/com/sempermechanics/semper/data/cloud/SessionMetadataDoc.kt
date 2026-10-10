@@ -9,6 +9,7 @@ import com.sempermechanics.semper.data.account.DeviceKeys
 import com.sempermechanics.semper.data.cloud.restore.CloudRestore
 import com.sempermechanics.semper.data.cloud.restore.RestoreStart
 import com.sempermechanics.semper.data.net.AccountCache
+import com.sempermechanics.semper.data.session.CloudNaming
 import com.sempermechanics.semper.data.session.SessionHeadline
 import com.sempermechanics.semper.data.session.SessionPaths
 import com.sempermechanics.semper.data.session.SessionRecord
@@ -233,7 +234,8 @@ data class SessionMetadataDoc(
      * reader built it: [existing] keeps its name, creation time and rename flag;
      * everything else comes from the file, under the reader's defaults. A
      * placeholder row ([RestoreStart.isPlaceholder]) was made when the restore
-     * started, so its creation time is the backup's ([madeAt]), not its own.
+     * started, so its creation time is the backup's ([madeAt]), not its own,
+     * and unless the user renamed it, its name is the file's ([restoredName]).
      * Throws, as the reader does, when legacy skip lists disagree in length.
      */
     @Suppress("LongParameterList") // the restore target's fields, plus the clock
@@ -285,9 +287,16 @@ data class SessionMetadataDoc(
         .mapNotNull { stamp -> stamp?.takeIf(String::isNotBlank)?.let(::parseUtcStamp) }
         .firstOrNull()
 
-    /** The row's name: the existing row's, else the file's, else the specimen's, else "Restored". */
+    /**
+     * The row's name: the existing row's when it is a real analysis or one the
+     * user renamed, else the file's ([CloudNaming.restoredName]). A placeholder
+     * row ([RestoreStart.isPlaceholder]) was named from the backup list, which
+     * knows only the reference's file name, so the file's name replaces it.
+     * [com.sempermechanics.semper.data.session.SessionStore.save] makes it unique.
+     */
     private fun restoredName(existing: SessionRecord?): String =
-        existing?.name?.takeIf { it.isNotBlank() } ?: (name ?: "").ifBlank { specimen ?: "Restored" }
+        existing?.takeIf { it.name.isNotBlank() && (it.renamedByUser || !RestoreStart.isPlaceholder(it)) }?.name
+            ?: CloudNaming.restoredName(name, specimen)
 
     /** [record] with the run's engine settings, telemetry, metrics and sweep from this file. */
     private fun withRun(record: SessionRecord, engine: Engine, defNames: List<String>): SessionRecord {

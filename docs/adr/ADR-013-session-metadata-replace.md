@@ -88,4 +88,6 @@ Two ways to reach the cloud copy were weighed:
   out on the grounds that the local name wins after a restore. That holds only
   on a phone that still has the row: on a new phone, or after a reinstall,
   there is no row, so the restore named the analysis from the old
-  `metadata.json`.
+  `metadata.json`. (A restore started from a backup list writes a placeholder
+  row named after the reference file first; since 2026-10-10 the name in
+  `metadata.json` replaces it when the restore lands, `CloudNaming.restoredName`.)
