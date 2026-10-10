@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools" tools:ignore="MonochromeLauncherIcon">
+<!-- The monochrome layer is the speckled S (ic_semper_launcher_mono): a
+     themed-icons launcher (Android 13+) tints its alpha with the wallpaper
+     palette, light by day and dark at night.
+     Launchers do not swap -night icon resources on a dark-mode change. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/ic_semper_launcher_background"/>
     <foreground android:drawable="@drawable/ic_semper_launcher_fg"/>
+    <monochrome android:drawable="@drawable/ic_semper_launcher_mono"/>
 </adaptive-icon>

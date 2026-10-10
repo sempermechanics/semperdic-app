@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icons layer: only its alpha counts. The S solid, its speckle cut
+     out: tinted dark on a pale disc by day (the light icon's look), light on a
+     dark disc at night (the mark inverted). Same 17% inset as
+     ic_semper_launcher_fg. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/semper_mark_s_mono"
+    android:inset="17%" />

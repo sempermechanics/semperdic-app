@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dark launcher entry (LauncherIcon). Named resources, not -night ones:
+     the launcher draws it in whatever theme the system is in. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_semper_launcher_background_dark"/>
+    <foreground android:drawable="@drawable/ic_semper_launcher_fg_dark"/>
+    <monochrome android:drawable="@drawable/ic_semper_launcher_mono"/>
+</adaptive-icon>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dark launcher icon's S; the same 17% inset as ic_semper_launcher_fg. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/semper_mark_s_inverse"
+    android:inset="17%" />

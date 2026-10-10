@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The S in the current theme: black with white speckle by day, inverted at
+     night (drawable-night). The launcher icons name the two PNGs directly. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/semper_mark_s_light" />
