@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icons layer: only its alpha counts. The S at 35 % and its speckle at
+     full, so the tinted icon keeps the speckled S (light dots on a dimmer S in
+     dark mode). Same 17% inset as ic_semper_launcher_fg. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/semper_mark_s_mono"
+    android:inset="17%" />
