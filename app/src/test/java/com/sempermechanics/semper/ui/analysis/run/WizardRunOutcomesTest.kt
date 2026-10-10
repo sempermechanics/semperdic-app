@@ -1,10 +1,13 @@
 package com.sempermechanics.semper.ui.analysis.run
 
 import android.app.Application
+import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.field.RunStop
 import com.sempermechanics.semper.ui.analysis.WizardTestBed
+import com.sempermechanics.semper.ui.analysis.frames.DeformedFrame
 import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupController
 import com.sempermechanics.semper.ui.analysis.wizard.BatchAnalysisOutcome
 import org.junit.After
@@ -18,6 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowDialog
 import org.robolectric.shadows.ShadowToast
 
 /**
@@ -68,6 +72,31 @@ class WizardRunOutcomesTest {
             res.getString(R.string.failure_frame_no_name_fmt, 3) + reason,
             outcomes.engineFailureMessage(-3, frameIndex = 2, frameName = null),
         )
+    }
+
+    @Test
+    fun `a run that stopped early names the frame, counts what it kept, and keeps the rest behind Why`() {
+        bed.viewModel.deformedFrames = (1..4).map { DeformedFrame(path = "/f/$it.png", name = "$it.png") }
+        val stopped = outcome(frames = 2, code = RunStop.LowConvergence.wireCode)
+            .copy(failedFrameIndex = 2, failedFrameName = "3.png")
+        outcomes.onPartialRun(stopped)
+        bed.idle()
+
+        val dialog = ShadowDialog.getLatestDialog() as AlertDialog
+        val title = dialog.findViewById<TextView>(androidx.appcompat.R.id.alertTitle)!!.text.toString()
+        assertEquals("Stopped at frame 3", title)
+        assertEquals(
+            "2 of 4 frames kept. Convergence fell below 50% on 2 frames in a row.",
+            dialog.findViewById<TextView>(android.R.id.message)!!.text.toString(),
+        )
+
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).performClick()
+        bed.idle()
+        assertTrue("Why? leaves the results one tap away", dialog.isShowing)
+        val why = (ShadowDialog.getLatestDialog() as AlertDialog)
+            .findViewById<TextView>(android.R.id.message)!!.text.toString()
+        assertTrue(why, why.contains("Frame 3 (3.png)"))
+        assertTrue(why, why.contains(bed.activity.getString(R.string.error_low_convergence_why)))
     }
 
     @Test

@@ -35,10 +35,11 @@
 
     <!-- Common actions -->
     <string name="cancel">Cancel</string>
+    <string name="action_next">Next</string>
     <string name="reset">Reset</string>
     <string name="apply">Apply</string>
     <string name="exit">Exit</string>
-    <string name="auto_scale">Auto-Scale</string>
+    <string name="auto_scale">Auto</string>
 
     <!-- ROI draw studio -->
     <string name="roi_canvas_image">Reference image for ROI drawing</string>
@@ -71,9 +72,10 @@
 
     <!-- Static analysis -->
     <string name="exit_semper_title">Exit Semper?</string>
-    <string name="exit_semper_message">Are you sure you want to exit the app?</string>
-    <string name="exit_analysis_title">Exit analysis?</string>
-    <string name="exit_analysis_message">Are you sure you want to leave? All uncalculated setup and ROI definitions will be lost.</string>
+    <string name="exit_analysis_title">Leave setup?</string>
+    <string name="exit_analysis_message">Your region and settings will be lost.</string>
+    <string name="action_stay">Stay</string>
+    <string name="action_leave">Leave</string>
     <string name="no_images_selected">No images selected</string>
     <string name="failed_save_temp_file">Failed to save temporary file</string>
     <string name="load_image_first">Load an image first.</string>
@@ -82,8 +84,8 @@
     <string name="roi_too_small">ROI is too small. It must be larger than the subset size.</string>
     <string name="analysis_failed_title">Analysis failed</string>
     <string name="analysis_unexpected_title">Analysis stopped unexpectedly</string>
-    <string name="analysis_not_saved_title">Analysis not saved</string>
-    <string name="analysis_index_unavailable_body">The analysis ran, but this phone\'s list of analyses could not be read or updated, so the result was not saved. Check that the phone has free storage, then run it again.</string>
+    <string name="analysis_not_saved_title">Couldn\'t save results</string>
+    <string name="analysis_index_unavailable_body">The list of analyses couldn\'t be updated. Free up space and run again.</string>
     <string name="analysis_unexpected_fmt">The run ended with an error it could not describe:
 
 %1$s
@@ -99,9 +101,9 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <!-- Result viewer -->
     <string name="no_batch_data">No valid batch data found.</string>
     <string name="viewer_frame_oom">Not enough memory to open this frame. Try closing other apps, or view a smaller analysis.</string>
-    <string name="scale_dialog_title_fmt">Custom scale: %1$s</string>
-    <string name="scale_max_value_fmt">Maximum value (%1$s)</string>
-    <string name="scale_min_value_fmt">Minimum value (%1$s)</string>
+    <string name="scale_dialog_title_fmt">Scale · %1$s</string>
+    <string name="scale_max_value_fmt">Max %1$s</string>
+    <string name="scale_min_value_fmt">Min %1$s</string>
     <string name="scale_unit_px">px</string>
     <string name="scale_unit_strain">mε</string>
     <string name="invalid_scale_inputs">Invalid scale inputs.</string>
@@ -170,11 +172,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="label_6_6_keys">6×6 Keys</string>
     <string name="result">Result: --</string>
     <string name="back">Back</string>
-    <string name="next_settings">Next: Settings →</string>
     <string name="initializing_engine">Initializing engine…</string>
     <string name="text">—</string>
-    <string name="extraction_frame_rate">Extraction frame rate</string>
-    <string name="time_segment">Time segment</string>
+    <string name="extraction_frame_rate">Frame rate</string>
+    <string name="time_segment">Segment</string>
     <!-- Home screen -->
     <string name="home_title">Analyses</string>
     <string name="home_empty_title">No analyses yet</string>
@@ -226,8 +227,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="session_video_row_fmt">Video · %1$s</string>
     <string name="session_video_span_fmt">%1$s, %2$s–%3$s</string>
     
-    <string name="session_data_gone_title">Data no longer on this device</string>
-    <string name="session_data_gone_body">This analysis was cleaned up locally. If it was synced, the files are still in your cloud folder.</string>
+    <string name="session_data_gone_title">Not on this phone</string>
+    <string name="session_data_gone_body">If it was backed up, it\'s still in the cloud.</string>
     <string name="action_rename">Rename</string>
     <string name="action_delete">Delete</string>
 
@@ -237,20 +238,23 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="selection_select_all">Select all</string>
     <string name="selection_selected_desc">Selected</string>
     
-    <string name="delete_confirm_body_local_multi">Permanently removes them from your phone. This can\'t be undone.</string>
     <!-- One set of delete choices, on Home and in Settings alike. -->
-    <string name="delete_choice_phone">Delete from this phone · keep the cloud backup</string>
-    <string name="delete_choice_cloud">Delete the cloud backup · keep it on this phone</string>
-    <string name="delete_choice_everywhere">Delete everywhere</string>
+    <string name="delete_choice_phone">From this phone</string>
+    <string name="delete_choice_phone_hint">cloud stays</string>
+    <string name="delete_choice_cloud">From the cloud</string>
+    <string name="delete_choice_cloud_hint">phone stays</string>
+    <string name="delete_choice_everywhere">Everywhere</string>
     <string name="delete_progress_fmt">Deleting %1$d of %2$d…</string>
+    <!-- %1$s is the analysis's name. -->
+    <string name="delete_confirm_title_fmt">Delete %1$s?</string>
+    <string name="delete_cloud_title_fmt">Delete %1$s from the cloud?</string>
+    <string name="delete_body_cant_undo">This can\'t be undone.</string>
 
-    <string name="delete_confirm_title">Delete this analysis?</string>
-    <string name="delete_confirm_body_local">Permanently removes this analysis from your phone. This can\'t be undone.</string>
-    <string name="delete_confirm_body_cloud">This analysis is on your phone and in the cloud. Choose what to remove. A deleted cloud backup can\'t be recovered.</string>
-    <string name="delete_confirm_body_cloud_only">Permanently erases this analysis from cloud storage and removes it from this list. This can\'t be undone.</string>
-    <string name="delete_device_only_done">Removed from this phone. Tap the row to restore it from the cloud.</string>
-    <string name="download_analysis_title">Restore this analysis?</string>
-    <string name="download_analysis_body">This analysis is only in the cloud on this phone. Restore it to open the results.</string>
+    <string name="delete_confirm_body_cloud">A deleted cloud copy can\'t be recovered.</string>
+    <string name="restore_analysis_title_fmt">Restore %1$s?</string>
+    <string name="restore_analysis_body">It\'s only in the cloud.</string>
+    <string name="delete_device_only_done">Removed from this phone · in the cloud</string>
+    <string name="delete_done_fmt">Deleted %1$s</string>
     <string name="download_local_action">Download</string>
     <string name="download_analysis_working">Downloading…</string>
     <string name="download_analysis_already">This analysis is already downloading.</string>
@@ -276,7 +280,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="export_data_failed">Couldn\'t prepare the export. Free up some storage and try again.</string>
     <!-- Cloud account export (GDPR portability) — distinct from the local session
          zip above: this is what the backend holds, not what is on this phone. -->
-    <string name="export_cloud_data">Download my cloud account data</string>
+    <string name="export_cloud_data">Download cloud data</string>
     <string name="export_cloud_data_failed">Couldn\'t download your account data. Check your connection and try again.</string>
     <string name="export_cloud_data_offline">Cloud sync isn\'t set up on this build, so there\'s no cloud data to download.</string>
     <!-- Diagnostics consent -->
@@ -286,9 +290,9 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="diagnostics_prompt_body">Semper can send anonymous crash reports when something goes wrong, and coarse usage events such as whether an analysis started, finished or failed.\n\nThis never includes your images, results, specimen names, file paths or analysis data. You can change this at any time in Settings.</string>
     <string name="diagnostics_prompt_accept">Send reports</string>
     <string name="diagnostics_prompt_decline">Not now</string>
-    <string name="delete_account">Delete my account and data</string>
+    <string name="delete_account">Delete account</string>
     <string name="delete_account_title">Delete your account?</string>
-    <string name="delete_account_body">This permanently erases your account and everything in it:\n\n• Every analysis on this phone\n• Every cloud backup — images, results, reports\n• Your profile and registered device\n\nThis cannot be undone and your data cannot be recovered.</string>
+    <string name="delete_account_body">This erases:\n\n• every analysis on this phone\n• every cloud backup\n• your profile and device\n\nThis can\'t be undone.</string>
     <string name="delete_account_confirm">Delete everything</string>
     <string name="delete_account_working">Erasing your account and data…</string>
     <string name="delete_account_done">Your account and all data have been deleted.</string>
@@ -368,15 +372,14 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="cloud_backup_failed_provision">Cloud backup setup could not be completed. Tap Try again.</string>
     <string name="cloud_backup_failed_missing_files">This analysis\'s results are no longer on this device, so it can\'t be backed up.</string>
     <string name="cloud_delete_backup">Delete from backup</string>
-    <string name="cloud_delete_forever_title">Delete this backup forever?</string>
-    <string name="cloud_delete_forever_body_fmt">This permanently erases the cloud copy of \"%1$s\" — raw images, results and report. It cannot be undone, and it can never be restored to this or any other device.\n\nAnalyses still on this phone are not touched.</string>
-    <string name="cloud_delete_forever_confirm">Delete forever</string>
+    <!-- A backup with no copy on this phone; delete_cloud_title_fmt names it. -->
+    <string name="cloud_delete_body">Raw images, results and report. This can\'t be undone.</string>
     
     <string name="cloud_backfill_title">Back up local analyses?</string>
     
     <string name="cloud_backfill_confirm">Upload</string>
     <string name="your_data_section">Your data</string>
-    <string name="your_data_delete_hint">To delete one analysis, use the list on Home (device only or everywhere).</string>
+    <string name="your_data_delete_hint">Delete analyses from Home</string>
     <string name="restore_need_sign_in">Sign in to see cloud backups.</string>
     <string name="restore_api_off">Cloud backup is not configured on this build.</string>
     <string name="restore_failed_fmt">Restore failed. %1$s</string>
@@ -458,7 +461,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     
     <string name="sweep_plan_empty">No combination fits this ceiling — raise Max strain window or lower the subset range.</string>
     <string name="sweep_plan_subset_too_big_fmt">Subset range starts above what this image and ROI can hold (max %1$d px). Lower the minimum subset, or draw a larger region of interest.</string>
-    <string name="next_sweep">Next</string>
     <string name="sweep_settings">Sweep settings</string>
     <string name="lattice_samples_settings">Sample counts</string>
     <string name="preview_enlarge_fmt">%1$s, tap to enlarge</string>
@@ -491,14 +493,21 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="sweep_fail_roi">The region of interest contains no valid points. Redraw it over the speckled area or use a different image.</string>
     <string name="sweep_fail_init">The engine couldn\'t start — an image failed to decode. Re-import them as PNG or TIFF.</string>
     <string name="sweep_fail_unknown_fmt">The engine returned error %1$d.</string>
-    <string name="run_stopped_early_title">Stopped early</string>
     <string name="run_stopped_early_fmt">⚠️ Stopped at frame %1$d of %2$d</string>
+    <string name="run_stopped_early_title_fmt">Stopped at frame %1$d</string>
     <plurals name="run_stopped_early_body">
-        <item quantity="one">Kept %1$d of %2$d frame — the one solved before the images decorrelated. It is saved and opens next.</item>
-        <item quantity="other">Kept %1$d of %2$d frames — the ones solved before the images decorrelated. They are saved and open next.</item>
+        <item quantity="one">%1$d of %2$d frame kept.</item>
+        <item quantity="other">%1$d of %2$d frames kept.</item>
+    </plurals>
+    <!-- Behind the stopped-early dialog's Why?, above the engine's reason. -->
+    <plurals name="run_stopped_early_why">
+        <item quantity="one">The %1$d frame solved before the run stopped is saved and opens next.</item>
+        <item quantity="other">The %1$d frames solved before the run stopped are saved and open next.</item>
     </plurals>
     <string name="run_stopped_early_view">View results</string>
-    <string name="error_low_convergence">Analysis stopped: convergence fell below 50%% on 2 consecutive frames. The images may have decorrelated due to change in speckle pattern or moved out of view.</string>
+    <string name="error_low_convergence">Convergence fell below 50%% on 2 frames in a row.</string>
+    <string name="error_low_convergence_why">The images may have decorrelated: the speckle pattern changed, or the specimen moved out of view.</string>
+    <string name="action_open_faq">Open FAQ</string>
     <string name="vsg_lattice_all_failed">All combinations failed — tap a node for details.</string>
 
     <!-- One-line failure labels for lattice nodes, in measurement terms. -->
@@ -601,11 +610,12 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="progress_bytes_fmt">%1$.1f of %2$.1f %3$s</string>
     <string name="progress_rate_fmt">%1$.1f %2$s/s</string>
     <string name="progress_joined_fmt">%1$s · %2$s</string>
-    <string name="cancel_run_title">Cancel this analysis?</string>
-    <string name="cancel_run_body">Stops after the current frame. Results so far are discarded.</string>
-    <string name="cancel_import_title">Cancel this import?</string>
-    <string name="cancel_import_body">Stops after the current image or video frame. Your previous selection will be kept.</string>
+    <string name="cancel_run_title">Cancel analysis?</string>
+    <string name="cancel_run_body">Results so far are discarded.</string>
+    <string name="cancel_import_title">Cancel import?</string>
+    <string name="cancel_import_body">Your previous selection is kept.</string>
     <string name="keep_running">Keep running</string>
+    <string name="keep_importing">Keep importing</string>
     <string name="ref_formats_hint">PNG or TIFF recommended</string>
     <string name="deformed_frames">Deformed frames</string>
     <plurals name="def_formats_hint_fmt">
@@ -670,10 +680,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     </plurals>
     
     <string name="frame_order_label">Analysis order</string>
-    <string name="frame_order_name_asc">Name · A–Z</string>
-    <string name="frame_order_name_desc">Name · Z–A</string>
-    <string name="frame_order_date_asc">Date · oldest first</string>
-    <string name="frame_order_date_desc">Date · newest first</string>
+    <string name="frame_order_name_asc">A–Z</string>
+    <string name="frame_order_name_desc">Z–A</string>
+    <string name="frame_order_date_asc">Oldest first</string>
+    <string name="frame_order_date_desc">Newest first</string>
     <string name="frame_order_manual">Manual</string>
     <string name="frame_order_manual_hint">Drag thumbnails to reorder</string>
     <string name="coach_skip">Skip</string>
@@ -815,8 +825,6 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="share_cancelled">Cancelled</string>
     <string name="share_save_to_files">Save to Files</string>
     <string name="send_to_title">Send to</string>
-    <string name="send_to_save_sub">Save a copy to this device</string>
-    <string name="send_to_share_sub">Send to another app</string>
     <string name="save_success">Saved to device</string>
     <string name="save_failed">Couldn\'t save the file. Try again.</string>
     <string name="app_name_short">Semper</string>
@@ -921,10 +929,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="extract_frames_title">Extract frames</string>
     
     <string name="video_capped_suffix">" (capped — raise Max frames in Settings)"</string>
-    <string name="video_first_frame_note">First frame becomes the reference</string>
-    <string name="video_mode_keyframes">Keyframes (DIC)</string>
-    <string name="video_mode_uniform">Fixed interval</string>
-    <string name="video_keyframes_estimate_note">Extracts sync I-frames with zero temporal distortion</string>
+    <string name="video_mode_keyframes">Keyframes</string>
+    <string name="video_mode_uniform">Interval</string>
+    <!-- The sampling sheet's ⓘ beside the mode toggle. -->
+    <string name="video_mode_info">Keyframes extracts the video\'s sync I-frames, with zero temporal distortion. Interval samples at the frame rate you set.\n\nThe first frame becomes the reference.</string>
     <string name="video_extracting_progress_fmt">Extracting frame %1$d of %2$d</string>
     <string name="video_fps_fmt">%1$.0f fps</string>
     <string name="video_resolution_fmt">%1$d×%2$d</string>
@@ -969,8 +977,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="error_network_retry">Network error. Try again.</string>
 
     <!-- Sign out confirmation -->
-    <string name="sign_out_confirm_title">Sign out?</string>
-    <string name="sign_out_confirm_body">Are you sure you want to sign out of Semper on this device?</string>
+    <string name="sign_out_confirm_title">Sign out of this phone?</string>
     <string name="sign_out_success">You have been signed out.</string>
     <plurals name="video_loaded_frames">
         <item quantity="one">Video loaded: 1 reference + 1 deformed frame</item>
@@ -1019,28 +1026,24 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <!-- A mixed selection gets one Delete button, which erases every copy; it
          used to describe "Delete cloud" / "Delete device" buttons it did not have. -->
     <plurals name="delete_confirm_body_everywhere_multi">
-        <item quantity="one">%1$d of these is backed up. Delete removes every copy, on your phone and in the cloud. This can\'t be undone.</item>
-        <item quantity="other">%1$d of these are backed up. Delete removes every copy, on your phone and in the cloud. This can\'t be undone.</item>
+        <item quantity="one">%1$d is in the cloud. Delete removes every copy. This can\'t be undone.</item>
+        <item quantity="other">%1$d are in the cloud. Delete removes every copy. This can\'t be undone.</item>
     </plurals>
     <plurals name="delete_confirm_body_choice_multi">
-        <item quantity="one">This analysis is on your phone and in the cloud. Choose what to remove. A deleted cloud backup can\'t be recovered.</item>
-        <item quantity="other">These %1$d analyses are on your phone and in the cloud. Choose what to remove. A deleted cloud backup can\'t be recovered.</item>
+        <item quantity="one">%1$d is in the cloud. A deleted cloud copy can\'t be recovered.</item>
+        <item quantity="other">%1$d are in the cloud. A deleted cloud copy can\'t be recovered.</item>
     </plurals>
     <plurals name="delete_multi_working">
         <item quantity="one">Deleting 1 analysis…</item>
         <item quantity="other">Deleting %1$d analyses…</item>
     </plurals>
     <plurals name="delete_multi_done">
-        <item quantity="one">1 analysis deleted.</item>
-        <item quantity="other">%1$d analyses deleted.</item>
-    </plurals>
-    <plurals name="delete_cloud_multi_done">
-        <item quantity="one">Cloud backup deleted. The analysis stays on this phone.</item>
-        <item quantity="other">%1$d cloud backups deleted. The analyses stay on this phone.</item>
+        <item quantity="one">%1$d deleted</item>
+        <item quantity="other">%1$d deleted</item>
     </plurals>
     <plurals name="delete_multi_partial">
-        <item quantity="one">1 deleted · %2$d still in the cloud (couldn\'t reach it).</item>
-        <item quantity="other">%1$d deleted · %2$d still in the cloud (couldn\'t reach it).</item>
+        <item quantity="one">%1$d deleted · %2$d still in the cloud</item>
+        <item quantity="other">%1$d deleted · %2$d still in the cloud</item>
     </plurals>
     <plurals name="license_expiring_fmt">
         <item quantity="one">License expires tomorrow</item>

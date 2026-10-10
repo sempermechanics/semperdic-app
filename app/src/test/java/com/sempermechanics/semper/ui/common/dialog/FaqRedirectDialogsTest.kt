@@ -108,6 +108,22 @@ class FaqRedirectDialogsTest {
     }
 
     @Test
+    fun `an error with a longer why shows it under Why, with the FAQ one tap further`() {
+        FaqRedirect.errorDialog(activity, "Title", "Short.", R.string.legal_terms_url, why = "The longer reason.")
+        latest().getButton(AlertDialog.BUTTON_NEUTRAL).performClick()
+        idle()
+
+        val why = latest()
+        assertEquals("Title", why.title())
+        assertEquals("The longer reason.", why.body())
+        assertEquals(activity.getString(R.string.action_open_faq), why.getButton(AlertDialog.BUTTON_NEUTRAL).text)
+
+        why.getButton(AlertDialog.BUTTON_NEUTRAL).performClick()
+        idle()
+        assertEquals(activity.getString(R.string.faq_redirect_title), latest().title())
+    }
+
+    @Test
     fun `an error with no FAQ link has only OK`() {
         FaqRedirect.errorDialog(activity, "Title", "Body", null)
         val dialog = latest()

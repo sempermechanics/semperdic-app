@@ -67,6 +67,10 @@ class AnalysisLeaveControllerTest {
         bed.viewModel.applyNewReference(ByteArray(1), "ref.png", ImageSize(2, 2))
         leave().onBack()
         assertFalse(bed.activity.isFinishing)
+        val res = bed.activity.resources
+        fun label(which: Int) = dialog()!!.getButton(which).text.toString()
+        assertEquals(res.getString(R.string.action_leave), label(AlertDialog.BUTTON_POSITIVE))
+        assertEquals(res.getString(R.string.action_stay), label(AlertDialog.BUTTON_NEGATIVE))
 
         dialog()!!.getButton(AlertDialog.BUTTON_POSITIVE).performClick()
         shadowOf(android.os.Looper.getMainLooper()).idle()

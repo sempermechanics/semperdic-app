@@ -11,6 +11,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.robolectric.shadows.ShadowDialog
+import org.robolectric.shadows.ShadowToast
 import java.util.UUID
 
 /**
@@ -122,35 +123,47 @@ class SessionSelectionControllerTest : SessionSelectionFixture() {
     // ── Delete prompts ───────────────────────────────────────────────────────
 
     @Test
-    fun `a phone-only analysis gets the permanent local prompt`() {
+    fun `a phone-only analysis is named, and told it cannot be undone`() {
         list(a)
         controller.confirmDelete(a)
-        assertEquals(activity.getString(R.string.delete_confirm_body_local), dialogMessage())
+        assertEquals("Delete Specimen a?", dialogTitle())
+        assertEquals(activity.getString(R.string.delete_body_cant_undo), dialogMessage())
     }
 
     @Test
-    fun `a cloud-only stub gets the erase-from-cloud prompt`() {
+    fun `a cloud-only stub is named with where it is deleted from`() {
         val stub = record("s", local = false, cloud = true)
         list(stub)
         controller.confirmDelete(stub)
-        assertEquals(activity.getString(R.string.delete_confirm_body_cloud_only), dialogMessage())
+        assertEquals("Delete Specimen s from the cloud?", dialogTitle())
+        assertEquals(activity.getString(R.string.delete_body_cant_undo), dialogMessage())
     }
 
     @Test
-    fun `an analysis on both offers phone, cloud or everywhere`() {
+    fun `an analysis on both offers phone, cloud or everywhere, each with what stays`() {
         val both = record("d", cloud = true)
         list(both)
         controller.confirmDelete(both)
 
+        assertEquals("Delete Specimen d?", dialogTitle())
         assertEquals(
             activity.getString(R.string.delete_confirm_body_cloud),
             latestDialog().findViewById<TextView>(R.id.tvDeleteMessage).text.toString(),
         )
         assertEquals(
-            listOf(R.string.delete_choice_phone, R.string.delete_choice_cloud, R.string.delete_choice_everywhere)
-                .map { activity.getString(it) },
+            listOf("From this phone\ncloud stays", "From the cloud\nphone stays", "Everywhere"),
             choices().map { it.text.toString() },
         )
+    }
+
+    @Test
+    fun `deleting one phone-only analysis names it`() {
+        list(a)
+        controller.confirmDelete(a)
+        confirmPositive()
+        idleUntil("the erase to refresh the list") { refreshes > 0 }
+
+        assertEquals("Deleted Specimen a", ShadowToast.getTextOfLatestToast())
     }
 
     @Test
@@ -215,7 +228,8 @@ class SessionSelectionControllerTest : SessionSelectionFixture() {
         list(a, b)
         controller.startSelection(b)
         delete.performClick()
-        assertEquals(activity.getString(R.string.delete_confirm_body_local), dialogMessage())
+        assertEquals("Delete Specimen b?", dialogTitle())
+        assertEquals(activity.getString(R.string.delete_body_cant_undo), dialogMessage())
     }
 
     @Test
@@ -223,7 +237,8 @@ class SessionSelectionControllerTest : SessionSelectionFixture() {
         list(a, b)
         controller.selectAll()
         delete.performClick()
-        assertEquals(activity.getString(R.string.delete_confirm_body_local_multi), dialogMessage())
+        assertEquals("Delete 2 analyses?", dialogTitle())
+        assertEquals(activity.getString(R.string.delete_body_cant_undo), dialogMessage())
     }
 
     @Test
@@ -248,7 +263,7 @@ class SessionSelectionControllerTest : SessionSelectionFixture() {
         val message = dialogMessage().orEmpty()
         assertFalse(message.contains("Delete cloud"))
         assertFalse(message.contains("Delete device"))
-        assertTrue(message.contains("on your phone and in the cloud"))
+        assertTrue(message.contains("every copy"))
     }
 
     @Test

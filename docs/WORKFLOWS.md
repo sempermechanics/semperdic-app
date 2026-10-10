@@ -189,7 +189,7 @@ One Activity, three pages (`WizardStep`); pages 2 and 3 inflate from ViewStubs.
 | Field | Value |
 |---|---|
 | Writes | `<sessionDir>/frame_%04d.dat` (`data/session/SessionPaths`), `raw_deformed/`, reference copy and the index row via `data/session/SessionRepository.buildSessionRecord` → `ui/analysis/run/RunRecordSave.saveRunRecord` → `data/session/SessionStore.save` |
-| Then | Once the row is saved, `saveRunRecord` calls `data/cloud/CloudSync.enqueueUpload` → B1 when cloud backup is on. `afterSave` reads the save's `UpsertOutcome` for both, a sweep's through `SweepAnalysis.finishSolvedSweep` → `persistSweepSession`: a full quota ends the run at the session limit and opens the session-limit screen; an index that could not be read or written shows **Analysis not saved**. Either way a sweep's lattice does not open, and the sweep records `analysis_failed` with reason `session_limit` or `index_unavailable` (`SweepAnalysis.sweepEndEvent`) |
+| Then | Once the row is saved, `saveRunRecord` calls `data/cloud/CloudSync.enqueueUpload` → B1 when cloud backup is on. `afterSave` reads the save's `UpsertOutcome` for both, a sweep's through `SweepAnalysis.finishSolvedSweep` → `persistSweepSession`: a full quota ends the run at the session limit and opens the session-limit screen; an index that could not be read or written shows **Couldn't save results**. Either way a sweep's lattice does not open, and the sweep records `analysis_failed` with reason `session_limit` or `index_unavailable` (`SweepAnalysis.sweepEndEvent`) |
 | Fails as | `EngineFailure.reasonRes` dialog with **Why?** → FAQ; stop reason persisted on the record (`stopCode`, `plannedFrameCount`) so it survives a restart, and in the backup's `metadata.json` `metrics` so it survives a restore. A re-run that saves nothing updates or drops its Home row to match what is left on disk (`BatchAnalysis.afterUnsavedRerun`); a cancelled re-run is saved as a partial run |
 | Signals | Timber; `android.os.Trace` sections; `diagnostics/SemperAnalytics` analysis started / completed / failed (consent-gated, buckets only) |
 | Tests | `analysis/SweepStudyTest`, `analysis/SubsetRecommenderTest`, `analysis/ConvergenceGateTest`, `session/FailureProvenanceTest`, `results/DicResultDecodeTest`, `EngineFailureTest`, `AnalysisViewModelTest`, instrumented `pipeline/EnginePipelineSmokeTest` |
@@ -352,7 +352,7 @@ only when the backend *confirms* a blob is missing (`C8` returns `MISSING`, not
 | Export | Entry | Chain |
 |---|---|---|
 | Everything on this phone | Settings **Export my data** | `data/session/SessionEverythingExporter` → `SessionZip` / `ZipDirectory` → `SendToSheet` |
-| Everything in the cloud | Settings **Download my cloud account data** | `SemperApi.exportAccount` (streamed) → C12 → `SendToSheet` |
+| Everything in the cloud | Settings **Download cloud data** | `SemperApi.exportAccount` (streamed) → C12 → `SendToSheet` |
 | Viewer exports | A8 Share | `ui/viewer/share/ShareCenter` → `report/*` → `SendToSheet` |
 
 The two Settings exports run behind `ui/common/transfer/TransferBannerController`, not a

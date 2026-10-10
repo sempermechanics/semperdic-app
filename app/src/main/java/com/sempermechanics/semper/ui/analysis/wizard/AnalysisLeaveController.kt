@@ -2,9 +2,9 @@ package com.sempermechanics.semper.ui.analysis.wizard
 
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.ui.analysis.run.RunChrome
-import com.sempermechanics.semper.ui.common.dialog.Dialogs
 
 /**
  * Back on the wizard: asks before it stops a busy import or run, steps back a
@@ -36,9 +36,13 @@ class AnalysisLeaveController(
         }
     }
 
+    /** Leave or Stay, not Cancel: "Cancel" would read as cancelling the setup. */
     private fun confirmLeave() {
-        Dialogs.confirm(activity, R.string.exit_analysis_title, R.string.exit_analysis_message, R.string.exit) {
-            activity.finish()
-        }
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.exit_analysis_title)
+            .setMessage(R.string.exit_analysis_message)
+            .setPositiveButton(R.string.action_leave) { _, _ -> activity.finish() }
+            .setNegativeButton(R.string.action_stay, null)
+            .show()
     }
 }

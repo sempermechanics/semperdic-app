@@ -9,7 +9,7 @@ import timber.log.Timber
 import java.io.File
 
 /**
- * "Download my cloud account data": the backend's JSON export of the account,
+ * "Download cloud data": the backend's JSON export of the account,
  * saved into [cacheDir] for the share sheet.
  */
 internal object CloudAccountExport {

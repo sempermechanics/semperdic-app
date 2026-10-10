@@ -86,11 +86,7 @@ class DeleteFeedback(
         val left = SessionDeletes.decode(info.outputData.getString(SessionDeletes.KEY_STILL_IN_CLOUD))
         val res = activity.resources
         if (left.isEmpty()) {
-            val text = if (info.outputData.getBoolean(SessionDeletes.KEY_CLOUD_ONLY, false)) {
-                res.getQuantityString(R.plurals.delete_cloud_multi_done, done, done)
-            } else {
-                res.getQuantityString(R.plurals.delete_multi_done, done, done)
-            }
+            val text = res.getQuantityString(R.plurals.delete_multi_done, done, done)
             Snackbar.make(root, text, Snackbar.LENGTH_LONG).show()
             return
         }

@@ -83,7 +83,7 @@ class RunOutcomeDeliveryTest {
             }
 
             override fun engineFailureMessage(code: Int, frameIndex: Int, frameName: String?) = ""
-            override fun showEngineFailureDialog(message: String, titleRes: Int, faqUrlRes: Int) = Unit
+            override fun showEngineFailureDialog(message: String, titleRes: Int, faqUrlRes: Int, why: String?) = Unit
             override fun clearEngineFailFaq() = Unit
             override fun onSweepProgress(progress: SweepStudyRunner.Progress) = Unit
             override fun onSweepFinished(outcome: BatchAnalysisOutcome?) {

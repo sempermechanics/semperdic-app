@@ -14,6 +14,7 @@ import com.sempermechanics.semper.imaging.video.VideoFrameExtractor
 import com.sempermechanics.semper.imaging.video.VideoKeyframeHelper
 import com.sempermechanics.semper.imaging.video.VideoMeta
 import com.sempermechanics.semper.ui.common.dialog.FaqRedirect
+import com.sempermechanics.semper.ui.common.dialog.bindInfo
 import com.sempermechanics.semper.ui.common.media.displayNameOrNull
 import com.sempermechanics.semper.ui.common.onButtonChecked
 import kotlinx.coroutines.CoroutineDispatcher
@@ -72,6 +73,7 @@ class VideoSamplingSheet(
         val form = SheetVideoSamplingBinding.inflate(activity.layoutInflater)
         val sampling = VideoSampling(meta, AppSettings.maxFrames(activity, AppRemoteConfig.maxFrames(activity)))
         form.tvVideoInfo.text = infoLine(meta)
+        form.btnVideoModeInfo.bindInfo(activity, R.string.extract_frames_title, R.string.video_mode_info)
 
         // --- Frame-rate selector (capped at the source rate when known) ---
         form.sliderFps.valueFrom = 1f
@@ -145,8 +147,11 @@ class VideoSamplingSheet(
     )
 
     private fun refreshEstimate(form: SheetVideoSamplingBinding, sampling: VideoSampling) {
-        if (form.rgExtractMode.checkedButtonId == R.id.btnModeKeyframes) {
-            form.tvEstimate.text = activity.getString(R.string.video_keyframes_estimate_note)
+        // Keyframes cannot be counted before extraction, so there is no estimate
+        // line; what keyframes are is behind the mode toggle's ⓘ.
+        val keyframes = form.rgExtractMode.checkedButtonId == R.id.btnModeKeyframes
+        form.tvEstimate.isVisible = !keyframes
+        if (keyframes) {
             form.btnExtractFrames.setText(R.string.extract_frames_title)
         } else {
             val n = sampling.estimate(form.rangeSegment.values, form.sliderFps.value.toDouble())

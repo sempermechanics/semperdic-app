@@ -47,16 +47,16 @@ object Dialogs {
         onConfirm: () -> Unit,
     ): AlertDialog = confirm(activity, activity.getText(title), activity.getText(body), confirmLabel, onConfirm)
 
-    /** [confirm] with title and body already formatted. */
+    /** [confirm] with title and body already formatted; a null [body] asks with the title alone. */
     fun confirm(
         activity: Activity,
         title: CharSequence,
-        body: CharSequence,
+        body: CharSequence?,
         @StringRes confirmLabel: Int,
         onConfirm: () -> Unit,
     ): AlertDialog = MaterialAlertDialogBuilder(activity)
         .setTitle(title)
-        .setMessage(body)
+        .apply { if (body != null) setMessage(body) }
         .setPositiveButton(confirmLabel) { _, _ -> onConfirm() }
         .setNegativeButton(R.string.action_cancel, null)
         .show()

@@ -7,6 +7,7 @@ import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.ui.common.auth.SignOutRun
 import com.sempermechanics.semper.ui.common.auth.confirm
@@ -54,6 +55,9 @@ class DialogsTest {
         findViewById<TextView>(androidx.appcompat.R.id.alertTitle)?.text.toString()
 
     private fun AlertDialog.body(): String = findViewById<TextView>(android.R.id.message)?.text.toString()
+
+    private fun AlertDialog.hasBody(): Boolean =
+        findViewById<TextView>(android.R.id.message)?.let { it.isVisible && it.text.isNotEmpty() } == true
 
     private fun AlertDialog.label(which: Int): String = getButton(which).text.toString()
 
@@ -129,7 +133,8 @@ class DialogsTest {
         var signedOut = 0
         val dialog = SignOutRun.confirm(activity) { signedOut++ }
         assertEquals(activity.getString(R.string.sign_out_confirm_title), dialog.title())
-        assertEquals(activity.getString(R.string.sign_out_confirm_body), dialog.body())
+        // The title asks the whole question; there is no body under it.
+        assertFalse(dialog.hasBody())
         assertEquals(activity.getString(R.string.action_sign_out), dialog.label(DialogInterface.BUTTON_POSITIVE))
         assertEquals(activity.getString(R.string.action_cancel), dialog.label(DialogInterface.BUTTON_NEGATIVE))
 
