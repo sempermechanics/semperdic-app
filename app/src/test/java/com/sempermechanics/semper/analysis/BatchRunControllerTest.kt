@@ -47,7 +47,7 @@ class BatchRunControllerTest {
         var computeEnabled = false
     }
 
-    private data class Shown(val message: String, val faqUrlRes: Int)
+    private data class Shown(val message: String, val faqUrlRes: Int, val why: String? = null)
 
     private lateinit var activity: AppCompatActivity
 
@@ -82,8 +82,8 @@ class BatchRunControllerTest {
             override fun onPartialRun(outcome: BatchAnalysisOutcome) = onPartial()
             override fun openResultViewer() = Unit
             override fun engineFailureMessage(code: Int, frameIndex: Int, frameName: String?) = ""
-            override fun showEngineFailureDialog(message: String, titleRes: Int, faqUrlRes: Int) =
-                onDialog(Shown(message, faqUrlRes))
+            override fun showEngineFailureDialog(message: String, titleRes: Int, faqUrlRes: Int, why: String?) =
+                onDialog(Shown(message, faqUrlRes, why))
 
             override fun clearEngineFailFaq() = Unit
             override fun onSweepProgress(progress: SweepStudyRunner.Progress) = Unit
@@ -186,6 +186,18 @@ class BatchRunControllerTest {
         ).forEach { code ->
             assertComputeUsableAfter("engine code $code", Result.success(outcome(code, validPoints = 0, frames = 0)))
         }
+    }
+
+    @Test
+    fun `a convergence failure keeps its decorrelation explanation for Why`() {
+        val (partial, shown) = route(outcome(RunStop.LowConvergence.wireCode, validPoints = 500, frames = 0))
+        assertFalse(partial)
+        assertEquals(activity.getString(R.string.error_low_convergence_why), shown?.why)
+        assertEquals(R.string.url_faq_engine_convergence, shown?.faqUrlRes)
+
+        // A reason that already says it all has no Why? text of its own: Why? opens the FAQ.
+        val (_, features) = route(outcome(EngineFailure.ENGINE_ERROR_FEATURES, validPoints = 500, frames = 0))
+        assertNull(features?.why)
     }
 
     @Test

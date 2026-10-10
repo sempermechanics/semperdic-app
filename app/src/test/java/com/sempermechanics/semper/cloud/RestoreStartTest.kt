@@ -138,7 +138,7 @@ class RestoreStartTest {
     @Test
     fun `restoring is called restore, and download means saving a file`() {
         assertEquals("Restore", context.getString(R.string.restore_action))
-        assertTrue(context.getString(R.string.delete_device_only_done).contains("restore"))
+        assertEquals("Restore Specimen?", context.getString(R.string.restore_analysis_title_fmt, "Specimen"))
         assertFalse(context.getString(R.string.delete_device_only_done).contains("download"))
     }
 

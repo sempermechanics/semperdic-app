@@ -127,7 +127,7 @@ The session list and the only entry point to a new analysis.
    ├── Session list
    │   ├── open a session ............ → 8. Result viewer, or 7. Lattice for sweeps
    │   ├── cloud state icon tap ...... retry backup / open Settings
-   │   ├── "Only in cloud" row ....... "Restore this analysis?" → background restore
+   │   ├── "Only in cloud" row ....... "Restore <name>?" → background restore
    │   ├── live row progress ......... backup (prepare/upload) and restore/download
    │   └── "session data gone" dialog  (local frames deleted, no cloud copy either)
    ├── Selection mode (long-press)
@@ -167,7 +167,7 @@ The session list and the only entry point to a new analysis.
 | [ ] 3.4c | Read each cloud state icon with TalkBack | Cloud with tick "Backed up", up arrow "Upload pending", crossed out "Not backed up" (red when the backup failed), down arrow "Only in cloud" |
 | [ ] 3.5 | Tap a normal session | Result viewer opens on frame 1 |
 | [ ] 3.6 | Tap a sweep session | **Lattice** opens, not the viewer |
-| [ ] 3.7 | Tap a row whose local files were deleted but which has a cloud backup | Its icon is the **"Only in cloud"** cloud-download; tapping raises a **"Restore this analysis?"** dialog with a **Restore** button, which queues a background restore and **leaves you on Home** — it does not open the analysis when it lands |
+| [ ] 3.7 | Tap a row whose local files were deleted but which has a cloud backup | Its icon is the **"Only in cloud"** cloud-download; tapping raises a **"Restore steel_00?"** dialog (the analysis's name; "It's only in the cloud.") with a **Restore** button, which queues a background restore and **leaves you on Home** — it does not open the analysis when it lands |
 | [ ] 3.7a | Tap a row with no local files *and* no cloud copy | "Session data gone" dialog — this is now the only case that reaches it |
 | [ ] 3.7b | Watch a row during a backup | The icon turns to the blue up arrow, a 2dp bar under the text fills, and the line reads "Preparing backup · 12.0%" then "Backing up · 35.0%" (or "Backing up · 4.2 of 12 MB" once the job reports bytes) |
 | [ ] 3.7c | Watch a row during a restore or download | Same row progress, with a down arrow and "Restoring". The bundle phase is deliberately **indeterminate** (and the line just "Restoring") until the backend reports a percentage |
@@ -186,11 +186,11 @@ The session list and the only entry point to a new analysis.
 | [ ] 3.11 | Select two rows | Rename disappears; delete still offered |
 | [ ] 3.12 | Rename a single selection | Text dialog; the new name persists after leaving and returning |
 | [ ] 3.12a | Rename a backed-up analysis, then restore it on another phone (or after a reinstall) | It restores under the new name: the rename re-sends the backup's metadata.json (ADR-013) |
-| [ ] 3.13 | Delete one session that exists **both** on the phone and in the cloud | Choice of **Delete from this phone**, **Delete the cloud backup** and **Delete everywhere**, plus Cancel |
-| [ ] 3.13a | Choose **Delete from this phone** | Message pill: "Removed from this phone. Tap the row to restore it from the cloud." The row stays, its icon now "Only in cloud" |
+| [ ] 3.13 | Delete one session that exists **both** on the phone and in the cloud | "Delete steel_00?" (the analysis's name) and "A deleted cloud copy can't be recovered.", then **From this phone** (hint "cloud stays"), **From the cloud** (hint "phone stays") and **Everywhere**, plus Cancel |
+| [ ] 3.13a | Choose **From this phone** | Message pill: "Removed from this phone · in the cloud". The row stays, its icon now "Only in cloud" |
 | [ ] 3.13b | Delete a row that is already cloud-only, on device only | No-op branch — there is nothing local left to remove |
-| [ ] 3.14 | Delete several sessions | Same three choices when every row is on both, with the count in the message. A selection with no cloud copy gets one plural confirm; a mixed selection or cloud-only stubs get one Delete that removes every copy |
-| [ ] 3.14a | Choose **Delete everywhere** for ten rows | The rows disappear at once; a message pill offers **Undo** for 5 s, then reads "Deleting 4 of 10…", then "10 analyses deleted." Production logs show ten DELETEs and no 404 |
+| [ ] 3.14 | Delete several sessions | "Delete 5 analyses?" with the same three choices when every row is on both ("5 are in the cloud. A deleted cloud copy can't be recovered."). A selection with no cloud copy gets one plural confirm ("This can't be undone."); a mixed selection or cloud-only stubs get one Delete that removes every copy ("3 are in the cloud. Delete removes every copy. …"). One phone-only row deleted reads "Deleted steel_00" |
+| [ ] 3.14a | Choose **Everywhere** for ten rows | The rows disappear at once; a message pill offers **Undo** for 5 s, then reads "Deleting 4 of 10…", then "10 deleted". Production logs show ten DELETEs and no 404 |
 | [ ] 3.14b | Tap **Undo** inside the 5 s | The rows come back and nothing reaches the backend |
 | [ ] 3.14c | Delete while offline | The rows stay hidden; the delete runs when the network returns. If it still cannot reach the cloud, the pill names how many are left, with **Try again** |
 | [ ] 3.15 | Press Back in selection mode | Selection clears; the app does not exit |
@@ -244,8 +244,8 @@ the percent to one decimal on its right ("34.6%"), a progress bar (spinning unti
 percentage is known), "About N s left" under the bar once there is an estimate,
 **Cancel**, and — when more than one transfer is live — **‹ ›** arrows with an
 "n / N" page count. A restore or download's status reads "4.2 of 12.0 MB · 1.1 MB/s".
-It carries restores, bundle downloads, **Export my data** and **Download my cloud
-account data**.
+It carries restores, bundle downloads, **Export my data** and **Download cloud
+data**.
 
 | # | Action | Expected |
 |---|---|---|
@@ -272,7 +272,7 @@ account data**.
 | [ ] 4.12 | Tap a row that exists locally | That analysis opens (viewer or lattice) |
 | [ ] 4.12a | Tap a row with no local data | The restore confirm, not a "session data gone" dialog |
 | [ ] 4.13 | Tap **Back up now** on a local-only row | Upload is queued; the row state changes |
-| [ ] 4.14 | Tap **Restore** on a cloud-only row | A **"Restore this analysis?"** confirm first; accepting toasts that it continues in the background, adds a **stub row immediately** so you can see it, and raises a banner entry (§4.0). The analysis appears in the list without reopening Settings |
+| [ ] 4.14 | Tap **Restore** on a cloud-only row | A **"Restore steel_00?"** confirm first; accepting toasts that it continues in the background, adds a **stub row immediately** so you can see it, and raises a banner entry (§4.0). The analysis appears in the list without reopening Settings |
 | [ ] 4.14a | Restore a backup that fails terminally (deleted server-side, or not this account) | A message pill names the failure — the restore is no longer silent |
 | [ ] 4.14b | Look at a row that is on the phone **and** in the cloud | It offers **Download**, but not Restore — Restore only appears when the local frames are missing |
 | [ ] 4.14c | Tap **Download** | A SAF save dialog opens **first**, suggesting `<name>_Session.zip`; choosing a location starts a `DicBundleDownloadWorker` and the row reads "Downloading…" |
@@ -281,7 +281,7 @@ account data**.
 | [ ] 4.14f | Download a row whose cloud zip is unavailable | It falls back to packing the local session into the same destination |
 | [ ] 4.14g | Cause a Download to fail | The empty destination file is removed rather than left as a 0-byte zip, and the failure is named |
 | [ ] 4.15 | Tap the bin on a row with a local copy | The same three choices as Home §3.13: phone / cloud backup / everywhere, plus Cancel |
-| [ ] 4.16 | Tap the bin on a cloud-only row | "Delete this backup forever?" naming the analysis |
+| [ ] 4.16 | Tap the bin on a cloud-only row | "Delete steel_00 from the cloud?" naming the analysis, "Raw images, results and report. This can't be undone.", and **Delete** |
 | [ ] 4.17 | Confirm any backup delete, then tap **Undo** within 5 s | The row returns; nothing is deleted server-side |
 | [ ] 4.18 | Confirm and wait past the undo window | The backup is really gone after a refresh |
 | [ ] 4.18a | Expand **Storage** | Analyses and cache sizes are measured and shown, not left on "Measuring…" |
@@ -292,11 +292,11 @@ account data**.
 | [ ] 4.18f | Set a budget below current usage and restart the app | Space is reclaimed at start-up, oldest backed-up analyses first |
 | [ ] 4.18g | Tap the ⓘ beside it | Explains what Off means (analyses stay until you remove them), what a size does, and that only cloud-backed analyses are ever dropped |
 | [ ] 4.19 | Tap **Export my data** | A master ZIP is built behind the **transfer banner** (§4.0) — not a blocking dialog — then handed to the **Send to** sheet (§8.5a) |
-| [ ] 4.19a | Tap **Download my cloud account data** | The server-side export of the account is fetched the same way, banner and all, then offered through the same sheet |
+| [ ] 4.19a | Tap **Download cloud data** | The server-side export of the account is fetched the same way, banner and all, then offered through the same sheet |
 | [ ] 4.19b | Trigger either export with no network | It fails with a named reason, not a silent no-op |
 | [ ] 4.19c | Toggle **Send crash reports** off, then force a crash on a debug build | Nothing is uploaded; turning it on again resumes collection without a restart |
 | [ ] 4.19d | Read what that toggle actually controls | It gates **both** crash reporting and consent-gated product analytics (analysis started/completed/failed, exports, feedback), and the label now says so: **Send crash reports and usage data**, with the subtitle naming the usage events and what is never sent |
-| [ ] 4.20 | Tap **Delete my account and data** | Dialog listing exactly what goes: local analyses, cloud backups, profile and device |
+| [ ] 4.20 | Tap **Delete account** | "Delete your account?" listing exactly what goes: every analysis on this phone, every cloud backup, your profile and device; then **Delete everything** |
 | [ ] 4.20a | Confirm it | The **sign-in screen** opens to re-verify, with your email filled in and locked, and no "create account" toggle |
 | [ ] 4.20b | Enter the wrong password there | "Incorrect password." and nothing is deleted |
 | [ ] 4.20c | Confirm it, as a Google account | Same screen; **Sign in with Google** re-authenticates instead |
@@ -365,7 +365,7 @@ Lattice, Session limit, or back to Home.
 | [ ] 5.1.17 | Choose **Date oldest first** | Order follows capture date, not filename |
 | [ ] 5.1.18 | Choose **Manual** | Hint toast about dragging; drag a thumbnail and it stays where dropped, back at its normal size, with the badges renumbered |
 | [ ] 5.1.19 | Load a single deformed frame | The sort control is hidden |
-| [ ] 5.1.20 | Press Back on step 1 with inputs loaded | "Exit analysis?" confirmation. On steps 2 and 3 Back walks back a step instead — the confirm is step 1 only |
+| [ ] 5.1.20 | Press Back on step 1 with inputs loaded | "Leave setup?" ("Your region and settings will be lost.") with **Stay** and **Leave**. On steps 2 and 3 Back walks back a step instead — the confirm is step 1 only |
 | [ ] 5.1.21 | Open step 1 for the first time | Coach marks point at the reference dropzone, then the deformed one |
 
 #### 5.1a Video source
@@ -376,8 +376,8 @@ Reached whenever the file picked — from the grid or through Files — is a vid
 |---|---|---|
 | [ ] 5.1a.1 | Pick a video (a badged tile in the grid, or via Files) | Sampling sheet opens with resolution, source fps and duration |
 | [ ] 5.1a.1a | Pick a long video from Home **+** | While its metadata is read (past ~0.3 s) the wizard's reference slot shows a small spinner and "Reading video…"; it goes when the sampling sheet opens or the read fails |
-| [ ] 5.1a.2 | Switch the mode between **Keyframes (DIC)** and **Fixed interval** | Keyframes hides the fps slider and notes it extracts sync I-frames; Fixed interval shows the slider, and dragging it updates the estimated frame count live |
-| [ ] 5.1a.2a | Extract in **Fixed interval** over the whole clip, then scrub the deformed frames | Consecutive frames differ — not runs of repeats of the same I-frame |
+| [ ] 5.1a.2 | Switch the mode between **Keyframes** and **Interval** | Keyframes hides the fps slider and the estimate line; Interval shows both, and dragging the slider updates the estimated frame count live. The ⓘ beside the toggle explains both modes (sync I-frames; sampling at the set rate) and that the first frame becomes the reference |
+| [ ] 5.1a.2a | Extract in **Interval** over the whole clip, then scrub the deformed frames | Consecutive frames differ — not runs of repeats of the same I-frame |
 | [ ] 5.1a.3 | Drag the time-segment handles | Estimate updates; the button relabels to "Extract N frames" |
 | [ ] 5.1a.4 | Choose settings that exceed *Max frames* | The estimate shows the cap being applied |
 | [ ] 5.1a.5 | Tap **Extract** | Progress overlay; frame 0 becomes the reference, the rest deformed |
@@ -385,7 +385,7 @@ Reached whenever the file picked — from the grid or through Files — is a vid
 | [ ] 5.1a.7 | Pick an `.avi` from a lab or UTM camera (uncompressed or motion-JPEG) | Sampling sheet opens with its resolution, rate and duration; **Extract** writes the same lossless grayscale frames an MP4 does |
 | [ ] 5.1a.8 | Pick an `.avi` whose codec this device has no decoder for (Xvid on a device without MPEG-4 ASP) | Snackbar naming the four-letter codec and what to do instead, with **Why?** → video-read FAQ |
 | [ ] 5.1a.9 | Pick an `.avi` that is truncated or not a video at all | The ordinary "could not read this video" snackbar — no crash |
-| [ ] 5.1a.10 | **Fixed interval**, whole clip, the source's own rate, then **Extract** | The deformed count is exactly the sheet's estimate minus the reference — a 20-frame clip gives 1 + 19, not a promised 21 |
+| [ ] 5.1a.10 | **Interval**, whole clip, the source's own rate, then **Extract** | The deformed count is exactly the sheet's estimate minus the reference — a 20-frame clip gives 1 + 19, not a promised 21 |
 | [ ] 5.1a.11 | Read the codec snackbar from 5.1a.8 | The whole message shows — both remedies, not cut after two lines — and it stays up long enough to read (about 9 s) |
 | [ ] 5.1a.12 | Extract from `tensile_03.mp4`, then run | The reference card reads "tensile_03" and the analysis is named "tensile_03" ("tensile_03 (2)" for a second); a clip whose name the picker cannot give is "Video" |
 | [ ] 5.1a.13 | Extract, then kill the app on step 2 (Developer options, or `am kill`) and reopen | The wizard comes back with the frames, and after the run the row and the viewer still show the frames' clip times (3.4g, 8.2.1c) |
@@ -467,10 +467,10 @@ extraction show a determinate progress bar, their status line and time left inst
 | [ ] 5.4.2d | Run more than 100 frames | Neighbouring frames share a bin that shows the lowest of them; a low frame still shows red |
 | [ ] 5.4.2c | Run a pair that decorrelates (blurred or swapped frames) | After the first frame under 50% an amber line names it and warns one more stops the run; the second stops it as before |
 | [ ] 5.4.2a | Watch the overlay while frames import or a video extracts | The bins are absent; the header is the import's title with its percentage, then a determinate bar, the count of frames under it, and time left |
-| [ ] 5.4.2b | Tap **Cancel** during an import | A confirm dialog ("Cancel this import?"); confirming leaves no half-imported frames behind |
+| [ ] 5.4.2b | Tap **Cancel** during an import | A confirm dialog ("Cancel import?", with **Keep importing** and **Cancel**); confirming leaves no half-imported frames behind |
 | [ ] 5.4.3 | Leave the device untouched during a long run | The screen does not sleep |
 | [ ] 5.4.4 | Press Back mid-run | Blocked, with a toast |
-| [ ] 5.4.5 | Tap **Cancel** → "Keep running" | The run continues |
+| [ ] 5.4.5 | Tap **Cancel** → "Keep running" ("Cancel analysis?") | The run continues |
 | [ ] 5.4.6 | Tap **Cancel** → confirm | Stops within a moment — not at the end of the frame — and returns to step 2, silently |
 | [ ] 5.4.6a | Cancel a long frame (big ROI, small step) | Same: no multi-second wait on the progress overlay after confirming |
 | [ ] 5.4.6b | Start a new run straight after cancelling one | It runs normally — the cancel does not carry over |
@@ -484,11 +484,11 @@ extraction show a determinate progress bar, their status line and time left inst
 | # | Action | Expected |
 |---|---|---|
 | [ ] 5.5.1 | Run on a featureless image pair | Engine failure dialog naming the feature-detection cause, **and the frame and image it failed on**, with a **Why?** that opens the features FAQ behind the leave-the-app confirm |
-| [ ] 5.5.1a | Run a batch where a later frame decorrelates | "Stopped early" — not "Analysis failed" — naming the frame and how many were kept |
-| [ ] 5.5.1c | Acknowledge that dialog | The kept frames open in the viewer — the run does not leave you back on the settings page |
+| [ ] 5.5.1a | Run a batch where a later frame decorrelates | "Stopped at frame N" — not "Analysis failed" — then "22 of 40 frames kept." and the reason in one sentence; **Why?** adds the frame's image and the decorrelation explanation and leaves the dialog up |
+| [ ] 5.5.1c | Tap **View results** | The kept frames open in the viewer — the run does not leave you back on the settings page |
 | [ ] 5.5.1d | Press Back on that dialog | Nothing dismisses it; the only way on is through to the results |
 | [ ] 5.5.1e | Return to Home afterwards | The short analysis is listed with the frames it kept — not a phantom row from a run reported as failed |
-| [ ] 5.5.1n | First run of a batch whose frame 1 keeps no points, then later frames solve and one fails or decorrelates | The failure dialog explaining frame 1 (strain window, nothing correlated, or unreadable) — **not** "Stopped early … saved and open next": a run is saved only when frame 1 solves, and no Home row appears |
+| [ ] 5.5.1n | First run of a batch whose frame 1 keeps no points, then later frames solve and one fails or decorrelates | The failure dialog explaining frame 1 (strain window, nothing correlated, or unreadable) — **not** "Stopped at frame N … frames kept": a run is saved only when frame 1 solves, and no Home row appears |
 | [ ] 5.5.1f | Read that Home row | "39 of 50 frames" and the reason, not a bare "39 frames" |
 | [ ] 5.5.1g | Open it and tap ⓘ | Settings used lists **Stopped early** and **Frames solved** |
 | [ ] 5.5.1h | Force-stop the app, reopen, look again | Both still say why — the reason is stored, not held in memory |
@@ -650,7 +650,7 @@ node. **Exit:** Home, or back to the Lattice.
 | [ ] 8.1.4 | Pinch to zoom | Zooms smoothly up to about 10×; panning is clamped to the image |
 | [ ] 8.1.5 | Zoom in and pan | The heatmap stays registered to the reference — no drift |
 | [ ] 8.1.6 | Zoom, then switch field | Zoom and pan are preserved |
-| [ ] 8.1.7 | Tap the colour scale bar | Custom scale dialog, prefilled with the bounds the bar shows (the auto ones until a custom scale is set); **Apply** without edits leaves the scale as it is |
+| [ ] 8.1.7 | Tap the colour scale bar | "Scale · U" dialog (Max / Min per field, **Auto**), prefilled with the bounds the bar shows (the auto ones until a custom scale is set); **Apply** without edits leaves the scale as it is |
 | [ ] 8.1.8 | Enter min ≥ max and apply | Rejected with a snackbar and a **Why?** that opens the custom-scale FAQ |
 | [ ] 8.1.9 | Enter valid bounds and apply | The heatmap and the scale labels both change |
 | [ ] 8.1.10 | Switch field, then switch back | The custom bounds are remembered *per field* |
@@ -774,7 +774,7 @@ and the lattice's **Save graph** (§7.3.4, straight to the system chooser).
 
 | # | Action | Expected |
 |---|---|---|
-| [ ] 8.5a.1 | Trigger any viewer export | A **Send to** sheet with a folder-icon **Save to Files** row ("Save a copy to this device") and a **Share** row ("Send to another app"). There is no filename caption on it |
+| [ ] 8.5a.1 | Trigger any viewer export | A **Send to** sheet with a folder-icon **Save to Files** row and a **Share** row, one line each. There is no filename caption on it |
 | [ ] 8.5a.2 | Tap **Save to Files** for **This field** | A SAF save dialog opens via the transparent `SaveExportActivity`; the already-built file lands where you choose |
 | [ ] 8.5a.2a | Tap **Save to Files** for a slow target (PDF, Everything, …) | SAF opens **before** generation, and the export is written straight into that document — nothing is staged and re-offered |
 | [ ] 8.5a.3 | Cancel that SAF dialog | You come back to the app cleanly, with nothing half-written |

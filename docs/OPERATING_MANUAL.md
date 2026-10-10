@@ -140,9 +140,11 @@ import **only through Files**, not Photos.
 warning naming a bigger subset size. Treat it as a comment on the pattern, not
 just a setting.
 
-**Video.** Pick a video and a sampling sheet opens: frame rate, time segment,
-live frame-count estimate. Frame 0 becomes the reference, named after the
-clip, and each frame keeps its time in the clip. While the video's
+**Video.** Pick a video and a sampling sheet opens: **Keyframes** or
+**Interval** (the ⓘ beside them says what each extracts), a frame rate for
+Interval, the segment, and for Interval a live frame-count estimate. Frame 0
+becomes the reference, named after the clip, and each frame keeps its time in
+the clip. While the video's
 length and frame rate are read, the reference slot shows a small spinner and
 **Reading video…**.
 
@@ -214,8 +216,8 @@ after. Tap the sort icon to change it:
 
 | Sort | Use when |
 |---|---|
-| Name · A–Z / Z–A | Filenames carry the sequence |
-| Date · oldest / newest first | Filenames don't; uses capture time, then EXIF |
+| A–Z / Z–A | Filenames carry the sequence |
+| Oldest first / Newest first | Filenames don't; uses capture time, then EXIF |
 | Manual | Neither works — drag the thumbnails |
 
 You cannot get back to the picker's original order once sorted. With one
@@ -281,8 +283,10 @@ status under it names that combination; at the end the header reads *Solved 9
 of 9 analyses · saving*. Cancelling an import asks for confirmation and leaves nothing behind.
 
 **A run stops itself if the images decorrelate.** Two consecutive frames below
-50% convergence end it — the frames after them would be no better, and the
-message names the frame and image it gave up on.
+50% convergence end it — the frames after them would be no better. The
+message's title names the frame it gave up on ("Stopped at frame 40"), its text
+says how many frames were kept and why, and **Why?** adds the image's name and
+the longer explanation.
 
 This is a **short run, not a failed one**: the frames solved before the collapse
 are real data, they are saved as an analysis, and acknowledging the message takes
@@ -573,7 +577,7 @@ gives you the true extrema, and the two are allowed to disagree. While the
 summary animation is up, the colour bar and ⓘ both quote the **lowest scale-min
 and highest scale-max across every frame** — those two ends need not come from
 the same frame. Tap the bar to set fixed min/max
-(remembered per field). **Auto scale** drops a custom override and returns to the
+(remembered per field). **Auto** drops a custom override and returns to the
 clamped bounds on a frame, or to that sequence envelope on the summary. On a single-setting analysis the
 summary GIF and share field GIFs still use a whole-sequence scale so the
 loop stays comparable.
@@ -687,9 +691,9 @@ goes from the phone and that is that:
 
 <img src="images/delete-dialog.png" width="300" alt="Delete confirmation">
 
-With a backup you are asked *where* instead — **Delete from this phone**,
-keeping the backup, **Delete the cloud backup**, keeping the phone's copy, or
-**Delete everywhere**. Read that dialog before tapping.
+With a backup you are asked *where* instead — **From this phone** (the cloud
+copy stays), **From the cloud** (the phone's copy stays), or **Everywhere**. A
+deleted cloud copy cannot be recovered, so read that dialog before tapping.
 
 **Deleting on this device only is not losing it.** The row stays on Home, marked
 **Only in cloud**, and tapping it offers to **Restore** the analysis to the phone.
@@ -743,11 +747,11 @@ used, in coarse buckets. Neither carries your images, results, specimen names or
 addresses, and nothing is sent until you turn it on.
 
 **Your data** holds the two exports and the account delete. **Export my data**
-builds a ZIP of everything on this phone; **Download my cloud account data** asks
+builds a ZIP of everything on this phone; **Download cloud data** asks
 the server for its copy. Both show progress and finish at the same **Send to**
 sheet as any other export.
 
-**Deleting your account** (Settings → Your data) asks you to confirm your
+**Delete account** (Settings → Your data) asks you to confirm your
 identity first, on the sign-in screen itself — whichever way you normally sign
 in: password, Google, or an emailed link. Your address is filled in and cannot be
 changed; you are proving *this* account. Back out and nothing happens. Once

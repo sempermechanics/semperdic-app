@@ -471,7 +471,7 @@
             android:minHeight="48dp"
             android:paddingTop="0dp"
             android:paddingBottom="0dp"
-            android:text="@string/next_settings" />
+            android:text="@string/action_next" />
     </LinearLayout>
   </LinearLayout>
 

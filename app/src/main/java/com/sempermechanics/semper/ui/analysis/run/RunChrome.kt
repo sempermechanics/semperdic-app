@@ -27,10 +27,11 @@ class RunChrome(
         class Working(val cancel: CancelPrompt) : Busy
     }
 
-    /** The question Cancel asks, and what confirming it does. */
+    /** The question Cancel asks, the button that declines it, and what confirming it does. */
     class CancelPrompt(
         @StringRes val title: Int,
         @StringRes val body: Int,
+        @StringRes val keep: Int,
         val onConfirm: () -> Unit,
     )
 
@@ -41,7 +42,9 @@ class RunChrome(
 
     /** An import has started; its helper drives the overlay. [onCancel] stops it. */
     fun beginImport(onCancel: () -> Unit) {
-        begin(CancelPrompt(R.string.cancel_import_title, R.string.cancel_import_body, onCancel))
+        begin(
+            CancelPrompt(R.string.cancel_import_title, R.string.cancel_import_body, R.string.keep_importing, onCancel),
+        )
     }
 
     /**
@@ -64,7 +67,7 @@ class RunChrome(
             overlay.show()
         }
         activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        begin(CancelPrompt(R.string.cancel_run_title, R.string.cancel_run_body, onCancel))
+        begin(CancelPrompt(R.string.cancel_run_title, R.string.cancel_run_body, R.string.keep_running, onCancel))
     }
 
     /** The import or run is over: hides the overlay, lets the screen sleep, disarms Cancel. */
@@ -78,8 +81,8 @@ class RunChrome(
 
     /**
      * Asks whether to stop what is running. Hand-built rather than
-     * `Dialogs.confirm`: its negative button says "Keep running", not Cancel,
-     * since Cancel is what the user just pressed.
+     * `Dialogs.confirm`: its negative button says "Keep running" (or "Keep
+     * importing"), not Cancel, since Cancel is what the user just pressed.
      */
     fun confirmCancel() {
         val prompt = (busy as? Busy.Working)?.cancel ?: return
@@ -90,7 +93,7 @@ class RunChrome(
                 prompt.onConfirm()
                 cancelButton.isEnabled = false
             }
-            .setNegativeButton(R.string.keep_running, null)
+            .setNegativeButton(prompt.keep, null)
             .show()
     }
 

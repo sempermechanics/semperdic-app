@@ -2,7 +2,10 @@ package com.sempermechanics.semper.ui.analysis.frames
 
 import android.app.Application
 import android.net.Uri
+import android.view.View
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
+import androidx.core.view.isVisible
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.imaging.video.ExtractionRequest
@@ -11,11 +14,13 @@ import com.sempermechanics.semper.imaging.video.VideoMeta
 import com.sempermechanics.semper.ui.analysis.WizardTestBed
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowDialog
 
 /**
  * The sampling sheet says what the clip reported and what a sampling will
@@ -74,7 +79,10 @@ class VideoSamplingSheetTest {
         val segment = "${VideoFrameExtractor.formatClock(0)} – ${VideoFrameExtractor.formatClock(4_000L)}"
         assertEquals(segment, sheet.findViewById<TextView>(R.id.tvSegmentValue)!!.text.toString())
 
+        // Keyframes give no count up front, so no estimate line until Interval.
+        assertFalse(sheet.findViewById<TextView>(R.id.tvEstimate)!!.isVisible)
         sheet.findViewById<MaterialButtonToggleGroup>(R.id.rgExtractMode)!!.check(R.id.btnModeUniform)
+        assertTrue(sheet.findViewById<TextView>(R.id.tvEstimate)!!.isVisible)
         val estimate = sheet.findViewById<TextView>(R.id.tvEstimate)!!.text.toString()
         assertTrue(estimate, estimate.startsWith("≈ 40 frames: 1 reference + 39 deformed"))
 
@@ -85,5 +93,20 @@ class VideoSamplingSheetTest {
         assertEquals(90, sent.rotationDegrees)
         assertEquals(false, sent.preferKeyframes)
         assertTrue(sent.maxFrames > 0)
+    }
+
+    @Test
+    fun `the mode toggle's info button explains both modes and the reference`() {
+        val bed = WizardTestBed().also { beds += it }
+        val sheet = VideoSamplingSheet(bed.activity, onExtract = {}).show(Uri.parse("content://v/1"), meta)
+        bed.idle()
+
+        sheet.findViewById<View>(R.id.btnVideoModeInfo)!!.performClick()
+        bed.idle()
+        val info = ShadowDialog.getLatestDialog() as AlertDialog
+        assertEquals(
+            bed.activity.getString(R.string.video_mode_info),
+            info.findViewById<TextView>(android.R.id.message)!!.text.toString(),
+        )
     }
 }

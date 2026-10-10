@@ -53,7 +53,6 @@ object SessionDeletes {
     const val KEY_DONE = "done"
     const val KEY_TOTAL = "total"
     const val KEY_STILL_IN_CLOUD = "still_in_cloud"
-    const val KEY_CLOUD_ONLY = "cloud_only"
 
     /** How long a confirmed delete stays cancellable before anything is sent. */
     const val UNDO_WINDOW_SECONDS = 5L

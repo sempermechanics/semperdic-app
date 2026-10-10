@@ -73,8 +73,8 @@ class AnalysisWizardChrome(
         wizard.tvStepDots.text = stepDots(step.number, count)
         wizard.tvStepDots.contentDescription = activity.getString(R.string.step_of_fmt, step.number, count)
         val next = when (step) {
-            WizardStep.IMAGES -> R.string.next_settings
-            WizardStep.SETTINGS -> R.string.next_sweep.takeIf { sweepMode }
+            WizardStep.IMAGES -> R.string.action_next
+            WizardStep.SETTINGS -> R.string.action_next.takeIf { sweepMode }
             WizardStep.SWEEP -> null
         }
         wizard.btnNext.isVisible = next != null

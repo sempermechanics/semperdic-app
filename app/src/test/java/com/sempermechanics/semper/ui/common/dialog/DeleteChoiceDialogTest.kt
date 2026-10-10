@@ -59,6 +59,30 @@ class DeleteChoiceDialogTest {
     }
 
     @Test
+    fun `a hint sits on its own line under the label, and the standard set says what stays`() {
+        val ran = mutableListOf<String>()
+        DeleteChoiceDialog.show(
+            activity,
+            "Delete steel_00?",
+            "A deleted cloud copy can't be recovered.",
+            DeleteChoiceDialog.phoneCloudEverywhere(
+                activity,
+                onPhone = { ran += "phone" },
+                onCloud = { ran += "cloud" },
+                onEverywhere = { ran += "everywhere" },
+            ),
+        )
+        shadowOf(activity.mainLooper).idle()
+        val dialog = ShadowDialog.getLatestDialog() as AlertDialog
+        assertEquals(
+            listOf("From this phone\ncloud stays", "From the cloud\nphone stays", "Everywhere"),
+            dialog.choices().map { it.text.toString() },
+        )
+        dialog.choices()[2].performClick()
+        assertEquals(listOf("everywhere"), ran)
+    }
+
+    @Test
     fun `a choice runs only its own action and closes the dialog`() {
         val dialog = show()
         dialog.choices()[1].performClick()

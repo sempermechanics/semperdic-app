@@ -44,7 +44,6 @@ class BackupDeleteWorker(context: Context, params: WorkerParameters) : Coroutine
         SessionDeletes.KEY_DONE to report.done,
         SessionDeletes.KEY_TOTAL to items.size,
         SessionDeletes.KEY_STILL_IN_CLOUD to SessionDeletes.encode(report.stillInCloud),
-        SessionDeletes.KEY_CLOUD_ONLY to items.all { it.mode == SessionDeletes.Mode.CLOUD },
     )
 
     /** A single delete queued by a build from before [SessionDeletes]. */

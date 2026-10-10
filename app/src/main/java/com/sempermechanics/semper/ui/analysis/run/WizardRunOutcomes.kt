@@ -1,6 +1,7 @@
 package com.sempermechanics.semper.ui.analysis.run
 
 import androidx.annotation.StringRes
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.sempermechanics.semper.R
@@ -12,6 +13,7 @@ import com.sempermechanics.semper.ui.analysis.sweep.toSkippedNode
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisNavHelper
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.BatchAnalysisOutcome
+import com.sempermechanics.semper.ui.common.dialog.Dialogs
 import com.sempermechanics.semper.ui.common.dialog.FaqRedirect
 import com.sempermechanics.semper.ui.common.dialog.Feedback
 
@@ -37,32 +39,39 @@ class WizardRunOutcomes(
      *
      * Told plainly and then opened. The alternative — a failure dialog — left a
      * session appearing on Home that the user had just been told was a failure,
-     * with no route to it from here.
+     * with no route to it from here. Two short sentences say how many frames
+     * were kept and why it stopped; **Why?** has the rest (the frame it stopped
+     * on, the engine's full reason, what the frames kept are).
      */
     override fun onPartialRun(outcome: BatchAnalysisOutcome) {
         val kept = outcome.totalFrames
         val planned = viewModel.defFilePaths.size
+        val res = activity.resources
         status.show(activity.getString(R.string.run_stopped_early_fmt, outcome.stoppedAtFrame, planned))
         viewModel.lastDefPath = viewModel.defFilePaths.firstOrNull() ?: ""
         viewModel.lastBatchDirPath = outcome.batchDirPath
         checkReady()
-        MaterialAlertDialogBuilder(activity)
-            .setTitle(R.string.run_stopped_early_title)
-            .setMessage(
-                activity.resources.getQuantityString(R.plurals.run_stopped_early_body, kept, kept, planned) +
-                    System.lineSeparator() + System.lineSeparator() +
-                    engineFailureMessage(
-                        outcome.engineErrorCode,
-                        frameIndex = outcome.failedFrameIndex,
-                        frameName = outcome.failedFrameName,
-                    ),
-            )
+        val code = outcome.engineErrorCode
+        val title = activity.getString(R.string.run_stopped_early_title_fmt, outcome.stoppedAtFrame)
+        val message = res.getQuantityString(R.plurals.run_stopped_early_body, kept, kept, planned) +
+            " " + EngineFailure.stopReason(activity, code)
+        val why = listOfNotNull(
+            res.getQuantityString(R.plurals.run_stopped_early_why, kept, kept),
+            engineFailureMessage(code, frameIndex = outcome.failedFrameIndex, frameName = outcome.failedFrameName),
+            EngineFailure.whyRes(code)?.let(activity::getString),
+        ).joinToString(System.lineSeparator() + System.lineSeparator())
+        val dialog = MaterialAlertDialogBuilder(activity)
+            .setTitle(title)
+            .setMessage(message)
             // The dialog explains, it does not ask: the frames are saved either
             // way, so dismissing it back onto the settings page would strand the
             // user one screen away from the data the run just produced.
             .setCancelable(false)
             .setPositiveButton(R.string.run_stopped_early_view) { _, _ -> openResultViewer() }
+            .setNeutralButton(R.string.action_why, null)
             .show()
+        // Set after show so Why? leaves this dialog up: View results stays its only way out.
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener { Dialogs.info(activity, title, why) }
     }
 
     override fun openResultViewer() = openResults(activity, viewModel, sweep, sweep = false)
@@ -80,9 +89,14 @@ class WizardRunOutcomes(
         return frameInfo + activity.getString(EngineFailure.reasonRes(code), code)
     }
 
-    override fun showEngineFailureDialog(message: String, @StringRes titleRes: Int, @StringRes faqUrlRes: Int) {
+    override fun showEngineFailureDialog(
+        message: String,
+        @StringRes titleRes: Int,
+        @StringRes faqUrlRes: Int,
+        why: String?,
+    ) {
         status.setFaq(faqUrlRes)
-        FaqRedirect.errorDialog(activity, activity.getString(titleRes), message, faqUrlRes)
+        FaqRedirect.errorDialog(activity, activity.getString(titleRes), message, faqUrlRes, why)
     }
 
     override fun clearEngineFailFaq() = status.setFaq(null)
