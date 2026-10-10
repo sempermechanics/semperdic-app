@@ -153,6 +153,14 @@ object PrefFiles {
         val ANNOUNCED = PrefKey.string("announced", "")
     }
 
+    /** `BackupFailureLedger`. */
+    object BackupOutcomes {
+        const val NAME = "semper_backup_outcomes"
+
+        /** Comma-separated work ids whose failure was already announced. */
+        val ANNOUNCED = PrefKey.string("announced", "")
+    }
+
     /** `AuthRepository`'s email-link sign-in. */
     object EmailLink {
         const val NAME = "semper_emaillink"
@@ -192,6 +200,7 @@ object PrefFiles {
         CloudListing.NAME,
         CloudSyncPrefs.NAME,
         RestoreOutcomes.NAME,
+        BackupOutcomes.NAME,
         EmailLink.NAME,
         SessionDeletesPrefs.NAME,
         AccountDeletion.NAME,

@@ -12,6 +12,69 @@ Decisions that outlive their PR are recorded in
 [CLOUD_ARCHITECTURE_GCP.md](../backend/CLOUD_ARCHITECTURE_GCP.md) §20,
 [ARCHITECTURE.md](../app/ARCHITECTURE.md) and [../adr/](../adr/).
 
+## 2026-10-10 — The first Firestore restore drill passed; backend redeploy from `bd1246c3`
+
+**Restore drill (TD-156, #404, #411, #422).** No export had ever been restored.
+- The operator ran `scripts/setup-restore-drill.sh` on 2026-10-09. It created the
+  drill project `indicvision-dic-restore-drill`, its asia-south1 database, the
+  `restore-drill@` identity (Firestore owner on the drill project only, reached
+  through the `github` WIF pool) and the five `restore-drill` variables.
+- Two first runs failed:
+  - The new identity's WIF binding had not propagated: `getAccessToken` answered 403.
+  - The import checks `storage.buckets.get` on the backup bucket, which
+    `objectViewer` does not grant. The operator added `legacyBucketReader` for the
+    drill identity and the drill's Firestore agent, and the script now grants it and
+    retries the steps a new project makes slow (#411).
+- Run 38023354431 passed: export `20261009T090852Z` imported in **111 s (the RTO)**.
+  Every collection count and a 25-session relationship sample matched the export's
+  manifest, and the drill database was purged. Recorded in
+  [PRODUCTION_READINESS_GATE.md](PRODUCTION_READINESS_GATE.md); the drill runs monthly.
+
+**Backend redeploy**, runs 38023338217 (staging) and 38023582092 (production) from
+`bd1246c3`, started by the operator. No backend file changed since `029a12c4` (entry
+below): both smokes passed, new revisions took 100 %, and each gateway job found that
+the live config already served the spec (`v202610091239-93` staging,
+`v202610091241-94` production).
+
+## 2026-10-09 — Backend and gateway deploy: the app id in the access log, JSON log lines, one status per refusal (#409)
+
+Staging run 37931002871 and production run 37931251516 from `029a12c4`, started by the
+operator, `gateway_mode: apply`. Both smokes passed (`/readyz`, `firestore: ok`);
+`semper-api-37931251516-1` took 100 %. The gateways switched to `v202610091239-93`
+(staging) and `v202610091241-94` (production).
+
+What changed for callers (#409):
+- **Access log:** every line names the app id the call sent (`appId`: a listed id,
+  `none` or `unknown`; TD-176 step 1).
+- **Log lines:** on Cloud Run each is one JSON object with a `severity`, so Cloud
+  Logging stores `jsonPayload` and the documented `jsonPayload.*` filters and alerts
+  can match. Lines from before this deploy stay `textPayload`.
+- **`/v1/config`:** sends `licensePrefix` only while the licence is the effective mode
+  (TD-145). `/v1/me` is unchanged.
+- **Gateway:** `page_size` and `page_token` are declared on `/uploads` and `/files`
+  (TD-159).
+- **Refusals:** `license_revoked` is 403 and `license_seat_disabled` 409 on every route
+  (TD-185, [ADR-020](../adr/ADR-020-backend-refusal-model.md)).
+
+Checked on 2026-10-10: production access lines carry `appId`
+(`com.sempermechanics.semper` and `com.sempermechanics.materialtesting` seen; no
+`com.indicvision.*` yet).
+
+## 2026-10-09 — Backend and gateway deploy: the account-erasure check (#400)
+
+Staging run 37923499929 and production run 37923748503 from `ae5f4ec4`, started by the
+operator, `gateway_mode: apply`. Both smokes passed; `semper-api-37923748503-1` took
+100 %. The gateways switched to `v202610091128-91` (staging) and `v202610091130-92`
+(production).
+
+What changed for callers:
+- **`GET /v1/me/erasure`** (TD-206): whether this phone's device record is gone or
+  someone else's, for the app's check after an account deletion that never answered.
+  It reads the ID token alone (`deps.token_uid`), so asking does not re-create an
+  erased account's profile. Answers 401 without a token through the gateway.
+- Also in this build, tests only: real Firebase ID tokens verified end to end
+  (TD-201), the ops scripts' tests (TD-202), the account-deletion probe pins (TD-165).
+
 ## 2026-10-08 — Backend deploys with `gateway_mode: apply`: both gateways' configs re-encoded
 
 **Why:** the hand deploy of 2026-10-07 created `v202610070547-manual` (staging) and

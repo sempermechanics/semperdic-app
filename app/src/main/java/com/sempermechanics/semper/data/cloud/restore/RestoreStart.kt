@@ -2,14 +2,11 @@ package com.sempermechanics.semper.data.cloud.restore
 
 import android.content.Context
 import androidx.annotation.WorkerThread
-import androidx.core.content.edit
 import androidx.work.WorkManager
 import com.sempermechanics.semper.data.DicRestoreWorker
+import com.sempermechanics.semper.data.cloud.FailureLedger
 import com.sempermechanics.semper.data.net.CloudSessionDto
 import com.sempermechanics.semper.data.prefs.PrefFiles
-import com.sempermechanics.semper.data.prefs.get
-import com.sempermechanics.semper.data.prefs.privatePrefs
-import com.sempermechanics.semper.data.prefs.put
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import timber.log.Timber
@@ -163,29 +160,12 @@ object RestoreStart {
 }
 
 /**
- * Which failed restores the user has already been told about.
- *
- * WorkManager keeps a finished job for about a day, and every screen that
- * observes the "restore" tag is handed all of them again. A set held by each
- * Activity therefore re-announced an old failure every time Home or Settings
- * opened, and once more on the other screen. This ledger is shared by both
- * screens and kept on disk, so each failure is announced once.
+ * Which failed restores the user has already been told about, on Home and
+ * Settings alike: each is announced once ([FailureLedger]).
  */
 object RestoreFailureLedger {
-
-    /** Well past the number of restore jobs WorkManager can still be holding. */
-    private const val MAX_REMEMBERED = 64
+    private val ledger = FailureLedger(PrefFiles.RestoreOutcomes.NAME, PrefFiles.RestoreOutcomes.ANNOUNCED)
 
     /** True the first time [workId] is claimed, on any screen; false after that. */
-    @Synchronized
-    fun claim(context: Context, workId: UUID): Boolean {
-        val prefs = privatePrefs(context, PrefFiles.RestoreOutcomes.NAME)
-        val announced = PrefFiles.RestoreOutcomes.ANNOUNCED
-        val seen = prefs[announced].split(',').filter { it.isNotBlank() }
-        val id = workId.toString()
-        if (id in seen) return false
-        val next = (seen + id).takeLast(MAX_REMEMBERED)
-        prefs.edit { put(announced, next.joinToString(",")) }
-        return true
-    }
+    fun claim(context: Context, workId: UUID): Boolean = ledger.claim(context, workId)
 }

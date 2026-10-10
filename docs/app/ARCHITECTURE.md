@@ -126,7 +126,7 @@ When cloud is configured (`SEMPER_API_BASE_URL`):
 
 | Type | File | Job |
 |---|---|---|
-| Upload | `DicUploadWorker` | Resume/create remote session, stage artifacts, upload bundles |
+| Upload | `DicUploadWorker` | Resume/create remote session, stage artifacts, upload bundles. Home tells a failed backup's reason once, not once per Home (`BackupFailureLedger`) |
 | Metadata JSON | `SessionUploadMetadata` | frames / device / engine JSON for the API |
 | Bundle build | `SessionUploadBundler` | Render frame bundles + CSV lists offline-testable |
 | Restore | `CloudRestore` / `DicRestoreWorker` | Pull remote sessions back into local session dirs. Home (row tap, multi-select **Restore**, the cloud-backups card) and Settings all start one through `RestoreStart.start`, which writes the row first so either screen shows its progress; `RestoreFailureLedger` announces each failure once across both screens |
@@ -249,7 +249,7 @@ The everything ZIP gives each stage its share of the bar (`ZipBudget` in
 
 | Stage | Bar | Moves by |
 |---|---|---|
-| PDF | 0–45 % | frame, then "Finalizing PDF..." for `PdfDocument.writeTo` |
+| PDF | 0–45 % | frame, then "Finishing the report" for `PdfDocument.writeTo` |
 | CSV | 45–62 % (sweep 45–72 %) | frame, and every 4096 point rows |
 | Animations (not on a sweep) | 62–72 % | frame of each field |
 | Raw photos and GIFs into the archive | 72–75 % | bytes copied |

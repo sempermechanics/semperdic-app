@@ -2328,9 +2328,10 @@ returned them — but `/v1/config` is the larger answer, and a browser asking
 "what am I?" should not have to fetch product limits to find out whether it
 holds a seat until 14:20. The prefix is the one field the two answer
 differently: `/v1/config` sends `licensePrefix` only while the mode is
-`licensed` (`backend/app/repo/user_config.py:252`), because the app shows
-"Licensed as …" whenever it is set (TD-145); a held but inactive licence's
-prefix is on `/v1/me` alone.
+`licensed` (`backend/app/repo/user_config.py:252`), because builds before #405
+show "Licensed as …" whenever it is set (TD-145; the app now also checks
+`LicenseEntitlements.isLicensed`); a held but inactive licence's prefix is on
+`/v1/me` alone.
 
 #### `GET /v1/sessions/{sid}/bundle`
 
@@ -2489,7 +2490,7 @@ that keep the phone from contradicting it.
 
 - **A seat check parallel to the quota check.** An institution member without
   a live lease is not over any quota — a licensed account never is — so
-  `AccountCache.isSessionLimitReached` would let them through every existing
+  `SessionQuota.blocked` would let them through every existing
   gate. `LicenseEntitlements.isSeatRequiredToStart` is a separate predicate. It
   gates the Home **+** before the source menu opens (`HomeActivity`) and both
   compute paths (`AnalysisNavHelper`), guarded by

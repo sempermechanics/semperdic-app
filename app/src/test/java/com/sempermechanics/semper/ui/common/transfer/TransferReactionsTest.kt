@@ -113,7 +113,10 @@ class TransferReactionsTest {
     private val pills = mutableListOf<String>()
 
     private fun <A : Activity> launch(type: Class<A>): A {
-        val controller = Robolectric.buildActivity(type).setup()
+        // Listen from create, before start: the test WorkManager hands a
+        // starting screen its retained jobs at once, and a pill shown for one
+        // (an old failure told again) must be seen too.
+        val controller = Robolectric.buildActivity(type).create()
         screens += controller
         val activity = controller.get()
         activity.findViewById<ViewGroup>(android.R.id.content)
@@ -127,6 +130,7 @@ class TransferReactionsTest {
                     override fun onChildViewRemoved(parent: View, child: View) = Unit
                 },
             )
+        controller.start().postCreate(null).resume().visible()
         shadowOf(activity.mainLooper).idle()
         return activity
     }
@@ -152,6 +156,25 @@ class TransferReactionsTest {
         assertEquals(
             "each failure told once",
             listOf(first, second).map { home.getString(R.string.cloud_backup_failed_fmt, it) },
+            pills,
+        )
+    }
+
+    @Test
+    fun `a reopened Home does not tell a failed backup again`() {
+        val home = launch(HomeActivity::class.java)
+        val reason = "Too large (ref r4)"
+        run(setOf("upload", "upload-c"), workDataOf(IntentKeys.UPLOAD_FAIL_REASON to reason), fail = true)
+        idleUntil("the backup failure pill") { pills.isNotEmpty() }
+
+        // A new Home is handed the same retained job: the ledger keeps it quiet (TD-166).
+        close(home)
+        launch(HomeActivity::class.java)
+        val later = "Device conflict (ref r5)"
+        run(setOf("upload", "upload-d"), workDataOf(IntentKeys.UPLOAD_FAIL_REASON to later), fail = true)
+        idleUntil("the later failure") { pills.size >= 2 }
+        assertEquals(
+            listOf(reason, later).map { home.getString(R.string.cloud_backup_failed_fmt, it) },
             pills,
         )
     }
