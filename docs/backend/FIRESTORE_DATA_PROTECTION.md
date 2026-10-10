@@ -93,7 +93,8 @@ change it) and its `(default)` Firestore database in asia-south1, and the
 `restore-drill@` identity with `roles/datastore.owner` on that project only. It
 lets the repo's workflows act as that identity through the existing `github`
 Workload Identity pool on production, whose provider admits only this repo. It
-gives the identity and the drill project's Firestore agent `objectViewer` on the
+gives the identity and the drill project's Firestore agent `objectViewer` and
+`legacyBucketReader` (the import checks `storage.buckets.get`) on the
 backup bucket, and sets the five variables above. Each step checks before it
 creates, so a rerun continues where a failed one stopped.
 

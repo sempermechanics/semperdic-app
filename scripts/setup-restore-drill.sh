@@ -63,6 +63,18 @@ run() {
   fi
 }
 have() { "$@" >/dev/null 2>&1; }
+# A new project takes a minute or so to reach every API: the first calls can
+# answer "not found" for a project that exists. Retry those a few times.
+retry() {
+  if [ "$DRY_RUN" = 1 ]; then run "$@"; return; fi
+  local attempt
+  for attempt in 1 2 3 4 5 6; do
+    "$@" && return 0
+    [ "$attempt" = 6 ] && return 1
+    echo "   not ready yet; retrying in 20 s ($attempt/5)"
+    sleep 20
+  done
+}
 
 step "Drill project $DRILL"
 if have gcloud projects describe "$DRILL"; then
@@ -83,7 +95,7 @@ run gcloud services enable firestore.googleapis.com --project="$DRILL"
 if have gcloud firestore databases describe --database='(default)' --project="$DRILL"; then
   echo "   database exists"
 else
-  run gcloud firestore databases create --location="$LOCATION" --type=firestore-native --project="$DRILL"
+  retry gcloud firestore databases create --location="$LOCATION" --type=firestore-native --project="$DRILL"
 fi
 
 step "Drill identity $SA: Firestore owner on the drill project only"
@@ -93,9 +105,9 @@ else
   run gcloud iam service-accounts create restore-drill --project="$DRILL" \
     --display-name="Firestore restore drill"
 fi
-run gcloud projects add-iam-policy-binding "$DRILL" --member="serviceAccount:$SA" \
+retry gcloud projects add-iam-policy-binding "$DRILL" --member="serviceAccount:$SA" \
   --role=roles/datastore.owner --condition=None --quiet
-run gcloud iam service-accounts add-iam-policy-binding "$SA" --project="$DRILL" \
+retry gcloud iam service-accounts add-iam-policy-binding "$SA" --project="$DRILL" \
   --role=roles/iam.workloadIdentityUser \
   --member="principalSet://iam.googleapis.com/$POOL/attribute.repository/$REPO" --quiet
 
@@ -108,8 +120,13 @@ else
 fi
 for member in "serviceAccount:$SA" \
               "serviceAccount:service-${DRILL_NUM}@gcp-sa-firestore.iam.gserviceaccount.com"; do
-  run gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
+  retry gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
     --member="$member" --role=roles/storage.objectViewer --quiet
+  # The import also checks storage.buckets.get on the bucket itself before it
+  # reads a file ("Service account does not have access to Google Cloud Storage
+  # file: /<bucket>" without it); legacyBucketReader adds that, still read-only.
+  retry gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
+    --member="$member" --role=roles/storage.legacyBucketReader --quiet
 done
 
 step "Variables of the restore-drill environment"
