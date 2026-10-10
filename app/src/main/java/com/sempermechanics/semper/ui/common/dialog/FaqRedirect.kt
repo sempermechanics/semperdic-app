@@ -73,12 +73,15 @@ object FaqRedirect {
 
     /**
      * Alert with OK and optional **Why?**. When [faqUrlRes] is null, only OK.
+     * Why? opens the FAQ through [confirm]; with a [why], it first shows that
+     * longer explanation, with **Open FAQ** beside its OK.
      */
     fun errorDialog(
         activity: Activity,
         title: CharSequence,
         message: CharSequence,
         @StringRes faqUrlRes: Int?,
+        why: CharSequence? = null,
     ) {
         if (faqUrlRes == null) {
             Dialogs.info(activity, title, message)
@@ -88,7 +91,18 @@ object FaqRedirect {
             .setTitle(title)
             .setMessage(message)
             .setPositiveButton(android.R.string.ok, null)
-            .setNeutralButton(R.string.action_why) { _, _ -> confirm(activity, faqUrlRes) }
+            .setNeutralButton(R.string.action_why) { _, _ ->
+                if (why == null) confirm(activity, faqUrlRes) else whyDialog(activity, title, why, faqUrlRes)
+            }
+            .show()
+    }
+
+    private fun whyDialog(activity: Activity, title: CharSequence, why: CharSequence, @StringRes faqUrlRes: Int) {
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(title)
+            .setMessage(why)
+            .setPositiveButton(android.R.string.ok, null)
+            .setNeutralButton(R.string.action_open_faq) { _, _ -> confirm(activity, faqUrlRes) }
             .show()
     }
 }

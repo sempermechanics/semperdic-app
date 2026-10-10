@@ -73,6 +73,28 @@ object EngineFailure {
         context.getString(shortReasonRes(engineErrorCode), engineErrorCode)
 
     /**
+     * The longer explanation behind a dialog's **Why?**, for a reason whose
+     * [reasonRes] is one short sentence; null when [reasonRes] already says it all.
+     */
+    @StringRes
+    fun whyRes(engineErrorCode: Int): Int? = when (cause(engineErrorCode)) {
+        Cause.CONVERGENCE -> R.string.error_low_convergence_why
+        else -> null
+    }
+
+    /**
+     * Why a run stopped, short enough to follow "22 of 40 frames kept.": the
+     * one-sentence [reasonRes] where there is one ([whyRes] holds the rest),
+     * else the [shortReason] label.
+     */
+    fun stopReason(context: Context, engineErrorCode: Int): String =
+        if (whyRes(engineErrorCode) != null) {
+            context.getString(reasonRes(engineErrorCode), engineErrorCode)
+        } else {
+            shortReason(context, engineErrorCode)
+        }
+
+    /**
      * Why a single run's first frame kept no points (engine code 0). Code 0
      * alone reads as a strain-window failure, but it is also what a frame
      * where nothing correlated returns; the points ICGN accepted there

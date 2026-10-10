@@ -7,7 +7,7 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.ui.common.dialog.Dialogs
 
 /**
- * "Sign out?" before a user-chosen sign-out, then [SignOutRun.start] for
+ * "Sign out of this phone?" before a user-chosen sign-out, then [SignOutRun.start] for
  * [activity]'s class, so a rotation cannot cut it short. The screen routes on
  * through its own [SignOutRun.observe] (usually to [AuthRoute.toSignIn]).
  *
@@ -23,8 +23,8 @@ fun SignOutRun.confirm(
     signOut: suspend () -> Unit,
 ): AlertDialog = Dialogs.confirm(
     activity,
-    R.string.sign_out_confirm_title,
-    R.string.sign_out_confirm_body,
+    activity.getText(R.string.sign_out_confirm_title),
+    null,
     confirmLabel,
 ) {
     start(activity.javaClass, signOut)

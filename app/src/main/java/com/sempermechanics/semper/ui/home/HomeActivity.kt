@@ -99,8 +99,8 @@ class HomeActivity : AppCompatActivity() {
         override fun handleOnBackPressed() {
             Dialogs.confirm(
                 this@HomeActivity,
-                R.string.exit_semper_title,
-                R.string.exit_semper_message,
+                getText(R.string.exit_semper_title),
+                null,
                 R.string.exit,
             ) {
                 finish()
@@ -407,8 +407,8 @@ class HomeActivity : AppCompatActivity() {
             // no local data is simply unopenable — no download offer.
             record.isRestorable(hasLocal) && showsCloudState() -> Dialogs.confirm(
                 this,
-                R.string.download_analysis_title,
-                R.string.download_analysis_body,
+                getString(R.string.restore_analysis_title_fmt, record.name),
+                getText(R.string.restore_analysis_body),
                 R.string.restore_action,
             ) { startRestore(listOf(record)) }
             else -> SessionOpenHelper.openOrExplain(this, record, hasLocal)

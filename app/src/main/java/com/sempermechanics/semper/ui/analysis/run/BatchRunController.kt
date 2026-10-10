@@ -48,7 +48,8 @@ class BatchRunController(
         /** Why a run produced nothing, naming the frame it stopped on. */
         fun engineFailureMessage(code: Int, frameIndex: Int, frameName: String?): String
 
-        fun showEngineFailureDialog(message: String, titleRes: Int, faqUrlRes: Int)
+        /** [why], when given, is the longer explanation behind the dialog's Why?. */
+        fun showEngineFailureDialog(message: String, titleRes: Int, faqUrlRes: Int, why: String? = null)
 
         fun clearEngineFailFaq()
 
@@ -184,7 +185,8 @@ class BatchRunController(
         } else {
             EngineFailure.faqUrlRes(outcome.engineErrorCode)
         }
+        val why = if (zeroPoints) null else EngineFailure.whyRes(outcome.engineErrorCode)?.let(activity::getString)
         tvResult.text = "❌ Error: $errorMessage"
-        host.showEngineFailureDialog(errorMessage, R.string.analysis_failed_title, faqRes)
+        host.showEngineFailureDialog(errorMessage, R.string.analysis_failed_title, faqRes, why)
     }
 }

@@ -113,7 +113,7 @@ class AnalysisWizardSmokeTest {
             val dots = activity.findViewById<TextView>(R.id.tvStepDots)
             assertEquals(activity.getString(R.string.step_of_fmt, 2, 3), dots.contentDescription)
             val next = activity.findViewById<TextView>(R.id.btnNext)
-            assertEquals(activity.getString(R.string.next_sweep), next.text.toString())
+            assertEquals(activity.getString(R.string.action_next), next.text.toString())
         }
         captureWizardShot("step2-sweep.png")
 

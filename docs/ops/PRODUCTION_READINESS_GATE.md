@@ -116,7 +116,7 @@ Strict binary PASS against all applicable external controls is **not** claimed.
       follow-up process in [RELEASING.md](RELEASING.md) (milestone triage + reply
       when fixed).
 - [x] Cloud account export (`GET /v1/me/export`) is reachable from the app —
-      Settings → Your data → "Download my cloud account data".
+      Settings → Your data → "Download cloud data".
 - [x] Release signing cert listed in
       `firebase-hosting/public/.well-known/assetlinks.json` (debug + release).
 - [ ] Counsel review of the Terms (India law, Chennai arbitration, liability

@@ -131,15 +131,19 @@ abstract class SessionSelectionFixture {
     protected fun dialogMessage(): String? =
         latestDialog().findViewById<TextView>(android.R.id.message)?.text?.toString()
 
-    /** The labels of the choice dialog's buttons, top to bottom. */
+    protected fun dialogTitle(): String? =
+        latestDialog().findViewById<TextView>(androidx.appcompat.R.id.alertTitle)?.text?.toString()
+
+    /** The choice dialog's buttons, top to bottom. */
     protected fun choices(): List<MaterialButton> {
         val box = latestDialog().findViewById<ViewGroup>(R.id.deleteChoices)
         return (0 until box.childCount).map { box.getChildAt(it) as MaterialButton }
     }
 
+    /** Taps the choice labelled [labelRes]; a hint, when there is one, sits on the line under it. */
     protected fun pick(labelRes: Int) {
         val label = activity.getString(labelRes)
-        choices().single { it.text.toString() == label }.performClick()
+        choices().single { it.text.lines().first() == label }.performClick()
         shadowOf(Looper.getMainLooper()).idle()
     }
 

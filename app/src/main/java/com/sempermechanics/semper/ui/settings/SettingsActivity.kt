@@ -265,8 +265,8 @@ class SettingsActivity : AppCompatActivity() {
         }
         Dialogs.confirm(
             this,
-            R.string.download_analysis_title,
-            R.string.download_analysis_body,
+            getString(R.string.restore_analysis_title_fmt, entry.name),
+            getText(R.string.restore_analysis_body),
             R.string.restore_action,
         ) { restoreBackup(entry) }
     }
@@ -323,36 +323,33 @@ class SettingsActivity : AppCompatActivity() {
 
     /**
      * Deleting a cloud backup is irreversible — there is no trash on the
-     * backend — so the confirm spells that out before anything is scheduled.
+     * backend — so the confirm says so before anything is scheduled.
      */
     private fun confirmDeleteCloudBackup(session: CloudSessionDto, entry: AnalysisEntry) {
         Dialogs.confirm(
             this,
-            getText(R.string.cloud_delete_forever_title),
-            getString(R.string.cloud_delete_forever_body_fmt, entry.name),
-            R.string.cloud_delete_forever_confirm,
+            getString(R.string.delete_cloud_title_fmt, entry.name),
+            getText(R.string.cloud_delete_body),
+            R.string.action_delete,
         ) { scheduleDelete(entry, session.localSessionId, session.sessionId, SessionDeletes.Mode.CLOUD) }
     }
 
     private fun showDeleteBackupChoice(record: SessionRecord, cloud: CloudSessionDto, entry: AnalysisEntry) {
         DeleteChoiceDialog.show(
             activity = this,
-            title = getString(R.string.delete_confirm_title),
+            title = getString(R.string.delete_confirm_title_fmt, entry.name),
             message = getString(R.string.delete_confirm_body_cloud),
-            choices = listOf(
-                DeleteChoiceDialog.Choice(getString(R.string.delete_choice_phone)) {
+            choices = DeleteChoiceDialog.phoneCloudEverywhere(
+                this,
+                onPhone = {
                     lifecycleScope.launch {
                         CloudSync.eraseLocalOnly(this@SettingsActivity, record.id)
                         toast(getString(R.string.delete_device_only_done))
                         wireAnalysesDataSection()
                     }
                 },
-                DeleteChoiceDialog.Choice(getString(R.string.delete_choice_cloud)) {
-                    scheduleDelete(entry, record.id, cloud.sessionId, SessionDeletes.Mode.CLOUD)
-                },
-                DeleteChoiceDialog.Choice(getString(R.string.delete_choice_everywhere)) {
-                    scheduleDelete(entry, record.id, cloud.sessionId, SessionDeletes.Mode.EVERYWHERE)
-                },
+                onCloud = { scheduleDelete(entry, record.id, cloud.sessionId, SessionDeletes.Mode.CLOUD) },
+                onEverywhere = { scheduleDelete(entry, record.id, cloud.sessionId, SessionDeletes.Mode.EVERYWHERE) },
             ),
         )
     }

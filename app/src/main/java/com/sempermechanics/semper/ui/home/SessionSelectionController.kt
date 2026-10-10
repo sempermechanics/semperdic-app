@@ -194,7 +194,7 @@ class SessionSelectionController(
                 ),
                 records,
             )
-            allHaveLocal && !anyCloud -> confirm(title, activity.getString(R.string.delete_confirm_body_local_multi)) {
+            allHaveLocal && !anyCloud -> confirm(title, activity.getString(R.string.delete_body_cant_undo)) {
                 eraseLocally(records, deviceOnly = false)
             }
             // Only-cloud stubs and mixed selections: one Delete that erases every copy.
@@ -207,7 +207,7 @@ class SessionSelectionController(
     /** The prompt above a Delete that erases every copy, naming how many are backed up. */
     private fun eraseEverywhereMessage(records: List<SessionRecord>): String {
         val backedUp = records.count { it.isKnownInCloud }
-        if (backedUp == 0) return activity.getString(R.string.delete_confirm_body_local_multi)
+        if (backedUp == 0) return activity.getString(R.string.delete_body_cant_undo)
         return activity.resources.getQuantityString(
             R.plurals.delete_confirm_body_everywhere_multi,
             backedUp,
@@ -242,21 +242,25 @@ class SessionSelectionController(
     }
 
     /**
-     * Delete an analysis. Dual-presence rows choose phone, cloud or both;
-     * only-cloud stubs erase everywhere; local-only deletes fully.
+     * Delete an analysis, named in the title. Dual-presence rows choose phone,
+     * cloud or both; only-cloud stubs erase everywhere; local-only deletes fully.
      */
     fun confirmDelete(record: SessionRecord) {
         val hasCloud = record.isKnownInCloud
         val hasLocal = hasLocalData(record)
-        val title = activity.getString(R.string.delete_confirm_title)
+        val cantUndo = activity.getString(R.string.delete_body_cant_undo)
+        val title = activity.getString(R.string.delete_confirm_title_fmt, record.name)
 
         when {
             hasLocal && hasCloud ->
                 showChoices(title, activity.getString(R.string.delete_confirm_body_cloud), listOf(record))
-            !hasLocal && hasCloud -> confirm(title, activity.getString(R.string.delete_confirm_body_cloud_only)) {
+            !hasLocal && hasCloud -> confirm(
+                activity.getString(R.string.delete_cloud_title_fmt, record.name),
+                cantUndo,
+            ) {
                 queueDelete(listOf(record), SessionDeletes.Mode.EVERYWHERE)
             }
-            else -> confirm(title, activity.getString(R.string.delete_confirm_body_local)) {
+            else -> confirm(title, cantUndo) {
                 eraseLocally(listOf(record), deviceOnly = false)
             }
         }
@@ -267,16 +271,11 @@ class SessionSelectionController(
             activity = activity,
             title = title,
             message = message,
-            choices = listOf(
-                DeleteChoiceDialog.Choice(activity.getString(R.string.delete_choice_phone)) {
-                    eraseLocally(records, deviceOnly = true)
-                },
-                DeleteChoiceDialog.Choice(activity.getString(R.string.delete_choice_cloud)) {
-                    queueDelete(records, SessionDeletes.Mode.CLOUD)
-                },
-                DeleteChoiceDialog.Choice(activity.getString(R.string.delete_choice_everywhere)) {
-                    queueDelete(records, SessionDeletes.Mode.EVERYWHERE)
-                },
+            choices = DeleteChoiceDialog.phoneCloudEverywhere(
+                activity,
+                onPhone = { eraseLocally(records, deviceOnly = true) },
+                onCloud = { queueDelete(records, SessionDeletes.Mode.CLOUD) },
+                onEverywhere = { queueDelete(records, SessionDeletes.Mode.EVERYWHERE) },
             ),
         )
     }
@@ -318,10 +317,10 @@ class SessionSelectionController(
             } else {
                 val done = records.size - kept
                 val res = activity.resources
-                val message = if (kept > 0) {
-                    res.getQuantityString(R.plurals.delete_multi_partial, done, done, kept)
-                } else {
-                    res.getQuantityString(R.plurals.delete_multi_done, done, done)
+                val message = when {
+                    kept > 0 -> res.getQuantityString(R.plurals.delete_multi_partial, done, done, kept)
+                    records.size == 1 -> activity.getString(R.string.delete_done_fmt, records.single().name)
+                    else -> res.getQuantityString(R.plurals.delete_multi_done, done, done)
                 }
                 Feedback.toast(activity, message, long = true)
             }

@@ -94,7 +94,7 @@ class RunChromeTest {
     }
 
     @Test
-    fun `keep running leaves the import going`() {
+    fun `Keep importing leaves the import going`() {
         var stopped = false
         chrome.beginImport { stopped = true }
         chrome.confirmCancel()
@@ -103,6 +103,10 @@ class RunChromeTest {
         assertEquals(
             activity.getString(R.string.cancel_import_body),
             asked.findViewById<TextView>(android.R.id.message)?.text.toString(),
+        )
+        assertEquals(
+            activity.getString(R.string.keep_importing),
+            asked.getButton(AlertDialog.BUTTON_NEGATIVE).text.toString(),
         )
         asked.getButton(AlertDialog.BUTTON_NEGATIVE).performClick()
         shadowOf(Looper.getMainLooper()).idle()

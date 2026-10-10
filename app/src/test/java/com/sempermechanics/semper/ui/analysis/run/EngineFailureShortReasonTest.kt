@@ -3,6 +3,7 @@ package com.sempermechanics.semper.ui.analysis.run
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.field.RunStop
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,6 +30,18 @@ class EngineFailureShortReasonTest {
         assertEquals(
             ctx.getString(R.string.sweep_reason_decorrelated),
             EngineFailure.shortReason(ctx, EngineFailure.ENGINE_ERROR_FEATURES),
+        )
+    }
+
+    @Test
+    fun `a stopped run gives its reason in one short sentence`() {
+        assertEquals(
+            "Convergence fell below 50% on 2 frames in a row.",
+            EngineFailure.stopReason(ctx, RunStop.LowConvergence.wireCode),
+        )
+        assertEquals(
+            ctx.getString(R.string.sweep_reason_decorrelated),
+            EngineFailure.stopReason(ctx, EngineFailure.ENGINE_ERROR_FEATURES),
         )
     }
 }
