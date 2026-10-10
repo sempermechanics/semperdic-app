@@ -395,7 +395,7 @@ Tests: `diagnostics/SemperAnalyticsTest`.
 | Key | `data/account/DeviceKeys` — EC P-256 in the AndroidKeyStore, private key never leaves it |
 | Register | `SemperApi.registerDevice` → C2 (409 = this account or device is bound elsewhere) |
 | Per call | `SemperApiSigning`: a client nonce (`ClientNonce`), or `fetchChallenge` → C3 once the server refused one; `signedHeaders` signs `(nonce ‖ METHOD ‖ path) ‖ SHA-256(body)` → verified by `C4` |
-| Recover | A `401 bad_signature` (another app with this signing key registered the same device id, TD-208) → `DeviceKeyRecovery` registers again (C2, same id, a key overwrite) and the call is sent once more: `SemperApiCalls.signed`, and `signedDownload` for restores. At most one registration per call and one a minute per process; the second refusal is the failure |
+| Recover | A `401 bad_signature` (another app with this signing key registered the same device id, TD-209) → `DeviceKeyRecovery` registers again (C2, same id, a key overwrite) and the call is sent once more: `SemperApiCalls.signed`, and `signedDownload` for restores. At most one registration per call and one a minute per process; the second refusal is the failure |
 | Tokens | `data/net/TokenProvider` / `AccountCache` — Firebase ID tokens are held in memory, never persisted |
 
 ### B12 Local session index

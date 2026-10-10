@@ -257,7 +257,7 @@ bound it:
 Two apps with one signing key on one phone (debug builds of Semper and
 Material Testing) still take the slot from each other, at most once a minute
 per app process; keying devices by app needs a migration of the shared
-database (TD-208).
+database (TD-209).
 
 **One device per app, not per account** ([ADR-010](../adr/ADR-010-device-binding-per-app.md)).
 Semper and Material Testing share accounts, and Android gives apps signed with

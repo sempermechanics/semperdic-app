@@ -101,7 +101,7 @@ support, and nothing is migrated.
   share one id and one public key: whichever registered last holds it. Since
   2026-10-10 retired ids may not register (`410 app_retired`) and a call
   refused `bad_signature` registers again once (`DeviceKeyRecovery`); keying
-  devices by app is TD-208.
+  devices by app is TD-209.
 - A new signing key is a new phone. `ANDROID_ID` is scoped to the key, so a
   release build installed over a debug or locally built one sends a
   different device id and sign-in fails as already linked until that app's

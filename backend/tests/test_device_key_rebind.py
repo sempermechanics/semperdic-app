@@ -116,7 +116,7 @@ async def test_registering_the_same_device_again_only_rewrites_its_key(client, s
 
 @pytest.mark.asyncio
 async def test_another_apps_registration_on_the_shared_id_is_put_back(client, store, audited, monkeypatch):
-    """The slot both apps share (TD-208): Material Testing on the same signing
+    """The slot both apps share (TD-209): Material Testing on the same signing
     key registers the same device id and takes the key; Semper registering
     again takes it back, and each app's binding stays where it was."""
     _bound(store)

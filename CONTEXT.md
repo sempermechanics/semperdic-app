@@ -174,7 +174,7 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 - **Device key recovery (branch `fix/device-key-recovery`, 2026-10-10; not merged).** A
   signed call refused `bad_signature` registers the key again and is re-sent once
   (`DeviceKeyRecovery`); retired `com.indicvision.*` ids get `410 app_retired` at
-  registration, which needs a backend deploy. The shared key slot stays open (TD-208).
+  registration, which needs a backend deploy. The shared key slot stays open (TD-209).
 - **Dependabot** opens monthly PRs for major versions only (pip, Gradle, Actions; #337);
   minor and patch fixes arrive as Dependabot security updates, which are on.
 - **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke
