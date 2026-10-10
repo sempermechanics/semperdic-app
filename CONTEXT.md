@@ -144,6 +144,10 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
     text, the ROI readout, one name per sweep frame, one session-quota rule, a failed
     backup told once;
   - no two analyses share a name, and a restore keeps the backed-up name (#426).
+  - device key recovery (#427): a signed call refused `bad_signature` registers the key
+    again and is re-sent once (`DeviceKeyRecovery`). Its backend half, `410 app_retired`
+    for a retired `com.indicvision.*` id at registration, waits for the next backend
+    deploy; the shared key slot stays open (TD-209).
 - **material_testing shares this history** and merges this `main` (last at `3154ebc`,
   material_testing#132, 2026-10-08); shared code and backend changes land here first
   ([FORK_SYNC.md](docs/ops/FORK_SYNC.md)).

@@ -9,16 +9,19 @@ import okhttp3.Response
 
 /**
  * How [SemperApi] sends a call and reads the answer: token-authenticated
- * ([bearer]) or device-signed ([signed]), on the IO dispatcher.
+ * ([bearer]) or device-signed ([signed], [signedDownload]), on the IO dispatcher.
  *
  * [deviceId] and [sign] are this device's key (`DeviceKeys`), as
  * functions so the AndroidKeyStore is only touched once a call is made.
+ * [recovery] puts that key back on the backend when a signed call is refused
+ * `bad_signature`; every signed call goes through it here, not per caller.
  */
 internal class SemperApiCalls(
     private val client: OkHttpClient,
     endpoint: (path: String) -> String,
     private val deviceId: () -> String,
     sign: (message: ByteArray) -> String,
+    private val recovery: DeviceKeyRecovery,
 ) {
     private val signing = SemperApiSigning(client, endpoint, deviceId, sign)
 
@@ -44,6 +47,12 @@ internal class SemperApiCalls(
     /**
      * A device-signed call ([SemperApiSigning]). [read] takes a 200; any other
      * answer goes to [orElse], by default [failSigned].
+     *
+     * A `401 bad_signature` means the backend holds another key for this
+     * device id: [recovery] registers ours again and the call is sent once
+     * more. The refusal comes from `verified_device`, before the route runs,
+     * so the re-send is safe. A second refusal, or no recovery, goes to
+     * [orElse] like any other answer.
      */
     suspend fun <T> signed(
         idToken: String,
@@ -51,11 +60,42 @@ internal class SemperApiCalls(
         orElse: (ApiAnswer) -> T = ApiAnswer::failSigned,
         read: (Response) -> T,
     ): T = withContext(Dispatchers.IO) {
-        signing.execute(idToken, call).use { resp -> handle(resp, orElse, read) }
+        val sentAt = recovery.now()
+        val first = signing.execute(idToken, call)
+        var resend = false
+        var settled = false
+        try {
+            resend = isBadSignature(first) && recovery.recover(idToken, sentAt)
+            settled = true
+        } finally {
+            // Cancelled while recovering: the caller never gets [first] to close.
+            if (!settled || resend) first.close()
+        }
+        val resp = if (resend) signing.execute(idToken, call) else first
+        resp.use { handle(it, orElse, read) }
+    }
+
+    /**
+     * A download that sends its own requests, signing each with the headers
+     * it is handed ([SemperApiSigning.headersFor]). Recovered like [signed]: a
+     * `401 bad_signature` (an [ApiException] from the downloader) registers
+     * this device's key again and runs [download] once more.
+     */
+    suspend fun <T> signedDownload(
+        idToken: String,
+        download: suspend (signedGetHeaders: (path: String) -> Headers) -> T,
+    ): T {
+        val sentAt = recovery.now()
+        try {
+            return download(signedGet(idToken))
+        } catch (e: ApiException) {
+            if (!e.isBadSignature() || !recovery.recover(idToken, sentAt)) throw e
+        }
+        return download(signedGet(idToken))
     }
 
     /** A signed GET's headers per attempt, for a download that sends its own requests. */
-    fun signedGet(idToken: String): (path: String) -> Headers =
+    private fun signedGet(idToken: String): (path: String) -> Headers =
         { path -> signing.headersFor(idToken, SignedCall("GET", path)) }
 
     private fun <T> handle(resp: Response, orElse: (ApiAnswer) -> T, read: (Response) -> T): T =

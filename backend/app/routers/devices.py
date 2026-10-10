@@ -10,7 +10,15 @@ router = APIRouter()
 
 
 @router.post("/v1/devices/register", status_code=201)
-def register_device(body: DeviceReg, user=Depends(current_user), app=Depends(request_app)):
+def register_device(body: DeviceReg, user=Depends(current_user), app=Depends(request_app),
+                    x_app_id: str = Header(default="")):
+    # A retired app id (`apps.RETIRED`) reports the device id of the app that
+    # succeeded it on the same phone, so registering would replace that app's
+    # key and fail every call it signs (`bad_signature`). Nothing is written.
+    if apps.is_retired(x_app_id):
+        audit.record(user["uid"], body.deviceId, action="DEVICE_REGISTER", outcome="DENIED",
+                     detail={"reason": "app_retired", "app": app})
+        raise HTTPException(410, errors.APP_RETIRED)
     rate_limit.enforce(rate_limit.device_register_bucket, user["uid"])
     active = user.get(apps.field("activeDeviceId", app))
     # This ACCOUNT is already bound to a different device for this app → real

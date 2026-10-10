@@ -95,7 +95,13 @@ support, and nothing is migrated.
   with `AppIdHeader` is installed.
 - Accounts demoted before phase 0 stay Demo until an operator re-stamps
   `mode`/`plan` or clears the device.
-- Devices registered from now on carry `app` on `devices/{id}`.
+- Devices registered from now on carry `app` on `devices/{id}`. The document
+  is still keyed by the device id alone, so two apps signed with **one** key
+  (debug builds; the retired `com.indicvision.semper` beside its successor)
+  share one id and one public key: whichever registered last holds it. Since
+  2026-10-10 retired ids may not register (`410 app_retired`) and a call
+  refused `bad_signature` registers again once (`DeviceKeyRecovery`); keying
+  devices by app is TD-209.
 - A new signing key is a new phone. `ANDROID_ID` is scoped to the key, so a
   release build installed over a debug or locally built one sends a
   different device id and sign-in fails as already linked until that app's
