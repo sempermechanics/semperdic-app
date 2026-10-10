@@ -49,12 +49,37 @@
         <activity
             android:name=".ui.auth.SplashActivity"
             android:exported="true"
-            android:theme="@style/Theme.Semper.Splash">
+            android:theme="@style/Theme.Semper.Splash" />
+
+        <!-- Two launcher entries for SplashActivity: the light icon and the
+             jet-black one. Launchers never swap an icon's -night resources on a
+             dark-mode change, so LauncherIcon enables the entry that matches
+             the system theme and disables the other. -->
+        <activity-alias
+            android:name=".LauncherLight"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_semper_launcher_light"
+            android:roundIcon="@mipmap/ic_semper_launcher_light"
+            android:targetActivity=".ui.auth.SplashActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".LauncherDark"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_semper_launcher_dark"
+            android:roundIcon="@mipmap/ic_semper_launcher_dark"
+            android:targetActivity=".ui.auth.SplashActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <activity
             android:name=".ui.auth.AuthActivity"

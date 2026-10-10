@@ -1,6 +1,7 @@
 package com.sempermechanics.semper
 
 import android.app.Application
+import android.content.res.Configuration
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.sempermechanics.semper.data.account.DevAuth
@@ -10,6 +11,7 @@ import com.sempermechanics.semper.data.session.CacheJanitor
 import com.sempermechanics.semper.data.session.StorageBudget
 import com.sempermechanics.semper.diagnostics.CrashReportingTree
 import com.sempermechanics.semper.diagnostics.Diagnostics
+import com.sempermechanics.semper.ui.common.LauncherIcon
 import com.sempermechanics.semper.ui.settings.AccountDeletionRun
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +55,13 @@ class SemperApp : Application() {
         SeatHeartbeat.start(appScope, this)
         // An account deletion the last process did not live to finish (TD-165).
         AccountDeletionRun.resumeInterrupted(this)
+        LauncherIcon.sync(this)
+    }
+
+    /** A dark-theme change while this process lives swaps the launcher icon now. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        LauncherIcon.sync(this, LauncherIcon.isNight(newConfig))
     }
 
     /**

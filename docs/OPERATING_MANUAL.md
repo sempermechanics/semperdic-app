@@ -88,6 +88,11 @@ Send crash reports**.
 
 <img src="images/home.png" width="300" alt="Home screen">
 
+The app icon follows your phone's dark theme: the S in black on a light
+disc, or in white on jet black. It changes the next time Semper is open after
+you switch. With **Themed icons** on (Wallpaper & style), the launcher tints
+it with your wallpaper's colours instead.
+
 Home lists your analyses. Tap one to open it. Long-press for select, rename,
 delete. Pull down to sync. **+** goes straight to the picker — pick existing
 photos or a video. There is no in-app camera; the app measures images you
