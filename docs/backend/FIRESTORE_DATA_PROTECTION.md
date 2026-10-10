@@ -77,8 +77,11 @@ Adding required reviewers to the environment is worth doing: it makes an
 on-demand drill a deliberate act rather than a button anyone can hit.
 
 The workflow checks these five first and fails naming the ones that are empty.
-No drill project exists yet and the environment has no variables (checked
-2026-10-09), so every run so far has failed (TD-156). The one-time setup is
+The drill project and the variables were set up on 2026-10-09, and the first
+drill passed on 2026-10-10 (an RTO of 111 s; recorded in
+[PRODUCTION_READINESS_GATE.md](../ops/PRODUCTION_READINESS_GATE.md)). Runs before
+that failed for want of them (TD-156). The one-time setup, should it be needed
+again, is
 `scripts/setup-restore-drill.sh`, run by someone who can create projects, owns
 the billing account and the production backup bucket, and is a repo admin:
 
