@@ -224,13 +224,17 @@ class SessionSelectionController(
                 val newName = input.text.toString().trim()
                 if (newName.isNotEmpty()) {
                     activity.lifecycleScope.launch(Dispatchers.IO) {
-                        SessionStore.rename(activity, record.id, newName)
+                        // A name another analysis has comes back with a " (2)".
+                        val applied = SessionStore.rename(activity, record.id, newName)
                         // A backed-up analysis restores under the name in its
                         // cloud metadata.json, so send the new one (ADR-013).
                         if (SessionStore.get(activity, record.id)?.metadataStale == true) {
                             SessionMetadataSync.enqueue(activity, record.id)
                         }
                         withContext(Dispatchers.Main) {
+                            if (applied != null && applied != newName) {
+                                Feedback.toast(activity, activity.getString(R.string.rename_saved_as_fmt, applied))
+                            }
                             clearSelection()
                             onRefresh()
                         }

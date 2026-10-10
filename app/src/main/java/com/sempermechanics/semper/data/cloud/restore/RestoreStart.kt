@@ -5,6 +5,7 @@ import androidx.annotation.WorkerThread
 import androidx.work.WorkManager
 import com.sempermechanics.semper.data.DicRestoreWorker
 import com.sempermechanics.semper.data.cloud.FailureLedger
+import com.sempermechanics.semper.data.net.CloudSessionDto
 import com.sempermechanics.semper.data.prefs.PrefFiles
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
@@ -30,11 +31,31 @@ object RestoreStart {
     /** [start] each of [targets] in turn. Writes the index, so call it off the main thread. */
     @WorkerThread
     fun startAll(context: Context, targets: List<Target>): Counts {
-        val results = targets.map { start(context, it.cloudSessionId, it.targetLocalId, it.name) }
+        val results = withDistinctRows(targets).map { start(context, it.cloudSessionId, it.targetLocalId, it.name) }
         return Counts(
             started = results.count { it == Outcome.STARTED },
             alreadyRunning = results.count { it == Outcome.ALREADY_RUNNING },
         )
+    }
+
+    /**
+     * [targets] with one row each. Backups of one analysis share its local id,
+     * so restoring two of them at once would fill one row (and one directory)
+     * twice; each after the first restores into a row of its own, under the id
+     * a backup with no local id gets ([CloudRestore.targetLocalId]).
+     */
+    internal fun withDistinctRows(targets: List<Target>): List<Target> {
+        val used = HashSet<String>()
+        return targets.map { target ->
+            val row = if (target.targetLocalId in used) {
+                val ownRow = CloudRestore.targetLocalId(CloudSessionDto(sessionId = target.cloudSessionId))
+                target.copy(targetLocalId = ownRow)
+            } else {
+                target
+            }
+            used += row.targetLocalId
+            row
+        }
     }
 
     /**
