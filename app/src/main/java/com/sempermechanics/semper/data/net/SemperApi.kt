@@ -74,7 +74,18 @@ class SemperApi @VisibleForTesting internal constructor(
         ::endpoint,
         deviceId = { device.getDeviceId() },
         sign = { device.signMessage(it) },
+        recovery = DeviceKeyRecovery(reRegister = ::registerDeviceAgain),
     )
+
+    /**
+     * Registers this device's key again after a signed call was refused
+     * `bad_signature` ([DeviceKeyRecovery]): the sign-in's [registerDevice],
+     * and the `device_registered` flag it sets.
+     */
+    private suspend fun registerDeviceAgain(idToken: String) {
+        registerDevice(idToken)
+        AccountCache.setDeviceRegistered(appContext, true)
+    }
 
     private inline fun <reified T> decode(resp: Response): T = json.decodeFromString(resp.body.string())
 
@@ -326,14 +337,16 @@ class SemperApi @VisibleForTesting internal constructor(
      * prefix of entries it needs, instead of the whole archive.
      */
     override suspend fun downloadRange(idToken: String, fileId: String, dest: File, rangeStart: Long, length: Long) =
-        drive.downloadFile(
-            fileId,
-            dest,
-            endpoint(""), // the base; DriveTransfer appends its own paths
-            expectedBytes = length,
-            rangeStart = rangeStart,
-            signedGetHeaders = calls.signedGet(idToken),
-        )
+        calls.signedDownload(idToken) { signedGetHeaders ->
+            drive.downloadFile(
+                fileId,
+                dest,
+                endpoint(""), // the base; DriveTransfer appends its own paths
+                expectedBytes = length,
+                rangeStart = rangeStart,
+                signedGetHeaders = signedGetHeaders,
+            )
+        }
 
     /** GET /v1/files/{id}/content into [dest], device-attested per window: [DriveTransfer.downloadFile]. */
     override suspend fun downloadFile(
@@ -342,14 +355,16 @@ class SemperApi @VisibleForTesting internal constructor(
         dest: File,
         expectedBytes: Long,
         onBytes: suspend (haveBytes: Long) -> Unit,
-    ) = drive.downloadFile(
-        fileId,
-        dest,
-        endpoint(""), // the base; DriveTransfer appends its own paths
-        expectedBytes = expectedBytes,
-        onBytes = onBytes,
-        signedGetHeaders = calls.signedGet(idToken),
-    )
+    ) = calls.signedDownload(idToken) { signedGetHeaders ->
+        drive.downloadFile(
+            fileId,
+            dest,
+            endpoint(""), // the base; DriveTransfer appends its own paths
+            expectedBytes = expectedBytes,
+            onBytes = onBytes,
+            signedGetHeaders = signedGetHeaders,
+        )
+    }
 
     // ------------------------------------------------------------------- admin
 

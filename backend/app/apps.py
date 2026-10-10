@@ -41,6 +41,15 @@ _BY_APPLICATION_ID = {
     "com.indicvision.semper.materialtesting": MATERIAL_TESTING,
 }
 
+#: The old ids may no longer register a device (410 `app_retired`). Android
+#: gives every app signed with one key the same `ANDROID_ID`, so a retired
+#: build still installed beside its successor reports the same device id, and
+#: its registration replaced the successor's key on `devices/{id}`: every
+#: signed call from the new app then failed `bad_signature` (2026-10-10). Its
+#: other calls are served as before, so the access log still shows when no
+#: build sends an old id (TD-176).
+RETIRED = frozenset({"com.indicvision.semper", "com.indicvision.semper.materialtesting"})
+
 _SUFFIX = {
     SEMPER: "",
     MATERIAL_TESTING: "MaterialTesting",
@@ -54,6 +63,11 @@ def from_header(value: str | None) -> str | None:
     if not value:
         return SEMPER
     return _BY_APPLICATION_ID.get(value)
+
+
+def is_retired(value: str | None) -> bool:
+    """Whether an `X-App-Id` header names a retired app id (`RETIRED`)."""
+    return (value or "").strip() in RETIRED
 
 
 def logged_application_id(value: str | None) -> str:

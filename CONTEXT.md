@@ -171,6 +171,10 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   one-line share rows, shorter Settings, viewer titles without the field ("Summary"), a
   video analysis named after its clip with clip times on its frames, "steel_24 sweep".
   A sweep has its own record (#403); ZIP export progress moves within a frame (#402).
+- **Device key recovery (branch `fix/device-key-recovery`, 2026-10-10; not merged).** A
+  signed call refused `bad_signature` registers the key again and is re-sent once
+  (`DeviceKeyRecovery`); retired `com.indicvision.*` ids get `410 app_retired` at
+  registration, which needs a backend deploy. The shared key slot stays open (TD-209).
 - **Dependabot** opens monthly PRs for major versions only (pip, Gradle, Actions; #337);
   minor and patch fixes arrive as Dependabot security updates, which are on.
 - **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke

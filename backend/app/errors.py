@@ -33,6 +33,10 @@ DEVICE_IN_USE = "device_in_use"
 DEVICE_NOT_ACTIVE = "device_not_active"
 #: `X-App-Id` names an app this backend does not bind devices for (ADR-010).
 UNKNOWN_APP = "unknown_app"
+#: 410 from `POST /v1/devices/register`: `X-App-Id` is a retired id
+#: (`apps.RETIRED`), whose registration would replace the key of the app that
+#: succeeded it on the same phone. Only those builds receive it.
+APP_RETIRED = "app_retired"
 
 # --- Cloud Tasks callback --------------------------------------------------
 INVALID_TASK_TOKEN = "invalid_task_token"
