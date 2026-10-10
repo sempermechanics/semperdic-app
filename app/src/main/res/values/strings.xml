@@ -806,6 +806,11 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="share_progress_zip_photos">Adding the raw photos</string>
     <string name="share_progress_zip_heatmaps_fmt">Frame %1$d of %2$d · heatmaps</string>
     <string name="share_progress_zip_writing">Writing the archive</string>
+    <string name="share_progress_pdf_frame_fmt">Frame %1$d of %2$d · report pages</string>
+    <string name="share_progress_pdf_cover">Building the cover page</string>
+    <string name="share_progress_pdf_maps">Drawing the field maps</string>
+    <string name="share_progress_pdf_telemetry">Adding the engine telemetry</string>
+    <string name="share_progress_pdf_finishing">Finishing the report</string>
     <string name="share_failed">Could not prepare the files. Try again.</string>
     <string name="share_cancelled">Cancelled</string>
     <string name="share_save_to_files">Save to Files</string>

@@ -5,6 +5,7 @@ import com.sempermechanics.semper.report.EngineStats
 import com.sempermechanics.semper.report.FieldResult
 import com.sempermechanics.semper.report.PdfReportGenerator
 import com.sempermechanics.semper.report.PdfReportGenerator.Progress
+import com.sempermechanics.semper.report.PdfReportGenerator.Stage
 import com.sempermechanics.semper.report.ReportData
 import com.sempermechanics.semper.report.RoiData
 import com.sempermechanics.semper.report.TelemetrySummary
@@ -39,8 +40,8 @@ class PdfReportGeneratorTest {
         }
         // The write, last, has its own status rather than the last frame's.
         assertEquals(listOf(2, 25, 48, 71, 98), statuses(events).map { it.percent })
-        assertEquals("Frame 1 of 4…", statuses(events).first().message)
-        assertEquals("Finalizing PDF...", statuses(events).last().message)
+        assertEquals(Progress.Status(Stage.FRAME, 2, frame = 1, frameCount = 4), statuses(events).first())
+        assertEquals(Stage.FINISHING, statuses(events).last().stage)
     }
 
     @Test
@@ -48,7 +49,7 @@ class PdfReportGeneratorTest {
         val events = runBlocking {
             PdfReportGenerator.generateBatch(2, { null }, ByteArrayOutputStream()).toList()
         }
-        assertTrue(statuses(events).none { it.message.startsWith("Compiling") })
+        assertTrue(statuses(events).none { it.stage == Stage.TELEMETRY })
     }
 
     @Test

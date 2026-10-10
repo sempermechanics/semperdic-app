@@ -1,6 +1,7 @@
 package com.sempermechanics.semper.data.account
 
 import android.content.Context
+import com.sempermechanics.semper.data.LicenseConfigWorker
 import com.sempermechanics.semper.data.account.AuthRepository.AccessLostException
 import com.sempermechanics.semper.data.net.AccountCache
 import com.sempermechanics.semper.data.net.ApiErrors
@@ -52,7 +53,10 @@ internal class AccessStatusResolver(
         AccountCache.setRole(appContext, me.role ?: "user")
         cacheLegalState(me)
         syncPendingTermsAcceptance(token)
-        AppRemoteConfig.record(appContext, config)
+        // The periodic refresh starts once there is a config to keep fresh,
+        // on sign-in and on every launch's status check alike. KEEP makes a
+        // repeat free; a failed read leaves it to the next reconcile's fetch.
+        if (AppRemoteConfig.record(appContext, config)) LicenseConfigWorker.enqueue(appContext)
         ensureDeviceRegistered(token)
         return Result.success(AccessStatus.APPROVED)
     }

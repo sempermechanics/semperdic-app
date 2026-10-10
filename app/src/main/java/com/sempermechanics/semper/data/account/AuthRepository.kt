@@ -374,7 +374,6 @@ class AuthRepository(
         access.resolve()
             .onSuccess {
                 SemperAnalytics.event(appContext, SemperAnalytics.SIGN_IN, mapOf("method" to method.analyticsName))
-                LicenseConfigWorker.enqueue(appContext)
             }
             .onFailure { reportSignInFailure(method, "access") }
     }

@@ -170,7 +170,7 @@ internal class BundleExport(
  *
  * Shares follow each stage's work. The PDF builds every frame's report images
  * and draws its pages, then writes the document in one `PdfDocument.writeTo`
- * ("Finalizing PDF..."), its last few percent. The CSV's
+ * ("Finishing the report"), its last few percent. The CSV's
  * point rows run six `DecimalFormat` calls per solved point, seconds a frame on
  * a dense grid. The heatmaps render five fields a frame and compress each as a
  * PNG. The GIFs are 640 px at most, the raw photos are copied, and the CSV and

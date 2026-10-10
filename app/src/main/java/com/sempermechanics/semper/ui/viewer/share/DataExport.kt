@@ -6,6 +6,7 @@ import com.sempermechanics.semper.field.DicResult
 import com.sempermechanics.semper.report.AnalysisCsvWriter
 import com.sempermechanics.semper.report.FieldRangesStore
 import com.sempermechanics.semper.report.PdfReportGenerator
+import com.sempermechanics.semper.report.PdfReportGenerator.Stage
 import com.sempermechanics.semper.report.ReportImageNames
 import com.sempermechanics.semper.ui.viewer.summary.SummaryAnimation
 import java.io.File
@@ -149,7 +150,8 @@ internal class DataExport(
                     // throwing; surface it so the share job actually fails (and logs)
                     // instead of silently handing back an empty PDF.
                     is PdfReportGenerator.Progress.Error -> throw progress.ex
-                    is PdfReportGenerator.Progress.Status -> report(progress.percent.toDouble(), progress.message)
+                    is PdfReportGenerator.Progress.Status ->
+                        report(progress.percent.toDouble(), progress.text(resources))
                     PdfReportGenerator.Progress.Complete -> Unit
                 }
             }
@@ -184,4 +186,13 @@ internal class DataExport(
         const val CSV_STATS_SHARE = 10.0
         const val FULL = 100.0
     }
+}
+
+/** The status line for a PDF [PdfReportGenerator.Progress.Status], which carries only its stage and frame. */
+internal fun PdfReportGenerator.Progress.Status.text(res: Resources): String = when (stage) {
+    Stage.FRAME -> res.getString(R.string.share_progress_pdf_frame_fmt, frame, frameCount)
+    Stage.COVER -> res.getString(R.string.share_progress_pdf_cover)
+    Stage.MAPS -> res.getString(R.string.share_progress_pdf_maps)
+    Stage.TELEMETRY -> res.getString(R.string.share_progress_pdf_telemetry)
+    Stage.FINISHING -> res.getString(R.string.share_progress_pdf_finishing)
 }
