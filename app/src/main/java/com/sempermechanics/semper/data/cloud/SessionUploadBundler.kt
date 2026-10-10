@@ -19,6 +19,7 @@ import com.sempermechanics.semper.report.AnalysisCsvWriter
 import com.sempermechanics.semper.report.FieldResult
 import com.sempermechanics.semper.report.PdfReportGenerator
 import com.sempermechanics.semper.report.ReportBuilder
+import com.sempermechanics.semper.report.ReportImageNames
 import com.sempermechanics.semper.report.ReportSource
 import com.sempermechanics.semper.report.VisualizationEngine
 import com.sempermechanics.semper.ui.viewer.HeatmapFit
@@ -126,8 +127,10 @@ object SessionUploadBundler {
 
     /**
      * Frame [frameIndex]'s report inputs: [ReportSource.forRecord], so the PDF
-     * prints the names, settings and engine stats the on-device report prints
-     * (not the bundle's folder names), and marks the MAX only.
+     * prints the settings and engine stats the on-device report prints, and
+     * marks the MAX only. A sweep frame's name is the one its folder and
+     * `metadata.json` use, label or `Combination_N`, printed with any `/` or
+     * `\` the label has (the folder name has them made safe).
      */
     internal fun reportParams(
         record: SessionRecord,
@@ -300,10 +303,12 @@ object SessionUploadBundler {
             csv?.append(frame)
         }
 
-        /** The frame's folder and PDF name: a sweep's label with path separators made safe, else `Frame_N`. */
+        /**
+         * The frame's folder and PDF name: a sweep's label (or `Combination_N`)
+         * with path separators made safe, else `Frame_N`.
+         */
         private fun frameFolderName(index: Int): String = if (record.isSweep) {
-            record.sweepLabels.getOrElse(index) { "Combination_${index + 1}" }
-                .replace('/', '-').replace('\\', '-')
+            ReportImageNames.pathSafe(ReportImageNames.sweepLabel(record.sweepLabels, index))
         } else {
             "Frame_${index + 1}"
         }

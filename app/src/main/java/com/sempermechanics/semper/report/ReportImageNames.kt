@@ -23,6 +23,18 @@ object ReportImageNames {
     fun deformed(frameNames: List<String>, index: Int): String =
         frameName(frameNames, index) ?: "Frame_${index + 1}"
 
+    /**
+     * Sweep frame [index]'s name from the sweep's [labels], else
+     * "Combination_N" (a blank label too). The cloud bundle's folder and PDF
+     * and its `metadata.json` all take a frame's name from here, so one frame
+     * has one name across the backup.
+     */
+    fun sweepLabel(labels: List<String>, index: Int): String =
+        frameName(labels, index) ?: "Combination_${index + 1}"
+
+    /** [name] as one file or folder name: `/` and `\` become `-`. The printed name keeps them. */
+    fun pathSafe(name: String): String = name.replace('/', '-').replace('\\', '-')
+
     /** The specimen: the reference's name without its extension. */
     fun specimen(refName: String): String = refName.substringBeforeLast(".").ifBlank { "Batch Analysis" }
 }

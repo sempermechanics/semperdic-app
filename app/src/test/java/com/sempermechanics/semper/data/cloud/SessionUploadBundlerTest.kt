@@ -188,6 +188,19 @@ class SessionUploadBundlerTest {
     }
 
     @Test
+    fun `a sweep frame's PDF prints the name its folder and metadata use`() {
+        val bitmap = createBitmap(1, 1)
+        val dir = temp.newFolder("session")
+        val record = record(dir, "s.png", "s.png", "s.png", "s.png", sweep = true)
+            .copy(sweepLabels = listOf("S21/5", "", "S41/9"))
+        val printed = (0..3).map {
+            SessionUploadBundler.reportParams(record, it, FloatArray(0), bitmap, bitmap).deformedImageName
+        }
+        // A label prints with its slash; a blank or missing one as Combination_N, not Frame_N.
+        assertEquals(listOf("S21/5", "Combination_2", "S41/9", "Combination_4"), printed)
+    }
+
+    @Test
     fun `no decodable base image means no reports and no scratch pdf`() {
         val dir = temp.newFolder("session")
         SessionPaths.frameDat(dir, 0).writeBytes(datBytes())

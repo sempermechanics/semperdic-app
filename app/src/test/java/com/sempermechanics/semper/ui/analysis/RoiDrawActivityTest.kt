@@ -192,6 +192,27 @@ class RoiDrawActivityTest {
     }
 
     @Test
+    fun `a fractional crop reads in the HUD and typed fields as it is saved`() {
+        val activity = launch(intent(rawReference().path)).get()
+        awaitCanvas(activity)
+        // A drag ends between pixels: 10.2 px wide, but Save rounds each edge to 10 and 21.
+        val overlay = activity.findViewById<StudioOverlayView>(R.id.overlayRoi)
+        overlay.restoreRelativeRoi(RectF(10.4f, 30.4f, 20.6f, 40.6f))
+        overlay.onRoiChangedListener!!.invoke(overlay.getRelativeRoi())
+        val hud = activity.hud()
+        activity.check(R.id.rgEditMode, R.id.rbModeManual)
+        val typed = listOf(R.id.etRoiX, R.id.etRoiY, R.id.etRoiW, R.id.etRoiH)
+            .map { activity.findViewById<TextInputEditText>(it).text.toString().toInt() }
+        activity.click(R.id.btnSaveRoi)
+        awaitFinish(activity)
+
+        val saved = activity.resultRect()
+        assertEquals(listOf(10, 30, 11, 11), saved)
+        assertEquals(activity.getString(R.string.roi_hud_dimensions_fmt, saved[2], saved[3], saved[0], saved[1]), hud)
+        assertEquals(saved, typed)
+    }
+
+    @Test
     fun `a typed ROI past the image edge is clipped, not rejected`() {
         val activity = launch(intent(rawReference().path)).get()
         awaitCanvas(activity)

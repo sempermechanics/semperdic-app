@@ -87,7 +87,7 @@ data class ReportSource(
         fun forRecord(record: SessionRecord): ReportSource = ReportSource(
             sessionId = record.id,
             refName = record.refName,
-            frameNames = record.frameNames,
+            frameNames = bundleFrameNames(record),
             imgW = record.imgW,
             imgH = record.imgH,
             roi = RoiData(record.roiX, record.roiY, record.roiW, record.roiH),
@@ -101,5 +101,20 @@ data class ReportSource(
             engineStats = EngineStats.fromList(record.engineStats),
             drawMinMarker = false,
         )
+
+        /**
+         * The names the cloud bundle's PDFs print: a sweep frame with no label
+         * gets the `Combination_N` its folder and `metadata.json` use
+         * ([ReportImageNames.sweepLabel]), where [SessionRecord.frameNames]
+         * would leave it to print `Frame_N`. The viewer keeps the record's own
+         * list: its captions and exports still say `Frame N` for such a frame.
+         */
+        private fun bundleFrameNames(record: SessionRecord): List<String> = if (record.isSweep) {
+            List(maxOf(record.defNames.size, record.sweepLabels.size)) {
+                ReportImageNames.sweepLabel(record.sweepLabels, it)
+            }
+        } else {
+            record.defNames
+        }
     }
 }

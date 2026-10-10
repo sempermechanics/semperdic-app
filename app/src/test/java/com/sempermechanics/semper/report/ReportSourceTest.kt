@@ -114,6 +114,8 @@ class ReportSourceTest {
         ).copy(engineStats = List(17) { it.toFloat() }, strainMethod = "")
         val sweep = batch.copy(
             id = "s1",
+            // A sweep repeats its one image in every row; the third combination has no label.
+            defNames = List(3) { "a.tif" },
             sweepSubsets = listOf(21, 31),
             sweepSteps = listOf(5),
             sweepStrainWindows = listOf(41, 85, 99),
@@ -143,6 +145,8 @@ class ReportSourceTest {
         assertEquals(listOf(41, 5, 99), listOf(sweep2.subsetSize, sweep2.step, sweep2.strainWindow))
         assertEquals("LSQ", sweep2.strainMethod)
         assertEquals("second", bundlerParams(sweep, 1, data).deformedImageName)
+        // An unlabelled combination prints the name its folder and metadata.json use.
+        assertEquals("Combination_3", sweep2.deformedImageName)
     }
 
     // ── The viewer ─────────────────────────────────────────────────────────
