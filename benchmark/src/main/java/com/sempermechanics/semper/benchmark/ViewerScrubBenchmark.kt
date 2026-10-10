@@ -34,6 +34,10 @@ import org.junit.runner.RunWith
  * startup metrics, so the launch is driven with a plain `am start` and the viewer's own
  * UI is awaited instead.
  *
+ * [scrub150FramesWithPhotos] opens a separate session whose frames each have their own
+ * photo, so every frame is drawn with the deformed-frame heatmap over it (TD-175). It is
+ * report-only: `benchmark/gates.json` lists no reference for it.
+ *
  * Run: `./gradlew :benchmark:connectedBenchmarkAndroidTest`
  */
 @OptIn(ExperimentalMetricApi::class)
@@ -54,7 +58,11 @@ class ViewerScrubBenchmark {
     @Test
     fun scrub10Frames() = scrub(frameCount = 10)
 
-    private fun scrub(frameCount: Int) = benchmarkRule.measureRepeated(
+    /** [scrub150Frames] with a photo per frame: the viewer's deformed-frame path. Not gated. */
+    @Test
+    fun scrub150FramesWithPhotos() = scrub(frameCount = 150, framePhotos = true)
+
+    private fun scrub(frameCount: Int, framePhotos: Boolean = false) = benchmarkRule.measureRepeated(
         packageName = PACKAGE,
         metrics = listOf(
             FrameTimingMetric(),
@@ -66,7 +74,7 @@ class ViewerScrubBenchmark {
         setupBlock = {
             killProcess()
             device.executeShellCommand(
-                "am start -n $PACKAGE/$SEEDER --ei frameCount $frameCount",
+                "am start -n $PACKAGE/$SEEDER --ei frameCount $frameCount --ez framePhotos $framePhotos",
             )
             // The first iteration also fabricates the .dat files, so allow for that.
             check(device.wait(Until.hasObject(By.res(PACKAGE, NEXT_BUTTON)), LAUNCH_TIMEOUT_MS)) {
