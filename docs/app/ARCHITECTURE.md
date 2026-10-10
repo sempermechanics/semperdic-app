@@ -249,7 +249,7 @@ The everything ZIP gives each stage its share of the bar (`ZipBudget` in
 
 | Stage | Bar | Moves by |
 |---|---|---|
-| PDF | 0–45 % | frame, then "Finalizing PDF..." for `PdfDocument.writeTo` |
+| PDF | 0–45 % | frame, then "Finishing the report" for `PdfDocument.writeTo` |
 | CSV | 45–62 % (sweep 45–72 %) | frame, and every 4096 point rows |
 | Animations (not on a sweep) | 62–72 % | frame of each field |
 | Raw photos and GIFs into the archive | 72–75 % | bytes copied |

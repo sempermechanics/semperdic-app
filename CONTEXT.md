@@ -114,70 +114,47 @@ emulator (`scripts/micro_ab.py`, [TESTING.md](docs/app/TESTING.md)); the phone-r
 [PERF_BASELINE_bd44af0.md](docs/engine/PERF_BASELINE_bd44af0.md)) is a manual reference.
 Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 
-## Current state (2026-10-09)
+## Current state (2026-10-10)
 
-- **Quality program (on `main`, #310–#332, 2026-10-05).** Bug fixes, the package layout
-  ([ADR-015](docs/adr/ADR-015-package-layout.md)), ViewBinding and the `ui/common` kit
-  ([ADR-017](docs/adr/ADR-017-viewbinding-and-ui-kit.md)), typed outcomes
-  ([ADR-018](docs/adr/ADR-018-error-convention.md)) and no main file over 500 lines.
-  Owed before release: the emulator passes in each PR's test plan and ADR-015's
-  queued-work upgrade check. Pixel 6 A/B done (§7.1 of the results; small slowdowns in
-  TD-177). Results: [QUALITY_PROGRAM_RESULTS.md](docs/ops/QUALITY_PROGRAM_RESULTS.md).
-- **App id `com.sempermechanics.semper` (on `main`, #333 and the naming scheme #334,
-  2026-10-05).** A new app; "indic" leaves the code and the engine submodule is `engine/`
-  ([ADR-019](docs/adr/ADR-019-sempermechanics-app-id.md)); naming rules in CONTRIBUTING
-  "Code style". Firebase app, App Check and `google-services.json` done; backend
-  (new ids in `apps.py`) and Hosting (`assetlinks.json`) deployed 2026-10-05. Pixel 6 check
-  of the new app passed 2026-10-05: sign-in, licence after **New device**, App Links, a
-  restore of an old-app backup, and a new analysis backed up. The restore dated the row
-  from the restore itself (fix #341). material_testing moves to
-  `com.sempermechanics.materialtesting` in the same merge that takes this code
-  ([FORK_SYNC](docs/ops/FORK_SYNC.md)); its Firebase app is not registered yet.
-- **Deployed.** Cloud Run `semper-api` from `85650da` (#344, 2026-10-07; scales to zero)
-  behind API Gateway `semper-gw`, and staging `semper-api-staging` behind
-  `semper-gw-staging`. It was deployed by hand because the Actions runners were not
-  assigned, so the images are not re-pinned (CHANGELOG). Project IDs keep `indic-*`
+- **Deployed.** Cloud Run `semper-api` behind API Gateway `semper-gw`, and staging
+  `semper-api-staging` behind `semper-gw-staging`, from `029a12c4` (2026-10-09; redeployed
+  2026-10-10 from `bd1246c3` with no backend change). Live since 2026-10-09: the erasure
+  check `GET /v1/me/erasure` (#400), JSON log lines with the caller's `appId`, the licence
+  prefix only while licensed, one status per refusal (#409). Licensing
+  ([ADR-007](docs/adr/ADR-007-licence-lifecycle.md)), device binding per app
+  ([ADR-010](docs/adr/ADR-010-device-binding-per-app.md)) and sessions tagged by app
+  ([ADR-014](docs/adr/ADR-014-session-app-tag.md)) are live; consoles on
+  `app.sempermechanics.com` ([§20](docs/backend/CLOUD_ARCHITECTURE_GCP.md)). What went out
+  when: [CHANGELOG](docs/ops/CHANGELOG.md). Project IDs keep `indic-*`
   ([ENVIRONMENTS.md](docs/ops/ENVIRONMENTS.md)).
-  Licensing, the licence desk ([ADR-007](docs/adr/ADR-007-licence-lifecycle.md)), device
-  binding per app ([ADR-010](docs/adr/ADR-010-device-binding-per-app.md)) and sessions
-  tagged by app ([ADR-014](docs/adr/ADR-014-session-app-tag.md)) are live; consoles on
-  `app.sempermechanics.com` ([§20](docs/backend/CLOUD_ARCHITECTURE_GCP.md)); what went out
-  when is in [CHANGELOG](docs/ops/CHANGELOG.md).
-- **App release `v1.2-beta.3`** (beta, private GitHub Release, versionCode 35, from
-  `ae05bb87`); Pixel 6 smoke on 2026-09-26 was clean. Next release also carries the
-  material_testing ports #298–#302 (manual keyboard / ROI dock / viewer checks owed).
-- **material_testing shares this history** and merges this `main` (last at `dc133510`,
-  material_testing#120). Its sync of `85650da` is draft material_testing#122. That sync
-  is not compiled, and it waits on the Firebase app for
-  `com.sempermechanics.materialtesting`. Shared code and backend changes land here first
+- **Backups are restorable.** The first Firestore restore drill passed 2026-10-10 (RTO
+  111 s) and runs monthly ([FIRESTORE_DATA_PROTECTION.md](docs/backend/FIRESTORE_DATA_PROTECTION.md)).
+- **App id `com.sempermechanics.semper`** ([ADR-019](docs/adr/ADR-019-sempermechanics-app-id.md),
+  #333/#334, 2026-10-05; Pixel 6 checked). material_testing moves to
+  `com.sempermechanics.materialtesting` when it merges this code
+  ([FORK_SYNC](docs/ops/FORK_SYNC.md)).
+- **App release `v1.2-beta.3`** (beta, versionCode 35, from `ae05bb87`). Everything below
+  is on `main` and not in a release yet:
+  - the quality program (#310–#332; [QUALITY_PROGRAM_RESULTS.md](docs/ops/QUALITY_PROGRAM_RESULTS.md));
+  - security and data-loss fixes (#393–#400: Drive resume by `Range`, the API client's
+    host check, an interrupted account deletion finished at the next start and checked
+    without re-creating the account, a wizard outcome kept for the screen);
+  - the UI pass (#385–#396) and the minimal pass (#402–#419);
+  - tech-debt fixes (#404–#411, #425): the licence row, licence refresh and PDF progress
+    text, the ROI readout, one name per sweep frame, one session-quota rule, a failed
+    backup told once.
+- **material_testing shares this history** and merges this `main` (last at `3154ebc`,
+  material_testing#132, 2026-10-08); shared code and backend changes land here first
   ([FORK_SYNC.md](docs/ops/FORK_SYNC.md)).
-- **Testing program (2026-10-08, merged #366–#371).** CI tiers follow the diff (weekly
-  full matrix), coverage floors at measured − 2 raised by every test PR
-  ([TESTING.md](docs/app/TESTING.md#coverage-floors)), golden `.dat` / GIF files, shared
-  `contracts/`; nothing left open. `main` requires `CI OK` (ruleset,
-  2026-10-08).
-- **Security and data-loss fixes (on `main` 2026-10-09, #393–#397; not in a release yet).**
-  Drive uploads resume where Drive's `Range` says (TD-158); the API client matches the
-  backend by host and port and follows no redirects (TD-160, TD-161); an account deletion
-  the process died in is finished at the next start (TD-165, `AccountDeletionMarker`);
-  a wizard run's outcome waits for the screen (TD-168, `PendingOutcome`).
-- **UI pass (on `main` 2026-10-09, #385, #387–#391, #396; not in a release yet).** The sweep
-  lattice filling live, export and transfer progress with bytes and Retry notifications,
-  signals for silent waits, and the sweep split into setup and settings. Owed: a device
-  check of the transfer notifications (it touches the shared backend).
-- **Minimal pass (on `main` 2026-10-10, #402–#419; not in a release yet).** Fewer words:
-  Home cards under day headers, the run overlay's frames as convergence bins with only the
-  time left, the point count on the ROI row and Overlap / Interpolation under **Advanced**,
-  one-line share rows, shorter Settings, viewer titles without the field ("Summary"), a
-  video analysis named after its clip with clip times on its frames, "steel_24 sweep".
-  A sweep has its own record (#403); ZIP export progress moves within a frame (#402).
-- **Dependabot** opens monthly PRs for major versions only (pip, Gradle, Actions; #337);
-  minor and patch fixes arrive as Dependabot security updates, which are on.
-- **Owed.** The public release of `v1.2-beta.3` (website / Play); a licensed-account smoke
-  of share and PDF and Delete everywhere (Restore and the backups card were checked on the
-  new app 2026-10-05; a backup hidden from the card comes back only through Settings);
-  Material Testing signed in beside a signed-in Semper on one phone,
-  and App Check for it; AVI import has run only on emulators ([WORKFLOWS.md](docs/app/WORKFLOWS.md) §5.1a);
+- **CI.** Tiers follow the diff, coverage floors rise with every test PR
+  ([TESTING.md](docs/app/TESTING.md#coverage-floors)), and `main` requires `CI OK`.
+  Dependabot opens monthly PRs for major versions only.
+- **Owed.** The public release (website / Play) with the emulator and Pixel checks
+  each PR's test plan lists, ADR-015's queued-work upgrade check and the manual checks
+  of the material_testing ports #298–#302; a licensed-account smoke of share, PDF and Delete
+  everywhere; a device check of the transfer notifications; Material Testing beside
+  Semper on one phone, and its App Check; AVI import on a phone
+  ([WORKFLOWS.md](docs/app/WORKFLOWS.md) §5.1a); the privacy-policy values (TD-36);
   unchecked rows in [PRODUCTION_READINESS_GATE.md](docs/ops/PRODUCTION_READINESS_GATE.md).
 - **Look it up; this list rots.** `gh pr list --state open`, [CHANGELOG.md](docs/ops/CHANGELOG.md), [FUTURE_IMPROVEMENTS.md](docs/ops/FUTURE_IMPROVEMENTS.md).
 
