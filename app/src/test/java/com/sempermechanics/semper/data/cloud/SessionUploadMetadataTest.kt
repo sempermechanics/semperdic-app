@@ -72,6 +72,18 @@ class SessionUploadMetadataTest {
         }
     }
 
+    @Test
+    fun `a blank or missing sweep label is written as the bundle names the frame`() {
+        // The bundle's folder and PDF fall back to Combination_N; a blank label
+        // used to reach metadata.json as "" and the folder as processed/ itself.
+        val record = UploadMetadataFixtures.sweep.copy(sweepLabels = listOf("S21/st5/w41", " "))
+        val frames = SessionUploadMetadata.framesJson(record)
+        assertEquals(
+            listOf("S21/st5/w41", "Combination_2", "Combination_3"),
+            List(frames.length()) { frames.getJSONObject(it).getString("frame") },
+        )
+    }
+
     private fun assertSameJson(label: String, expected: String, actual: String) {
         val e = withoutVolatile(Json.parseToJsonElement(expected).jsonObject)
         val a = withoutVolatile(Json.parseToJsonElement(actual).jsonObject)

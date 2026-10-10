@@ -24,12 +24,10 @@ strain fields — and has not used this app. -->
 ---
 
 > **`delete-dialog.png` below still shows the pre-2026-08 UI** — recapturing it
-> needs a signed-in account with a cloud-backed analysis. `home.png`,
-> `step2-parameters.png` and `speckle-warning.png` were recaptured on 2026-09-09
-> after the in-app camera was removed, so they show the current **+** button and
-> the speckle readout — but `home.png` is now an empty-state shot, so the list
-> rows and their cloud state icons are not visible on it; those and the Settings
-> **Download** row still need a real-account pass. `settings.png` shows the
+> needs a signed-in account with a cloud-backed analysis. `home.png` shows the
+> list as of 2026-10-10, but only local analyses, so every cloud icon reads *Not
+> backed up*; the other cloud states and the Settings **Download** row still need
+> a real-account pass. `settings.png` shows the
 > current UI but only its local-only state. Every other screenshot on this page
 > matches the current UI. The diagrams
 > (`pipeline.svg`, `wizard.svg`, `subset-step.svg`, `vsg.svg`, `lattice.svg`) are
@@ -93,7 +91,7 @@ Send crash reports**.
 Home lists your analyses. Tap one to open it. Long-press for select, rename,
 delete. Pull down to sync. **+** goes straight to the picker — pick existing
 photos or a video. There is no in-app camera; the app measures images you
-already have. (The shot above is the empty state, before any analysis exists.)
+already have.
 
 The list is grouped by day under small headers: *Today*, *Yesterday*, then a
 date such as *Oct 7* (with the year for an earlier year), in your phone's
@@ -559,7 +557,7 @@ Look for the VSG where the curves stop separating.
 appear, a small pill in the middle reads **Opening steel_00 · 40 frames** (the
 reference's name and the frame count) until that frame draws.
 
-Field pills switch field. Pinch to zoom (~10×), drag to pan; both survive a
+The field button (top left) switches field. Pinch to zoom (~10×), drag to pan; both survive a
 field change. Double-tap zooms or resets. A horizontal fling while fit-to-screen
 steps frames. Chrome auto-hides after a short idle; pan or scrub brings it back,
 and so does a tap in the middle of the screen or a downward swipe. The figure
@@ -595,7 +593,7 @@ framed on the same coloured region the live view rest-fits to (your ROI, or the
 accepted points), scaled to fill — not a letterboxed full photo. While it builds
 you get a progress readout and a **Cancel**. **Next** enters the
 frames; **Prev** on frame 1 comes back to it. Switching field rebuilds it in that
-field. Field pills stay available while it plays. A parameter sweep opens from
+field. The field button stays available while it plays. A parameter sweep opens from
 the lattice onto one combination instead; there is no overview slot.
 
 (Playback needs Android 9 or newer. Below that you get the first frame
@@ -604,9 +602,9 @@ and a note; single-setting field GIFs still export.)
 **Frames.** Prev / Next step through. The title at the top names what is on
 screen — *Summary*, the frame's file name without its extension, or a video
 frame's time in its clip (`0:01.25`) — and the
-field button beside it names the field. The pill under the frame counts:
-`i / N` on a frame, `5 frames` on the summary. Type a number in the small field
-under it and press Go to jump straight to that frame — useful at 150 frames.
+field button beside it names the field. Between the arrows, a frame shows
+`i / N`, and the summary `5 frames`. Tap the frame number, type another and
+press Go to jump straight to that frame — useful at 150 frames.
 Anything out of range leaves you where you are. On a sweep each frame is a
 parameter combination, titled like `Subset 15 · window 3` (the strain window in
 data points; the step is always the subset divided by the sweep's N).

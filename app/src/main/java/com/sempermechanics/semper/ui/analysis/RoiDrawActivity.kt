@@ -123,7 +123,7 @@ class RoiDrawActivity : AppCompatActivity() {
                 binding.overlayRoi.imageView = binding.imgRoiCanvas
                 savedInstanceState?.getRoiEdges()?.let { saved ->
                     binding.overlayRoi.restoreRelativeRoi(saved)
-                    fillManualFields(binding.overlayRoi.getRelativeRoi())
+                    shownRoi(binding.overlayRoi.getRelativeRoi(), crop = true)?.let(::fillManualFields)
                 }
             }
         }
@@ -198,15 +198,9 @@ class RoiDrawActivity : AppCompatActivity() {
      * last hole's size in erase mode, else the crop's; a prompt when there is none.
      */
     private fun showSelection(roi: RectF) {
-        val shown = if (erasing) binding.overlayRoi.lastHoleRelative() else roi
-        if (shown.width() > 0 && shown.height() > 0) {
-            binding.tvHud.text = getString(
-                R.string.roi_hud_dimensions_fmt,
-                shown.width().roundToInt(),
-                shown.height().roundToInt(),
-                shown.left.roundToInt(),
-                shown.top.roundToInt(),
-            )
+        val shown = shownRoi(if (erasing) binding.overlayRoi.lastHoleRelative() else roi)
+        if (shown != null) {
+            binding.tvHud.text = getString(R.string.roi_hud_dimensions_fmt, shown.w, shown.h, shown.x, shown.y)
             fillManualFields(shown)
         } else if (erasing) {
             binding.tvHud.text = getString(R.string.roi_hud_mode_erase)
@@ -239,16 +233,34 @@ class RoiDrawActivity : AppCompatActivity() {
     /** Prefill manual fields from the main crop or the last erase rect. */
     private fun syncManualFieldsForMode() {
         val rect = if (erasing) binding.overlayRoi.lastHoleRelative() else binding.overlayRoi.getRelativeRoi()
-        if (rect.width() > 0f && rect.height() > 0f) fillManualFields(rect) else clearManualFields()
+        val shown = shownRoi(rect)
+        if (shown != null) fillManualFields(shown) else clearManualFields()
     }
 
-    private fun fillManualFields(roi: RectF) {
-        if (roi.width() <= 0f || roi.height() <= 0f) return
+    /**
+     * The whole pixels the HUD and typed fields show for [rect] (image px), or
+     * null when it is empty. A [crop] is rounded as Save rounds it
+     * ([Roi.fromImageRect]: each edge, then clamped to the image), so the two
+     * never read a pixel apart (TD-162). A hole shows its size and corner each
+     * rounded; the mask encoder takes it from the floats.
+     */
+    private fun shownRoi(rect: RectF, crop: Boolean = !erasing): Roi? = when {
+        rect.width() <= 0f || rect.height() <= 0f -> null
+        crop -> Roi.fromImageRect(rect, imageSize).takeIf { it.w > 0 && it.h > 0 }
+        else -> Roi(
+            rect.left.roundToInt(),
+            rect.top.roundToInt(),
+            rect.width().roundToInt(),
+            rect.height().roundToInt(),
+        )
+    }
+
+    private fun fillManualFields(roi: Roi) {
         syncingManualFields = true
-        binding.etRoiX.setText(roi.left.roundToInt().toString())
-        binding.etRoiY.setText(roi.top.roundToInt().toString())
-        binding.etRoiW.setText(roi.width().roundToInt().toString())
-        binding.etRoiH.setText(roi.height().roundToInt().toString())
+        binding.etRoiX.setText(roi.x.toString())
+        binding.etRoiY.setText(roi.y.toString())
+        binding.etRoiW.setText(roi.w.toString())
+        binding.etRoiH.setText(roi.h.toString())
         syncingManualFields = false
     }
 

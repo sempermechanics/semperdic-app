@@ -73,14 +73,17 @@ class SessionUploadBundlerDeviceTest {
         png(File(rawDir, "speckle.png"))
         dat(SessionPaths.frameDat(sessionDir, 0))
         dat(SessionPaths.frameDat(sessionDir, 1))
+        dat(SessionPaths.frameDat(sessionDir, 2))
+        // The third combination has no label: its folder and PDF take the
+        // Combination_N its metadata.json frame has.
         val record = sessionRecord(
-            id = "bundler_device", name = "sweep", createdAt = 0, frameCount = 2, subset = 21, step = STEP,
+            id = "bundler_device", name = "sweep", createdAt = 0, frameCount = 3, subset = 21, step = STEP,
             imgW = SIDE, imgH = SIDE, refPath = ref.path, sessionDir = sessionDir.path,
-            defNames = listOf("speckle.png", "speckle.png"),
+            defNames = List(3) { "speckle.png" },
         ).copy(
-            sweepSubsets = listOf(21, 31),
-            sweepSteps = listOf(STEP, STEP),
-            sweepStrainWindows = listOf(15, 19),
+            sweepSubsets = listOf(21, 31, 21),
+            sweepSteps = listOf(STEP, STEP, STEP),
+            sweepStrainWindows = listOf(15, 19, 15),
             sweepLabels = listOf("S21/W15", "S31\\W19"),
         )
         val staging = File(root, "staging")
@@ -98,8 +101,9 @@ class SessionUploadBundlerDeviceTest {
             )
         }
 
-        assertEquals(SessionUploadBundler.BundleCounts(reports = 2, processed = 10), counts)
-        for (label in listOf("S21-W15", "S31-W19")) {
+        assertEquals(SessionUploadBundler.BundleCounts(reports = 3, processed = 15), counts)
+        assertEquals(listOf("Combination_3", "S21-W15", "S31-W19"), File(staging, "processed").list()?.sorted())
+        for (label in listOf("S21-W15", "S31-W19", "Combination_3")) {
             val pdf = File(staging, "reports/Master_Report_$label.pdf")
             assertTrue("$pdf", pdf.length() > 0)
             assertEquals("%PDF", String(pdf.readBytes().copyOf(4), Charsets.US_ASCII))
@@ -108,7 +112,7 @@ class SessionUploadBundlerDeviceTest {
         }
         val lines = csv.readLines()
         val header = lines.indexOfFirst { it.startsWith("image,") }
-        assertEquals(10, lines.subList(0, header).count { it.startsWith("# speckle.png,") })
+        assertEquals(15, lines.subList(0, header).count { it.startsWith("# speckle.png,") })
         assertTrue("stats among the points", lines.subList(header, lines.size).none { it.startsWith("#") })
         assertFalse("points staging file left", File(root, "a.csv.points.tmp").exists())
         assertFalse("sweeps get no animations", File(staging, "processed/animations").exists())

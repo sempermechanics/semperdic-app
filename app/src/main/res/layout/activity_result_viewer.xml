@@ -295,7 +295,8 @@
                 android:text="@string/frame_1_1"
                 android:textColor="@color/viewer_chrome_text"
                 android:textSize="15sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:visibility="gone" />
 
             <LinearLayout
                 android:id="@+id/layoutFrameJump"

@@ -399,8 +399,7 @@ class ResultViewerActivity : AppCompatActivity() {
         inspect.clearSpatialIndex()
         images.updateHeatmapFitBounds(data)
         images.showFrameBase(index)
-        // The frame's name is the edge title (ViewerCaptions.title); the pill only counts.
-        if (!isShowingSummary) binding.tvFrameCounter.text = "${index + 1} / ${batchFiles.size}"
+        // The frame's name is the edge title (ViewerCaptions.title); the jump field counts.
         frameJump.syncFrameNumber()
         // updateVisualization warms this frame's stats off the main thread
         // and pushes them to the caption when the render completes.

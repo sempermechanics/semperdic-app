@@ -10,31 +10,30 @@ phone-class emulator or device at the project's debug build; light theme
 unless noted. Keep the 460×1022 crop so the manual's `width="300"` doesn't
 distort.
 
-> **Theme mismatch, open:** the 2026-09-09/10 shots (`home.png`,
-> `step2-parameters.png`, `speckle-warning.png`, `speckle-span-warning.png`)
-> came off a dark-themed
-> emulator, while the 2026-08-19 folder is light. They are scaled to 460×1022
-> so they lay out correctly, but the manual now alternates light and dark
-> mid-flow. Recapture all three in light theme on the next pass.
+> **Theme mismatch, open:** the 2026-09-09/10 shots `speckle-warning.png` and
+> `speckle-span-warning.png` came off a dark-themed emulator, while the rest of
+> the folder is light. They are scaled to 460×1022 so they lay out correctly,
+> but the manual alternates light and dark mid-flow. Recapture both in light
+> theme on the next pass.
 
 ## Done
 
 | File | Used in §. | State captured |
 |---|---|---|
-| `home.png` | §1 | *(2026-09-09, dark)* Empty state with the new plain **+** button, replacing the shot that still showed the camera-and-video FAB glyph. Still missing: session rows at all, and with them the cloud state icons (**Backed up** / **Upload pending** / **Only in cloud**) and result-heatmap thumbnails — see below |
+| `home.png` | §1 | *(2026-10-10, light, Pixel_5 AVD)* Outlined cards under **Today** / **Yesterday** headers: single runs ("5 frames · 87.9%", one amber 84.3%), a video analysis ("Video · 29 frames, 0:00–0:02 · 96.0%"), a sweep ("9 of 9 solved"), result thumbnails. Local-only, so every cloud icon reads *Not backed up* — see below for the other states |
 | `new-analysis-source.png` | §4 | Images tab open, gallery grid populated, a video tile showing its badge |
 | `step1-frames.png` | §4 | Reference + 3 deformed frames loaded, order badges visible |
 | `frame-order-menu.png` | §4 | The sort menu open over the loaded strip |
-| `step2-parameters.png` | §4 | *(2026-10-09, light, Pixel_5 emulator)* Flat list: Single/Sweep at the top, the ROI row with its thumbnail, the Correlation section with the "Speckle D px" chip, the shaded band behind the subset slider and its caption, "N points in the region" under the step, the Interpolation dropdown, and **Compute**. **Stale** since the parameters trim: recapture with the count on the ROI row ("Full image · N points"), no band caption, "N px VSG" beside the strain window, and **Advanced** closed |
+| `step2-parameters.png` | §4 | *(2026-10-10, light, Pixel_5 AVD)* Single/Sweep at the top, the ROI row reading "Full image · 30,968 points", the Correlation section with the "Speckle 4.8 px" chip and the shaded band behind the subset slider, "21 px VSG" beside the strain window, **Advanced** closed, and **Compute · about 7 s** |
 | `speckle-warning.png` | §4 (new) | *(2026-09-09, dark)* Step 1 with the over-resolved speckle chip — a 12.8 px pattern against the 9 px ceiling |
 | `speckle-span-warning.png` | §4 (new) | *(2026-09-10, dark)* Step 2 with the subset-span chip under the slider — a 7.1 px pattern against a 15 px subset, asking for 23 |
-| `running.png` | §4 | *(2026-10-08, light, Pixel_5 AVD; **owed a recapture**: it still shows the line graph the convergence bins replaced on 2026-10-09)* Mid-run: header "Frame N of M" with the percentage, time left, the convergence bins over several frames with the frame in progress pale and outlined |
+| `running.png` | §4 | *(2026-10-10, light, Pixel_5 AVD)* Mid-run: "Frame 4 of 5" with 72.8%, "About 2 s left", three finished convergence bins and the fourth in progress, pale and outlined, over the 50% line; **Cancel** |
 | `roi-editor.png` | §6 | Draw + Crop mode, one rectangle drawn, HUD showing `W × H at (x, y)` |
-| `step3-sweep.png` | §7 | Sweep settings: subset and strain window ranges with the VSG caption, step ÷ N with overlap, **Line cut axis** over the small preview, and "Run N analyses · about T". **Stale** since the sweep trim: recapture with **Subset** / **Strain window** and "a–b px VSG" on its title row, the overlap under a closed **Advanced**, the X / Y toggle, and "Run N · T" |
+| `step3-sweep.png` | §7 | *(2026-10-10, light, Pixel_5 AVD)* Sweep settings: **Subset** 15–35 and **Strain window** 3–11 with "11–121 px VSG" on its title row, step "subset ÷ 3", **Advanced** closed, the **X / Y** line-cut toggle over the strip preview, and **Run 9 · 7 s** |
 | `result-lattice.png` | §7 | Summary line above the lattice, hollow (skipped) nodes, **All / Node** pill visible |
-| `result-viewer.png` | §8 | Exx strain field with full chrome: back · title · ⓘ · Home · share along the top, field pills + scale + scrub along the bottom |
+| `result-viewer.png` | §8 | *(2026-10-10, light, Pixel_5 AVD)* Exx on the last frame of a steel strip: back · "steel_27" · ⓘ · Home · share along the top, the field chip, the colour bar with its limits, a probed point ("Exx: 1.90895 mε"), and the frame jump field "5 / 5" between the arrows |
 | `settings-used.png` | §8 | ⓘ details sheet on a sweep result, line-cut section showing. Still missing: a run that stopped early, to show the "Stopped early / Frames solved" rows |
-| `home-selection.png` | §10 | Two rows selected, bar reads "2 selected" |
+| `home-selection.png` | §10 | *(2026-10-10, light, Pixel_5 AVD)* Two cards selected under different day headers, bar reads "2 selected" with **Select all** and delete |
 | `settings.png` | §10 | Settings scrolled to **Analyses data management**, expanded. Still missing: a row with all three actions (Download / Restore / Delete) and the transfer banner — see below |
 | `media-picker-files-saf.png` | §4 (new) | The **Files** tab handing off to the system file browser |
 | `media-picker-permission-empty.png` | §4 (new) | The Images tab's empty state with **Allow access**, before media permission is granted |

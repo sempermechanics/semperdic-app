@@ -57,6 +57,19 @@ class ViewerTitleTest {
 
     private fun ResultViewerActivity.pill(): String = findViewById<TextView>(R.id.tvFrameCounter).text.toString()
 
+    /** What the bottom bar counts: the summary's pill, or a frame's jump field ("2 / 3"). */
+    private fun ResultViewerActivity.count(): String {
+        val pill = findViewById<TextView>(R.id.tvFrameCounter)
+        val jump = findViewById<View>(R.id.layoutFrameJump)
+        val pillShown = pill.visibility == View.VISIBLE
+        assertTrue("the pill and the jump field never show together", pillShown != (jump.visibility == View.VISIBLE))
+        return if (pillShown) {
+            pill()
+        } else {
+            findViewById<TextView>(R.id.etFrameNumber).text.toString() + findViewById<TextView>(R.id.tvFrameTotal).text
+        }
+    }
+
     private fun ResultViewerActivity.click(id: Int) {
         findViewById<View>(id).performClick()
         shadowOf(mainLooper).idle()
@@ -104,12 +117,12 @@ class ViewerTitleTest {
     fun `a photo frame is titled by its name, and the pill counts it`() {
         val activity = viewer(viewerArgs(batchDir, GRID, STEP, (1..FRAMES).map { "steel_0$it.tif" }))
         idleUntil("the first title") { activity.title() == "steel_01" }
-        assertEquals("1 / 3", activity.pill())
+        assertEquals("1 / 3", activity.count())
 
         activity.click(R.id.btnNextFrame)
         shadowOf(activity.mainLooper).idleFor(Duration.ofMillis(100))
         idleUntil("the second frame's title") { activity.title() == "steel_02" }
-        assertEquals("2 / 3", activity.pill())
+        assertEquals("2 / 3", activity.count())
     }
 
     @Test
@@ -132,7 +145,7 @@ class ViewerTitleTest {
 
         assertTrue(activity.isShowingSummary)
         assertEquals("Summary", activity.title())
-        assertEquals("3 frames", activity.pill())
+        assertEquals("3 frames", activity.count())
     }
 
     @Test
@@ -148,7 +161,7 @@ class ViewerTitleTest {
         val labels = listOf("S15 · St4 · W3", "S25 · St4 · W7", "S35 · St4 · W11")
         val activity = viewer(viewerArgs(batchDir, GRID, STEP, labels).copy(sweep = sweep))
         idleUntil("the node's title") { activity.title() == "Subset 15 · window 3" }
-        assertEquals("1 / 3", activity.pill())
+        assertEquals("1 / 3", activity.count())
 
         activity.click(R.id.btnNextFrame)
         shadowOf(activity.mainLooper).idleFor(Duration.ofMillis(100))
