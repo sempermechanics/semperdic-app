@@ -30,7 +30,7 @@ the real placement.
 | `production-backup` | [`firestore-backup.yml`](../../.github/workflows/firestore-backup.yml) | Daily Firestore export |
 | `restore-drill` | [`firestore-restore-drill.yml`](../../.github/workflows/firestore-restore-drill.yml) | Monthly / on-demand restore verify |
 
-**`restore-drill` exists but has no variables yet** (2026-10-09); `scripts/setup-restore-drill.sh` sets them. Backup and restore credentials must
+**`restore-drill` has its five variables** (set by `scripts/setup-restore-drill.sh` on 2026-10-09; the first drill passed 2026-10-10). Backup and restore credentials must
 not share an environment: the drill identity can write to a throwaway project
 and must never be able to import over production. See
 [FIRESTORE_DATA_PROTECTION.md](../backend/FIRESTORE_DATA_PROTECTION.md).

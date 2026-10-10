@@ -43,14 +43,18 @@ Strict binary PASS against all applicable external controls is **not** claimed.
       has no `roles/editor`. Open: `indic-deployer`'s project-wide
       `storage.admin` and `iam.serviceAccountUser` (TD-71), and Shared Drive
       Manager rights for `indic-api`.
-- [ ] Run and record one **Firestore restore drill** (TD-156: it has never run). The drill is automated
-      (`.github/workflows/firestore-restore-drill.yml`). Its **`restore-drill`
-      GitHub Environment** (separate from `production-backup`) exists but has no
-      variables, and no drill project exists yet (checked 2026-10-09). Still owed: a
-      run of `scripts/setup-restore-drill.sh` (the drill project and identity, the
-      five variables the workflow checks first), then one recorded RTO
-      ([FIRESTORE_DATA_PROTECTION.md](../backend/FIRESTORE_DATA_PROTECTION.md),
-      Configuring the `restore-drill` environment).
+- [x] Run and record one **Firestore restore drill** (TD-156). **Passed 2026-10-10**,
+      run [38023354431](https://github.com/sempermechanics/semperdic-app/actions/runs/38023354431)
+      of `.github/workflows/firestore-restore-drill.yml`, into the drill project
+      `indicvision-dic-restore-drill` (set up 2026-10-09 with
+      `scripts/setup-restore-drill.sh`). **RTO: 111 s** for the import.
+      **Recovery point:** the export `20261009T090852Z` (2026-10-09 09:08:52 UTC),
+      the newest daily export at the time. Verification (`scripts/firestore_verify.py`
+      against the export's `manifest.json`): every collection's document count
+      matched and a 25-session `session → files` sample matched; the drill
+      database was purged afterwards. The drill now runs monthly; a failed run
+      means the restore path is unproven again
+      ([FIRESTORE_DATA_PROTECTION.md](../backend/FIRESTORE_DATA_PROTECTION.md)).
 - [x] Confirm PITR / scheduled export job actually scheduled in GCP. The export
       script already refuses to run without PITR, and now also fails if the
       `challenges.expireAt` TTL policy is not ACTIVE. Checked 2026-09-24:
