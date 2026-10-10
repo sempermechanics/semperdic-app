@@ -3,6 +3,7 @@ package com.sempermechanics.semper.ui.home
 import androidx.appcompat.app.AppCompatActivity
 import androidx.work.WorkManager
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.cloud.BackupFailureLedger
 import com.sempermechanics.semper.data.cloud.TransferWork
 import com.sempermechanics.semper.data.cloud.UploadErrors
 import com.sempermechanics.semper.ui.common.dialog.CrispToast
@@ -56,7 +57,7 @@ internal class HomeTransferWatch(
                         // no reason either (an analysis deleted before its
                         // backup ran), and the limit can be held from before.
                         job.isQuotaStop() -> quota.openLimitScreenIfReached()
-                        state.reason != null -> showUploadFailure(state.reason)
+                        state.reason != null -> showUploadFailure(job, state.reason)
                     }
                     else -> Unit
                 }
@@ -88,10 +89,13 @@ internal class HomeTransferWatch(
      * Informative only — every reason that reaches here is terminal (device
      * conflict, too large, render OOM), so a one-tap Retry would just re-fail.
      * The badge remains the place to deliberately re-attempt
-     * (see [BackupBadgeActions.retryOrBackup]).
+     * (see [BackupBadgeActions.retryOrBackup]). Told once per failure, not
+     * once per Home: WorkManager keeps the failed job for about a day and
+     * hands it to every new Home ([BackupFailureLedger]).
      */
-    private fun showUploadFailure(reason: String) {
+    private fun showUploadFailure(job: TransferWorkObserver.Job, reason: String) {
         if (!showsCloudState()) return
+        if (!BackupFailureLedger.claim(activity, job.id)) return
         CrispToast.show(
             activity,
             activity.getString(R.string.cloud_backup_failed_fmt, reason),

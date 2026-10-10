@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.data.account.DeviceKeys
+import com.sempermechanics.semper.data.cloud.BackupFailureLedger
 import com.sempermechanics.semper.data.cloud.CloudBackupListing
 import com.sempermechanics.semper.data.cloud.restore.RestoreFailureLedger
 import com.sempermechanics.semper.data.net.AccountCache
@@ -117,8 +118,8 @@ class PrefKeyTest {
     // ── The catalogue, file by file ────────────────────────────────────────
 
     @Test
-    fun `the catalogue names thirteen distinct files`() {
-        assertEquals(13, PrefFiles.ALL_NAMES.toSet().size)
+    fun `the catalogue names fourteen distinct files`() {
+        assertEquals(14, PrefFiles.ALL_NAMES.toSet().size)
     }
 
     @Test
@@ -411,6 +412,20 @@ class PrefKeyTest {
         val other = UUID.randomUUID()
         p.edit(commit = true) { put(r.ANNOUNCED, other.toString()) }
         assertFalse(RestoreFailureLedger.claim(context, other))
+    }
+
+    @Test
+    fun `semper_backup_outcomes holds BackupFailureLedger's claims`() {
+        val b = PrefFiles.BackupOutcomes
+        val p = prefs(b.NAME)
+        assertEquals("semper_backup_outcomes", b.NAME)
+        assertEquals("", p[b.ANNOUNCED])
+        val id = UUID.randomUUID()
+        assertTrue(BackupFailureLedger.claim(context, id))
+        assertFalse("claimed once", BackupFailureLedger.claim(context, id))
+        assertEquals(id.toString(), p.getString("announced", null))
+        val restores = PrefFiles.RestoreOutcomes
+        assertEquals("a restore's ledger is its own", "", prefs(restores.NAME)[restores.ANNOUNCED])
     }
 
     @Test

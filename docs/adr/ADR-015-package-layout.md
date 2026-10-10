@@ -50,7 +50,7 @@ File counts are main sources only; the first move's table is in this file's hist
 | `navigation/` | 2 | `AppIntents`, `IntentKeys` |
 | `data/` | 11 | The six workers (pinned): `BackupDeleteWorker`, `DicBundleDownloadWorker`, `DicRestoreWorker`, `DicUploadWorker`, `LicenseConfigWorker`, `SessionMetadataWorker`. Beside `DicUploadWorker`, the steps it was split into: `UploadStaging`, `UploadSessionPlanner`, `UploadRun`, `UploadFailures`, `UploadTuning` |
 | `data/session/` | 17 | Local sessions: `SessionStore`, `SessionRecord` (+ `SessionRecordFields`), `SessionPaths`, `SessionLayout`, `SessionNaming`, `SessionRepository`, `SessionHeadline`, `SessionQuota`, `SessionZip`, `ZipDirectory`, `DatCodec`, `LocalArtifacts`, `SkippedNode`, `StorageBudget`, `CacheJanitor`, `SessionEverythingExporter` |
-| `data/cloud/` | 18 | Backup and sync: `CloudSync`, `CloudErase`, `CloudReconcile`, `CloudBackupListing`, `CloudAccountExport`, `SessionDeletes`, `SessionMetadataSync`, `SessionMetadataDoc`, `SessionUploadBundler`, `SessionUploadMetadata`, `UploadWorkOutcomes`, `UploadProgressSampler`, `UploadErrors`, `TransferWork`, `WorkTags`, `TransferLog`, `TransferNotifications`, `CorruptTransferException` |
+| `data/cloud/` | 23 | Backup and sync: `CloudSync`, `CloudErase`, `CloudReconcile`, `CloudBackupListing`, `CloudAccountExport`, `SessionDeletes`, `SessionMetadataSync`, `SessionMetadataDoc`, `SessionUploadBundler`, `SessionUploadMetadata`, `UploadWorkOutcomes`, `UploadProgressSampler`, `UploadErrors`, `TransferWork`, `WorkTags`, `TransferLog`, `TransferMeter`, `TransferNotifications`, `TransferProgressUpdates`, `TransferResultNotifications`, `TransferRetryReceiver`, `TransferFailureLedgers`, `CorruptTransferException` |
 | `data/cloud/restore/` | 10 | `CloudRestore`, `RestoreBundleFetcher`, `RestoreUnpacker`, `RestoreZipVerifier`, `RestoreStart` (+ `RestoreFailureLedger`), `RestoreDownloadOutcomes`, `DownloadFailure`, `DownloadProgress`, `SafDestination`, `UnrestorableBackupException` |
 | `data/account/` | 15 | `AuthRepository`, `AuthLinks`, `AccessStatus`, `AccessStatusResolver`, `FirebaseOp`, `ReauthCredentials`, `DevAuth`, `DeviceEnv`, `DeviceKeys`, `LicenseEntitlements`, `LicenseErrors`, `SeatLease`, `SeatHeartbeat`, `LegalTerms`, `TotpMfa` |
 | `data/prefs/` | 6 | `AppSettings`, `CoachPrefs`, `ParamClipboard`, `WizardDraft`, `PrefKey`, `PrefFiles` |
@@ -80,7 +80,7 @@ File counts are main sources only; the first move's table is in this file's hist
 
 Eight packages are still over the ~15-file guide: `data/net/` (23),
 `report/` (22), `ui/analysis/wizard/` (22), `ui/viewer/` (19),
-`data/cloud/` (18), `data/session/` (17), `ui/analysis/sweep/` (17) and
+`data/cloud/` (23), `data/session/` (17), `ui/analysis/sweep/` (17) and
 `ui/analysis/run/` (16). They are left for later feature splits; none of them
 mixes features the way the flat packages did.
 
