@@ -501,6 +501,48 @@
                             tools:text="4×4 Bicubic" />
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
+
+                <!-- Reference: fixed first image, or moved forward (incremental DIC) -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_8"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/param_reference"
+                        android:textColor="@color/viewer_chrome_text"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilReference"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense.ExposedDropdownMenu"
+                        android:layout_width="168dp"
+                        android:layout_height="wrap_content"
+                        android:contentDescription="@string/reference_update_description">
+
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                            android:id="@+id/ddReference"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:textSize="14sp"
+                            tools:text="First image" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvReferenceHint"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_4"
+                    android:text="@string/reference_hint"
+                    android:textColor="@color/viewer_chrome_muted"
+                    android:textSize="12sp" />
             </LinearLayout>
         </LinearLayout>
 

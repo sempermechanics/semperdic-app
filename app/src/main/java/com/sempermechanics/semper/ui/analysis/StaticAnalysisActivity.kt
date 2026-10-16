@@ -216,7 +216,9 @@ class StaticAnalysisActivity :
         binding.btnCalculateFullField.setOnClickListener {
             // A field still holding focus has not committed its typed value yet.
             commitParamFields()
-            if (!viewModel.sweepMode) runs.startBatch(params.dicParams(), params.isKeysInterpolatorSelected())
+            if (!viewModel.sweepMode) {
+                runs.startBatch(params.dicParams(), params.isKeysInterpolatorSelected(), params.refUpdateInterval)
+            }
         }
     }
 
@@ -418,7 +420,7 @@ class StaticAnalysisActivity :
     private suspend fun showRerun(inputs: RerunInputs) {
         refPreviewBmp = viewModel.refBytes?.let { decodeRefPreview(it) }
         val run = inputs.params
-        params.applyRerun(run.subset, run.step, run.strainWindow, run.use6x6)
+        params.applyRerun(run.subset, run.step, run.strainWindow, run.use6x6, run.refUpdateInterval)
         sweepController.showRerun()
         onImagesChanged(newReference = true, newFrames = true)
         goToStep(viewModel.step, animate = false)

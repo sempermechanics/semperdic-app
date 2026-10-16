@@ -101,7 +101,8 @@ class AnalysisWizardSmokeTest {
         }
         captureWizardShot("step2-single.png")
 
-        onView(withId(R.id.rbModeSweep)).perform(click())
+        // Opening Advanced scrolled the mode toggle at the top partly off screen.
+        onView(withId(R.id.rbModeSweep)).perform(scrollTo(), click())
         scenarioRule.scenario.onActivity { activity ->
             assertFalse(activity.findViewById<View>(R.id.advancedParamsCard).isVisible)
             assertTrue(activity.findViewById<View>(R.id.sweepSettingsCard).isVisible)

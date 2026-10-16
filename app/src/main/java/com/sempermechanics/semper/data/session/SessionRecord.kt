@@ -21,6 +21,8 @@ data class SessionRecord(
     val step: Int,
     val strainWindow: Int,
     val use6x6: Boolean = false,
+    /** 0: every frame against the first image; N: the reference moved every N frames. */
+    val refUpdateInterval: Int = 0,
     // Geometry
     val imgW: Int,
     val imgH: Int,

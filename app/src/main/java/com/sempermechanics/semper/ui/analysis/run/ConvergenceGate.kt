@@ -44,4 +44,22 @@ class ConvergenceGate(
         }
         return shouldStop
     }
+
+    companion object {
+        /**
+         * The convergence an incremental frame is gated on. The engine's slot
+         * describes the solve against the moving reference only; a run can
+         * also lose first-image points one reference update at a time, and
+         * those never come back. So the lower of the two: the solve's
+         * [solvePercent], and the share of the first image's [frame0Points]
+         * still [trackedPoints]. A negative [solvePercent] (no reading) or an
+         * unknown first-image count leaves [solvePercent] as it is.
+         */
+        fun incremental(solvePercent: Float, trackedPoints: Int, frame0Points: Int): Float {
+            if (solvePercent < 0f || frame0Points <= 0) return solvePercent
+            return minOf(solvePercent, PERCENT * trackedPoints / frame0Points)
+        }
+
+        private const val PERCENT = 100f
+    }
 }

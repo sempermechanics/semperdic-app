@@ -62,9 +62,19 @@ internal data class RerunInputs(
         val timeMs: Long? = null,
     )
 
-    /** The solver's settings: subset, step and strain window (VSG, px), and the Keys interpolator. */
+    /**
+     * The solver's settings: subset, step and strain window (VSG, px), the Keys
+     * interpolator, and how often the reference moved (0: never; absent in
+     * files written before incremental runs, which all kept it fixed).
+     */
     @Serializable
-    data class Params(val subset: Int, val step: Int, val strainWindow: Int, val use6x6: Boolean)
+    data class Params(
+        val subset: Int,
+        val step: Int,
+        val strainWindow: Int,
+        val use6x6: Boolean,
+        val refUpdateInterval: Int = 0,
+    )
 
     /**
      * A sweep's settings: its axes ([SweepRanges.toIntArray]'s layout), the

@@ -136,7 +136,13 @@ private fun writeRerun(
         videoName = inputs.frames.videoName,
         orderMode = setup.order.mode.name,
         orderDirection = setup.order.direction.name,
-        params = RerunInputs.Params(spec.params.subset, spec.params.step, spec.params.strainWindow, spec.use6x6),
+        params = RerunInputs.Params(
+            spec.params.subset,
+            spec.params.step,
+            spec.params.strainWindow,
+            spec.use6x6,
+            if (spec.incremental) spec.refUpdateInterval else 0,
+        ),
         sweep = sweep,
     )
     writeAtomically(layout.rerunInputs, RerunInputs.encode(kept).toByteArray(Charsets.UTF_8))

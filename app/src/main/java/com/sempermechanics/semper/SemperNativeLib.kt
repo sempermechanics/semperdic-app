@@ -72,6 +72,56 @@ object SemperNativeLib {
         outMetrics: FloatArray,
     ): Int
 
+    /**
+     * Opens an incremental (updated-reference) session at the first image,
+     * replacing the cached reference of [initializeReference]. The reference
+     * moves to the latest solved frame every [updateInterval] frames; results
+     * stay total displacement from the first image, on its grid. Returns 0 or
+     * a negative engine code (-2 ROI, -3 init, -4 strain window too small).
+     * Close it with [releaseIncremental].
+     */
+    external fun initializeIncremental(
+        refBytes: ByteArray,
+        maskBytes: ByteArray?,
+        width: Int,
+        height: Int,
+        roiX: Int,
+        roiY: Int,
+        roiW: Int,
+        roiH: Int,
+        step: Int,
+        subset: Int,
+        strainWin: Int,
+        use6x6Interpolator: Boolean,
+        updateInterval: Int,
+    ): Int
+
+    /**
+     * Solves the next frame of the session [initializeIncremental] opened.
+     * Output, progress and metrics as [computeFullFieldDirect]; the metrics
+     * describe the solve against the current reference. [outInfo] (length
+     * [INC_INFO_LEN]) receives the frame's bookkeeping, indexed by `INC_INFO_*`.
+     */
+    external fun computeIncrementalFrame(
+        defBytes: ByteArray,
+        outputBuffer: ByteBuffer,
+        callback: ProgressCallback,
+        outMetrics: FloatArray,
+        outInfo: IntArray,
+    ): Int
+
+    /** Closes the incremental session and frees its reference. */
+    external fun releaseIncremental()
+
+    /** [computeIncrementalFrame]'s `outInfo` slots. */
+    const val INC_INFO_REFERENCE_FRAME = 0
+    const val INC_INFO_REFERENCE_UPDATED = 1
+    const val INC_INFO_TRACKED_POINTS = 2
+    const val INC_INFO_FRAME0_POINTS = 3
+    const val INC_INFO_TAYLOR_FALLBACKS = 4
+    const val INC_INFO_LOST_THIS_FRAME = 5
+    const val INC_INFO_LEN = 6
+
     external fun getPreviewFromBytes(imageBytes: ByteArray, maxDim: Int): android.graphics.Bitmap?
 
     external fun getImageDimensions(imageBytes: ByteArray): IntArray

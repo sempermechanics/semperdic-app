@@ -225,6 +225,23 @@ class SessionMetadataDocTest {
     }
 
     @Test
+    fun `an incremental run backs up its reference interval and restores it`() {
+        val incremental = batch.copy(refUpdateInterval = 5)
+        val text = SessionUploadMetadata.buildMetadataJson(incremental, context)
+
+        assertTrue(text.contains("\"refUpdateInterval\": 5"))
+        assertEquals(5, toRecord(SessionMetadataDoc.decode(text), incremental).refUpdateInterval)
+    }
+
+    @Test
+    fun `a fixed-reference run writes no interval, and a file without one restores as fixed`() {
+        val text = SessionUploadMetadata.buildMetadataJson(batch, context)
+
+        assertFalse(text.contains("refUpdateInterval"))
+        assertEquals(0, toRecord(SessionMetadataDoc.decode(text), batch).refUpdateInterval)
+    }
+
+    @Test
     fun `a restore into a placeholder row dates it when the analysis was made`() {
         val made = 1_690_000_000_000L
         val placeholder = RestoreStart.newRow(context, "cloud-1", "r1", "Beam", now = now)

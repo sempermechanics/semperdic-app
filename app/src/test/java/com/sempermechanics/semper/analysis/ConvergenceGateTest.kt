@@ -2,6 +2,7 @@ package com.sempermechanics.semper.analysis
 
 import com.sempermechanics.semper.ui.analysis.run.ConvergenceGate
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -81,5 +82,27 @@ class ConvergenceGateTest {
         val gate = ConvergenceGate()
 
         repeat(150) { assertFalse(gate.record(good)) }
+    }
+
+    @Test
+    fun `an incremental frame is gated on the solve or the points still tracked, whichever is lower`() {
+        assertEquals(80f, ConvergenceGate.incremental(95f, trackedPoints = 80, frame0Points = 100), 1e-6f)
+        assertEquals(60f, ConvergenceGate.incremental(60f, trackedPoints = 90, frame0Points = 100), 1e-6f)
+    }
+
+    @Test
+    fun `an incremental frame with no reading or no first-image count keeps the engine's value`() {
+        assertEquals(-1f, ConvergenceGate.incremental(-1f, trackedPoints = 10, frame0Points = 100), 0f)
+        assertEquals(95f, ConvergenceGate.incremental(95f, trackedPoints = 0, frame0Points = 0), 0f)
+    }
+
+    @Test
+    fun `losing tracked points trips the gate though every solve converges`() {
+        val gate = ConvergenceGate()
+        val lost = (AnalysisViewModel.MIN_CONVERGENCE_PERCENT - 1f).toInt()
+
+        gate.record(ConvergenceGate.incremental(99f, trackedPoints = lost, frame0Points = 100))
+
+        assertTrue(gate.record(ConvergenceGate.incremental(99f, trackedPoints = lost, frame0Points = 100)))
     }
 }

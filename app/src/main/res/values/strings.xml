@@ -694,7 +694,17 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="param_section_correlation">Correlation</string>
     <string name="param_step">Step</string>
     <string name="param_interpolation">Interpolation</string>
-    <!-- The collapsible section holding the overlap and the interpolation. -->
+    <!-- Which image each frame is correlated against: the first one, or a recent one (incremental DIC). -->
+    <string name="param_reference">Reference</string>
+    <string name="reference_update_description">Reference image for each frame</string>
+    <string name="reference_fixed">First image</string>
+    <string name="reference_every_frame">Every frame</string>
+    <plurals name="reference_every_n_frames">
+        <item quantity="one">Every %1$d frame</item>
+        <item quantity="other">Every %1$d frames</item>
+    </plurals>
+    <string name="reference_hint">Moving the reference follows large stretch or rotation that the first image stops matching. Results stay relative to the first image. Each move adds a little error, so keep the first image while it still matches, and move the reference as seldom as works: frames about a second apart, not every video frame.</string>
+    <!-- The collapsible section holding the overlap, the interpolation and the reference. -->
     <string name="param_advanced">Advanced</string>
     <string name="run_compute_eta_fmt">Compute · %1$s</string>
     <string name="run_estimate_seconds_fmt">about %1$d s</string>

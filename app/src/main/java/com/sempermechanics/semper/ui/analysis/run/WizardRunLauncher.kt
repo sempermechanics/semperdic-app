@@ -27,8 +27,11 @@ class WizardRunLauncher(
     private val sweep: SweepSetupController,
     private val checkReady: () -> Unit,
 ) {
-    /** One solve per deformed frame with [params]; [use6x6] picks the Keys interpolator. */
-    fun startBatch(params: DicParams, use6x6: Boolean) {
+    /**
+     * One solve per deformed frame with [params]; [use6x6] picks the Keys
+     * interpolator, [refUpdateInterval] the reference ([RunSpec.refUpdateInterval]).
+     */
+    fun startBatch(params: DicParams, use6x6: Boolean, refUpdateInterval: Int = 0) {
         if (!viewModel.isReadyToCompute()) return
         val roi = resolveRoi(params.subset) ?: return
         // Frozen here: everything after Compute reads the run's spec, not the sliders.
@@ -38,7 +41,7 @@ class WizardRunLauncher(
             mask = viewModel.roiMaskBytes,
             use6x6 = use6x6,
             debugDir = EngineDebug.dirFor(activity.cacheDir),
-        )
+        ).copy(refUpdateInterval = refUpdateInterval)
 
         // Hard stop: do not start a new analysis when the session quota is full.
         // Every run is a new analysis; a saved one is never written over.

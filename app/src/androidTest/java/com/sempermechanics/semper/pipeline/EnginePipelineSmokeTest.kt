@@ -482,7 +482,8 @@ class EnginePipelineSmokeTest {
         }
         val roi = Roi(0, 0, W, H)
         val saved = RunSpec.of(DicParams(subset = SUBSET, step = STEP, strainWindow = 15), roi, null, false, null)
-        val next = RunSpec.of(DicParams(subset = SUBSET, step = STEP * 2, strainWindow = 15), roi, null, false, null)
+        // A VSG must span at least 3 grid nodes (the engine returns -4 otherwise), so 31 px at step 10.
+        val next = RunSpec.of(DicParams(subset = SUBSET, step = STEP * 2, strainWindow = 31), roi, null, false, null)
         fun hashes(dir: File) = dir.walkTopDown().filter { it.isFile }
             .associate { it.relativeTo(dir).path to it.readBytes().contentHashCode() }
         val ids = mutableListOf<String>()
@@ -500,18 +501,27 @@ class EnginePipelineSmokeTest {
             val row = SessionStore.get(ctx, savedId)
 
             val run = BatchRun(next, ctx.cacheDir, 0L, Job(), vm.snapshotRunInputs())
+            // The cancel puts the wizard's result back as it found it (discardRun),
+            // so the cancelled run's id is read while it runs.
+            var runningId: String? = null
             val outcome = vm.runBatchAnalysisBody(ctx, run) { tick ->
-                if (tick.frameIndex == 1) vm.cancelRequested = true
+                if (tick.frameIndex == 1) {
+                    runningId = vm.runResult.value.sessionId
+                    vm.cancelRequested = true
+                }
             }
-            val nextId = checkNotNull(vm.runResult.value.sessionId)
+            val nextId = checkNotNull(runningId)
             ids += nextId
 
             assertNotEquals("a new analysis, never the saved one", savedId, nextId)
             assertEquals(RunStop.Cancelled, outcome.stop)
+            assertEquals("the wizard's last result is the saved one again", savedId, vm.runResult.value.sessionId)
             assertEquals(0, outcome.totalFrames)
             assertEquals("the saved analysis's files", files, hashes(dir))
             assertEquals("its Home row", row, SessionStore.get(ctx, savedId))
-            assertFalse("no folder for the cancelled one", SessionStore.dirFor(ctx, nextId).exists())
+            // Not SessionStore.dirFor: it creates the folder it names.
+            val cancelledDir = File(File(ctx.filesDir, SessionPaths.SESSIONS_ROOT), nextId)
+            assertFalse("no folder for the cancelled one", cancelledDir.exists())
         } finally {
             vm.cancelRequested = false
             forget(ctx, ids)

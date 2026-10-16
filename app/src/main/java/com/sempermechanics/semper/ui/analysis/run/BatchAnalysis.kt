@@ -40,7 +40,8 @@ import java.util.Locale
 
 /**
  * The batch DIC run loop, moved as one unit from [AnalysisViewModel].
- * JNI [SemperNativeLib.computeFullFieldDirect] stays in this loop — do not
+ * JNI [SemperNativeLib.computeFullFieldDirect] (or, for an incremental run,
+ * [SemperNativeLib.computeIncrementalFrame]) stays in this loop — do not
  * fragment it. Buffer allocate / overrun / `.dat` write are [DicFieldIo].
  */
 // One JNI loop over the deformed frames, writing `.dat` results: its size,
@@ -104,16 +105,31 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     var firstFrameAvgIters = 0f
     var stop: RunStop = RunStop.Finished
 
-    onProgress(BatchProgressUpdate(0f, "Caching reference in engine…", plannedFrames = plannedFrames))
-    SemperNativeLib.initializeReference(
-        refBytes,
-        spec.mask,
-        reference.size.width,
-        reference.size.height,
-    )
-
     val roi = spec.roi
     val dic = spec.params
+
+    onProgress(BatchProgressUpdate(0f, "Caching reference in engine…", plannedFrames = plannedFrames))
+    // An incremental run opens a session that moves the reference forward as
+    // it goes. Its init failure is reported at the first frame, where a fixed
+    // run's engine would report the same code.
+    val incrementalInit = if (spec.incremental) {
+        SemperNativeLib.initializeIncremental(
+            refBytes, spec.mask,
+            reference.size.width, reference.size.height,
+            roi.x, roi.y, roi.w, roi.h,
+            dic.step, dic.subset, dic.strainWindow, spec.use6x6,
+            spec.refUpdateInterval,
+        )
+    } else {
+        SemperNativeLib.initializeReference(
+            refBytes,
+            spec.mask,
+            reference.size.width,
+            reference.size.height,
+        )
+        0
+    }
+    val incrementalInfo = IntArray(SemperNativeLib.INC_INFO_LEN)
     val gridW = roi.w / dic.step
     val gridH = roi.h / dic.step
     val maxPoints = gridW * gridH
@@ -160,151 +176,174 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     )
     val perFrameSummaryRanges = mutableListOf<Map<Int, Pair<Float, Float>?>>()
 
-    for ((frameIndex, defPath) in frames.paths.withIndex()) {
-        // A job cancelled with its view model is a cancel too: it keeps nothing
-        // either, and the cancel below rethrows it once the run is undone.
-        if (cancelRequested || !run.job.isActive) {
-            stop = RunStop.Cancelled
-            break
-        }
-        onProgress(
-            BatchProgressUpdate(
-                percent = (frameIndex.toFloat() / plannedFrames) * 100,
-                status = if (plannedFrames > 1) {
-                    "Processing frame ${frameIndex + 1} of $plannedFrames"
-                } else {
-                    "Correlating & solving…"
-                },
-                frameIndex = frameIndex,
-                plannedFrames = plannedFrames,
-                perFrameConvergence = frameConvergence.copyOf(),
-            ),
-        )
-
-        val source = File(defPath)
-        // One read feeds both the JNI buffer and the copy fallback below
-        // (avoids Files.copy + a second heap read).
-        val defBytes = try {
-            source.readBytes()
-        } catch (e: Exception) {
-            Timber.e(e, "Could not read deformed frame %d", frameIndex)
-            continue
-        }
-        if (source.parentFile?.absolutePath == rawDeformedDir.absolutePath) {
-            // Moved here by a run in this wizard that saved nothing: the image
-            // already lives where it belongs, so there is nothing to move, and
-            // the prune below must not treat it as stale.
-            persistedRawNames[frameIndex] = source.name
-        } else {
-            try {
-                // Persist the untouched original under the user's own filename
-                // so exports keep default names.
-                val rawName = frames.originalNames.originalNameOr(frameIndex, source.name).baseName()
-                val target = keepDeformedFrame(source, defBytes, rawDeformedDir, rawName, frameIndex)
-                // Record the name we ACTUALLY wrote: the session index (and the
-                // cloud upload) must be able to find these files again.
-                persistedRawNames[frameIndex] = target.name
-                resolvedDefPaths[frameIndex] = target.absolutePath
-            } catch (e: Exception) {
-                Timber.w(e, "Could not persist raw deformed frame %d", frameIndex)
+    // The session holds two images; it goes with the run, however the run ends.
+    try {
+        for ((frameIndex, defPath) in frames.paths.withIndex()) {
+            // A job cancelled with its view model is a cancel too: it keeps nothing
+            // either, and the cancel below rethrows it once the run is undone.
+            if (cancelRequested || !run.job.isActive) {
+                stop = RunStop.Cancelled
+                break
             }
-        }
-        val callback = object : ProgressCallback {
-            override fun onProgressUpdate(percentage: Int) {
-                val frameProgress = (frameIndex.toFloat() / plannedFrames) * 100
-                val overallProgress = frameProgress + (percentage.toFloat() / plannedFrames)
-                onProgress(
-                    BatchProgressUpdate(
-                        percent = overallProgress,
-                        status = if (plannedFrames > 1) {
-                            "Processing frame ${frameIndex + 1} of $plannedFrames"
-                        } else {
-                            "Correlating & solving…"
-                        },
-                        frameIndex = frameIndex,
-                        plannedFrames = plannedFrames,
-                        framePercent = percentage.toFloat(),
-                    ),
+            onProgress(
+                BatchProgressUpdate(
+                    percent = (frameIndex.toFloat() / plannedFrames) * 100,
+                    status = if (plannedFrames > 1) {
+                        "Processing frame ${frameIndex + 1} of $plannedFrames"
+                    } else {
+                        "Correlating & solving…"
+                    },
+                    frameIndex = frameIndex,
+                    plannedFrames = plannedFrames,
+                    perFrameConvergence = frameConvergence.copyOf(),
+                ),
+            )
+
+            val source = File(defPath)
+            // One read feeds both the JNI buffer and the copy fallback below
+            // (avoids Files.copy + a second heap read).
+            val defBytes = try {
+                source.readBytes()
+            } catch (e: Exception) {
+                Timber.e(e, "Could not read deformed frame %d", frameIndex)
+                continue
+            }
+            if (source.parentFile?.absolutePath == rawDeformedDir.absolutePath) {
+                // Moved here by a run in this wizard that saved nothing: the image
+                // already lives where it belongs, so there is nothing to move, and
+                // the prune below must not treat it as stale.
+                persistedRawNames[frameIndex] = source.name
+            } else {
+                try {
+                    // Persist the untouched original under the user's own filename
+                    // so exports keep default names.
+                    val rawName = frames.originalNames.originalNameOr(frameIndex, source.name).baseName()
+                    val target = keepDeformedFrame(source, defBytes, rawDeformedDir, rawName, frameIndex)
+                    // Record the name we ACTUALLY wrote: the session index (and the
+                    // cloud upload) must be able to find these files again.
+                    persistedRawNames[frameIndex] = target.name
+                    resolvedDefPaths[frameIndex] = target.absolutePath
+                } catch (e: Exception) {
+                    Timber.w(e, "Could not persist raw deformed frame %d", frameIndex)
+                }
+            }
+            val callback = object : ProgressCallback {
+                override fun onProgressUpdate(percentage: Int) {
+                    val frameProgress = (frameIndex.toFloat() / plannedFrames) * 100
+                    val overallProgress = frameProgress + (percentage.toFloat() / plannedFrames)
+                    onProgress(
+                        BatchProgressUpdate(
+                            percent = overallProgress,
+                            status = if (plannedFrames > 1) {
+                                "Processing frame ${frameIndex + 1} of $plannedFrames"
+                            } else {
+                                "Correlating & solving…"
+                            },
+                            frameIndex = frameIndex,
+                            plannedFrames = plannedFrames,
+                            framePercent = percentage.toFloat(),
+                        ),
+                    )
+                }
+            }
+
+            outputBuffer.clear()
+            val metricsCatcher = EngineStats.newMetrics()
+
+            // Incremental: the total from the first image, on its grid, in the same layout.
+            val validPointsCount = when {
+                incrementalInit < 0 -> incrementalInit
+                spec.incremental -> SemperNativeLib.computeIncrementalFrame(
+                    defBytes,
+                    outputBuffer,
+                    callback,
+                    metricsCatcher,
+                    incrementalInfo,
+                )
+                else -> SemperNativeLib.computeFullFieldDirect(
+                    refBytes, defBytes, spec.mask,
+                    roi.x, roi.y, roi.w, roi.h,
+                    dic.step, dic.subset, dic.strainWindow, spec.use6x6,
+                    outputBuffer, callback, metricsCatcher,
                 )
             }
-        }
 
-        outputBuffer.clear()
-        val metricsCatcher = EngineStats.newMetrics()
+            if (validPointsCount < 0) {
+                stop = RunStop.fromWireCode(validPointsCount)
+                failedFrameIndex = frameIndex
+                break
+            }
 
-        val validPointsCount = SemperNativeLib.computeFullFieldDirect(
-            refBytes, defBytes, spec.mask,
-            roi.x, roi.y, roi.w, roi.h,
-            dic.step, dic.subset, dic.strainWindow, spec.use6x6,
-            outputBuffer, callback, metricsCatcher,
-        )
+            // Defensive bound: the engine must never report more points than the ROI
+            // grid the direct buffer was sized for (maxPoints). Today it cannot: its
+            // grid is exactly (rect_w / step) x (rect_h / step), the size allocated
+            // above (engine/src/pipeline/full_field_solver.cpp, gridW / gridH), and
+            // it stops packing at the buffer's capacity rather than overrun it
+            // (full_field_solver_stats.cpp). Should either change, the get() below
+            // would read past the buffer and crash the run with
+            // BufferUnderflowException, so it is an init-class engine failure.
+            if (DicFieldIo.wouldOverrun(validPointsCount, outputBuffer)) {
+                Timber.e(
+                    "Engine returned %d points but the buffer holds %d (frame %d) — failing frame",
+                    validPointsCount,
+                    DicFieldIo.capacityPoints(outputBuffer),
+                    frameIndex,
+                )
+                stop = RunStop.InitFailed
+                failedFrameIndex = frameIndex
+                break
+            }
 
-        if (validPointsCount < 0) {
-            stop = RunStop.fromWireCode(validPointsCount)
-            failedFrameIndex = frameIndex
-            break
-        }
+            if (frameIndex == 0) {
+                firstFrameValidPoints = validPointsCount
+                firstFrameCorrelatedPoints = (
+                    metricsCatcher[EngineStats.SLOT_PATH_A_POINTS] + metricsCatcher[EngineStats.SLOT_PATH_B_POINTS]
+                    ).toInt()
+                engineStatsArray = metricsCatcher.clone()
+                firstFrameAvgIters = metricsCatcher[EngineStats.SLOT_AVG_ITERS]
+            }
 
-        // Defensive bound: the engine must never report more points than the ROI
-        // grid the direct buffer was sized for (maxPoints). Today it cannot: its
-        // grid is exactly (rect_w / step) x (rect_h / step), the size allocated
-        // above (engine/src/pipeline/full_field_solver.cpp, gridW / gridH), and
-        // it stops packing at the buffer's capacity rather than overrun it
-        // (full_field_solver_stats.cpp). Should either change, the get() below
-        // would read past the buffer and crash the run with
-        // BufferUnderflowException, so it is an init-class engine failure.
-        if (DicFieldIo.wouldOverrun(validPointsCount, outputBuffer)) {
-            Timber.e(
-                "Engine returned %d points but the buffer holds %d (frame %d) — failing frame",
-                validPointsCount,
-                DicFieldIo.capacityPoints(outputBuffer),
-                frameIndex,
+            if (validPointsCount == 0) continue
+
+            DicFieldIo.write(outputBuffer, validPointsCount, SessionPaths.frameDat(resultsDir, frameIndex))
+            run {
+                // Same bytes just written, reinterpreted as the point-record floats
+                // VisualizationEngine.valueRanges expects — no extra decode, this data
+                // is already in hand.
+                val floatData = FloatArray(validPointsCount * DicResult.STRIDE)
+                outputBuffer.position(0)
+                outputBuffer.asFloatBuffer().get(floatData, 0, floatData.size)
+                perFrameSummaryRanges.add(VisualizationEngine.valueRanges(floatData, summaryFieldIndices))
+            }
+
+            solvedFrames++
+            lastConvergence = metricsCatcher[EngineStats.SLOT_CONVERGENCE]
+            if (spec.incremental) {
+                lastConvergence = ConvergenceGate.incremental(
+                    lastConvergence,
+                    incrementalInfo[SemperNativeLib.INC_INFO_TRACKED_POINTS],
+                    incrementalInfo[SemperNativeLib.INC_INFO_FRAME0_POINTS],
+                )
+            }
+            frameConvergence[frameIndex] = lastConvergence
+            if (convergenceGate.record(lastConvergence)) {
+                stop = RunStop.LowConvergence
+                failedFrameIndex = frameIndex
+                break
+            }
+            onProgress(
+                BatchProgressUpdate(
+                    percent = ((frameIndex + 1).toFloat() / plannedFrames) * 100,
+                    status = "Processing frame ${frameIndex + 1} of $plannedFrames",
+                    frameIndex = frameIndex,
+                    plannedFrames = plannedFrames,
+                    framePercent = 100f,
+                    perFrameConvergence = frameConvergence.copyOf(),
+                ),
             )
-            stop = RunStop.InitFailed
-            failedFrameIndex = frameIndex
-            break
         }
-
-        if (frameIndex == 0) {
-            firstFrameValidPoints = validPointsCount
-            firstFrameCorrelatedPoints = (
-                metricsCatcher[EngineStats.SLOT_PATH_A_POINTS] + metricsCatcher[EngineStats.SLOT_PATH_B_POINTS]
-                ).toInt()
-            engineStatsArray = metricsCatcher.clone()
-            firstFrameAvgIters = metricsCatcher[EngineStats.SLOT_AVG_ITERS]
-        }
-
-        if (validPointsCount == 0) continue
-
-        DicFieldIo.write(outputBuffer, validPointsCount, SessionPaths.frameDat(resultsDir, frameIndex))
-        run {
-            // Same bytes just written, reinterpreted as the point-record floats
-            // VisualizationEngine.valueRanges expects — no extra decode, this data
-            // is already in hand.
-            val floatData = FloatArray(validPointsCount * DicResult.STRIDE)
-            outputBuffer.position(0)
-            outputBuffer.asFloatBuffer().get(floatData, 0, floatData.size)
-            perFrameSummaryRanges.add(VisualizationEngine.valueRanges(floatData, summaryFieldIndices))
-        }
-
-        solvedFrames++
-        lastConvergence = metricsCatcher[EngineStats.SLOT_CONVERGENCE]
-        frameConvergence[frameIndex] = lastConvergence
-        if (convergenceGate.record(lastConvergence)) {
-            stop = RunStop.LowConvergence
-            failedFrameIndex = frameIndex
-            break
-        }
-        onProgress(
-            BatchProgressUpdate(
-                percent = ((frameIndex + 1).toFloat() / plannedFrames) * 100,
-                status = "Processing frame ${frameIndex + 1} of $plannedFrames",
-                frameIndex = frameIndex,
-                plannedFrames = plannedFrames,
-                framePercent = 100f,
-                perFrameConvergence = frameConvergence.copyOf(),
-            ),
-        )
+    } finally {
+        if (spec.incremental) SemperNativeLib.releaseIncremental()
     }
 
     // A cancel keeps nothing: no frames, no row, no upload; its results never

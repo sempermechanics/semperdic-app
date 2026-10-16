@@ -179,4 +179,24 @@ class RunSpecTest {
         assertEquals(false, args.sweep?.lineCutHorizontal)
         assertNull(vm.runResult.value.settings)
     }
+
+    @Test
+    fun `an incremental run records how often its reference moved`() {
+        val incremental = spec.copy(refUpdateInterval = 5)
+
+        assertEquals(true, incremental.incremental)
+        assertEquals(5, incremental.recordSettings().refUpdateInterval)
+        assertEquals("a fixed run records 0", 0, spec.recordSettings().refUpdateInterval)
+    }
+
+    @Test
+    fun `a sweep solves one frame pair, so it never moves the reference`() {
+        val plan = listOf(SweepStudy.Point(31, 10, 9))
+        val sweep = RunSpec.Sweep(plan, listOf("a"), lineCutHorizontal = false, frameIndex = 0)
+        val spec = RunSpec.sweep(sweep, Roi.fromXywh(resolved)!!, mask, use6x6 = false, debugDir = null)
+            .copy(refUpdateInterval = 2)
+
+        assertEquals(false, spec.incremental)
+        assertEquals(0, spec.recordSettings().refUpdateInterval)
+    }
 }

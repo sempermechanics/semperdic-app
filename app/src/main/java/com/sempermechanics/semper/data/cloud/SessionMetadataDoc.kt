@@ -145,6 +145,8 @@ data class SessionMetadataDoc(
         /** The engine's telemetry slots ([EngineStats.fromArray]). */
         @Serializable(with = OptFloatListSerializer::class) val stats: List<Float>? = null,
         @Serializable(with = SweepSerializer::class) val sweep: Sweep? = null,
+        /** Incremental runs only: the reference moved every this many frames. Absent: fixed. */
+        @Serializable(with = OptIntSerializer::class) val refUpdateInterval: Int? = null,
     )
 
     @Serializable
@@ -309,6 +311,7 @@ data class SessionMetadataDoc(
         val legacySkip = SkippedNode.toLegacyLists(skipNodes)
         return record.copy(
             use6x6 = engine.use6x6 ?: false,
+            refUpdateInterval = (engine.refUpdateInterval ?: 0).coerceAtLeast(0),
             headline = headline(engine, defNames, stats),
             engineStats = stats,
             strainMethod = engine.strainMethod ?: "VSG",
@@ -481,6 +484,7 @@ data class SessionMetadataDoc(
             } else {
                 null
             },
+            refUpdateInterval = record.refUpdateInterval.takeIf { it > 0 },
         )
     }
 

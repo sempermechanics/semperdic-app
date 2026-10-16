@@ -154,9 +154,21 @@ OpenMP on Android aborts if driven from varying threads.
 | `getPreviewFromBytes(byte[], int)` | `io::decode_bgr` |
 | `initializeReference(byte[], byte[]?, int, int)` | `io::decode_gray`, `ReferenceCache::set_from_gray` / `reset` |
 | `computeFullFieldDirect(…)` | `io::decode_gray`, `run_full_field` |
+| `initializeIncremental(byte[], byte[]?, int, int, roi…, step, subset, strainWin, bool, updateInterval)` (engine 0.4.0) | `io::decode_gray`, `IncrementalSession::init`; drops the fixed-reference cache |
+| `computeIncrementalFrame(byte[], ByteBuffer, callback, float[], int[6])` (0.4.0) | `io::decode_gray`, `IncrementalSession::process_frame` |
+| `releaseIncremental()` (0.4.0) | closes the session; `initializeReference` also closes one |
+
+An incremental run (`RunSpec.refUpdateInterval` > 0, the wizard's **Reference** setting)
+moves the reference to the latest solved frame every N frames. The output keeps the 8-float
+layout and stays on the **first image's grid** as total displacement from it, so `.dat` files,
+the viewer and exports read it unchanged. The metrics describe the solve against the current
+reference; `computeIncrementalFrame`'s `int[6]` carries the frame-0 bookkeeping
+(`SemperNativeLib.INC_INFO_*`). The batch loop gates such a frame on
+`ConvergenceGate.incremental`: the lower of the solve's convergence and the share of
+first-image points still tracked.
 
 The full engine surface the app depends on is therefore small and closed:
-`run_full_field`, `ReferenceCache` (`reset` / `set_from_gray` / `debug_dir`), `FullFieldParams`,
+`run_full_field`, `IncrementalSession`, `ReferenceCache` (`reset` / `set_from_gray` / `debug_dir`), `FullFieldParams`,
 `ProgressCallback`, the three cancel functions + `kCancelled`, and the three `io::` decoders.
 **Everything else in the engine is Internal.**
 

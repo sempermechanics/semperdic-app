@@ -152,6 +152,7 @@ class SessionRepository {
             step = settings.step,
             strainWindow = settings.strainWin,
             use6x6 = settings.use6x6,
+            refUpdateInterval = settings.refUpdateInterval,
             imgW = input.reference.size.width,
             imgH = input.reference.size.height,
             roiX = settings.roiX,
@@ -187,6 +188,8 @@ data class SessionRecordSettings(
     val roiW: Int,
     val roiH: Int,
     val use6x6: Boolean,
+    /** 0: fixed reference; N: the reference moved every N frames. */
+    val refUpdateInterval: Int = 0,
 )
 
 /** The reference a run is saved with: its display copy, its original file name and its real size. */

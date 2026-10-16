@@ -134,7 +134,13 @@ internal object LegacyRerun {
             videoName = record.videoName,
             orderMode = FrameOrderMode.PICKER.name,
             orderDirection = FrameOrderDirection.ASCENDING.name,
-            params = RerunInputs.Params(record.subset, record.step, record.strainWindow, record.use6x6),
+            params = RerunInputs.Params(
+                record.subset,
+                record.step,
+                record.strainWindow,
+                record.use6x6,
+                record.refUpdateInterval,
+            ),
             sweep = sweep,
         )
     }
