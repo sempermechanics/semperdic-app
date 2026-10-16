@@ -25,6 +25,8 @@ import java.io.File
  * @property refUpdateInterval 0 solves every frame against the first image;
  *   N >= 1 moves the reference to the latest solved frame every N frames
  *   (incremental DIC). Results are relative to the first image either way.
+ *   For a video the wizard picks seconds of the clip and converts them at
+ *   its frame spacing (ReferenceIntervals), so N is always frames here.
  *   A sweep ignores it: it solves one frame pair.
  */
 @Suppress("ArrayInDataClass") // mask compared by identity; never a map key

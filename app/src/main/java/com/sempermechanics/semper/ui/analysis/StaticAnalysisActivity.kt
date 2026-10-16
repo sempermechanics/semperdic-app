@@ -297,7 +297,10 @@ class StaticAnalysisActivity :
      */
     private fun onImagesChanged(newReference: Boolean, newFrames: Boolean) {
         if (newReference) wizardSlots.refreshRefSlot(refPreviewBmp)
-        if (newFrames) wizardSlots.refreshDefSlot()
+        if (newFrames) {
+            wizardSlots.refreshDefSlot()
+            params.reference.onFramesChanged()
+        }
         // A different-size reference resets the ROI (applyNewReference).
         if (newReference) wizardSlots.updateRoiThumbnail()
         // Frames may have been loaded before this reference.
@@ -451,6 +454,7 @@ class StaticAnalysisActivity :
             viewModel.refBytes?.let { refPreviewBmp = decodeRefPreview(it) }
             wizardSlots.refreshRefSlot(refPreviewBmp)
             wizardSlots.refreshDefSlot()
+            params.reference.onFramesChanged()
             when (restore) {
                 // Re-enter the page so it re-measures what it shows.
                 DraftRestore.RESTORED -> goToStep(viewModel.step, animate = false)

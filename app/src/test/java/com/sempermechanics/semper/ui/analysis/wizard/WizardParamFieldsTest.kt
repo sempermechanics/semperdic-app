@@ -6,6 +6,7 @@ import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.prefs.ParamClipboard
 import com.sempermechanics.semper.field.DicParams
 import com.sempermechanics.semper.ui.analysis.WizardTestBed
+import com.sempermechanics.semper.ui.analysis.frames.DeformedFrame
 import com.sempermechanics.semper.ui.analysis.recommend.SubsetRecommendationController
 import com.sempermechanics.semper.ui.analysis.recommend.SubsetRecommender
 import com.sempermechanics.semper.ui.analysis.sweep.SweepStudy
@@ -21,8 +22,9 @@ import org.robolectric.annotation.Config
 
 /**
  * The settings page's sliders give the run its settings, typed values snap
- * onto the sliders, Reset goes back to the recommended defaults, and the
- * Advanced section opens on a tap or on a Paste that changes what it shows.
+ * onto the sliders, Reset goes back to the recommended defaults, the
+ * Advanced section opens on a tap or on a Paste that changes what it shows,
+ * and the reference's choices are seconds of a video, frames of picked images.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -153,4 +155,79 @@ class WizardParamFieldsTest {
         assertTrue(fields.isKeysInterpolatorSelected())
         assertTrue("the recommendation must not move it", bed.viewModel.subsetUserModified)
     }
+
+    @Test
+    fun `a video's reference choices are seconds of the clip, run as frames at its spacing`() {
+        bed.viewModel.deformedFrames = video(count = 50, spacingMs = 100)
+        fields.reference.onFramesChanged()
+
+        assertEquals(listOf(fixed, everySeconds(10), everySeconds(30), everySeconds(60)), referenceItems())
+        bed.settings.ddReference.setText(everySeconds(10), false)
+        assertEquals("10 s at 10 fps", 100, fields.refUpdateInterval)
+
+        // The same choice on a clip sampled at 2 fps.
+        bed.viewModel.deformedFrames = video(count = 50, spacingMs = 500)
+        fields.reference.onFramesChanged()
+        assertEquals(everySeconds(10), bed.settings.ddReference.text.toString())
+        assertEquals(20, fields.refUpdateInterval)
+    }
+
+    @Test
+    fun `picked images keep frame counts, and a video converts their choice`() {
+        assertEquals(fixed, bed.settings.ddReference.text.toString())
+        assertEquals(5, referenceItems().size)
+        bed.settings.ddReference.setText(bed.activity.getString(R.string.reference_every_frame), false)
+        assertEquals(1, fields.refUpdateInterval)
+
+        bed.viewModel.deformedFrames = video(count = 50, spacingMs = 100)
+        fields.reference.onFramesChanged()
+
+        // Every frame lands on the shortest video choice.
+        assertEquals(everySeconds(10), bed.settings.ddReference.text.toString())
+    }
+
+    @Test
+    fun `a restored draft's video choice lands back once its frames are back`() {
+        // The dropdown's saved text comes back before the draft's frames do.
+        bed.settings.ddReference.setText(everySeconds(30), false)
+        bed.viewModel.deformedFrames = video(count = 50, spacingMs = 100)
+
+        fields.reference.onFramesChanged()
+
+        assertEquals(everySeconds(30), bed.settings.ddReference.text.toString())
+        assertEquals(300, fields.refUpdateInterval)
+    }
+
+    @Test
+    fun `a Re-run of a video run saved every 2 frames lands on every 10 s`() {
+        bed.viewModel.deformedFrames = video(count = 50, spacingMs = 100)
+
+        fields.applyRerun(41, 5, 41, use6x6 = false, refUpdateInterval = 2)
+
+        assertEquals(everySeconds(10), bed.settings.ddReference.text.toString())
+        assertEquals(100, fields.refUpdateInterval)
+        assertTrue(bed.settings.advancedBody.isVisible)
+    }
+
+    @Test
+    fun `a Re-run of a fixed video run stays fixed`() {
+        bed.viewModel.deformedFrames = video(count = 50, spacingMs = 100)
+
+        fields.applyRerun(41, 5, 41, use6x6 = false, refUpdateInterval = 0)
+
+        assertEquals(fixed, bed.settings.ddReference.text.toString())
+        assertEquals(0, fields.refUpdateInterval)
+    }
+
+    private val fixed get() = bed.activity.getString(R.string.reference_fixed)
+
+    private fun everySeconds(seconds: Int) = bed.activity.getString(R.string.reference_every_n_seconds, seconds)
+
+    private fun referenceItems(): List<String> {
+        val adapter = bed.settings.ddReference.adapter
+        return List(adapter.count) { adapter.getItem(it).toString() }
+    }
+
+    private fun video(count: Int, spacingMs: Long) =
+        List(count) { DeformedFrame(path = "f$it.png", name = "f$it", timeMs = spacingMs * (it + 1)) }
 }

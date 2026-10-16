@@ -703,7 +703,9 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="one">Every %1$d frame</item>
         <item quantity="other">Every %1$d frames</item>
     </plurals>
-    <string name="reference_hint">Moving the reference follows large stretch or rotation that the first image stops matching. Results stay relative to the first image. Each move adds a little error, so keep the first image while it still matches, and move the reference as seldom as works: frames about a second apart, not every video frame.</string>
+    <!-- A video's choices: every this many seconds of the clip, whatever frame rate it was sampled at. -->
+    <string name="reference_every_n_seconds">Every %1$d s</string>
+    <string name="reference_hint">Moving the reference follows large stretch or rotation that the first image stops matching. Results stay relative to the first image. Each move adds a little error, the more so the less the specimen moved since the last, so keep the first image while it still matches. On a video the reference moves every so many seconds of the clip, whatever frame rate you sampled, and earlier when points start to drop.</string>
     <!-- The collapsible section holding the overlap, the interpolation and the reference. -->
     <string name="param_advanced">Advanced</string>
     <string name="run_compute_eta_fmt">Compute · %1$s</string>
