@@ -2912,24 +2912,39 @@ The new licence names the old in `supersedes`; nobody holds it yet.
 
 **It waits for Activate.** The holder's account points at it
 (`pendingLicenseId`, in the app's mirror slot) and the old licence at it
-(`upgradePendingId`); one upgrade waits at a time (`409 upgrade_pending`). The
+(`upgradePendingId`); one upgrade waits at a time (`409 upgrade_pending`), checked
+in the same transaction that writes both pointers, so two issues at once leave one
+successor and the loser's licence is deleted. The
 old licence keeps licensing its phones. `/v1/config`'s `pendingLicence` and
 `/v1/me`'s `licences.<app>.pendingLicence` show it (`{licenseId, prefix, kind,
 expiresAt, maxDevices, supersedes}`, or null), read only while one waits.
 
 **Activate moves the account.** `POST /v1/me/devices/activate` with
-`{"upgrade": true}` runs `apply_upgrade`: the phone is checked first, then the
-account takes the new licence (a seat on an institution one), the old licence
-is revoked with `supersededBy`, the pointers go, and the phone is activated on
-the new licence. Each step is safe to run again, and the pointer stays until the
-revoke, so an apply that dies part-way finishes on the next tap. The old
+`{"upgrade": true}` runs `apply_upgrade`. Everything the activation would refuse
+is checked first (`repo.activations.check_activation`: the phone registered and
+ACTIVE, the new licence live, not floating and within its grace, a slot free), with
+the code Activate answers, so a refusal leaves the holder where they were. Then the
+account takes the new licence (a seat on an institution one), the old licence is
+revoked with `supersededBy` (written before the revoke), the pointers go, and the
+phone is activated on the new licence. These are separate writes, not one
+transaction: each step is safe to run again, and the pointer stays until the
+revoke, so an apply that dies part-way finishes on the next tap. Only a slot taken
+between the check and the activation lands the holder on the new licence with that
+phone Demo, for a plain Activate to license. The old
 licence's other phones each activate again, within the new count. Staff apply it
 with no phone (`.../apply-upgrade`) for a build that has no Activate.
 
 **Edge cases.** A holder who never signed in has their invite moved and the old
 licence revoked at once, as `/convert` does. Revoking a waiting licence clears
 both pointers, so the holder stops being offered it and the old licence may be
-upgraded again. A licence from before the split, an institution licence and a
+upgraded again. Revoking the old licence while its upgrade waits withdraws the
+upgrade (`license_admin._cancel_pending_upgrade`, in the revoke's fan-out): an
+individual successor nobody has claimed is revoked too, since it was minted for this
+holder only and would otherwise be a live key for the address the revoke meant to
+stop; an institution successor, which has its own administrators, is only
+withdrawn. Until that fan-out has run, `apply_upgrade` refuses
+`no_pending_upgrade` for an old licence revoked without `supersededBy` naming the
+new one. A licence from before the split, an institution licence and a
 Demo key answer `409 license_not_upgradable`: the first converts in place, an
 institution is resized by an edit.
 
