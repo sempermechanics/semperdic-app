@@ -97,9 +97,85 @@ class DeadRunReclaimTest {
         assertTrue(File(root, "kept").isDirectory)
     }
 
+    /** A folder the way a run that committed but saved nothing leaves it, every file dated [at]. */
+    private fun unsavedRun(id: String, at: Long = DAYS_AGO): File {
+        val dir = File(root, id)
+        File(dir, "frame_0000.dat").apply { parentFile!!.mkdirs() }.writeBytes(ByteArray(64))
+        File(dir, SessionLayout.MANIFEST).writeText("{}")
+        File(dir, SessionPaths.RAW_DEFORMED_SUBDIR + "/specimen_01.png")
+            .apply { parentFile!!.mkdirs() }
+            .writeBytes(ByteArray(32))
+        dir.walkBottomUp().forEach { it.setLastModified(at) }
+        return dir
+    }
+
+    @Test
+    fun `a committed run that saved nothing is reclaimed once no wizard can need it`() {
+        saved("kept")
+        val unsaved = unsavedRun("unsaved")
+
+        val freed = SessionStore.reclaimUnsavedRuns(context, startedAtMs = NOW, draftLive = false)
+
+        assertFalse("unsaved run folder still there", unsaved.exists())
+        assertTrue("reclaimed $freed bytes", freed >= 96)
+        assertTrue("indexed analysis kept", File(root, "kept").isDirectory)
+    }
+
+    @Test
+    fun `the app's startup sweep reclaims an unsaved run with no live draft`() {
+        val unsaved = unsavedRun("unsaved")
+
+        CacheJanitor.sweepOnStartup(context)
+
+        assertFalse(unsaved.exists())
+    }
+
+    @Test
+    fun `an unsaved run is kept while a draft lives, while recent, and when a saving run reached it`() {
+        val whileDraft = unsavedRun("draft")
+        assertEquals(0L, SessionStore.reclaimUnsavedRuns(context, startedAtMs = NOW, draftLive = true))
+        assertTrue("a restored wizard may read its frames", whileDraft.isDirectory)
+
+        val recent = unsavedRun("recent", at = OLD)
+        // What only a run that saves writes: an analysis whose row an index restored from .bak lost.
+        val thumbnail = unsavedRun("thumbnail").also {
+            File(it, SessionLayout.REFERENCE_PNG).apply { writeBytes(ByteArray(8)) }.setLastModified(DAYS_AGO)
+        }
+        val rerun = unsavedRun("rerun").also {
+            SessionLayout(it).rerunInputs.apply { parentFile!!.mkdirs() }.writeText("{}")
+            it.walkBottomUp().forEach { f -> f.setLastModified(DAYS_AGO) }
+        }
+        val backedUp = unsavedRun("backedup").also {
+            File(it, SessionLayout.METADATA_JSON).apply { writeText("{}") }.setLastModified(DAYS_AGO)
+        }
+
+        SessionStore.reclaimUnsavedRuns(context, startedAtMs = NOW, draftLive = false)
+
+        assertFalse("no draft: it goes", whileDraft.exists())
+        assertTrue("written within the day", recent.isDirectory)
+        assertTrue("it has a Home thumbnail", thumbnail.isDirectory)
+        assertTrue("it has Re-run inputs", rerun.isDirectory)
+        assertTrue("it has a backup's metadata", backedUp.isDirectory)
+    }
+
+    @Test
+    fun `no unsaved run is deleted while the index does not parse`() {
+        saved("kept")
+        val unsaved = unsavedRun("unsaved")
+        File(root, SessionPaths.INDEX_JSON).writeText("{ not json")
+        File(root, SessionPaths.INDEX_JSON + ".bak").writeText("{ not json either")
+
+        assertEquals(0L, SessionStore.reclaimUnsavedRuns(context, startedAtMs = NOW, draftLive = false))
+
+        assertTrue(unsaved.isDirectory)
+    }
+
     private companion object {
         /** This process's start, as the startup sweep sees it. */
         val NOW = System.currentTimeMillis()
         val OLD = NOW - 3_600_000L
+
+        /** Older than [SessionStore.UNSAVED_MIN_AGE_MS]. */
+        val DAYS_AGO = NOW - 2 * SessionStore.UNSAVED_MIN_AGE_MS
     }
 }

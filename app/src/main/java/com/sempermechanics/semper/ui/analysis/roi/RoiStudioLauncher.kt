@@ -89,12 +89,16 @@ class RoiStudioLauncher(
     }
 
     /**
-     * Adopt the ROI the studio returned.
+     * Adopt the ROI the studio returned, and its mask, in one edit.
      *
      * The freeform mask is read on [io] — one byte per reference pixel, so
      * tens of megabytes on a modern sensor, and reading it inline stalled the
-     * very frame that had to draw the updated summary. Everything that depends
-     * on the mask stays after the read, in order.
+     * very frame that had to draw the updated summary. The ROI waits for it:
+     * applied before the read, a Compute tapped meanwhile solved the new ROI
+     * with the old mask. A mask the studio wrote but that cannot be read
+     * refuses the result, ROI and all, rather than keep the old mask with the
+     * new ROI: the wizard stays as it was and says to draw it again. A result
+     * with no mask at all has none.
      */
     internal fun applyRoiResult(data: Intent) {
         // After a process death whose draft was lost there is no reference
@@ -105,13 +109,17 @@ class RoiStudioLauncher(
             return
         }
         val drawn = data.getRoiExtras(default = Roi.full(refSize))
-        // A selection covering the whole image counts as no custom ROI.
-        viewModel.edit { it.copy(roi = drawn, hasCustomRoi = !drawn.coversFrameOf(refSize)) }
-
         val maskPath = data.getStringExtra(IntentKeys.MASK_FILE_PATH)
         activity.lifecycleScope.launch {
             val mask = maskPath?.let { path -> withContext(io) { readMask(File(path)) } }
-            if (mask != null) viewModel.edit { it.copy(roiMaskBytes = mask) }
+            if (maskPath != null && mask == null) {
+                Feedback.toast(activity, R.string.roi_mask_read_failed)
+                return@launch
+            }
+            // Drawn on a reference another one has replaced during the read.
+            if (viewModel.inputs.value.refSize != refSize) return@launch
+            // A selection covering the whole image counts as no custom ROI.
+            viewModel.edit { it.copy(roi = drawn, hasCustomRoi = !drawn.coversFrameOf(refSize), roiMaskBytes = mask) }
             onRoiChanged()
         }
     }

@@ -45,7 +45,7 @@ internal class VsgLatticeFixture(private val batchDir: File) {
         batchDir.mkdirs()
         val side = ROI / STEP + 1
         subsets.indices.forEach { frame ->
-            val buffer = DicFieldIo.allocateDirect(side * side)
+            val buffer = DicFieldIo.allocateDirect(side.toLong() * side)
             val floats = buffer.asFloatBuffer()
             for (row in 0 until side) {
                 for (col in 0 until side) {

@@ -46,6 +46,11 @@ class RunEndTest {
             ),
             Case("a cancel", outcome(RunStop.Cancelled.wireCode, validPoints = 0, record = null), RunEnd.Cancelled),
             Case(
+                "a grid too large for this phone's memory",
+                outcome(RunStop.TooLarge.wireCode, validPoints = 0, record = null),
+                RunEnd.TooLarge,
+            ),
+            Case(
                 "a full quota at save time",
                 outcome(RunStop.SessionLimit.wireCode, record = null),
                 RunEnd.SessionLimit,

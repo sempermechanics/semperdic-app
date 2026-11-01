@@ -204,7 +204,11 @@ class CancelDiscardsRunTest {
         frames.forEachIndexed { i, file -> assertArrayEquals("frame $i is back", bytes[i], file.readBytes()) }
         assertEquals(launched, vm.defFilePaths)
         assertNull("the next run is a new session", vm.inputs.value.working?.id)
-        assertEquals("the one analysis allowed is still free", RunAdmission.Admitted, vm.admitRun(ctx, 3))
+        assertEquals(
+            "the one analysis allowed is still free",
+            RunAdmission.Admitted,
+            vm.admitRun(ctx, 3, gridPoints = 0),
+        )
     }
 
     @Test
@@ -258,7 +262,11 @@ class CancelDiscardsRunTest {
         frames.forEachIndexed { i, file -> assertArrayEquals("frame $i is back", bytes[i], file.readBytes()) }
         assertFalse("no session folder", session.dir.exists())
         assertTrue("no Home row", SessionStore.list(ctx).isEmpty())
-        assertEquals("the one analysis allowed is still free", RunAdmission.Admitted, vm.admitRun(ctx, 3))
+        assertEquals(
+            "the one analysis allowed is still free",
+            RunAdmission.Admitted,
+            vm.admitRun(ctx, 3, gridPoints = 0),
+        )
     }
 
     @Test
