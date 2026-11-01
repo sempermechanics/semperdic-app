@@ -119,10 +119,13 @@ def test_a_full_last_page_issues_no_token(store):
     assert [s["uid"] for s in page] == ["u1", "u2"] and token is None
 
 
-def test_a_page_token_for_a_removed_seat_restarts(store):
+def test_a_page_token_for_a_removed_seat_resumes_after_it(store):
+    """The token is the cursor: a seat removed between pages does not send
+    the roster back to its first page (review L3-6)."""
     _roster(store)
-    page, _ = repo.page_institution_seats("lic-1", 2, "removed-uid")
-    assert [s["uid"] for s in page] == ["u1", "u2"]
+    del store._data["licenses/lic-1/seats"]["u2"]
+    page, _ = repo.page_institution_seats("lic-1", 2, "u2")
+    assert [s["uid"] for s in page] == ["u3", "u4"]
 
 
 def test_another_licences_roster_is_not_paged(store):

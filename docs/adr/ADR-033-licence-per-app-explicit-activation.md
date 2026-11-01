@@ -100,7 +100,14 @@ The product owner's decisions (2026-10-29):
   - Staff: any; staff also add.
 
   An IT or staff deactivation also releases the phone's registration (with the 24 h
-  hold); a holder's does not.
+  hold); a holder's does not. The roster's **New device** deactivates with its
+  caller's scope too (`deactivate_holder(caller=…)`, 2026-11-01).
+- **Suspension keeps the activations** (owner decision, 2026-11-01). Suspending an
+  account revokes its registrations, not its activations, so a reinstated holder's
+  phone is licensed again once it registers, and the slots stay counted meanwhile.
+  IT or staff deactivate the phones to free them (CLOUD_ARCHITECTURE_GCP §20.16).
+- **Delete and restore** (`repo/deletion.py`): a restore keeps the phones of the
+  holders it puts back and deactivates the rest, then counts `devicesActive` again.
 - **No cooldown.** The count is the limit.
 - **Several phones per account per app may register.** Real accounts, as ADR-027
   already allows test accounts. Up to `MAX_PHONES_PER_APP`; the oldest phone that is

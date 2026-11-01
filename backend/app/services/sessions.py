@@ -184,7 +184,9 @@ def record_session(user: dict, device: dict, device_id: str | None,
     # hop and the client's first poll cost more than the work itself.
     small = len(body.files) <= settings.INLINE_PROVISION_MAX_FILES
     if not small and tasks.enqueue_provision(sid):
-        repo.set_session_status(sid, statuses.SESSION_PROVISIONING)
+        # `create_session` stored PROVISIONING already. Nothing is written
+        # here: the task may have run by now, and writing PROVISIONING over
+        # its UPLOADING left the session waiting on a task that had finished.
         obs.log_event(log, logging.INFO, "session_provision_queued",
                       outcome="ok", stage="queued", count=len(body.files))
         return {"sessionId": sid, "status": statuses.SESSION_PROVISIONING, "uploads": []}, counts
