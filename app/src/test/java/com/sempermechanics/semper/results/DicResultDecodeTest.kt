@@ -48,6 +48,14 @@ class DicResultDecodeTest {
     }
 
     @Test
+    fun `a dat that cannot be opened is null, not a throw`() {
+        // A directory: on Linux its length is a whole number of points, the map
+        // fails and the chunked fallback's open threw FileNotFoundException.
+        val dir = temp.newFolder("frame_000.dat")
+        assertNull(DicResult.decodeDatFile(dir))
+    }
+
+    @Test
     fun `empty bytes return null`() {
         assertNull(DicResult.decodeDatBytes(ByteArray(0)))
     }

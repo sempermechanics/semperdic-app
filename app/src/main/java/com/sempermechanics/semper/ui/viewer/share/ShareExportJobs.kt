@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,6 +50,8 @@ import java.util.concurrent.atomic.AtomicInteger
 internal class ShareExportJobs(
     private val scope: CoroutineScope,
     private val resolver: ContentResolver,
+    /** Deletes a save-as document the export did not fill; blocking. A test swaps it to see the call. */
+    private val discardDocument: (Uri) -> Unit = { SafCopy.discard(resolver, it) },
 ) {
 
     /** A running export, as the screen shows it. */
@@ -99,6 +102,10 @@ internal class ShareExportJobs(
      * Runs [produce] (on [Dispatchers.Default]) for job [id], then either writes
      * its file to [destUri] or hands it to the share sheet. [produce] reports
      * progress through its argument and throws when it has nothing usable.
+     *
+     * The picker created [destUri] before the export started, so a job that is
+     * cancelled, fails or lands no bytes deletes it: no empty file is left in
+     * the folder the user picked.
      */
     fun start(
         id: String,
@@ -117,11 +124,14 @@ internal class ShareExportJobs(
                     produce { percent, status -> progress(id, percent, status) }
                 }
                 if (destUri != null) {
-                    Outcome.Saved(id, writeTo(destUri, file))
+                    val ok = writeTo(destUri, file)
+                    if (!ok) discard(destUri)
+                    Outcome.Saved(id, ok)
                 } else {
                     Outcome.Ready(id, file, mime, direct)
                 }
             } catch (e: CancellationException) {
+                destUri?.let { discard(it) }
                 finish(Outcome.Cancelled(id))
                 throw e
             } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
@@ -129,6 +139,7 @@ internal class ShareExportJobs(
                 // can hit OutOfMemoryError (an Error), which we'd rather surface as
                 // "share failed" than let crash the app.
                 Timber.e(e, "Share generation failed")
+                destUri?.let { discard(it) }
                 Outcome.Failed(id)
             }
             finish(outcome)
@@ -163,4 +174,8 @@ internal class ShareExportJobs(
     /** Copies [file] into the picked document; true when any bytes landed. */
     private suspend fun writeTo(uri: Uri, file: File): Boolean =
         withContext(Dispatchers.IO) { SafCopy.copy(resolver, uri, file) }
+
+    /** Deletes the picked document [uri]; NonCancellable, so a cancelled job still removes it. */
+    private suspend fun discard(uri: Uri) =
+        withContext(NonCancellable + Dispatchers.IO) { discardDocument(uri) }
 }

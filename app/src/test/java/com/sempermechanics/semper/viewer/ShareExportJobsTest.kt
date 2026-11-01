@@ -179,6 +179,56 @@ class ShareExportJobsTest {
         )
     }
 
+    /** Jobs that record each save-as document they delete. */
+    private fun discardingJobs(discarded: MutableList<Uri>) = ShareExportJobs(
+        scope,
+        ApplicationProvider.getApplicationContext<android.app.Application>().contentResolver,
+        discardDocument = { synchronized(discarded) { discarded += it } },
+    )
+
+    @Test
+    fun `a save-as that fails, lands no bytes or is cancelled deletes the picked document`() = runBlocking {
+        val discarded = mutableListOf<Uri>()
+        val saving = discardingJobs(discarded)
+
+        val failedUri = Uri.fromFile(File(temp.root, "failed.pdf"))
+        val failed = saving.newId("pdf")
+        saving.start(failed, "PDF", failedUri, direct = false) { error("no usable frames") }
+        assertEquals(ShareExportJobs.Outcome.Failed(failed), withTimeout(TIMEOUT_MS) { saving.outcomes.first() })
+
+        val emptyUri = Uri.fromFile(File(temp.root, "empty.csv"))
+        val empty = saving.newId("csv")
+        saving.start(empty, "CSV", emptyUri, direct = false) { file("") to "text/csv" }
+        assertEquals(
+            ShareExportJobs.Outcome.Saved(empty, ok = false),
+            withTimeout(TIMEOUT_MS) { saving.outcomes.first() },
+        )
+
+        val cancelledUri = Uri.fromFile(File(temp.root, "cancelled.zip"))
+        val cancelled = saving.newId("zip")
+        val never = CompletableDeferred<Unit>()
+        saving.start(cancelled, "ZIP", cancelledUri, direct = false) {
+            never.await()
+            file("x") to "application/zip"
+        }
+        saving.cancel(cancelled)
+        assertEquals(ShareExportJobs.Outcome.Cancelled(cancelled), withTimeout(TIMEOUT_MS) { saving.outcomes.first() })
+
+        assertEquals(listOf(failedUri, emptyUri, cancelledUri), synchronized(discarded) { discarded.toList() })
+    }
+
+    @Test
+    fun `a save-as that lands its bytes keeps the document`() = runBlocking {
+        val discarded = mutableListOf<Uri>()
+        val saving = discardingJobs(discarded)
+        val id = saving.newId("csv")
+
+        saving.start(id, "CSV", Uri.fromFile(File(temp.root, "kept.csv")), direct = false) { file("a") to "text/csv" }
+
+        assertEquals(ShareExportJobs.Outcome.Saved(id, ok = true), withTimeout(TIMEOUT_MS) { saving.outcomes.first() })
+        assertTrue(synchronized(discarded) { discarded.isEmpty() })
+    }
+
     @Test
     fun `a build that throws is a failure, not a crash`() = runBlocking {
         val id = jobs.newId("zip")
