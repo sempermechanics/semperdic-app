@@ -44,7 +44,7 @@ async def test_drive_outage_purges_nothing(seeded, client, monkeypatch):
 
 async def test_confirmed_miss_still_purges(seeded, client, monkeypatch):
     """The feature must keep working: a 404 from Drive is a real answer."""
-    monkeypatch.setattr(drive, "file_exists", lambda token, fid: fid != "fold-2")
+    monkeypatch.setattr(drive, "file_exists", lambda token, fid, **_: fid != "fold-2")
 
     r = await client.get("/v1/sessions?verify=true")
 
@@ -56,7 +56,7 @@ async def test_confirmed_miss_still_purges(seeded, client, monkeypatch):
 
 async def test_partial_outage_purges_only_the_confirmed_miss(seeded, client, monkeypatch):
     """One folder confirmed gone, one unreachable: purge exactly one."""
-    def probe(token, fid):
+    def probe(token, fid, **_):
         if fid == "fold-1":
             raise requests.ConnectionError("drive down")
         return False  # fold-2 confirmed absent
@@ -75,7 +75,7 @@ def test_probe_files_reports_unknown_not_missing(monkeypatch):
 
 
 def test_probe_files_distinguishes_all_three_states(monkeypatch):
-    def probe(token, fid):
+    def probe(token, fid, **_):
         if fid == "boom":
             raise TimeoutError("slow")
         return fid == "here"
@@ -88,5 +88,5 @@ def test_probe_files_distinguishes_all_three_states(monkeypatch):
     }
 
 
-def _raise_unreachable(token, file_id):
+def _raise_unreachable(token, file_id, **_):
     raise requests.ConnectionError("drive unreachable")

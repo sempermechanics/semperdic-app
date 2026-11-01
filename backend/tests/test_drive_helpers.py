@@ -68,7 +68,8 @@ def test_delete_files_propagates_a_failure(monkeypatch):
 @pytest.mark.asyncio
 async def test_account_erase_without_a_stored_folder_deletes_every_session_folder(
         client, monkeypatch):
-    """The fallback for accounts that predate the stored user-folder pointer."""
+    """No stored pointer and no user folder the name walk finds: each session
+    folder still there is deleted by its own stored id."""
     store = fake_firestore.install(monkeypatch)
     monkeypatch.setattr(repo.notify, "access_request", lambda *a, **k: None)
     monkeypatch.setattr(audit, "record", lambda *a, **k: None)
@@ -85,12 +86,14 @@ async def test_account_erase_without_a_stored_folder_deletes_every_session_folde
 
     monkeypatch.setattr(drive, "access_token", lambda: "tok")
     monkeypatch.setattr(drive, "delete_file", delete)
-    monkeypatch.setattr(drive, "find_user_folder", lambda _t, _uid: "user-folder")
+    monkeypatch.setattr(drive, "find_user_folders", lambda _t, _uid: [])
+    monkeypatch.setattr(drive, "probe_files",
+                        lambda _t, ids: {i: drive.ALIVE for i in ids if i})
 
     resp = await client.delete("/v1/me")
     assert resp.status_code == 200, resp.text
     assert resp.json()["driveFolders"] == 5
-    assert sorted(deleted) == sorted([f"folder-{i}" for i in range(5)] + ["user-folder"])
+    assert sorted(deleted) == sorted(f"folder-{i}" for i in range(5))
     assert store._data["sessions"] == {}
 
 

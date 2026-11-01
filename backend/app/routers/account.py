@@ -1,11 +1,10 @@
 import logging
 
-import requests
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from .. import apps, audit, entitlement_token, errors, repo, legal
+from .. import apps, audit, drive, entitlement_token, errors, repo, legal
 from .. import observability as obs
 from .. import rate_limit
 from ..config import settings
@@ -308,9 +307,9 @@ def delete_account(ctx=Depends(verified_device)):
     uid = ctx.user["uid"]
     try:
         detail = account_service.erase_account(ctx.user, ctx.device_id)
-    except requests.RequestException as e:
-        # Drive refused or was unreachable: the erase stopped before any
-        # record went, so this is a 502 to retry, not an unhandled 500
-        # (readiness TE3-007).
+    except drive.FAILURES as e:
+        # Drive refused or was unreachable, or the Shared Drive is out of
+        # sight: the erase stopped before any record went, so this is a 502
+        # to retry, not an unhandled 500 (readiness TE3-007).
         raise HTTPException(502, errors.DRIVE_WRITE_FAILED) from e
     return {"deleted": uid, **detail}
