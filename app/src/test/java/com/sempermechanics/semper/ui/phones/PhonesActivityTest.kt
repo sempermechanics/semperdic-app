@@ -9,6 +9,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.account.entitlement.ConfigFetch
 import com.sempermechanics.semper.data.account.phones.ActivateOutcome
 import com.sempermechanics.semper.data.account.phones.DeactivateOutcome
 import com.sempermechanics.semper.data.account.phones.PhonesOutcome
@@ -49,6 +50,7 @@ class PhonesActivityTest {
         var max = 2
         var state = ActivationDto.STATE_AVAILABLE
         var pending: String? = null
+        var fetch = ConfigFetch.ANSWERED
 
         override suspend fun list(): PhonesOutcome {
             calls += "list"
@@ -72,8 +74,13 @@ class PhonesActivityTest {
 
         override suspend fun pendingPrefix() = pending
 
-        override suspend fun refreshConfig() {
+        override suspend fun refreshConfig(): ConfigFetch {
             calls += "refreshConfig"
+            return fetch
+        }
+
+        override fun queueRefresh() {
+            calls += "queueRefresh"
         }
     }
 
@@ -194,6 +201,25 @@ class PhonesActivityTest {
         idle()
 
         assertEquals(listOf("deactivate(and-here)", "refreshConfig"), fake.calls.filter { it != "list" })
+    }
+
+    @Test
+    fun `deactivating this phone while the config fetch fails queues the retrying refresh`() {
+        fake.phones = listOf(here(activated = true), other(activated = true))
+        fake.state = ActivationDto.STATE_ACTIVE
+        fake.fetch = ConfigFetch.FAILED
+        val activity = screen().get()
+        activity.row(0).findViewById<View>(R.id.btnPhoneDeactivate).performClick()
+        idle()
+        (ShadowDialog.getLatestDialog() as AlertDialog).getButton(AlertDialog.BUTTON_POSITIVE).performClick()
+        idle()
+
+        // The server has deactivated it: a refresh that did not land must not
+        // leave the cached config licensed until the next periodic one.
+        assertEquals(
+            listOf("deactivate(and-here)", "refreshConfig", "queueRefresh"),
+            fake.calls.filter { it != "list" },
+        )
     }
 
     @Test
