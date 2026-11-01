@@ -6,3 +6,6 @@
 # backend suite. Ship the client change first, or keep a compatibility window,
 # and say so in the PR. Empty this file (comments only) once the base branch
 # carries the change.
+# L5-1: a backup's localSessionId names a directory on every phone that restores it.
+# Shipped apps send only a UUID prefix or `restored-…` (or nothing), which still pass.
+POST /v1/sessions body.localSessionId: pattern changed
