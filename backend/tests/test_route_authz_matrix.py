@@ -208,6 +208,13 @@ EXPECTED = {
     ("POST", "/v1/admin/test-accounts/{uid}/devices/{device_id}/release"): ADMIN_STEPUP_FRESH,
     ("DELETE", "/v1/admin/test-accounts/{uid}"): ADMIN_STEPUP_FRESH,
     ("POST", "/v1/tasks/test-account-expiry"): TASK,
+    # The recycle bin (ADR-035). Listing it is a read like GET /v1/sessions;
+    # restoring and erasing for good are device-signed, like the delete that
+    # binned the analysis. The daily purge is the Scheduler's OIDC invoker.
+    ("GET", "/v1/recycle-bin"): USER,
+    ("POST", "/v1/recycle-bin/{sid}/restore"): DEVICE,
+    ("DELETE", "/v1/recycle-bin/{sid}"): DEVICE,
+    ("POST", "/v1/tasks/recycle-bin-purge"): TASK,
 }
 
 

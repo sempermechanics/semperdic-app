@@ -127,7 +127,7 @@ jobs:
           # Every collection the backend writes (grep `collection(` in
           # backend/app), plus the seats subcollection: bulk-delete takes
           # collection-group ids, so "seats" reaches licenses/*/seats.
-          for c in users devices sessions files audit_logs challenges _migrations                    licenses seats licenseInvites auth_links                    deleted_licenses deleted_seats; do
+          for c in users devices sessions files audit_logs challenges _migrations                    licenses seats licenseInvites auth_links                    deleted_licenses deleted_seats deleted_sessions; do
             gcloud firestore bulk-delete \
               --collection-ids="$c" \
               --project="${RESTORE_DRILL_PROJECT}" \

@@ -103,6 +103,7 @@ QUERY_SHAPES: dict[str, list[Shape]] = {
         _q("sessions", ("uid", "==")),
         _q("devices", ("uid", "==")),
         _q("auth_links", ("uid", "==")),
+        _q("deleted_sessions", ("uid", "==")),
     ],
     "app/repo/claims.py::_drop_superseded_demos": [_q("licenses", ("redeemedByUid", "in"))],
     "app/repo/deletion.py::list_deleted_licenses": [
@@ -153,9 +154,25 @@ QUERY_SHAPES: dict[str, list[Shape]] = {
     # A staff or IT phone release: the account's sessions from that phone.
     "app/repo/devices.py::forget_device_sessions": [
         _q("sessions", ("uid", "=="), ("deviceId", "=="), note="equality only: merged"),
+        _q("deleted_sessions", ("uid", "=="), ("deviceId", "=="), note="equality only: merged"),
     ],
     "app/repo/sessions.py::find_incomplete_session": [
         _q("sessions", ("uid", "=="), ("localSessionId", "=="), ("status", "in")),
+    ],
+    # The recycle bin (ADR-035). Each is one field, or equality on two
+    # (merged), or one field ranged and ordered: the automatic indexes.
+    "app/repo/recycle_bin.py::flag_session_files": [_q("files", ("sessionId", "=="), order=_BY_ID)],
+    "app/repo/recycle_bin.py::binned_files": [_q("files", ("sessionId", "=="), order=_BY_ID)],
+    "app/repo/recycle_bin.py::erase_binned": [_q("files", ("sessionId", "=="))],
+    # POST /v1/sessions's guard: is this analysis in the account's bin?
+    "app/repo/recycle_bin.py::find_binned_session": [
+        _q("deleted_sessions", ("uid", "=="), ("localSessionId", "=="), note="equality only: merged"),
+    ],
+    "app/repo/recycle_bin.py::list_recycle_bin": [_q("deleted_sessions", ("uid", "=="), order=_BY_ID)],
+    "app/repo/recycle_bin.py::iter_recycle_bin": [_q("deleted_sessions", ("uid", "=="), order=_BY_ID)],
+    # The daily purge: entries past their date, oldest first.
+    "app/repo/recycle_bin.py::due_for_purge": [
+        _q("deleted_sessions", ("purgeAt", "<="), order=(("purgeAt", ASC),)),
     ],
     "app/repo/users.py::_user_for_device": [_q("users", ("claimedDeviceId", "=="))],
     "app/repo/users.py::list_users": [

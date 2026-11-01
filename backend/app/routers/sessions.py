@@ -17,6 +17,7 @@ from ..deps import (
     verified_device,
 )
 from ..models import SessionCreate
+from ..services import recycle_bin
 from ..services import sessions as session_service
 from ..step_up import attested_or_mfa_user
 from ..validation import PageToken, SessionId
@@ -107,33 +108,29 @@ def list_sessions(
 
 
 @router.delete("/v1/sessions/{sid}", dependencies=[rate_limited(rate_limit.session_erase_bucket)])
-def delete_session(sid: SessionId, ctx=Depends(verified_device)):
-    """Erase one analysis from the cloud (GDPR right to erasure).
+def delete_session(sid: SessionId, ctx=Depends(verified_device), app=Depends(request_app)):
+    """Delete one analysis from the cloud: into the account's recycle bin
+    (ADR-035), where it is held `RECYCLE_BIN_DAYS` and then purged — its
+    Drive folder and every Firestore record of it erased, an erased marker of
+    ids left for `ERASED_MARKER_DAYS`. `DELETE /v1/recycle-bin/{sid}` erases
+    it sooner; `POST /v1/recycle-bin/{sid}/restore` puts it back.
 
-    Permanently deletes the Drive folder — every raw image, .dat, csv and report
-    inside it — then hard-deletes the Firestore metadata (which carries the
-    user's email, device id and engine parameters). Nothing is soft-deleted; the
-    only trace kept is the audit record that the erasure happened.
+    No Drive call here: the files are flagged `binnedAt` and the session doc
+    moves to `deleted_sessions`. Answers `deleted` and `filesRemoved` (the
+    files binned) as before, plus `binned: true` and `purgeAt`. A session
+    already in the caller's bin answers the same again (idempotent).
     """
     user = ctx.user
-    session = _owned_session(sid, user)
-    # The worker may be creating the session's Drive folder right now: erased
-    # first, that folder would be left with nothing pointing at it. The app
+    session = repo.get_session(sid)
+    if not session or session.get("uid") != user["uid"]:
+        return recycle_bin.already_binned(sid, user["uid"])
+    # The worker may be creating the session's Drive folder right now: binned
+    # first, the purge would miss the folder it then records nowhere. The app
     # keeps its pointer and deletes again later.
     if session_provision.provisioning_in_progress(session):
         raise HTTPException(409, errors.SESSION_PROVISIONING,
                             headers={"Retry-After": str(DELETE_PROVISIONING_RETRY_AFTER_SECONDS)})
-
-    folder = session.get("driveFolderId")
-    if folder:
-        drive.delete_file(drive.access_token(), folder)
-    removed = repo.delete_session(sid)
-
-    audit.record(user["uid"], ctx.device_id, action="SESSION_DELETE",
-                 target={"type": "session", "id": sid},
-                 detail={"filesRemoved": removed, "localSessionId": session.get("localSessionId", "")})
-    log.info("Erased session %s for uid %s (%d files)", sid, user["uid"], removed)
-    return {"deleted": sid, "filesRemoved": removed}
+    return recycle_bin.bin_session(user, {**session, "sessionId": sid}, ctx.device_id, app)
 
 
 @router.get("/v1/sessions/{sid}/uploads", dependencies=[
@@ -363,6 +360,9 @@ def create_session(body: SessionCreate, request: Request, ctx=Depends(verified_d
     existing = repo.find_incomplete_session(user["uid"], body.localSessionId)
     if existing:
         return session_service.resumed(existing)
+    # The same analysis is in the recycle bin (ADR-035): a phone that still
+    # holds it as backed up must not upload it again behind the holder's back.
+    recycle_bin.refuse_if_binned(user["uid"], body.localSessionId)
     # Quotas: one session == one analysis.
     session_service.require_room(user, cfg, body, ctx.device_id, app)
     answer, counts = session_service.record_session(user, ctx.device, ctx.device_id, body, app)

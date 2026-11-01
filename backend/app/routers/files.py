@@ -77,6 +77,9 @@ def download_file(file_id: DocumentId, request: Request, ctx=Depends(verified_de
     """
     user = ctx.user
     f = _owned_file(file_id, user)
+    # A binned session's files are not served (ADR-035): absent until restored.
+    if f.get("binnedAt"):
+        raise HTTPException(404, errors.FILE_NOT_FOUND)
     # The asking app's licence (ADR-033); it lists and restores its own.
     if not repo.cloud_backup_enabled(user, app):
         raise HTTPException(403, errors.feature_not_licensed_detail())
@@ -145,6 +148,10 @@ def _require_landed(rec: dict, body: FileComplete) -> None:
 def complete_file(file_id: DocumentId, body: FileComplete, ctx=Depends(verified_device)):
     user = ctx.user
     rec = _owned_file(file_id, user)
+    # The session was binned mid-upload (ADR-035): the app stops, rather than
+    # completing into a session that is no longer listed.
+    if rec.get("binnedAt"):
+        raise errors.Refusal(errors.SESSION_IN_RECYCLE_BIN, rec.get("sessionId") or "")
     # Verify the upload actually landed intact before trusting this completion.
     # The client uploads straight to Drive, so ask Drive for the real size/md5
     # and reject a truncated or corrupted object. Skipped on an idempotent retry

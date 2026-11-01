@@ -64,6 +64,7 @@ RESPONSES = (
     "session_uploads_response",  # GET /v1/sessions/{id}/uploads
     "sessions_response",  # GET /v1/sessions
     "session_files_response",  # GET /v1/sessions/{id}/files
+    "recycle_bin_response",  # GET /v1/recycle-bin (ADR-035)
 )
 
 
@@ -267,6 +268,16 @@ async def live(client, monkeypatch, scenario_user):
                json={**complete, "driveFileId": "1MetaDataFileIdOnDrive0123456789", "bytes": size})
     await call("sessions_response", "GET", "/v1/sessions")
     await call("session_files_response", "GET", f"/v1/sessions/{sid}/files")
+
+    # The recycle bin (ADR-035): a second analysis binned and erased for good,
+    # then the first binned, so the listing holds an item and a marker.
+    monkeypatch.setattr(drive, "delete_file", lambda token, folder: None)
+    other = await call("session_create", "POST", "/v1/sessions",
+                       json={**request, "localSessionId": "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e"})
+    await call("session_delete", "DELETE", f"/v1/sessions/{other['sessionId']}")
+    await call("bin_delete", "DELETE", f"/v1/recycle-bin/{other['sessionId']}")
+    await call("session_delete", "DELETE", f"/v1/sessions/{sid}")
+    await call("recycle_bin_response", "GET", "/v1/recycle-bin")
     return out
 
 
@@ -286,6 +297,8 @@ def test_the_scenario_reaches_the_states_the_fixtures_show(live):
     assert (config["mode"], config["licenseSeating"], config["inGrace"]) == ("licensed", "floating", True)
     assert config["leaseExpiresAt"] and config["licenseExpiresAt"] and config["licenseGraceEndsAt"]
     assert live["me_response"]["terms"]["accepted_version"] == "2026-09-15"
+    assert [i["status"] for i in live["recycle_bin_response"]["items"]] == ["COMPLETED"]
+    assert len(live["recycle_bin_response"]["erased"]) == 1
 
 
 def test_timestamps_in_the_fixtures_are_written_as_the_backend_writes_them(live):
@@ -294,3 +307,18 @@ def test_timestamps_in_the_fixtures_are_written_as_the_backend_writes_them(live)
     for key in ("licenseExpiresAt", "licenseGraceEndsAt", "leaseExpiresAt"):
         assert datetime.fromisoformat(fixture[key]).utcoffset() == timedelta(0)
         assert fixture[key][19:] == config[key][-len(fixture[key][19:]):], (key, fixture[key], config[key])
+
+
+def test_recycle_bin_timestamps_are_written_as_the_backend_writes_them(live):
+    """`deletedAt`, `purgeAt` and `erasedAt` are UTC ISO-8601 with an offset,
+    as the backend sends them, so the app parses the fixture as it parses
+    the wire (ADR-035)."""
+    import re
+
+    shape = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d{6})?\+00:00$")
+    answer, fixture = live["recycle_bin_response"], _fixture("recycle_bin_response")
+    for got, want in ((answer["items"][0], fixture["items"][0]),
+                      (answer["erased"][0], fixture["erased"][0])):
+        for key in ("deletedAt", "purgeAt", "erasedAt"):
+            if key in want:
+                assert shape.match(want[key]) and shape.match(got[key]), (key, want[key], got[key])

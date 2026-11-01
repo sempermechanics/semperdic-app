@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timezone
 
 from .. import audit, drive, google_auth, repo
+from . import recycle_bin
 from ._shared import json_dumps
 
 log = logging.getLogger("semper")
@@ -65,7 +66,26 @@ def export_stream(uid: str, header: dict):
         first = False
         count += 1
     yield b'],"sessionCount":' + str(count).encode()
+    yield from _recycle_bin_stream(uid)
     yield b',"complete":true}'
+
+
+def _recycle_bin_stream(uid: str):
+    """The recycle bin (ADR-035), after the sessions and before `complete`:
+    `recycleBin`, each binned analysis as the bin lists it with its file
+    manifest, and `erasedBackups`, the markers of those purged, ids alone.
+    Additive: the schema stays `indic.account.export/1`."""
+    binned, erased = [], []
+    for entry in repo.iter_recycle_bin(uid):
+        if entry.get("state") == repo.STATE_ERASED:
+            erased.append(json_dumps({"sessionId": entry["sessionId"],
+                                      "localSessionId": entry.get("localSessionId") or "",
+                                      "erasedAt": entry.get("erasedAt")}))
+        else:
+            binned.append(json_dumps({**recycle_bin.bin_item(entry),
+                                      "files": repo.binned_files(entry["sessionId"])}))
+    yield b',"recycleBin":[' + ",".join(binned).encode() + b"]"
+    yield b',"erasedBackups":[' + ",".join(erased).encode() + b"]"
 
 
 # ---------------- DELETE /v1/me ----------------
@@ -90,8 +110,11 @@ def _purge_drive(token: str, user: dict) -> tuple[str | None, int]:
     # rather than trusting a lookup by name. If a name lookup missed we would
     # silently skip Drive and still wipe the metadata, stranding the blobs
     # with nothing left pointing at them.
+    # The recycle bin's entries too (ADR-035): binning leaves the folder in
+    # Drive until the purge.
     folders_deleted = drive.delete_files(
-        token, [s.get("driveFolderId") for s in repo.iter_user_sessions(uid)],
+        token, [s.get("driveFolderId") for s in repo.iter_user_sessions(uid)]
+        + [b.get("driveFolderId") for b in repo.iter_recycle_bin(uid)],
     )
     # Then the scaffolding itself, and anything a failed sync orphaned.
     test = {"test": True} if repo.test_account_of(user) else {}

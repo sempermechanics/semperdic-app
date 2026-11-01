@@ -1,6 +1,6 @@
 """Cloud Tasks: enqueue session provisioning, and authenticate the callback
-(and the Cloud Scheduler job that ends expired test accounts, which signs
-its OIDC token as the same invoker).
+(and the Cloud Scheduler jobs that end expired test accounts and purge the
+recycle bin, which sign their OIDC tokens as the same invoker).
 
 Why this exists: POST /v1/sessions used to open one Drive resumable session per
 file inline. At the 600-file ceiling that is ~1200 sequential round-trips inside
@@ -32,6 +32,9 @@ LICENSE_FANOUT_PATH = "/v1/tasks/license-fanout"
 #: The daily Cloud Scheduler call that ends test accounts past their
 #: `expiresAt` (ADR-027). OIDC like the two above, and off the gateway.
 TEST_ACCOUNT_EXPIRY_PATH = "/v1/tasks/test-account-expiry"
+#: The daily Cloud Scheduler call that purges recycle-bin entries past their
+#: `purgeAt` (ADR-035). OIDC as the invoker, and off the gateway, likewise.
+RECYCLE_BIN_PURGE_PATH = "/v1/tasks/recycle-bin-purge"
 #: How long after a licence action its fan-out task is due: past the Cloud Run
 #: request timeout (300 s), so the action's own call has finished, or died,
 #: before the task looks.

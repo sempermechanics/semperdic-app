@@ -28,7 +28,7 @@ build it. This page routes you to the rest.
 | Sync semper_classroom (the Semper Classroom fork), or port a fix from it | [ops/FORK_SYNC.md](ops/FORK_SYNC.md) |
 | Map GitHub Environments / secrets / main hygiene | [ops/ENVIRONMENTS.md](ops/ENVIRONMENTS.md) |
 | Production launch checklist | [ops/PRODUCTION_READINESS_GATE.md](ops/PRODUCTION_READINESS_GATE.md) |
-| Deploy the readiness change (indexes, backend, gateway, Hosting, monitoring, in order) | [ops/DEPLOY_CHECKLIST_2026-10.md](ops/DEPLOY_CHECKLIST_2026-10.md) |
+| Deploy the readiness change (indexes, backend, gateway, Hosting, monitoring, in order), or the recycle bin (ADR-035) | [ops/DEPLOY_CHECKLIST_2026-10.md](ops/DEPLOY_CHECKLIST_2026-10.md) |
 | Read the external readiness framework the gate is cross-checked against (2026-10-18) | [ops/READINESS_FRAMEWORK_2026-10.md](ops/READINESS_FRAMEWORK_2026-10.md) · mapping: [the gate's "Framework cross-check"](ops/PRODUCTION_READINESS_GATE.md#framework-cross-check-2026-10-18) |
 | Respond to an incident (severity, DPDP breach playbook, key compromise, mass revocation, restore, App Check rollback) | [ops/INCIDENT_RESPONSE.md](ops/INCIDENT_RESPONSE.md) |
 | See the MASVS v2 self-assessment, or brief a penetration tester | [ops/MASVS_ASSESSMENT.md](ops/MASVS_ASSESSMENT.md) · [ops/PENTEST_SCOPE.md](ops/PENTEST_SCOPE.md) |

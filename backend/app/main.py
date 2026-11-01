@@ -26,6 +26,7 @@ from .routers import (
     institutions,
     licenses,
     provision_tasks,
+    recycle_bin,
     sessions,
     upgrades,
 )
@@ -301,6 +302,7 @@ for _router in (
     devices.router,
     licenses.router,
     sessions.router,
+    recycle_bin.router,
     files.router,
     provision_tasks.router,
     admin.router,
