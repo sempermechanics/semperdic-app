@@ -558,6 +558,86 @@ browsability of individual frames for far fewer resumable inits and Firestore
 writes. The `raw/processed/reports/metadata` subfolder tree below is the older
 per-file layout, kept for reference.
 
+### 4.3 Deleting a backup: the recycle bin
+
+`DELETE /v1/sessions/{sid}` does not erase. It moves the analysis into the
+account's recycle bin, where it is held 30 days and then purged
+([ADR-035](../adr/ADR-035-recycle-bin.md)). Before the bin, a delete on one phone
+was undone by another phone's reconcile, which uploaded the analysis again, and an
+upload in flight re-created the session it had just lost.
+
+```mermaid
+sequenceDiagram
+    participant A as App
+    participant R as Cloud Run
+    participant F as Firestore
+    participant D as Google Drive
+    participant S as Cloud Scheduler
+    A->>R: DELETE /v1/sessions/{sid}
+    R->>F: files where sessionId: binnedAt = now
+    R->>F: tx: write deleted_sessions/{sid} (state binned, purgeAt) and delete sessions/{sid}
+    R-->>A: 200 {deleted, filesRemoved, binned: true, purgeAt}
+    alt Restore within 30 days
+        A->>R: POST /v1/recycle-bin/{sid}/restore
+        R->>F: require_capacity, then tx: sessions/{sid} back (status = priorStatus), tombstone deleted
+        R->>F: files: binnedAt removed
+    else Delete permanently, or purgeAt passed
+        A->>R: DELETE /v1/recycle-bin/{sid}
+        Note over S,R: or, past purgeAt, the daily POST /v1/tasks/recycle-bin-purge
+        R->>F: tx: state binned to purging
+        R->>D: delete the session folder
+        R->>F: delete the file docs, then the tombstone becomes the erased marker (expireAt = +30 d)
+    end
+```
+
+**Binning.** `bin_session` (`backend/app/services/recycle_bin.py`) flags the
+session's file documents `binnedAt` first, then moves the session document to
+`deleted_sessions/{sid}` in one transaction (`move_to_bin`,
+`backend/app/repo/recycle_bin.py`), and audits `SESSION_BIN`. There is no Drive
+call. A crash between the two steps leaves flagged files on a live session, which
+refuse completion and download until the delete is repeated: it fails closed. The
+provisioning guard is unchanged (409 `session_provisioning` with `Retry-After`).
+A repeat delete of a session already in the caller's bin answers the same 200.
+
+**What a binned analysis refuses.**
+
+| Call | Answer |
+|---|---|
+| `POST /v1/sessions` for the same `localSessionId` (binned or purging) | 409 `session_in_recycle_bin: <sid>`, after the resume lookup and before the quota check |
+| `POST /v1/files/{id}/complete` for a flagged file | 409 `session_in_recycle_bin: <sid>` |
+| `GET /v1/files/{id}/content` for a flagged file | 404 `file_not_found` |
+| `/uploads`, `/files`, `PUT …/metadata`, `/bundle` | 404 `session_not_found`: the session document is gone |
+
+An erased marker does not refuse a create: a permanent delete leaves the holder
+free to back the analysis up again. `GET /v1/sessions` does not list binned
+analyses, so a phone that still holds one as backed up sees it missing; new
+builds then read the bin instead of uploading it again (the app PR).
+
+**The bin.** `GET /v1/recycle-bin` lists one app's entries (`X-App-Id`, or `?app=`
+as `GET /v1/sessions` takes it; `all` for the account), cursor-paginated: `items`
+(each with its status as binned, `deletedAt` and `purgeAt`), `erased` (the markers,
+ids alone) and `retentionDays`. `POST /v1/recycle-bin/{sid}/restore` (device-signed,
+paused with uploads) needs room under the quota, as a new backup does: a binned
+analysis counts toward neither the account's cap nor a demo device's, so restoring
+it takes a place, and with none free it answers 409 `session_quota_exceeded` or
+`device_quota_exceeded`. Missing, another account's or app's, purging, erased, or
+past `purgeAt` is 404 `session_not_found` (the job can run a day late). Audited
+`SESSION_BIN_RESTORE`.
+
+**The purge.** `purge_one` serves both `DELETE /v1/recycle-bin/{sid}` (the holder's
+"Delete permanently", reason `user`) and the daily job (reason `expired`): claim the
+entry (`binned` to `purging`, a 15-minute lease after which a dead purge is taken
+over), delete the Drive folder (Drive's 404 is gone already), delete the file
+documents, replace the entry with the erased marker, audit `SESSION_PURGE` under
+the owner's uid. Any Drive failure puts the entry back to `binned`; the permanent
+delete answers 502. The job, `POST /v1/tasks/recycle-bin-purge`, is called by
+Cloud Scheduler with the invoker SA's OIDC token (`tasks.tasks_caller`, §4.1) and
+is off the gateway. It takes up to `RECYCLE_BIN_PURGE_BATCH` (100) entries with
+`purgeAt <= now`, oldest first, and answers `{due, purged, failed}`; a failed
+entry is due again the next day. `GET /v1/recycle-bin` also purges up to three of
+its page's due entries on the way. The marker's `expireAt` is a TTL field
+(§5, Indexing), so Firestore deletes it 30 days after the purge.
+
 ---
 
 ## 5. Firestore schema
@@ -631,6 +711,11 @@ sessions/{sessionId}
                                   stamps them.
                                   GET /v1/sessions lists one app's;
                                   /files answers only that app)
+  localSessionId                  (the analysis's id on the phone; the same on
+                                  every phone that restored it, so a re-upload
+                                  is matched by (uid, localSessionId): the
+                                  resume lookup, and the recycle bin's refusal,
+                                  §4.3)
   specimen: string                (the reference image's file name)
   name: string                    (the analysis's name, ≤ 200 chars, from
                                   POST /v1/sessions and moved by a re-sent
@@ -644,9 +729,10 @@ sessions/{sessionId}
         (PROVISIONING and UPLOADING are IN_FLIGHT_STATUSES — both still
          expect more bytes. Every status but PROVISION_FAILED counts
          against the session quota: `count_user_sessions`, behind both the
-         create check and `quota.used`, and counts whichever app it is
-         tagged with: the quota is the account's. COMPLETED is terminal —
-         provisioning never writes over it)
+         create check and `quota.used`, counts the sessions of the app
+         asking (per app since ADR-033). COMPLETED is terminal —
+         provisioning never writes over it. A deleted session is not here:
+         it moved to deleted_sessions below, so it counts toward no quota)
   driveFolderId                   (…/session/{sid} folder)
   totalBytes, fileCount, completedCount   (totalBytes is the size declared
                                   at create, not what is stored)
@@ -663,6 +749,12 @@ files/{fileId}                    (fileId = deterministic sid_role_name)
   status: "PENDING" | "UPLOADING" | "COMPLETED" | "FAILED"
   uploadUrl                       (resumable session URI, cleared on complete)
   driveFileId, driveMd5
+  binnedAt                        (Timestamp; set while the session is in the
+                                   recycle bin, §4.3: complete answers 409
+                                   session_in_recycle_bin and content 404
+                                   file_not_found. Set before the session moves
+                                   and cleared after a restore, so a crash
+                                   fails closed)
   createdAt, updatedAt
 
 licenses/{id}                     (id = sha256(key) — the key hash IS the doc id)
@@ -724,12 +816,38 @@ deleted_licenses/{id}             (a deleted licence, held 30 days — §20.6)
 deleted_licenses/{id}/deleted_seats/{uid}
   …the seat as it stood, plus purgeAt (its own TTL policy)
 
+deleted_sessions/{sessionId}      (the recycle bin, §4.3, ADR-035; same id as
+                                   the session it holds)
+  state: "binned" | "purging" | "erased"
+  # binned and purging:
+  …every field the session had (uid, app, localSessionId, name, deviceId,
+   driveFolderId, …), moved in one transaction with the session's delete
+  priorStatus                     (the status a restore puts back)
+  deletedAt, deletedByDeviceId
+  deletedByApp                    (the app that deleted it; `app` stays the
+                                   app that backed it up, and only that app
+                                   lists, restores or purges it)
+  filesBinned                     (how many file docs were flagged binnedAt)
+  purgeAt                         (Timestamp, deletedAt + RECYCLE_BIN_DAYS (30).
+                                   NOT a TTL field: the purge job deletes the
+                                   Drive folder first)
+  purgingAt                       (purging only; a purge older than 15 min is
+                                   taken over)
+  # erased (the document replaced, not patched, by a marker of ids alone):
+  uid, app, localSessionId
+  erasedAt, erasedReason: "user" | "expired"
+  expireAt                        (Timestamp, erasedAt + ERASED_MARKER_DAYS (30);
+                                   TTL field, BACKEND_SETUP_CONSOLE.md §3a)
+
 audit_logs/{autoId}               (append-only)
   ts (Timestamp), uid, deviceId, ip, ua
   licenseId                       (licence, seat, invite and lease targets only;
                                    written from 2026-10-18 — audit.licence_of)
   action: "LOGIN" | "DEVICE_REGISTER" | "DEVICE_REBIND" |
           "SESSION_CREATE" | "UPLOAD_COMPLETE" | "AUTH_DENIED" |
+          "SESSION_BIN" | "SESSION_BIN_RESTORE" | "SESSION_PURGE" |
+                                  (the recycle bin, §4.3; SESSION_DELETE is no
+                                   longer written)
           "LICENSE_ACTIVATE" | "INSTITUTION_SEAT_PATCH" | "INSTITUTION_SEAT_REVOKE" | ...
   target: { type, id }
   outcome: "OK" | "DENIED" | "ERROR"
@@ -737,13 +855,19 @@ audit_logs/{autoId}               (append-only)
 ```
 
 **Indexing.**
-- `backend/firestore.indexes.json` is the source of truth. It declares
-  `sessions(uid, localSessionId, status)` and three for the staff licence list
-  (§20.6): `licenses(mode, createdAt DESC)`, `licenses(mode, status, createdAt
-  DESC)` and `licenses(status, createdAt DESC)`. Equality filters ordered by
-  `__name__` (`sessions(uid)`, `users(access_status)`, `files(sessionId)`) are
-  served by the automatic single-field indexes. Deploy with
-  `firebase deploy --only firestore:indexes` — a missing index shows up as a
+- `backend/firestore.indexes.json` is the source of truth. It declares six
+  composites: `sessions(uid, localSessionId, status)`, `files(uid, sessionId)`
+  (the export's ordered walk, `iter_sessions_with_files`), three for the staff
+  licence list (§20.6): `licenses(mode, createdAt DESC)`, `licenses(mode,
+  status, createdAt DESC)` and `licenses(status, createdAt DESC)`, and
+  `audit_logs(licenseId, ts DESC)` for a licence's audit history. Equality
+  filters ordered by `__name__` (`sessions(uid)`, `users(access_status)`,
+  `files(sessionId)`, `deleted_sessions(uid)`) are served by the automatic
+  single-field indexes, and so are the recycle bin's other two queries: the
+  re-upload check (`deleted_sessions` where `uid` and `localSessionId`, equality
+  only) and the purge job's `purgeAt <= now` ordered by `purgeAt` (one field).
+  Deploy with `PROJECT=<id> scripts/deploy-firestore.sh indexes`, which runs a
+  pinned Firebase CLI (TD-316) — a missing index shows up as a
   `FAILED_PRECONDITION` at runtime, not at deploy time, and neither the fake
   store nor the emulator enforces one. `backend/tests/test_firestore_query_indexes.py`
   is the check: each query's shape (collection, filters, order) is declared
@@ -762,6 +886,12 @@ audit_logs/{autoId}               (append-only)
   TTL field too (TD-237: rows kept 365 days, `AUDIT_RETENTION_DAYS`), declared
   there and enabled by hand after the audit-trail log bucket is locked
   ([FIRESTORE_DATA_PROTECTION.md](FIRESTORE_DATA_PROTECTION.md)).
+  `deleted_sessions.expireAt` is the fifth TTL field (the recycle bin's erased markers,
+  §4.3), declared there and enabled by the owner on the shared database
+  ([BACKEND_SETUP_CONSOLE.md](BACKEND_SETUP_CONSOLE.md) §3a). Without it the
+  markers are never deleted; nothing else changes. `deleted_sessions.purgeAt` is
+  deliberately not a TTL field: TTL would delete the document and leave its Drive
+  folder behind, so the purge job (§4.3) erases it.
 
 Security: Firestore is **written only by the Cloud Run SA** (server-side). No
 Android SDK writes → Firestore Security Rules can be `allow read, write: if
@@ -798,13 +928,14 @@ the way it does.
 | Concern | File | Notes |
 |---|---|---|
 | FastAPI app, middleware, lifespan | [`backend/app/main.py`](../../backend/app/main.py) | App factory; includes routers below |
-| Routes by prefix | [`backend/app/routers/`](../../backend/app/routers/) | `health`, `account`, `devices`, `sessions`, `files`, `provision_tasks`, `admin`, `licenses`, `institutions` |
+| Routes by prefix | [`backend/app/routers/`](../../backend/app/routers/) | `health`, `account`, `devices`, `activations`, `sessions`, `recycle_bin`, `files`, `provision_tasks`, `admin`, `admin_test_accounts`, `licenses`, `upgrades`, `institutions`, `roster` |
 | License key format, hashing, `mode`/`kind` vocabulary | [`backend/app/licenses.py`](../../backend/app/licenses.py) | `SEMP-XXXX-XXXX-XXXX-XXXX`; sha256 hash is the Firestore doc id; `normalize_mode` / `normalize_kind` / `legacy_plan` (§20.5) |
 | Floating seats, leases, pool accounting | [`backend/app/repo/leases.py`](../../backend/app/repo/leases.py), `claim_seat` in [`repo/claims.py`](../../backend/app/repo/claims.py) | `checkout_lease`, `release_lease`, `claim_seat`, `_sweep_expired_leases` (§20.7) |
 | Duration, grace, renewal fan-out | [`backend/app/repo/user_config.py`](../../backend/app/repo/user_config.py), [`repo/claims.py`](../../backend/app/repo/claims.py), [`repo/license_admin.py`](../../backend/app/repo/license_admin.py) | `_expiry_state`, `_license_mirror_patch`, `update_license`, `license_summary` (§20.6) |
 | Individual + institution license logic | [`backend/app/repo/activation.py`](../../backend/app/repo/activation.py), [`repo/claims.py`](../../backend/app/repo/claims.py), [`repo/institution_admin.py`](../../backend/app/repo/institution_admin.py), [`repo/seats.py`](../../backend/app/repo/seats.py), [`repo/devlock.py`](../../backend/app/repo/devlock.py) | `activate_license`, seat lifecycle, `revalidate_device_lock` (§20) |
 | Institution IT self-service routes | [`backend/app/routers/institutions.py`](../../backend/app/routers/institutions.py) | Token + adminEmails auth; the surface behind `/console/institution`, and equally usable from a script (§20.4). The `/v1/campus/*` aliases were retired (§20.5) |
 | Session provision / purge | [`backend/app/session_provision.py`](../../backend/app/session_provision.py) | `provision_session` / `purge_session` |
+| Recycle bin ([ADR-035](../adr/ADR-035-recycle-bin.md)) | [`backend/app/routers/recycle_bin.py`](../../backend/app/routers/recycle_bin.py), [`backend/app/services/recycle_bin.py`](../../backend/app/services/recycle_bin.py), [`backend/app/repo/recycle_bin.py`](../../backend/app/repo/recycle_bin.py) | `GET /v1/recycle-bin`, restore and permanent delete; `bin_session` (behind `DELETE /v1/sessions/{sid}`), `refuse_if_binned`, `purge_one`, `purge_due` (the job, routed in `provision_tasks.py`); `move_to_bin`, `restore_from_bin`, `claim_purge`, `erase_binned` (§4.3) |
 | Auth + device dependencies | [`backend/app/deps.py`](../../backend/app/deps.py) | Bearer verify, device-signature check (§4) |
 | Step-up tiers | [`backend/app/step_up.py`](../../backend/app/step_up.py) | `attested_or_mfa_admin`, `attested_or_mfa_admin_fresh`, `attested_or_mfa_user`, `step_up_check`: an attested device or a second factor on a recent sign-in; built on `deps`, never imported by it (TD-293) |
 | Multi-step flows | [`backend/app/services/`](../../backend/app/services/__init__.py), one module per aggregate | Account erasure and export, recording an analysis and its bundle, licence mint: what a route does in several steps across Drive, Firestore, Auth and the audit log; the router checks and answers (TD-293, `tests/test_layering.py`) |
@@ -840,19 +971,25 @@ rather than hardcoding its own.
 
 **The demo cap is counted per account and per device.** Both halves count
 analyses stored at once, less `PROVISION_FAILED`, so a delete frees a place
-(the product owner's choice, TD-275). The account half is `count_user_sessions`
-(`backend/app/repo/sessions.py:445-463`); for a demo account `create_session`
+(the product owner's choice, TD-275); since ADR-035 a delete moves the analysis
+to the recycle bin, which counts toward neither half, and a restore from it has to
+fit again (`require_capacity`, shared with the create). The account half is
+`count_user_sessions`, per app since ADR-033
+(`backend/app/repo/sessions.py:448-477`); for a demo account `create_session`
 also refuses when the device's stored analyses, every account's, reach the cap
-(`count_device_sessions`, `:454-478`; `_device_cap_reached`,
-`backend/app/services/sessions.py:81-94`, applied at `:138-139`), with a
+(`count_device_sessions`, `:494-518`; `_device_cap_reached`,
+`backend/app/services/sessions.py:81-94`, applied at `:146-147`), with a
 `409 device_quota_exceeded` that names neither the count nor the owners (its
 own code since TD-279, so the app does not lift it on the account's count). A
 session with no `deviceId` counts toward no device. `GET /v1/sessions`
-`quota.used` stays the account's count (`backend/app/routers/sessions.py:98`). A demo create costs
-11 reads, not 9 ([request-volume.md](../perf/request-volume.md) Pass 4). After
+`quota.used` is the asking app's count, the same `count_user_sessions`
+(`backend/app/routers/sessions.py:96-99`). A create's read count is pinned by
+`backend/tests/test_read_budget.py` (`CREATE_READS`; history in
+[request-volume.md](../perf/request-volume.md) Pass 4). After
 a staff device release, or a staff or IT licence lock clear, the phone no longer
 counts its previous holder's analyses: `forget_device_sessions` drops their
-`deviceId` (`backend/app/repo/devices.py:82-107`; TD-276, closed). The holder's own
+`deviceId` (`backend/app/repo/devices.py:103-132`; TD-276, closed), from the
+recycle bin's entries too, since a restore brings the field back. The holder's own
 device change keeps them counted. Tests `backend/tests/test_demo_device_cap.py`.
 
 **`MAX_SESSIONS_PER_USER` is deleted, not merely unread.** It used to be the

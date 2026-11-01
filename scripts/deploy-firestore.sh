@@ -30,7 +30,8 @@
 # scratch directory with a firebase.json of their own.
 #
 # The indexes file also declares the TTL policies (challenges.expireAt,
-# deleted_licenses.purgeAt, deleted_seats.purgeAt, audit_logs.expireAt) as
+# deleted_licenses.purgeAt, deleted_seats.purgeAt, audit_logs.expireAt,
+# deleted_sessions.expireAt) as
 # fieldOverrides; a deploy creates any that are missing, so audit_logs.expireAt
 # waits until the TD-246 backfill has run (DEPLOY_CHECKLIST_2026-10.md §6). The CLI
 # counts each live TTL policy as a field override and refuses, in

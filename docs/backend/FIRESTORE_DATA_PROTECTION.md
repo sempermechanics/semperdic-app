@@ -140,15 +140,75 @@ treat the restore path as unproven.
 PITR complements exports; it does not replace independently retained exports or
 restore drills.
 
+## The recycle bin (`deleted_sessions`)
+
+A deleted cloud backup is held 30 days before it is erased
+([ADR-035](../adr/ADR-035-recycle-bin.md); CLOUD_ARCHITECTURE_GCP.md §4.3).
+
+**What it holds.** While an entry is `binned` (or `purging`), it is the session
+document as it stood, moved unchanged: `uid`, `app`, `localSessionId`, the
+analysis's `name` and `specimen`, the creating `deviceId`, `driveFolderId`, sizes
+and the engine `metrics`, plus `priorStatus`, `deletedAt`, `deletedByDeviceId`,
+`deletedByApp`, `filesBinned` and `purgeAt`. The session's file documents stay in
+`files` flagged `binnedAt`, and its Drive folder stays where it is. Once purged,
+the entry is replaced by an erased marker of ids alone: `uid`, `app`,
+`localSessionId`, `erasedAt`, `erasedReason` (`user` or `expired`) and
+`expireAt`. The marker holds no name, specimen, device or Drive id.
+
+**Retention.**
+
+| What | Kept | Removed by |
+|---|---|---|
+| A binned entry, its file documents and its Drive folder | 30 days from the delete (`purgeAt` = `deletedAt` + `RECYCLE_BIN_DAYS`), unless restored or deleted permanently sooner | The daily purge job (`POST /v1/tasks/recycle-bin-purge`), the holder's "Delete permanently" (`DELETE /v1/recycle-bin/{sid}`), or the holder opening the bin past `purgeAt` (it purges up to three due entries on the way). Drive first, then the file documents, then the entry |
+| The erased marker | 30 days from the purge (`expireAt` = `erasedAt` + `ERASED_MARKER_DAYS`) | The Firestore TTL policy on `deleted_sessions.expireAt` |
+
+Both periods are constants in `backend/app/config.py`, not environment
+variables: the Privacy Policy is to name them (the change is held with counsel,
+TD-277), so changing one is a policy change. `purgeAt` is not a TTL field, because TTL would delete the
+entry and leave its Drive folder. If the job stops, entries are kept past their
+30 days (a restore past `purgeAt` is still refused); if the TTL policy is
+missing, markers are kept indefinitely. The purge job takes 100 entries a run
+(`RECYCLE_BIN_PURGE_BATCH`); a backlog clears over the following days. The purge
+does not reach the database exports: a purged entry stays in them for as long as the backup bucket's lifecycle policy keeps them (One-time
+controls, step 4).
+
+**Erasure.** Account erasure deletes every `deleted_sessions` document of the
+account at once, binned and erased alike, without waiting for the purge
+(`delete_all_user_data`, counted `binnedSessions`). Their file documents go with
+the account's files, and their Drive folders with the user folder, or one by one
+in the erasure's fallback (`_purge_drive` in `backend/app/services/account.py`).
+
+**Export.** `GET /v1/me/export` lists the bin after `sessionCount` and before
+`complete`: `recycleBin` (each binned analysis as the bin lists it, with
+`deletedAt`, `purgeAt` and its file manifest) and `erasedBackups` (`sessionId`,
+`localSessionId`, `erasedAt` per marker). The schema stays
+`indic.account.export/1`. A binned analysis's files are not downloadable
+(`GET /v1/files/{id}/content` answers 404 until it is restored).
+
+**Audit.** `SESSION_BIN` {`localSessionId`, `app`, `filesBinned`, `purgeAt`},
+`SESSION_BIN_RESTORE` {`localSessionId`, `app`} and `SESSION_PURGE` {`reason`,
+`filesRemoved`, `localSessionId`}, each targeting the session id. A purge is
+recorded under the owner's uid whoever ran it; `reason` says whether the holder
+(`user`) or the 30 days (`expired`) erased it. None names an analysis, a file or
+an address. `SESSION_DELETE` is no longer written; rows from before remain until
+their own `expireAt`.
+
+**Restore drill.** Both of the drill's collection lists name each collection
+(`COLLECTIONS` in `scripts/firestore_verify.py`, and the bulk-delete loop of the
+"Purge the drill database" step in `.github/workflows/firestore-restore-drill.yml`),
+and `deleted_sessions` has to be on both, as the section above asks of every new
+collection.
+
 ## Account-erasure audit policy
 
-Account erasure deletes users, devices, sessions, files, Drive artifacts, and
+Account erasure deletes users, devices, sessions, the recycle bin's entries
+(`deleted_sessions`, below), files, Drive artifacts, and
 every `auth_links` row that maps a sign-in to the account. Seats the account
 held, on any licence and in a deleted licence's 30-day hold, are kept (they
 count against the licence and appear in its audit export) with `email` blanked;
-a live one is revoked first (`backend/app/repo/account.py:156-244`). The
-`ACCOUNT_DELETE` audit row records the counts, including `authLinks`,
-`seatsBlanked` and `seatScanComplete`. The seat search is a collection-group
+a live one is revoked first (`backend/app/repo/account.py:166-265`). The
+`ACCOUNT_DELETE` audit row records the counts, including `binnedSessions`,
+`authLinks`, `seatsBlanked` and `seatScanComplete`. The seat search is a collection-group
 query on `uid` that needs the `seats.uid` / `deleted_seats.uid` COLLECTION_GROUP
 index (`backend/firestore.indexes.json:161-204`): deploy the indexes before the
 backend. Without it the search fails, only the current licence's seat is
