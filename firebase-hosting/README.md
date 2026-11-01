@@ -88,9 +88,13 @@ API_BASE_URL=<INDIC_API_BASE_URL repo variable> ./scripts/deploy-console.sh
 
 The script fills the placeholders, deploys, restores the templates, and runs
 `scripts/check_live_console.py`, which fails if the live site still holds a `__`
-placeholder. While `main` holds legal text counsel has not cleared, deploy as
-[DEPLOY_CHECKLIST_2026-10.md](../docs/ops/DEPLOY_CHECKLIST_2026-10.md) §4 says
-(`/privacy` and `/terms` from the last cleared commit).
+placeholder. It refuses a branch other than `main`, a dirty tree and an
+`API_BASE_URL` that is not an `https://` origin, and runs `scripts/check_console.py`
+and `scripts/render_legal_pages.py --check` before deploying (`DRY_RUN=1` stops
+there). While `main` holds legal text counsel has not cleared, add
+`LEGAL_PAGES_FROM=b940cc29`, as
+[DEPLOY_CHECKLIST_2026-10.md](../docs/ops/DEPLOY_CHECKLIST_2026-10.md) §4 says: it
+deploys `/privacy` and `/terms` from that commit and skips the render check.
 
 ## Verify the App Link
 
