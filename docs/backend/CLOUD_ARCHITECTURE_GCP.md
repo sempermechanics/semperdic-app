@@ -1875,7 +1875,8 @@ only be issued another.
 Firestore TTL policies on `deleted_licenses.purgeAt` and
 `deleted_seats.purgeAt` remove the copy after the hold — no scheduler. TTL
 deletes within about a day of the date, not at it, so restore checks the date
-itself. `GET /v1/admin/deleted-licenses` lists the held licences, newest first.
+itself. `GET /v1/admin/deleted-licenses` lists the held licences, newest first,
+a page at a time (`limit`, `page_token`; the `page` block every listing returns).
 
 **`POST /v1/admin/deleted-licenses/{id}/restore`** (`ADMIN_LICENSE_RESTORE`)
 writes the licence back with `priorStatus`. A licence deleted after it was

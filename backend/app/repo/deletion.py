@@ -45,6 +45,7 @@ from ._base import (
     _get,
     _stream,
     _commit,
+    _cursor_page,
     _set_doc,
     _delete_doc,
 )
@@ -143,12 +144,14 @@ def delete_license(license_id: str, admin_uid: str) -> dict:
     return _deleted_public(license_id, {**tomb, "deletedAt": _now()})
 
 
-def list_deleted_licenses(limit: int = 50) -> list[dict]:
-    """Licences deleted and still held, most recently deleted first."""
-    query = (db().collection(DELETED)
-             .order_by("deletedAt", direction=_base.firestore.Query.DESCENDING)
-             .limit(limit))
-    return [_deleted_public(d.id, d.to_dict() or {}) for d in _stream(query)]
+def list_deleted_licenses(limit: int = 50,
+                          page_token: str | None = None) -> tuple[list[dict], str | None]:
+    """Licences deleted and still held, most recently deleted first, a page at
+    a time. Returns (page, next_page_token_or_None)."""
+    col = db().collection(DELETED)
+    docs, next_token = _cursor_page(col, col, limit, page_token,
+                                    order_field="deletedAt", descending=True)
+    return [_deleted_public(d.id, d.to_dict() or {}) for d in docs], next_token
 
 
 def restore_license(license_id: str, admin_uid: str) -> dict:

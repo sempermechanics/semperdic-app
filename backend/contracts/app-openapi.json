@@ -1195,7 +1195,7 @@
     },
     "/v1/admin/deleted-licenses": {
       "get": {
-        "description": "Licences deleted within the hold, most recent first, each with the\ndate it is purged.",
+        "description": "Licences deleted within the hold, most recent first, each with the\ndate it is purged.\n\nCursor-paginated: `limit` (1..200, default 50) and optional `page_token`.\nResponse includes `page.nextPageToken` / `page.hasMore`.",
         "operationId": "admin_list_deleted_licenses_v1_admin_deleted_licenses_get",
         "parameters": [
           {
@@ -1206,6 +1206,17 @@
               "default": 50,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_token",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 512,
+              "title": "Page Token",
+              "type": "string"
             }
           },
           {
