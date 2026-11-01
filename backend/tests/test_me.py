@@ -344,5 +344,5 @@ async def test_delete_me_leaves_a_demo_key_and_a_licence_held_by_someone_else(
 
 def test_delete_all_user_data_of_an_unknown_account_is_all_zero(me_store):
     assert repo.delete_all_user_data("ghost") == {
-        "sessions": 0, "files": 0, "devices": 0, "authLinks": 0, "seatsBlanked": 0,
-        "seatScanComplete": True}
+        "sessions": 0, "binnedSessions": 0, "files": 0, "devices": 0, "authLinks": 0,
+        "seatsBlanked": 0, "seatScanComplete": True}

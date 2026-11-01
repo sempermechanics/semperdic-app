@@ -90,6 +90,15 @@ CASES = [
                            ("license_revoked", 403), ("seat_busy", 409)]],
     ("PATCH", "/v1/institutions/licenses/L1/seats/u1", {"clearDeviceLock": True},
      "clear_device_lock", "seat_not_found", 404),
+    # The recycle bin (ADR-035).
+    ("POST", "/v1/sessions", {"specimen": "s", "localSessionId": "local-1",
+                              "files": [{"name": "a.zip", "role": "bundle", "bytes": 1,
+                                         "sha256": "a" * 64}]},
+     "find_binned_session", "session_in_recycle_bin", 409),
+    ("DELETE", "/v1/sessions/s1", None, "get_binned_session", "session_not_found", 404),
+    ("POST", "/v1/recycle-bin/s1/restore", None, "get_binned_session", "session_not_found", 404),
+    ("DELETE", "/v1/recycle-bin/s1", None, "get_binned_session", "session_not_found", 404),
+    ("DELETE", "/v1/recycle-bin/s1", None, "get_binned_session", "claim_contended", 503),
 ]
 
 

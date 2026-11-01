@@ -181,14 +181,17 @@ async def _measure(client, priv, meter):
 #: On 2026-10-29 (ADR-033) the quota became per app: Semper's count is the
 #: account's less Semper Classroom's, two more counts on GET and POST
 #: /v1/sessions, and the first config call also reads Classroom's invite.
+#: On 2026-11-01 (ADR-035) POST /v1/sessions gained one read, the recycle-bin
+#: lookup, and DELETE bins instead of erasing: the files are flagged, the
+#: tombstone written and the session deleted, one write more than before.
 BUDGET = {
     "GET /v1/config (first ever)": (5, 3),
     "GET /v1/config": (1, 0),
     "GET /v1/me": (1, 0),
     f"GET /v1/sessions (S={SESSIONS})": (SESSIONS + 5, 0),
-    f"POST /v1/sessions (N={FILES})": (13, 11),
+    f"POST /v1/sessions (N={FILES})": (14, 11),
     "POST /v1/files/{id}/complete (each)": (6, 4),
-    f"DELETE /v1/sessions/{{id}} (N={FILES})": (7, 5),
+    f"DELETE /v1/sessions/{{id}} (N={FILES})": (7, 6),
 }
 
 
@@ -210,8 +213,9 @@ async def test_firestore_cost_per_request_stays_in_budget(world, client, capsys)
 #: then 7 + N with the failed-session count in the quota check (TD-121), then
 #: 6 + N once the retry lookup became one `status in` query (2026-10-05),
 #: then 8 + N for a demo account with the per-device count (2026-10-18),
-#: then 10 + N with the per-app quota (ADR-033, 2026-10-29).
-CREATE_READS = {1: 11, 3: 13, 8: 18}
+#: then 10 + N with the per-app quota (ADR-033, 2026-10-29), then 11 + N
+#: with the recycle-bin lookup (ADR-035, 2026-11-01).
+CREATE_READS = {1: 12, 3: 14, 8: 19}
 
 
 @pytest.mark.asyncio

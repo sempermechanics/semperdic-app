@@ -112,6 +112,15 @@ export const COLLECTIONS = [
     source: 'backend/app/repo/deletion.py',
   },
   {
+    // The recycle bin (ADR-035): a deleted backup's session fields for 30
+    // days, then an erased marker of ids alone.
+    name: 'deleted_sessions',
+    collectionPath: () => 'deleted_sessions',
+    path: (id) => `deleted_sessions/${id}`,
+    ownerFields: (uid) => ({ uid, app: 'semper', localSessionId: 'local-1', state: 'binned' }),
+    source: 'backend/app/repo/recycle_bin.py',
+  },
+  {
     name: 'audit_logs',
     collectionPath: () => 'audit_logs',
     path: (id) => `audit_logs/${id}`,

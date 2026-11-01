@@ -75,6 +75,11 @@ SESSION_NOT_COMPLETE = "session_not_complete"
 # Retry-After): the worker is creating its Drive folder, and erasing the
 # metadata now would leave that folder with nothing pointing at it.
 SESSION_PROVISIONING = "session_provisioning"
+# 409 from `POST /v1/sessions` when the same analysis (`localSessionId`) is
+# in the account's recycle bin, and from `POST /v1/files/{id}/complete` for
+# a file of a binned session (ADR-035). Detail `session_in_recycle_bin: <sid>`
+# on the create, so the app can mark its row as binned and stop re-uploading.
+SESSION_IN_RECYCLE_BIN = "session_in_recycle_bin"
 METADATA_NOT_FOUND = "metadata_not_found"
 METADATA_INVALID = "metadata_invalid"
 METADATA_TOO_LARGE = "metadata_too_large"
@@ -359,6 +364,7 @@ CLIENT_BRANCHED = frozenset(
 STATUS: dict[str, int] = {
     # Nothing there, or nothing the caller may see.
     USER_NOT_FOUND: 404,
+    SESSION_NOT_FOUND: 404,
     DEVICE_NOT_FOUND: 404,
     LICENSE_NOT_FOUND: 404,
     NO_LICENSE: 404,
@@ -390,6 +396,8 @@ STATUS: dict[str, int] = {
     SEAT_BUSY: 409,
     DEVICE_LIMIT_REACHED: 409,
     SEATING_FLOATING: 409,
+    # The analysis is in the account's recycle bin (ADR-035).
+    SESSION_IN_RECYCLE_BIN: 409,
     # Device registration (`repo.register_device`): the account is bound to
     # another phone for this app, or this phone is another account's, or
     # staff released this phone from this test account.

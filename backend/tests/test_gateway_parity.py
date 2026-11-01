@@ -46,6 +46,9 @@ _NOT_PUBLISHED = {
     # The Cloud Scheduler job that ends expired test accounts (ADR-027): the
     # same OIDC invoker, straight to the Cloud Run URL, for the same reason.
     ("POST", "/v1/tasks/test-account-expiry"),
+    # The Cloud Scheduler job that purges the recycle bin (ADR-035): the same
+    # OIDC invoker, straight to the Cloud Run URL, for the same reason.
+    ("POST", "/v1/tasks/recycle-bin-purge"),
     # Readiness. It runs a Firestore read and a Drive call per hit, needs no
     # token, and its 503 names the failing dependency — published at the
     # gateway it was a free way to drive Drive quota and to learn which

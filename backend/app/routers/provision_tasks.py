@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 
 from .. import repo, tasks
 from ..models import LicenseFanoutTask, ProvisionTask
+from ..services import recycle_bin
 from ..services import testaccounts as test_accounts
 from ..session_provision import provision_session
 
@@ -38,3 +39,14 @@ def expire_test_accounts_task(caller=Depends(tasks.tasks_caller)):
     `{expiredTestAccounts, ended, failed}`: how many were due, and the uids
     ended and not; a failed one is due again tomorrow."""
     return test_accounts.expire_due()
+
+
+@router.post(tasks.RECYCLE_BIN_PURGE_PATH)
+def purge_recycle_bin_task(caller=Depends(tasks.tasks_caller)):
+    """Cloud Scheduler, daily: purge every recycle-bin entry past its
+    `purgeAt` (ADR-035), up to `RECYCLE_BIN_PURGE_BATCH`, each audited
+    `SESSION_PURGE` with reason `expired`. OIDC as the invoker, like the
+    test-account expiry job, and off the gateway. Answers
+    `{due, purged, failed}`: how many were due, and the session ids purged
+    and not; a failed one is back in the bin and due again tomorrow."""
+    return recycle_bin.purge_due()

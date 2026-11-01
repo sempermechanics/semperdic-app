@@ -32,6 +32,9 @@ _BUNDLE = ("GET", "/v1/sessions/s-1/bundle", "/v1/sessions/{sid}/bundle", None)
 _UPLOADS = ("GET", "/v1/sessions/s-1/uploads", "/v1/sessions/{sid}/uploads", None)
 _METADATA = ("PUT", "/v1/sessions/s-1/metadata", "/v1/sessions/{sid}/metadata",
              {"specimen": "s"})
+# Restoring from the recycle bin takes a place under the quota, as an upload
+# does, so the same two switches hold it (ADR-035).
+_BIN_RESTORE = ("POST", "/v1/recycle-bin/s-1/restore", "/v1/recycle-bin/{sid}/restore", None)
 
 #: Every switch the backend enforces, by the routes it refuses.
 PAUSED = [
@@ -40,8 +43,9 @@ PAUSED = [
     ("backup", _CREATE), ("backup", _COMPLETE),
     ("backup", _UPLOADS), ("backup", _METADATA),
     ("restore", _CONTENT), ("restore", _BUNDLE),
+    ("upload", _BIN_RESTORE), ("backup", _BIN_RESTORE),
 ]
-ROUTES = [_CREATE, _COMPLETE, _UPLOADS, _METADATA, _CONTENT, _BUNDLE]
+ROUTES = [_CREATE, _COMPLETE, _UPLOADS, _METADATA, _CONTENT, _BUNDLE, _BIN_RESTORE]
 
 
 def _events(caplog, event: str) -> list[dict]:
@@ -110,6 +114,7 @@ async def test_upload_and_backup_together_are_named_together(untouched, client, 
     ("restore", _CREATE), ("restore", _COMPLETE), ("share", _CREATE), ("share", _COMPLETE),
     ("upload", _CONTENT), ("backup", _CONTENT), ("upload", _BUNDLE), ("share", _BUNDLE),
     ("restore", _UPLOADS), ("share", _UPLOADS), ("restore", _METADATA), ("share", _METADATA),
+    ("restore", _BIN_RESTORE), ("share", _BIN_RESTORE),
 ], ids=lambda v: v if isinstance(v, str) else v[1])
 async def test_another_switch_leaves_the_route_alone(recording, client, monkeypatch, switch,
                                                      route):
@@ -139,6 +144,7 @@ def _drive_stubs(monkeypatch):
     (_BUNDLE, 404, "session_not_found"),
     (_UPLOADS, 404, "session_not_found"),
     (_METADATA, 404, "session_not_found"),
+    (_BIN_RESTORE, 404, "session_not_found"),
 ], ids=lambda v: v[1] if isinstance(v, tuple) else str(v))
 async def test_no_switch_answers_as_before(recording, client, monkeypatch, route, status,
                                            detail):

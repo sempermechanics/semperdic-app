@@ -296,7 +296,7 @@ paths:
           session-create-requests: 1
       responses:
         '200': { description: OK }
-        '409': { description: "session_quota_exceeded (the account's stored analyses) or, for a demo account, device_quota_exceeded (the device's)" }
+        '409': { description: "session_quota_exceeded (the account's stored analyses) or, for a demo account, device_quota_exceeded (the device's), or session_in_recycle_bin: <sid> (the same analysis is in the recycle bin, ADR-035)" }
         '413': { description: too_many_files }
         '429': { description: Rate limited }
         '401': { description: Missing or invalid device attestation }
@@ -304,6 +304,11 @@ paths:
   /v1/sessions/{sid}:
     delete:
       operationId: deleteSession
+      description: >
+        Device-attested. Moves the analysis into the account's recycle bin
+        for 30 days (ADR-035); no Drive call. Answers deleted, filesRemoved
+        (the files binned), binned and purgeAt. A session already in the
+        caller's bin answers the same again.
       parameters:
         - name: sid
           in: path
@@ -312,6 +317,77 @@ paths:
       responses:
         '200': { description: OK }
         '401': { description: Missing or invalid device attestation }
+        '404': { description: session_not_found }
+        '409': { description: "session_provisioning: its Drive folder is being created; Retry-After" }
+        '429': { description: Rate limited }
+  # The account's recycle bin (ADR-035). The daily purge job
+  # (POST /v1/tasks/recycle-bin-purge) is Cloud Scheduler's, straight to
+  # Cloud Run with the invoker's OIDC token, and is deliberately absent here.
+  /v1/recycle-bin:
+    get:
+      operationId: listRecycleBin
+      description: >
+        The caller's recycle bin for one app (X-App-Id, or ?app=; all for the
+        whole account): items held, each with deletedAt and purgeAt, and
+        erased, the markers (ids alone) of those purged in the last 30 days.
+      parameters:
+        - name: page_size
+          in: query
+          required: false
+          type: integer
+          default: 50
+          description: Page size (1..100).
+        - name: page_token
+          in: query
+          required: false
+          type: string
+          description: Opaque cursor from a previous nextPageToken.
+        - name: app
+          in: query
+          required: false
+          type: string
+          description: semper, semperclassroom (or the old materialtesting) or all.
+      responses:
+        '200': { description: OK }
+        '400': { description: unknown_app }
+        '429': { description: Rate limited }
+  /v1/recycle-bin/{sid}/restore:
+    post:
+      operationId: restoreFromRecycleBin
+      description: >
+        Device-attested. Puts a binned analysis back in the cloud backups with
+        the status it had. Needs room under the quota, as a new backup does.
+      parameters:
+        - name: sid
+          in: path
+          required: true
+          type: string
+      responses:
+        '200': { description: OK }
+        '401': { description: Missing or invalid device attestation }
+        '404': { description: "session_not_found: not in the caller's bin for this app, being purged, or past its purgeAt" }
+        '409': { description: "session_quota_exceeded or device_quota_exceeded: no room to restore it" }
+        '429': { description: Rate limited }
+        '503': { description: "feature_paused: the upload or backup kill switch is on; Retry-After" }
+  /v1/recycle-bin/{sid}:
+    delete:
+      operationId: deleteFromRecycleBin
+      description: >
+        Device-attested. Erases a binned analysis for good now: its Drive
+        folder, its file records and the entry, which leaves an erased marker
+        of ids alone. A repeat after it went answers the same.
+      parameters:
+        - name: sid
+          in: path
+          required: true
+          type: string
+      responses:
+        '200': { description: OK }
+        '401': { description: Missing or invalid device attestation }
+        '404': { description: session_not_found }
+        '429': { description: Rate limited }
+        '502': { description: "drive_write_failed: Drive refused or was unreachable; the entry stays in the bin" }
+        '503': { description: "claim_contended: another purge of it is running; retry" }
   /v1/sessions/{sid}/uploads:
     get:
       operationId: sessionUploads
@@ -436,6 +512,7 @@ paths:
       responses:
         '200': { description: OK }
         '403': { description: file_not_in_session }
+        '409': { description: "size_or_state_mismatch, or session_in_recycle_bin: <sid> (the analysis was binned mid-upload, ADR-035)" }
         '422': { description: size or checksum mismatch }
         '503': { description: "feature_paused: the upload or backup kill switch is on; Retry-After" }
   /v1/files/{fileId}/content:
@@ -473,6 +550,7 @@ paths:
         '206': { description: Partial content }
         '401': { description: Missing or invalid device attestation }
         '403': { description: "feature_not_licensed (demo mode — recording is open, retrieval is licensed)" }
+        '404': { description: "file_not_found, also for a file of an analysis in the recycle bin (ADR-035)" }
         '416': { description: range_not_satisfiable }
         '429': { description: Rate limited }
         '502': { description: Drive download failed }
