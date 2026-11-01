@@ -28,6 +28,10 @@ import java.io.FileOutputStream
  * then overwrite with a one-record file — mutations refuse to write until the
  * index is readable again (from the primary file or `.bak`).
  *
+ * The index holds every account's rows; [list], [get] and the counts see only
+ * the current account's ([SessionOwner]). Writes keep the other accounts' rows
+ * as they are.
+ *
  * Sync accessors take the lock on the calling thread and are marked
  * [WorkerThread]; UI code calls the `suspend` variants ([listOnIo],
  * [setSyncStateOnIo]) so disk+JSON never block Main. Every Activity is
@@ -88,11 +92,12 @@ object SessionStore {
     @WorkerThread
     fun totalSize(context: Context): Long = CacheJanitor.sizeOf(root(context))
 
+    /** The current account's rows ([SessionOwner]), newest first. */
     @WorkerThread
     fun list(context: Context): List<SessionRecord> = synchronized(lock) {
         val rows = readRows(context)
         if (rows == null) Timber.e("Session index unreadable (primary + bak); refusing empty clobber")
-        rows.orEmpty().sortedByDescending { it.createdAt }
+        SessionOwner.visible(rows.orEmpty(), SessionOwner.current(context)).sortedByDescending { it.createdAt }
     }
 
     suspend fun listOnIo(context: Context): List<SessionRecord> =
@@ -119,8 +124,10 @@ object SessionStore {
 
     /**
      * Insert or update a session row. A new row is refused when the account is
-     * at its analysis quota ([SessionQuota.blocked], with the index's rows as
-     * the phone's count); an update of an existing id still saves.
+     * at its analysis quota ([SessionQuota.blocked], with the account's rows as
+     * the phone's count); an update of an existing id still saves. A new row
+     * belongs to the current account; an updated one keeps its owner
+     * ([SessionOwner.stamped]).
      * @param allowOverLimit true for a cloud restore (the session already
      *   counts against the quota) and for a run the quota admitted at its start
      *   (`RunAdmission.Admitted`): a run under way when the cap fills still saves.
@@ -137,12 +144,14 @@ object SessionStore {
             return@synchronized UpsertOutcome.INDEX_UNAVAILABLE
         }
         val previous = existing.firstOrNull { it.id == record.id }
-        if (previous == null && !allowOverLimit && SessionQuota.blocked(context, existing.size)) {
-            Timber.w("Hard stop: refusing new session at the analysis limit (%d on the phone)", existing.size)
+        val owner = SessionOwner.current(context)
+        val owned = SessionOwner.visible(existing, owner).size
+        if (previous == null && !allowOverLimit && SessionQuota.blocked(context, owned)) {
+            Timber.w("Hard stop: refusing new session at the analysis limit (%d on the phone)", owned)
             return@synchronized UpsertOutcome.QUOTA_FULL
         }
         val others = existing.filterNot { it.id == record.id }
-        val next = others + withFreeName(record, previous, others)
+        val next = others + withFreeName(SessionOwner.stamped(record, previous, owner), previous, others)
         if (!write(context, next)) return@synchronized UpsertOutcome.INDEX_UNAVAILABLE
         UpsertOutcome.SAVED
     }
@@ -285,10 +294,13 @@ object SessionStore {
         dir.deleteRecursively()
     }
 
-    /** Drops row [id] and tells the quota how many remain; false when the index refused the write. */
+    /** Drops row [id] and tells the quota how many of the account's remain; false when the index refused the write. */
     private fun removeRow(context: Context, id: String): Boolean {
         var remaining = 0
-        if (!mutateIndex(context) { rows -> rows.filterNot { it.id == id }.also { remaining = it.size } }) return false
+        val written = mutateIndex(context) { rows ->
+            rows.filterNot { it.id == id }.also { remaining = SessionOwner.ownedCount(context, it) }
+        }
+        if (!written) return false
         AccountCache.onLocalSessionsRemoved(context, remaining)
         return true
     }
@@ -339,16 +351,27 @@ object SessionStore {
     }
 
     /**
-     * Wipes every local analysis — the index and all per-session directories.
-     * Used by account deletion (GDPR); cloud erasure is handled separately.
-     * Always allowed: intentional wipe, not a partial clobber of a corrupt file.
+     * Wipes the current account's local analyses: used by account deletion
+     * (GDPR); cloud erasure is handled separately. Another account's rows on a
+     * shared phone ([SessionOwner]) stay. With none, or an unreadable index, the
+     * whole sessions tree goes. Always allowed: intentional wipe, not a partial
+     * clobber of a corrupt file.
      */
     @WorkerThread
     fun deleteAll(context: Context) = synchronized(lock) {
-        root(context).deleteRecursively()
-        root(context).mkdirs()
-        parsed = null
-        indexCorrupt = false
+        val rows = readRows(context)
+        val owner = SessionOwner.current(context)
+        val kept = rows?.filterNot { it.ownerUid == owner }.orEmpty()
+        if (rows != null && kept.isNotEmpty()) {
+            val root = root(context)
+            rows.filter { it.ownerUid == owner }.forEach { File(root, it.id).deleteRecursively() }
+            write(context, kept)
+        } else {
+            root(context).deleteRecursively()
+            root(context).mkdirs()
+            parsed = null
+            indexCorrupt = false
+        }
         AccountCache.onLocalSessionsRemoved(context, 0)
     }
 
@@ -390,8 +413,12 @@ object SessionStore {
                 write(context, healed)
             }
         indexCorrupt = rows == null
-        return rows?.let { repairNames(context, it) }
+        return rows?.let { repairNames(context, it) }?.let { adoptLegacyRows(context, it) }
     }
+
+    /** [rows] with blank owners given to the current account and written back ([SessionOwner.adopted]). */
+    private fun adoptLegacyRows(context: Context, rows: List<SessionRecord>): List<SessionRecord> =
+        SessionOwner.adopted(rows, SessionOwner.current(context))?.takeIf { write(context, it) } ?: rows
 
     /**
      * [rows] with the names earlier builds left (two rows of one name, a
@@ -436,7 +463,7 @@ object SessionStore {
 
     /**
      * Atomic replace: backup prior good file, write tmp, flush, rename. Stores
-     * the row count it wrote as the quota's phone count, so the count
+     * the current account's row count as the quota's phone count, so the count
      * [SessionQuota.blockedNow] reads on the main thread is the live one.
      * @return false only if something unexpected fails mid-write (rare).
      */
@@ -466,7 +493,7 @@ object SessionStore {
             Timber.e(e, "Failed to write session index")
             return false
         }
-        AccountCache.refreshSessionLimit(context, records.size)
+        AccountCache.refreshSessionLimit(context, SessionOwner.ownedCount(context, records))
         return true
     }
 }

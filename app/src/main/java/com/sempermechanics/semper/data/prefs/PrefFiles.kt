@@ -100,6 +100,12 @@ object PrefFiles {
         /** The `VersionVerdict.Recommended.nudgeKey` last shown, so the update nudge shows once. */
         val UPDATE_NUDGE = PrefKey.string("update_nudge")
 
+        /**
+         * The uid of the account that signed in last, kept through sign-out:
+         * whose analyses `SessionOwner` shows while nobody is signed in.
+         */
+        val LAST_SIGNED_IN_UID = PrefKey.string("last_signed_in_uid")
+
         /** The beta-notice ack of account [uid], or the phone's own when signed out. */
         fun betaAcked(uid: String?): PrefKey<Boolean> =
             if (uid == null) BETA_ACKED_SIGNED_OUT else PrefKey.boolean(BETA_ACKED_PREFIX + uid)
