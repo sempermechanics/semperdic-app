@@ -463,6 +463,9 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           HEAD_REF: ${{ github.head_ref }}
+          # The branch name is the PR author's choice; the actor is not. Both
+          # must say Dependabot for the cheap path (L9-2).
+          ACTOR: ${{ github.actor }}
           BEFORE: ${{ github.event.before }}
           FULL_DISPATCH: ${{ github.event_name == 'workflow_dispatch' && inputs.full_ci || false }}
           FULL_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'full-ci') }}
@@ -500,8 +503,12 @@ jobs:
           if [ "$full" = "true" ]; then
             app=true; backend=true; rules=true; emulator=true; release_build=true
             sast=true
-          elif [ "$EVENT_NAME" = "pull_request" ] && [[ "${HEAD_REF:-}" == dependabot/* ]]; then
+          elif [ "$EVENT_NAME" = "pull_request" ] && [[ "${HEAD_REF:-}" == dependabot/* ]]                && [ "${ACTOR:-}" = "dependabot[bot]" ]; then
             # Dependabot cheap path: never Tier 3/5; ecosystem picks one light tier.
+            # Only for Dependabot's own runs: anyone can name a branch
+            # dependabot/github_actions/x and would otherwise get gates only,
+            # with CI OK green. Any other actor's PR (a human pushing to a
+            # Dependabot branch too) takes path mode below.
             case "$HEAD_REF" in
               dependabot/pip/*) backend=true ;;
               # firestore-rules-tests/package-lock.json (emulator + SDK pins).
@@ -808,8 +815,11 @@ jobs:
 
       # Gradle names no failing test in the log; the report is in the build dir.
       - name: Report instrumented test results
+        # --require-tests: a connected task can log an APK that failed to
+        # install and still end BUILD SUCCESSFUL with no test run (TD-349);
+        # no test case, or a failing one, fails the job (L9-4).
         if: always()
-        run: python3 scripts/ci_test_report.py app/build/outputs/androidTest-results
+        run: python3 scripts/ci_test_report.py --require-tests app/build/outputs/androidTest-results
 
       - uses: ./.github/actions/prune-cache
         with:
@@ -1078,6 +1088,9 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
 
+      # Readable by any signed-in GitHub user while kept (a public
+      # repository's artifacts are), so kept only long enough to retrace a
+      # failed run (L9-8).
       - name: Upload R8 mapping
         if: always()
         uses: actions/upload-artifact@v7
@@ -1085,6 +1098,7 @@ jobs:
           name: release-mapping
           path: app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: ignore
+          retention-days: 3
 
       - name: ccache statistics
         if: always()

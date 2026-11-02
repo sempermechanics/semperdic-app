@@ -298,7 +298,7 @@ resumable URI and `C7` reconcile against).
 |---|---|
 | Entry | `CloudRestore.enqueueRestore` (Home row tap, or Settings **Restore**) → `data/DicRestoreWorker` |
 | Chain | `CloudRestore.restore` → `SemperApi.listSessionFiles` (C9) → `RestoreBundleFetcher` → `SemperApi.downloadFile` / `downloadRange` → `DriveDownloader` → `RestoreUnpacker` (`SessionZip` entries) → `SessionStore.save` |
-| Writes | A fresh `<sessionDir>` with `.dat` frames + `raw_deformed/`; `*.part` files while in flight |
+| Writes | A fresh `<sessionDir>` with `.dat` frames + `raw_deformed/`; `*.part` files while in flight. The row and folder are the backup's `localSessionId` only when `SessionPaths.isSafeId` takes it (ASCII letters, digits, `-`, `_`), else `restored-<cloud id>` (`CloudRestore.targetLocalId`); `SessionStore.dirFor` throws for any id that is not a direct child of the sessions root, so `..` never makes `filesDir` the session dir (L5-1) |
 | Fails as | `DicRestoreWorker.KEY_ERROR` (carries the `ApiException` message, and with it the backend `ref:` id) → pill on Home **and** Settings |
 | Retry rules | `data/cloud/restore/RestoreDownloadOutcomes` — 5xx/timeout Range-resumes, `ZipException`/corrupt transfer is terminal |
 | Tests | `cloud/RestoreAndImportSafetyTest`, `cloud/RestoreDownloadOutcomesTest`, `cloud/DriveTransferDownloadTest`, `cloud/DownloadWindowSizingTest` |
@@ -500,7 +500,7 @@ flows a route calls), `repo/` (all Firestore access, one module per aggregate),
 
 | Id | Route | Auth | Notes |
 |---|---|---|---|
-| C5 | `POST /v1/sessions` | C4 | Idempotent on `localSessionId` while in flight. Quota + file-count check → **reserve the session doc before any Drive I/O** → batch-write file docs → enqueue provisioning (C15) or provision inline with rollback. The session is tagged with the asking app (`app`, ADR-014). An optional `name` (≤ 200 chars) is the analysis's name, which the list shows; an older app sends none (TD-208) |
+| C5 | `POST /v1/sessions` | C4 | Idempotent on `localSessionId` while in flight. Quota + file-count check → **reserve the session doc before any Drive I/O** → batch-write file docs → enqueue provisioning (C15) or provision inline with rollback. The session is tagged with the asking app (`app`, ADR-014). An optional `name` (≤ 200 chars) is the analysis's name, which the list shows; an older app sends none (TD-208). `localSessionId` is at most 128 of `[A-Za-z0-9_-]` or empty, else 422: phones restore it as a folder name (L5-1) |
 | C15 | Provisioning | `session_provision.provision_session` | Opens one Drive resumable URI per unprovisioned file, bounded fan-out. Idempotent: only files with no `uploadUrl` are touched. Inline failure → `purge_session` (Drive **and** Firestore); queued failure → `PROVISION_FAILED` so a poller stops waiting |
 | C16 | `POST /v1/tasks/provision-session` | `tasks.tasks_caller` | Cloud Tasks callback, authenticated by the OIDC token's audience **and** invoker service-account email. Not reachable with a user token |
 | C6 | `GET /v1/sessions/{sid}/uploads` | C4 | The resume list. Carries Drive capability URIs, which is why it is attested (the ID-token-only migration window was retired 2026-09-26, FI-7). `status` PROVISIONING means "poll", not "nothing to do" |

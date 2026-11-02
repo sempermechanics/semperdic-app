@@ -72,12 +72,15 @@ class RestoreWorkersTest {
 
     // ------------------------------------------------------------- restore
 
-    private fun runRestore(restorer: DicRestoreWorker.Restorer): ListenableWorker.Result {
+    private fun runRestore(restorer: DicRestoreWorker.Restorer): ListenableWorker.Result =
+        runRestore("local-1", restorer)
+
+    private fun runRestore(target: String, restorer: DicRestoreWorker.Restorer): ListenableWorker.Result {
         val worker = TestListenableWorkerBuilder<DicRestoreWorker>(context)
             .setInputData(
                 workDataOf(
                     CloudRestore.KEY_CLOUD_SESSION_ID to "cloud-1",
-                    CloudRestore.KEY_TARGET_LOCAL_ID to "local-1",
+                    CloudRestore.KEY_TARGET_LOCAL_ID to target,
                 ),
             )
             .setWorkerFactory(factory { params -> DicRestoreWorker(context, params, restorer) })
@@ -93,6 +96,21 @@ class RestoreWorkersTest {
     private fun failureReason(result: ListenableWorker.Result): String? {
         assertTrue("expected a failure, got $result", result is ListenableWorker.Result.Failure)
         return result.outputData.getString(IntentKeys.DOWNLOAD_ERROR)
+    }
+
+    @Test
+    fun `a target id that names no session dir fails before anything is cleared or fetched`() {
+        val sentinel = File(context.filesDir, "sentinel.txt").apply { writeText("keep") }
+        var fetched = false
+
+        for (target in listOf("..", ".", "a/../b")) {
+            val result = runRestore(target) { _, _, _, _ -> "x".also { fetched = true } }
+
+            assertTrue(target, result is ListenableWorker.Result.Failure)
+        }
+        assertFalse(fetched)
+        // Before L5-1's fix the worker's first step deleted filesDir for `..`.
+        assertTrue(sentinel.isFile)
     }
 
     @Test
