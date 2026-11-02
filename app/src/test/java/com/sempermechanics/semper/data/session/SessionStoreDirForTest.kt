@@ -3,6 +3,7 @@ package com.sempermechanics.semper.data.session
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.data.cloud.restore.CloudRestore
+import com.sempermechanics.semper.data.net.AccountCache
 import com.sempermechanics.semper.fixtures.CleanAppState
 import com.sempermechanics.semper.fixtures.sessionRecord
 import org.junit.Assert.assertEquals
@@ -40,6 +41,12 @@ class SessionStoreDirForTest {
         sentinel = File(context.filesDir, "sentinel.txt").apply { writeText("keep") }
     }
 
+    /** [rows] as index.json holds them, written past [SessionStore.save]: a tampered or older index. */
+    private fun seedIndex(vararg rows: SessionRecord) {
+        sessionsRoot.mkdirs()
+        File(sessionsRoot, SessionPaths.INDEX_JSON).writeText(SessionIndexJson.encode(rows.toList()))
+    }
+
     @Test
     fun `an id that is not a direct child of the sessions root names no session dir`() {
         for (id in listOf("..", ".", "", "a/../b", "a/b", "a\\b", "../escape", SessionPaths.INDEX_JSON)) {
@@ -60,12 +67,34 @@ class SessionStoreDirForTest {
 
     @Test
     fun `deleting a row whose id names no session dir drops the row and no directory`() {
-        SessionStore.save(context, sessionRecord(".."))
+        seedIndex(sessionRecord(".."))
 
         SessionStore.delete(context, "..")
 
         assertNull(SessionStore.get(context, ".."))
         assertTrue("filesDir is not the session dir", sentinel.isFile)
+    }
+
+    @Test
+    fun `saving a row whose id names no session dir is refused`() {
+        for (id in listOf("..", ".", "a/../b", SessionPaths.INDEX_JSON)) {
+            assertThrows(id, IllegalArgumentException::class.java) { SessionStore.save(context, sessionRecord(id)) }
+            assertNull(id, SessionStore.get(context, id))
+        }
+        assertTrue(sentinel.isFile)
+    }
+
+    @Test
+    fun `wiping one account's analyses on a shared phone never leaves the sessions root`() {
+        AccountCache.saveIdentity(context, "uid-a", "a@example.com")
+        seedIndex(sessionRecord("..").copy(ownerUid = "uid-a"), sessionRecord("b1").copy(ownerUid = "uid-b"))
+        val other = SessionStore.dirFor(context, "b1")
+
+        SessionStore.deleteAll(context)
+
+        assertTrue("the sessions root's parent is untouched", sentinel.isFile)
+        assertTrue(sessionsRoot.isDirectory)
+        assertTrue("another account's analysis stays", other.isDirectory)
     }
 
     @Test
