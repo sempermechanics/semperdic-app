@@ -328,34 +328,27 @@ object SessionStore {
     }
 
     /**
-     * Deletes the folders runs the process died in left behind (readiness
-     * TE1-101): a folder under the sessions root that no index row names,
-     * that holds a `run_staging/` and no record manifest, and that nothing has
-     * written since [startedAtMs] (a run started in this process is live).
-     * Nothing is deleted while the index does not parse. Returns the bytes freed.
+     * Deletes each folder under the root that no row names and [reclaimable]
+     * accepts, under the index lock; the bytes freed. Nothing goes while the
+     * index does not parse. The policies are in `RunFolderReclaim.kt`.
      */
     @WorkerThread
-    fun reclaimDeadRuns(context: Context, startedAtMs: Long): Long = synchronized(lock) {
-        val rows = readRows(context) ?: return@synchronized 0L
-        val named = rows.flatMap { listOf(it.id, File(it.sessionDir).name) }.toSet()
-        root(context).listFiles().orEmpty()
-            .filter { dir ->
-                dir.isDirectory &&
-                    dir.name !in named &&
-                    SessionPaths.runStaging(dir).isDirectory &&
-                    !SessionLayout(dir).recordManifest.exists() &&
-                    dir.walkTopDown().all { it.lastModified() < startedAtMs }
-            }
-            .sumOf { dir ->
-                val bytes = CacheJanitor.sizeOf(dir)
-                if (dir.deleteRecursively()) {
-                    Timber.i("Reclaimed %d bytes a killed run left in %s", bytes, dir.name)
-                    bytes
-                } else {
-                    0L
+    internal fun reclaimUnindexed(context: Context, what: String, reclaimable: (File) -> Boolean): Long =
+        synchronized(lock) {
+            val rows = readRows(context) ?: return@synchronized 0L
+            val named = rows.flatMap { listOf(it.id, File(it.sessionDir).name) }.toSet()
+            root(context).listFiles().orEmpty()
+                .filter { dir -> dir.isDirectory && dir.name !in named && reclaimable(dir) }
+                .sumOf { dir ->
+                    val bytes = CacheJanitor.sizeOf(dir)
+                    if (dir.deleteRecursively()) {
+                        Timber.i("Reclaimed %d bytes %s left in %s", bytes, what, dir.name)
+                        bytes
+                    } else {
+                        0L
+                    }
                 }
-            }
-    }
+        }
 
     /**
      * Wipes every local analysis — the index and all per-session directories.

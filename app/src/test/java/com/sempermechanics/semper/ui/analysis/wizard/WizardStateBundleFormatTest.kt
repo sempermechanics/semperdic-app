@@ -50,10 +50,15 @@ class WizardStateBundleFormatTest {
         putString("framesFingerprint", WizardState.fingerprint(WizardState.encodeFrames(WizardState.Frames())))
     }
 
-    /** [baseBundle] as this build writes it: with the working session's kind and the video's name. */
+    /**
+     * [baseBundle] as this build writes it: with the working session's kind,
+     * the video's name, and the digests of the reference and mask (none here).
+     */
     private fun currentBundle(): Bundle = baseBundle().apply {
         putBoolean("workingIsSweep", true)
         putString("videoName", "tensile_03")
+        putString("referenceDigest", null)
+        putString("maskDigest", null)
     }
 
     @Test
@@ -73,6 +78,8 @@ class WizardStateBundleFormatTest {
             putString("workingLocalId", null)
             putBoolean("workingIsSweep", false)
             putString("videoName", null)
+            putString("referenceDigest", null)
+            putString("maskDigest", null)
         }
         assertSameBundle(expected, restored.saveWizardState())
     }
@@ -104,6 +111,8 @@ class WizardStateBundleFormatTest {
             putString("workingLocalId", null)
             putBoolean("workingIsSweep", false)
             putString("framesFingerprint", WizardState.fingerprint(WizardState.encodeFrames(WizardState.Frames())))
+            putString("referenceDigest", null)
+            putString("maskDigest", null)
         }
 
         assertSameBundle(expected, AnalysisViewModel().saveWizardState())
