@@ -279,6 +279,8 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="delete_body_cant_undo">This can\'t be undone.</string>
 
     <string name="delete_confirm_body_cloud">A deleted cloud copy can\'t be recovered.</string>
+    <!-- A row whose backup the other app made (ADR-014): this app cannot restore it. -->
+    <string name="delete_confirm_body_other_app">Its backup was made by another semper app, so this app can\'t bring it back once it\'s off this phone. A deleted cloud copy can\'t be recovered.</string>
     <string name="restore_analysis_title_fmt">Restore %1$s?</string>
     <string name="restore_analysis_body">It\'s only in the cloud.</string>
     <string name="delete_device_only_done">Freed from this phone · in the cloud</string>

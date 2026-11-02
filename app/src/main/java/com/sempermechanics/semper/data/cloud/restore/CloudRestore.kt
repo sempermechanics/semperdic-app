@@ -266,7 +266,6 @@ object CloudRestore {
 
         // The enqueueing UI already created a row under targetLocalId. Never let
         // metadata select a second id and leave an orphan stub behind.
-        val existing = SessionStore.get(appContext, targetLocalId)
         val layout = SessionLayout(SessionStore.dirFor(appContext, targetLocalId))
         layout.rawDeformedDir.mkdirs()
         layout.metadataJson.writeBytes(metadata.bytes)
@@ -275,13 +274,33 @@ object CloudRestore {
         val fetch = RestoreBundleFetcher.PayloadFetch(api, token, sessionId, appContext.cacheDir, layout)
         val outcome = RestoreBundleFetcher.fetchPayload(fetch, files, metadata.doc.isSplitLayout(), onProgress)
 
-        // 3. Rebuild the index row from the blueprint.
-        val record = metadata.doc.toRecord(targetLocalId, sessionId, layout.dir, outcome.refPath, existing)
+        // 3. Rebuild the index row from the blueprint, over the row as it is
+        // now: what the user changed while the files came down stays.
         // allowOverLimit: the analysis already counts against the cloud quota.
-        val saved = SessionStore.save(appContext, record, allowOverLimit = true)
+        val saved = SessionStore.saveOver(appContext, targetLocalId, allowOverLimit = true) { current ->
+            restoredOver(metadata.doc.toRecord(targetLocalId, sessionId, layout.dir, outcome.refPath, current), current)
+        }
         check(saved == SessionStore.UpsertOutcome.SAVED) { "Could not update the restored session index ($saved)" }
         logRestoreSaving(outcome, metaEntry.sizeBytes, files)
         targetLocalId
+    }
+
+    /**
+     * The row [restored] from the backup, over [current], the row as it is when
+     * the restore saves. The name and [SessionRecord.renamedByUser] come from
+     * [current] already ([SessionMetadataDoc.toRecord]); a rename made during
+     * the download also keeps [SessionRecord.metadataStale], so it is sent. A
+     * row no longer linked to this backup (its cloud copy deleted meanwhile:
+     * LOCAL_ONLY, no cloud id) stays unlinked rather than flipping back to SYNCED.
+     */
+    internal fun restoredOver(restored: SessionRecord, current: SessionRecord?): SessionRecord {
+        if (current == null) return restored
+        val unlinked = current.cloudSessionId != restored.cloudSessionId
+        return restored.copy(
+            metadataStale = restored.metadataStale || current.metadataStale,
+            cloudSessionId = if (unlinked) current.cloudSessionId else restored.cloudSessionId,
+            syncState = if (unlinked) current.syncState else restored.syncState,
+        )
     }
 
     /** The backup's COMPLETED files; none at all is a backup no retry will fix. */

@@ -130,13 +130,29 @@ object SessionStore {
         context: Context,
         record: SessionRecord,
         allowOverLimit: Boolean = false,
+    ): UpsertOutcome = saveOver(context, record.id, allowOverLimit) { record }
+
+    /**
+     * [save] of what [build] makes of row [id] as the index holds it now (null
+     * when there is none), read and written under the one lock: a change made
+     * to the row since the caller last read it (a rename, or a cloud delete,
+     * while a restore downloaded) is there for [build] to keep.
+     */
+    @WorkerThread
+    fun saveOver(
+        context: Context,
+        id: String,
+        allowOverLimit: Boolean = false,
+        build: (current: SessionRecord?) -> SessionRecord,
     ): UpsertOutcome = synchronized(lock) {
         val existing = readRows(context)
         if (existing == null) {
             Timber.e("Refusing upsert: session index is corrupt")
             return@synchronized UpsertOutcome.INDEX_UNAVAILABLE
         }
-        val previous = existing.firstOrNull { it.id == record.id }
+        val previous = existing.firstOrNull { it.id == id }
+        val record = build(previous)
+        require(record.id == id) { "saveOver built row ${record.id} for $id" }
         if (previous == null && !allowOverLimit && SessionQuota.blocked(context, existing.size)) {
             Timber.w("Hard stop: refusing new session at the analysis limit (%d on the phone)", existing.size)
             return@synchronized UpsertOutcome.QUOTA_FULL
