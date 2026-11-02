@@ -44,8 +44,11 @@ internal sealed interface SessionStep {
     /** End this run with [result], a retry. */
     data class Retry(val result: Result) : SessionStep
 
-    /** End the backup with [reason] for the user. */
-    data class Fail(val reason: String) : SessionStep
+    /**
+     * End the backup with [reason] for the user, through the one abandon
+     * (`UploadRun.abandon`), counted under [analyticsReason].
+     */
+    data class Fail(val reason: String, val analyticsReason: String? = null) : SessionStep
 }
 
 /** What resuming an existing session concluded ([UploadSessionPlanner]). */
@@ -304,8 +307,10 @@ internal class UploadSessionPlanner(
             Resume.ProvisionFailed -> {
                 Timber.e("Session provision failed — failing backup (no create loop)")
                 discardCloudSession(context, api, idToken, localId, cloudSessionId)
-                markBackupFailed(context, localId, analyticsReason = "provision")
-                SessionStep.Fail(context.getString(R.string.cloud_backup_failed_provision))
+                SessionStep.Fail(
+                    context.getString(R.string.cloud_backup_failed_provision),
+                    analyticsReason = "provision",
+                )
             }
             // The session id is stored, so the next run resumes it rather than
             // creating a second one.

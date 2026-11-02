@@ -9,6 +9,7 @@ import android.security.keystore.KeyProperties
 import androidx.annotation.VisibleForTesting
 import com.sempermechanics.semper.BuildConfig
 import com.sempermechanics.semper.data.account.DeviceKeys
+import com.sempermechanics.semper.data.net.AccountCache
 import com.sempermechanics.semper.data.prefs.PrefFiles
 import com.sempermechanics.semper.data.prefs.get
 import com.sempermechanics.semper.data.prefs.privatePrefs
@@ -88,8 +89,11 @@ object EntitlementStore {
     /** What is stored, as last read or written; null until the first read in this process. */
     private var memory: StoredEntitlement? = null
 
-    /** The last verification, keyed by its token, so the same token is not verified twice. */
-    private var verified: Pair<String, Verification>? = null
+    /**
+     * The last verification, keyed by its token and the account it was
+     * checked for, so the same token is not verified twice.
+     */
+    private var verified: Pair<Pair<String, String?>, Verification>? = null
 
     /** `elapsedRealtime` of the last write; starts a full interval back so the first one is due. */
     private var lastPersistElapsed = -PERSIST_EVERY_MS
@@ -205,18 +209,26 @@ object EntitlementStore {
             .onFailure { Timber.w(it, "Could not seal the entitlement record") }
     }
 
+    /**
+     * [token] checked against this install and the account signed in here
+     * ([AccountCache.cachedUid]), so a token another account's answer
+     * carried is not taken for this one's.
+     */
     private fun verify(context: Context, token: String): Verification {
-        verified?.takeIf { it.first == token }?.let { return it.second }
+        val account = AccountCache.cachedUid(context)?.takeIf { it.isNotBlank() }
+        val key = token to account
+        verified?.takeIf { it.first == key }?.let { return it.second }
         val expected = runCatching {
             EntitlementVerifier.Expected(
                 appId = EntitlementApp.shortId(BuildConfig.APPLICATION_ID),
                 deviceId = DeviceKeys.deviceId(context),
                 deviceKeyThumbprint = DeviceKeyThumbprint.of(DeviceKeys(context).publicKeyDer()),
+                accountUid = account,
             )
         }.onFailure { Timber.w(it, "Could not read the device key for the entitlement check") }.getOrNull()
         val result = expected?.let { EntitlementVerifier(pins).verify(token, it) }
             ?: Verification.Rejected(RejectReason.WRONG_DEVICE_KEY)
-        verified = token to result
+        verified = key to result
         return result
     }
 

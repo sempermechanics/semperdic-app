@@ -47,9 +47,14 @@ object SemperNativeLib {
      * Stops the solve that is running now, rather than at the end of the frame.
      *
      * The engine polls this inside its point loops, so a cancel lands within a
-     * point or two. Call with `false` before starting a run — the flag survives
-     * the solve it stopped. Safe to call from any thread while a solve is in
-     * flight; that is what it is for.
+     * point or two. The flag survives the solve it stopped, but each
+     * [computeFullFieldDirect] clears it as its solve starts
+     * (`engine/src/pipeline/full_field_solver.cpp`): a cancel set before that
+     * point is wiped. A caller checks its own flag just before the call and
+     * sets this again once the solve is under way
+     * (`AnalysisCancel.reassertIfRequested`, from the progress callback).
+     * Safe to call from any thread while a solve is in flight; that is what
+     * it is for.
      */
     external fun setCancelRequested(cancel: Boolean)
 

@@ -32,8 +32,8 @@ async def test_retired_campus_route_is_gone_and_the_current_one_serves(client, m
     store = fake_firestore.install(monkeypatch)
     monkeypatch.setattr(repo.notify, "access_request", lambda *a, **k: None)
     store._data["users"] = {
-        "dev-user": {"email": "it@university.edu", "access_status": "APPROVED", "plan": "demo"},
-        "student": {"email": "a@university.edu", "access_status": "APPROVED", "plan": "demo"},
+        "dev-user": {"email": "it@university.edu", "emailVerified": True, "access_status": "APPROVED", "plan": "demo"},
+        "student": {"email": "a@university.edu", "emailVerified": True, "access_status": "APPROVED", "plan": "demo"},
     }
     minted = _mint_institution()
     license_id = minted["license"]["id"]
@@ -71,7 +71,7 @@ def test_activation_resolves_a_pre_migration_license_document(store):
     between the code deploy and the migration run.
     """
     store._data["users"] = {
-        "u1": {"email": "student@university.edu", "access_status": "APPROVED", "plan": "demo"},
+        "u1": {"email": "student@university.edu", "emailVerified": True, "access_status": "APPROVED", "plan": "demo"},
     }
     key = "SEMP-AAAA-BBBB-CCCC-DDDD"
     store._data["licenses"] = {
@@ -199,7 +199,7 @@ def test_a_license_predating_grace_gets_none_retroactively(store):
 def test_expired_institution_license_drops_the_seat_holder(store):
     """The only expiry test before this covered an individual license."""
     store._data["users"] = {
-        "u1": {"email": "student@university.edu", "access_status": "APPROVED", "mode": "demo"},
+        "u1": {"email": "student@university.edu", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"},
     }
     minted = repo.create_institution_license(
         domain_lock="university.edu",
@@ -231,6 +231,8 @@ def test_activating_an_expired_key_is_refused_not_silently_demoted(store):
         expires_at=datetime.now(timezone.utc)
         - timedelta(days=settings.LICENSE_GRACE_DAYS_DEFAULT + 1),
     )
+    # Verified after the mint (which then left an invite), before the key.
+    store._data["users"]["u1"]["emailVerified"] = True
     err, cfg = attempt(repo.activate_license, "u1", "a@b.com", "dev-1", minted["key"])
     assert err == "license_expired"
     assert cfg is None
@@ -258,7 +260,7 @@ def test_activating_inside_grace_still_works(store):
     """Grace is entitlement, not a warning state — a key can still be redeemed
     during it, and the redeemer lands in grace rather than being refused."""
     store._data["users"] = {
-        "u1": {"email": "a@b.com", "access_status": "APPROVED", "mode": "demo"},
+        "u1": {"email": "a@b.com", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"},
     }
     minted = repo.create_individual_license(
         email_lock="a@b.com",
@@ -279,7 +281,7 @@ def test_activating_inside_grace_still_works(store):
 
 def test_extending_an_individual_license_re_entitles_the_redeemer(store):
     store._data["users"] = {
-        "u1": {"email": "a@b.com", "access_status": "APPROVED", "mode": "demo"},
+        "u1": {"email": "a@b.com", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"},
     }
     minted = repo.create_individual_license(
         email_lock="a@b.com", device_id_lock="dev-1", created_by_uid="admin",
@@ -297,8 +299,8 @@ def test_extending_an_individual_license_re_entitles_the_redeemer(store):
 
 def test_extending_an_institution_license_re_entitles_every_seat(store):
     store._data["users"] = {
-        "u1": {"email": "a@university.edu", "access_status": "APPROVED", "mode": "demo"},
-        "u2": {"email": "b@university.edu", "access_status": "APPROVED", "mode": "demo"},
+        "u1": {"email": "a@university.edu", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"},
+        "u2": {"email": "b@university.edu", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"},
     }
     minted = repo.create_institution_license(
         domain_lock="university.edu", admin_emails=["it@university.edu"],
@@ -319,8 +321,8 @@ def test_extending_skips_a_revoked_seat(store):
     """A revoked seat holds no entitlement. Re-stamping its mirror would
     resurrect the member on the next resolve."""
     store._data["users"] = {
-        "u1": {"email": "a@university.edu", "access_status": "APPROVED", "mode": "demo"},
-        "u2": {"email": "b@university.edu", "access_status": "APPROVED", "mode": "demo"},
+        "u1": {"email": "a@university.edu", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"},
+        "u2": {"email": "b@university.edu", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"},
     }
     minted = repo.create_institution_license(
         domain_lock="university.edu", admin_emails=["it@university.edu"],
@@ -340,7 +342,7 @@ def test_extending_skips_a_revoked_seat(store):
 
 def test_extending_does_not_touch_someone_on_a_different_license(store):
     store._data["users"] = {
-        "u1": {"email": "a@b.com", "access_status": "APPROVED", "mode": "demo"},
+        "u1": {"email": "a@b.com", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"},
     }
     first = repo.create_individual_license(
         email_lock="a@b.com", device_id_lock="dev-1", created_by_uid="admin",
@@ -388,7 +390,7 @@ async def test_admin_extend_over_http(client, monkeypatch):
     store = fake_firestore.install(monkeypatch)
     monkeypatch.setattr(repo.notify, "access_request", lambda *a, **k: None)
     store._data["users"] = {
-        "u1": {"email": "a@b.com", "access_status": "APPROVED", "mode": "demo"},
+        "u1": {"email": "a@b.com", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"},
     }
     minted = repo.create_individual_license(
         email_lock="a@b.com", device_id_lock="dev-1", created_by_uid="admin",
@@ -424,7 +426,7 @@ def test_clearing_the_analysis_cap_reaches_the_holder(store, monkeypatch):
     monkeypatch.setattr(settings, "DEMO_MAX_ANALYSES", 25)
     monkeypatch.setattr(settings, "LICENSED_MAX_SESSIONS_PER_USER", 999)
     store._data["users"] = {
-        "u1": {"email": "a@b.com", "access_status": "APPROVED", "mode": "demo"},
+        "u1": {"email": "a@b.com", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"},
     }
     # The repo mints what it is given; the 1 is the legacy data the API now refuses.
     minted = repo.create_individual_license(
@@ -572,7 +574,7 @@ async def test_admin_can_clear_a_cap_already_stored_on_a_demo_key(store, client,
 async def test_admin_cap_on_a_licensed_key_still_reaches_the_holder(store, client, monkeypatch):
     monkeypatch.setattr(settings, "DEMO_MAX_ANALYSES", 25)
     store._data["users"] = {
-        "u1": {"email": "a@b.com", "access_status": "APPROVED", "mode": "demo"},
+        "u1": {"email": "a@b.com", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"},
     }
     minted = repo.create_individual_license(
         email_lock="a@b.com", device_id_lock="dev-1", created_by_uid="admin",

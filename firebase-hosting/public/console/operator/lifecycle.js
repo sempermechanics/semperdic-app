@@ -3,7 +3,7 @@
  */
 import { stepUpForRevoke } from "../auth.js";
 import { api } from "../api.js";
-import { askInPage, confirmInPage, confirmByTyping, ERR_CANCELLED } from "../dialogs.js";
+import { askInPage, confirmInPage, confirmByTyping, holdFocus, ERR_CANCELLED } from "../dialogs.js";
 import { setStatus } from "../status.js";
 import { esc, day, daysLeft, placeholderRows, retryRow } from "../util.js";
 import { explain } from "../messages.js";
@@ -175,10 +175,23 @@ function showDeleted(shown) {
 }
 
 let deletedLoad = 0; // the latest read; an older answer is not drawn over it
+// The next page's token, while the list shown has one. The list stopped at
+// its first 50 with nothing to say so, and a licence past them could not be
+// restored from here.
+let deletedNext = "";
+
+$("deletedMore").addEventListener("click", () => loadMoreDeleted());
+
+/** Show whether the list shown has a further page, from the answer `data`. */
+function nextDeleted(data) {
+  deletedNext = (data.page && data.page.nextPageToken) || "";
+  $("deletedMore").hidden = !deletedNext;
+}
 
 async function loadDeleted() {
   const ticket = ++deletedLoad;
   showDeleted(true);
+  nextDeleted({});
   $("deletedRows").innerHTML = placeholderRows(7, 2);
   try {
     const data = await api("/v1/admin/deleted-licenses?limit=50");
@@ -187,9 +200,36 @@ async function loadDeleted() {
     $("deletedRows").innerHTML = rows.length
       ? rows.map(deletedRow).join("")
       : '<tr><td colspan="7" class="muted">Nothing deleted in the last 30 days.</td></tr>';
+    nextDeleted(data);
   } catch (e) {
     if (ticket !== deletedLoad) return;
     $("deletedRows").innerHTML = retryRow(7, `Could not load: ${explain(e)}`);
+  }
+}
+
+/**
+ * The next page of the deleted list, appended. It holds the ticket of the
+ * list it extends: a Show or a restore meanwhile reads the list afresh, and
+ * the late page (or its failure) is the old list's, so it is dropped.
+ */
+async function loadMoreDeleted() {
+  const token = deletedNext;
+  if (!token) return;
+  const ticket = deletedLoad;
+  const more = $("deletedMore");
+  const refocus = holdFocus(more);
+  more.disabled = true;
+  try {
+    const data = await api(`/v1/admin/deleted-licenses?limit=50&page_token=${encodeURIComponent(token)}`);
+    if (ticket !== deletedLoad) return;
+    $("deletedRows").innerHTML += (data.licenses || []).map(deletedRow).join("");
+    nextDeleted(data);
+  } catch (e) {
+    if (ticket !== deletedLoad) return;
+    setStatus(`Could not load more deleted licences: ${explain(e)}`, true);
+  } finally {
+    more.disabled = false;
+    refocus();
   }
 }
 

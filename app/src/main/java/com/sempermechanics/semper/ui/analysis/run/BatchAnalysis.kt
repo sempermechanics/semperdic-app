@@ -27,12 +27,14 @@ import com.sempermechanics.semper.report.newMetrics
 import com.sempermechanics.semper.ui.analysis.frames.FrameImportHelper
 import com.sempermechanics.semper.ui.analysis.recommend.RunEstimate
 import com.sempermechanics.semper.ui.analysis.rerun.keepBatchRerun
+import com.sempermechanics.semper.ui.analysis.wizard.AnalysisCancel
 import com.sempermechanics.semper.ui.analysis.wizard.AnalysisViewModel
 import com.sempermechanics.semper.ui.analysis.wizard.BatchAnalysisOutcome
 import com.sempermechanics.semper.ui.analysis.wizard.BatchProgressUpdate
 import com.sempermechanics.semper.ui.analysis.wizard.RunAdmission
 import com.sempermechanics.semper.ui.analysis.wizard.RunKind
 import com.sempermechanics.semper.ui.analysis.wizard.admitRun
+import com.sempermechanics.semper.ui.analysis.wizard.discardRun
 import com.sempermechanics.semper.ui.analysis.wizard.openRunSession
 import com.sempermechanics.semper.ui.analysis.wizard.repointDeformedPathsOnMain
 import kotlinx.coroutines.ensureActive
@@ -68,13 +70,19 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     // The images as they were at launch: the wizard's fields are Main's (TD-173).
     val reference = run.inputs.reference
     val frames = run.inputs.frames
+    val roi = spec.roi
+    val dic = spec.params
+    // Counted in a Long: an Int wraps past about 2 billion points.
+    val maxPoints = DicFieldIo.gridPoints(roi.w, roi.h, dic.step)
     // Admitted here, the run saves its session even if the cap fills meanwhile.
-    val admission = admitRun(appContext, frames.paths.size)
+    // A grid too large for this heap is refused here too (DicFieldIo.fits).
+    val admission = admitRun(appContext, frames.paths.size, maxPoints)
     if (admission is RunAdmission.Blocked) {
+        val reason = if (admission.outcome.stop == RunStop.TooLarge) "too_large" else "session_limit"
         SemperAnalytics.event(
             appContext,
             SemperAnalytics.ANALYSIS_FAILED,
-            mapOf("mode" to "batch", "reason" to "session_limit"),
+            mapOf("mode" to "batch", "reason" to reason),
         )
         return admission.outcome
     }
@@ -114,12 +122,16 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
         )
     }
 
-    val roi = spec.roi
-    val dic = spec.params
-    val gridW = roi.w / dic.step
-    val gridH = roi.h / dic.step
-    val maxPoints = gridW * gridH
-    val outputBuffer = DicFieldIo.allocateDirect(maxPoints)
+    // The heap admitRun measured can still be short of it (other screens'
+    // bitmaps); a buffer that does not fit ends the run as one too large,
+    // before any frame has moved.
+    val outputBuffer = try {
+        DicFieldIo.allocateDirect(maxPoints)
+    } catch (e: OutOfMemoryError) {
+        Timber.w(e, "No memory for a grid of %d points", maxPoints)
+        discardRun(appContext, session)
+        return tooLargeOutcome(appContext, run)
+    }
 
     // The cancel flag was cleared at launch (launchBatchAnalysis), not here: a
     // Cancel confirmed while the reference cached must still stop the run.
@@ -234,8 +246,17 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
                     Timber.w(e, "Could not persist raw deformed frame %d", frameIndex)
                 }
             }
+            // The engine clears the cancel flag as its solve starts
+            // (full_field_solver.cpp), so a Cancel confirmed while this frame
+            // was read and kept would be wiped there: checked again here, and
+            // put back from the solve's own progress ticks below.
+            if (cancelRequested) {
+                stop = RunStop.Cancelled
+                break
+            }
             val callback = object : ProgressCallback {
                 override fun onProgressUpdate(percentage: Int) {
+                    AnalysisCancel.reassertIfRequested()
                     val frameProgress = (frameIndex.toFloat() / plannedFrames) * 100
                     val overallProgress = frameProgress + (percentage.toFloat() / plannedFrames)
                     onProgress(
@@ -368,10 +389,21 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
             FieldRangesStore.writeBestEffort(resultsDir, summaryFieldIndices, perFrameSummaryRanges)
             session.commitRecord(appContext, spec.recordSettings())
         }
+    } catch (e: OutOfMemoryError) {
+        // An Error, which no catch (Exception) up the stack stops: the app
+        // would crash with the frames it moved still in the session, where
+        // the wizard no longer looks. Undone as a throw before the commit is
+        // (undoFailedBatch), and ended as a run too large for this phone.
+        Timber.w(e, "Batch run ran out of memory; undoing it")
+        stop = RunStop.TooLarge
     } catch (e: Exception) {
         undoFailedBatch(appContext, session, frames.paths, resolvedDefPaths, e)
     } finally {
         if (spec.incremental) SemperNativeLib.releaseIncremental()
+    }
+    if (stop == RunStop.TooLarge) {
+        discardCancelledBatch(appContext, session, frames.paths, resolvedDefPaths)
+        return tooLargeOutcome(appContext, run)
     }
     if (stop == RunStop.Cancelled) {
         discardCancelledBatch(appContext, session, frames.paths, resolvedDefPaths)
@@ -402,8 +434,7 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
         // Images an earlier run left behind that this one no longer has. This is
         // the wipe that used to run before the loop; done here it can never delete
         // the run's own inputs.
-        val keptRawNames = persistedRawNames.filterTo(HashSet()) { it.isNotBlank() }
-        rawDeformedDir.listFiles()?.forEach { if (it.name !in keptRawNames) it.delete() }
+        staleRawFrames(rawDeformedDir, persistedRawNames, frames.paths).forEach { it.delete() }
 
         // A run that will save keeps what Home's Re-run starts from, the frames it
         // stopped before included, which the wizard then follows.
@@ -495,6 +526,45 @@ internal fun AnalysisViewModel.runBatchAnalysisBody(
     )
     batchEndEvent(appContext, outcome, stop)
     return outcome
+}
+
+/**
+ * The images in [rawDeformedDir] that the run which wrote [persistedRawNames]
+ * (index-aligned with its frames, blank where it kept none) from
+ * [launchedPaths] no longer has: an earlier run's that the frame list dropped.
+ * A launched frame that already lives in [rawDeformedDir] (moved there by an
+ * earlier run in this wizard that saved nothing) is kept whether or not this
+ * run reached it: a run that stopped at its first frame is still its input,
+ * and the next Compute's and Re-run's.
+ */
+internal fun staleRawFrames(
+    rawDeformedDir: File,
+    persistedRawNames: List<String>,
+    launchedPaths: List<String>,
+): List<File> {
+    val dir = rawDeformedDir.absolutePath
+    val kept = persistedRawNames.filterTo(HashSet()) { it.isNotBlank() }
+    launchedPaths.map(::File).filter { it.parentFile?.absolutePath == dir }.mapTo(kept) { it.name }
+    return rawDeformedDir.listFiles()?.filter { it.name !in kept }.orEmpty()
+}
+
+/**
+ * How a batch run that did not fit this phone's memory ends ([RunStop.TooLarge]):
+ * like a cancel, nothing of it is kept and the wizard keeps its session.
+ */
+private fun tooLargeOutcome(appContext: Context, run: BatchRun): BatchAnalysisOutcome {
+    SemperAnalytics.event(
+        appContext,
+        SemperAnalytics.ANALYSIS_FAILED,
+        mapOf("mode" to "batch", "reason" to "out_of_memory"),
+    )
+    return BatchAnalysisOutcome(
+        engineErrorCode = RunStop.TooLarge.wireCode,
+        firstFrameValidPoints = 0,
+        totalFrames = 0,
+        executionTimeMs = (System.currentTimeMillis() - run.startedAtMs).toInt(),
+        batchDirPath = "",
+    )
 }
 
 /** How a batch run ends once its record's save came back as [result]. */

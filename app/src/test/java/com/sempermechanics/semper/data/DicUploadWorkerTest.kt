@@ -1,6 +1,8 @@
 package com.sempermechanics.semper.data
 
 import android.app.Application
+import android.app.ForegroundServiceStartNotAllowedException
+import androidx.work.ForegroundUpdater
 import androidx.work.ListenableWorker
 import androidx.work.testing.TestListenableWorkerBuilder
 import androidx.work.workDataOf
@@ -416,6 +418,27 @@ class DicUploadWorkerTest : UploadWorkerHarness() {
     }
 
     @Test
+    fun `a retry the system will not put in the foreground still uploads`() {
+        seed(cloudSessionId = "cs1")
+        api.onSessionUploads = { uploading(it) }
+        val refused = ForegroundUpdater { _, _, _ ->
+            throw ForegroundServiceStartNotAllowedException("started from the background")
+        }
+
+        val result = runBlocking {
+            TestListenableWorkerBuilder<DicUploadWorker>(context)
+                .setInputData(workDataOf(IntentKeys.SESSION_LOCAL_ID to ID))
+                .setForegroundUpdater(refused)
+                .build()
+                .doWork()
+        }
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        assertEquals(3, api.completed.size)
+        assertEquals(SessionRecord.SyncState.SYNCED, row().syncState)
+    }
+
+    @Test
     fun `an unknown analysis fails`() {
         val result = runBlocking {
             TestListenableWorkerBuilder<DicUploadWorker>(context)
@@ -486,6 +509,19 @@ class DicUploadWorkerTest : UploadWorkerHarness() {
         assertEquals(string(com.sempermechanics.semper.R.string.cloud_backup_failed_provision), failReason(result))
         assertEquals(listOf("cs1"), api.deleted)
         assertEquals("", row().cloudSessionId)
+        assertEquals(SessionRecord.SyncState.FAILED, row().syncState)
+    }
+
+    @Test
+    fun `a provision failure abandons the backup like every terminal path`() {
+        seed(cloudSessionId = "cs1")
+        val markers = RebuildBudget.entries.map { File(sessionDir, it.marker).apply { writeText("1") } }
+        api.onSessionUploads = { SessionUploadsResponse(sessionId = it, status = "PROVISION_FAILED") }
+
+        run()
+
+        assertFalse("the staged zips go", staging.exists())
+        assertTrue("the rebuild counts go", markers.none { it.exists() })
         assertEquals(SessionRecord.SyncState.FAILED, row().syncState)
     }
 

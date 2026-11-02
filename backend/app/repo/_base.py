@@ -445,18 +445,33 @@ def _get_all(refs: list, field_paths=None) -> list:
     return out
 
 
+def _after_token(col, page_token: str | None, order_field: str):
+    """The `start_after` cursor a page token names, or None to start at the
+    beginning.
+
+    In document-id order the token is the cursor: it names the id to resume
+    after, whether or not that document still exists. Reading the document
+    for a snapshot made a token whose document was deleted between pages
+    (`?verify=true` purges the orphans it lists, the last one included)
+    restart from the first page, so the export and the listing repeated
+    every row before it (review L3-6). Ordered by another field the cursor
+    needs that field's value, which only the document holds: a token whose
+    document is gone still restarts there."""
+    if not page_token:
+        return None
+    if order_field == "__name__":
+        return {"__name__": col.document(page_token)}
+    snap = _get(col.document(page_token))
+    return snap if snap.exists else None
+
+
 def _scan(col, query, page_token: str | None = None, chunk: int = _BATCH_LIMIT,
           order_field: str = "__name__"):
     """Every document of [query] after `page_token`, in document-id order
     unless `order_field` is given (ties then break on the id), fetched `chunk`
-    at a time. A token naming a document that has since been deleted restarts
-    from the beginning, as `_cursor_page` does."""
+    at a time. The token is read as `_after_token` reads it."""
     query = query.order_by(order_field)
-    cursor = None
-    if page_token:
-        snap = _get(col.document(page_token))
-        if snap.exists:
-            cursor = snap
+    cursor = _after_token(col, page_token, order_field)
     while True:
         page = query.limit(chunk)
         if cursor is not None:
@@ -475,9 +490,10 @@ def _cursor_page(col, query, limit: int, page_token: str | None,
     Ordered by document id unless `order_field` is given; the token is always
     the last document's id, and the cursor is that document's snapshot, which
     carries the order field's value. Reads one document past [limit] so the
-    token is only issued when there really is a next page. A token naming a
-    document that has since been deleted restarts from the beginning rather
-    than failing.
+    token is only issued when there really is a next page. In document-id
+    order a token resumes after its id even when that document has since been
+    deleted; ordered by another field, such a token restarts from the
+    beginning rather than failing (`_after_token`).
     """
     if order_field == "__name__":
         query = query.order_by("__name__")
@@ -487,10 +503,9 @@ def _cursor_page(col, query, limit: int, page_token: str | None,
             direction=firestore.Query.DESCENDING if descending else firestore.Query.ASCENDING,
         )
     query = query.limit(limit + 1)
-    if page_token:
-        cursor = _get(col.document(page_token))
-        if cursor.exists:
-            query = query.start_after(cursor)
+    cursor = _after_token(col, page_token, order_field)
+    if cursor is not None:
+        query = query.start_after(cursor)
     docs = _stream(query)
     if len(docs) > limit:
         docs = docs[:limit]

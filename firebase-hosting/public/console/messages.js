@@ -10,6 +10,12 @@
  */
 import { authErrorText, errorDetail } from "./util.js";
 
+// auth.js `ERR_REAUTH_INCOMPLETE`, which `stepUp` raises: the console's own
+// code, not the backend's, so not a literal key that check_console.py check 8
+// would hold to backend/app/errors.py. Not imported from auth.js, which loads
+// Firebase; messages.test.mjs pins the two to one value.
+const REAUTH_INCOMPLETE = "console_reauth_incomplete";
+
 /** Sentences any page may show for a code it has none of its own for. */
 export const COMMON = {
   rate_limited: "Too many requests just now — wait a moment and try again.",
@@ -26,6 +32,11 @@ export const COMMON = {
   invalid_token: "Your sign-in has expired. Sign in again, then repeat that.",
   not_admin: "That account is not a semper operator.",
   email_not_verified: "Verify your email address first.",
+  // A Google round trip that came back without a fresh session: a call that
+  // asked for the step-up fails with it, and so does the dashboard's own load
+  // (auth.js, which shows this too). Signing in afresh is the way out, not
+  // "the server refused it".
+  [REAUTH_INCOMPLETE]: "Re-authentication with Google did not complete. Sign out, then sign in again.",
 };
 
 /**

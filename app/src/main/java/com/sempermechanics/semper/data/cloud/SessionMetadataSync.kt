@@ -16,6 +16,7 @@ import com.sempermechanics.semper.data.net.TokenSource
 import com.sempermechanics.semper.data.net.authed
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
+import com.sempermechanics.semper.data.session.clearMetadataStale
 import com.sempermechanics.semper.navigation.IntentKeys
 import timber.log.Timber
 

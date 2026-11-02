@@ -264,6 +264,23 @@ test("a cancelled Deactivate sends nothing", async () => {
   assert.equal($("semperPhones").querySelector("button").disabled, false);
 });
 
+test("Deactivate is held from the first click until the DELETE answers: a second click sends nothing", async () => {
+  let deletes = 0;
+  await open({ routes: { "DELETE /v1/me/devices/p1?app=semper": () => (deletes++
+    ? json(404, { detail: "activation_not_found" })
+    : json(200, { licenseId: "L1", deviceId: "p1", app: "semper", devicesActive: 0, maxDevices: 2 })) } });
+  confirms.answer(true, true);
+  const button = $("semperPhones").querySelector("button");
+  button.click();
+  assert.equal(button.disabled, true, "disabled while its card is open");
+  button.click();
+  await settle();
+  assert.equal(confirms.cards.length, 1, "one card");
+  assert.deepEqual(sent(/DELETE/), ["DELETE /v1/me/devices/p1?app=semper"]);
+  assert.deepEqual(status(), ["Deactivated. Pixel 8 runs semper as Demo until it is activated again.", "muted"],
+    "no second answer overwrites the success");
+});
+
 test("a phone already deactivated is said in words, and the list is read again", async () => {
   await open({ routes: {
     "DELETE /v1/me/devices/p1?app=semper": () => json(404, { detail: "activation_not_found" }),

@@ -224,6 +224,51 @@ class WizardStateTest {
         assertEquals(DraftRestore.LOST, runBlocking { after.restoreDraft() })
     }
 
+    /** What a stop leaves when the draft still holds [reference] and [mask] from before the last edit. */
+    private fun staleDraft(before: AnalysisViewModel, reference: ByteArray?, mask: ByteArray?): AnalysisViewModel {
+        draft.writeReference(reference)
+        draft.writeMask(mask)
+        draft.writeFrames(WizardState.encodeFrames(WizardState.frames(before)))
+        // No draft attached to before: its new reference or mask never lands.
+        val saved = before.saveWizardState()
+        return AnalysisViewModel(SavedStateHandle(mapOf(WizardState.KEY to saved))).also { it.attachDraft(draft) }
+    }
+
+    @Test
+    fun `a reference whose write never landed loses the draft`() {
+        val before = editedWizard()
+        // The previous reference, as many bytes as the new one.
+        val after = staleDraft(before, reference = REF.reversedArray(), mask = MASK)
+
+        assertEquals(DraftRestore.LOST, runBlocking { after.restoreDraft() })
+        assertNull(after.inputs.value.refBytes)
+    }
+
+    @Test
+    fun `a mask whose write never landed loses the draft`() {
+        val before = editedWizard()
+        val after = staleDraft(before, reference = REF, mask = ByteArray(MASK.size))
+
+        assertEquals(DraftRestore.LOST, runBlocking { after.restoreDraft() })
+        assertNull(after.inputs.value.roiMaskBytes)
+    }
+
+    @Test
+    fun `a Bundle saved before the digests restores on the parts being there`() {
+        val before = editedWizard()
+        draft.writeReference(REF)
+        draft.writeMask(MASK)
+        draft.writeFrames(WizardState.encodeFrames(WizardState.frames(before)))
+        val saved = before.saveWizardState().apply {
+            remove("referenceDigest")
+            remove("maskDigest")
+        }
+        val after = AnalysisViewModel(SavedStateHandle(mapOf(WizardState.KEY to saved))).also { it.attachDraft(draft) }
+
+        assertEquals(DraftRestore.RESTORED, runBlocking { after.restoreDraft() })
+        assertArrayEquals(REF, after.inputs.value.refBytes)
+    }
+
     @Test
     fun `a frame list whose write never landed loses the draft, even at the same count`() {
         val before = editedWizard()

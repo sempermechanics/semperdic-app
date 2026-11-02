@@ -2,6 +2,7 @@ package com.sempermechanics.semper.data.session
 
 import android.content.Context
 import com.sempermechanics.semper.data.account.LicenseEntitlements
+import com.sempermechanics.semper.data.cloud.OtherAppBackups
 import com.sempermechanics.semper.data.prefs.AppSettings
 import com.sempermechanics.semper.data.prefs.WizardDraft
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +21,10 @@ import java.io.File
  * Sessions that are LOCAL_ONLY, PENDING or FAILED are never touched: this
  * device holds the only copy, so dropping them would be data loss rather than
  * a cache eviction.
+ *
+ * Nor is a SYNCED row whose backup another app made (ADR-014,
+ * [OtherAppBackups]): this app cannot restore it, so its phone
+ * copy is the only one this app can reach.
  *
  * Nor is anything touched on a demo account. Its analyses are recorded (so
  * they reach SYNCED) but demo has no restore, so "the cloud has it" does not
@@ -60,8 +65,9 @@ object StorageBudget {
      */
     fun reclaimableBytes(context: Context): Long {
         if (!canRestore(context)) return 0L
+        val otherApp = OtherAppBackups.ids(context)
         return SessionStore.list(context)
-            .filter { it.canDropLocally() }
+            .filter { it.canDropLocally(otherApp) }
             .sumOf { LocalArtifacts.droppedBytes(File(it.sessionDir)) }
     }
 
@@ -74,8 +80,9 @@ object StorageBudget {
         if (!canRestore(context) || total <= target) return Outcome(0L, 0)
 
         // Oldest first: the session the user is least likely to reopen next.
+        val otherApp = OtherAppBackups.ids(context)
         val candidates = SessionStore.list(context)
-            .filter { it.canDropLocally() }
+            .filter { it.canDropLocally(otherApp) }
             .sortedBy { it.updatedAt }
 
         var freed = 0L
@@ -96,9 +103,10 @@ object StorageBudget {
     }
 
     /**
-     * Safe to drop locally: the cloud has it, and there is something left to
-     * drop (so a pass does not keep "dropping" rows that are already bare).
+     * Safe to drop locally: this app's cloud has it (not [otherApp]'s), and
+     * there is something left to drop (so a pass does not keep "dropping" rows
+     * that are already bare).
      */
-    private fun SessionRecord.canDropLocally(): Boolean =
-        syncState == SessionRecord.SyncState.SYNCED && hasLocalData()
+    private fun SessionRecord.canDropLocally(otherApp: Set<String>): Boolean =
+        syncState == SessionRecord.SyncState.SYNCED && id !in otherApp && hasLocalData()
 }

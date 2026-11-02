@@ -2,6 +2,7 @@ package com.sempermechanics.semper.ui.analysis.recommend
 
 import android.content.res.Resources
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.ui.analysis.run.DicFieldIo
 import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -24,9 +25,12 @@ object RunEstimate {
     /** Up to this many seconds the estimate counts seconds; above it, minutes. */
     private const val SECONDS_LABEL_MAX = 90L
 
-    /** Points the engine solves over a [roiW] × [roiH] region at [step]: its grid is (w / step) × (h / step). */
+    /**
+     * Points the engine solves over a [roiW] × [roiH] region at [step]: its grid is (w / step) × (h / step),
+     * counted in a `Long` ([DicFieldIo.gridPoints]) and held at `Int.MAX_VALUE` rather than wrapped.
+     */
     fun gridPoints(roiW: Int, roiH: Int, step: Int): Int =
-        if (step <= 0 || roiW <= 0 || roiH <= 0) 0 else (roiW / step) * (roiH / step)
+        DicFieldIo.gridPoints(roiW, roiH, step).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
     /** Seconds to solve [points] in each of [frames] at [pointsPerSecond], rounded up; null without a rate. */
     fun seconds(points: Int, frames: Int, pointsPerSecond: Int): Long? {

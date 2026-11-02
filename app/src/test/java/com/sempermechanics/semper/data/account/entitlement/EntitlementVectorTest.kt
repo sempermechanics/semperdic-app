@@ -64,6 +64,7 @@ class EntitlementVectorTest {
             appId = "semper",
             deviceId = payload.text("dev"),
             deviceKeyThumbprint = payload.text("dkt"),
+            accountUid = payload.text("sub"),
         )
         val rejects = vector.getValue("rejects").jsonObject
         assertEquals(RejectReason.entries.size, rejects.size)
