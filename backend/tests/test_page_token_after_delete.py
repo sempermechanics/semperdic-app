@@ -60,7 +60,7 @@ async def test_verify_purging_the_pages_last_session_does_not_repeat_the_page(
     """The purge deletes the document the token names; the next page still
     starts after it."""
     monkeypatch.setattr(drive, "access_token", lambda: "tok")
-    monkeypatch.setattr(drive, "file_exists", lambda token, fid: fid != "fold-s2")
+    monkeypatch.setattr(drive, "file_exists", lambda token, fid, **_: fid != "fold-s2")
 
     first = (await client.get(f"/v1/sessions?verify=true&page_size=2{app}")).json()
     assert first["verify"]["purged"] == 1
