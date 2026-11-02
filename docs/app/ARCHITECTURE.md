@@ -57,21 +57,23 @@ on 2026-10-03.
 | `ui/viewer/inspect/` | 5 | Tap-to-probe: `InspectOverlayView`, `PointSpatialIndex`, `TouchImageView`, field histogram view |
 | `ui/settings/` | 15 | `SettingsActivity` (restore, download, delete) and its sections: account, cloud, analyses, storage, preferences, your data, help, footer; `AccountDeletionRun`, `BusyTransfers`; scroll body via `SettingsScrollContentView` |
 | `ui/phones/` | 3 | Your phones ([ADR-033](../adr/ADR-033-licence-per-app-explicit-activation.md)): `PhonesActivity` + `PhonesViewModel` list the account's phones for this app, Activate this one and Deactivate any; `PhonesView` holds the wording rules. Home's `HomeActivationCard`, Settings' account row and the limit screen open it. Calls go through `data/account/phones/DeviceActivation` over `PhonesApi` |
+| `ui/recyclebin/` | 3 | The account's recycle bin ([ADR-035](../adr/ADR-035-recycle-bin.md)): `RecycleBinActivity` + `RecycleBinViewModel` list each deleted backup with when it is erased for good, Restore it (no room opens the session limit screen), and Delete permanently or Empty recycle bin, queued as `SessionDeletes.Mode.PURGE` behind the 5-second undo; `RecycleBinView` holds the wording rules and the dates Home and Settings use for a row in the bin. Settings → Your data opens it, and so do Home's bin icon on a row and Settings' **Restore backup**. Calls go through `data/cloud/bin/RecycleBin` over `RecycleBinApi` |
 | `ui/admin/` | 1 | Admin screen — approve/revoke users via `/v1/admin/*` |
 | `ui/limit/` | 5 | Session-quota, seat-required and update-required screens (`UpdateSource` picks Play or the release page), and `LicenseRefresh`, the "Refresh licence" fetch shared with Settings ([ADR-024](../adr/ADR-024-account-anchored-entitlements.md); 2026-10-18) |
-| `ui/common/` | 18 | Cross-screen basics: `LauncherIcon` (enables the light or the jet-black launcher alias of `SplashActivity` to match the system theme, at start and on a configuration change), insets, motion (`Motion.reduced` for animations off), `CollapsibleSection` (the wizard's closed **Advanced** sections), keyboard (`Keyboard`, `ImeReveal`), toggle groups, `dp`, `SerialJob`, `ConflatedRefresh`, `Busy` (`setBusy`), `InlineBusy` (a slot's busy state for a wait past 300 ms: the reference slot, the speckle chip, the video read, the viewer's opening pill), `ViewportMath`, `ByteSize`, `EtaEstimator` (time left for runs, exports and transfers), `ProgressText` (their "34.6%", "4.2 of 12.0 MB · 1.1 MB/s" wording), coach marks, the settings section header |
+| `ui/common/` | 20 | Cross-screen basics: `Note` (a line a ViewModel hands a screen to resolve), `LauncherIcon` (enables the light or the jet-black launcher alias of `SplashActivity` to match the system theme, at start and on a configuration change), insets, motion (`Motion.reduced` for animations off), `CollapsibleSection` (the wizard's closed **Advanced** sections), keyboard (`Keyboard`, `ImeReveal`), toggle groups, `dp`, `SerialJob`, `ConflatedRefresh`, `Busy` (`setBusy`), `InlineBusy` (a slot's busy state for a wait past 300 ms: the reference slot, the speckle chip, the video read, the viewer's opening pill), `ViewportMath`, `ByteSize`, `EtaEstimator` (time left for runs, exports and transfers), `ProgressText` (their "34.6%", "4.2 of 12.0 MB · 1.1 MB/s" wording), coach marks, the settings section header |
 | `ui/common/dialog/` | 9 | `Feedback.toast`, `CrispToast`, `Dialogs` (info, confirm, i-buttons), `Sheet` (`inflateSheet`), `WarnChip`, `FaqRedirect`, delete-choice and progress dialogs, `LicenseLock` (a licence-locked control and its note) |
 | `ui/common/auth/` | 6 | `AuthRoute` (re-authentication), sign-out confirm and run, `ExternalLinks`, `SupportMail` |
 | `ui/common/media/` | 7 | `MediaPickerSheet` (Home **+** and the wizard dropzones), `MediaStoreBrowser`, `MediaSourceChooser`, `ThumbnailLoader`, `DisplayNames` (a picked image's or video's file name) |
 | `ui/common/transfer/` | 4 | `TransferBannerController`, `TransferWorkObserver` (one reading of WorkManager jobs for Home and Settings), `DeleteFeedback`, `RestoreFailureNotice` |
 | `data/` | 11 | The six WorkManager workers (WorkManager stores their class names, so they never move) and the backup's steps beside `DicUploadWorker`: `UploadStaging`, `UploadSessionPlanner`, `UploadRun`, `UploadFailures`, `UploadTuning` |
-| `data/session/` | 17 | `SessionStore` / `SessionRecord`, `SessionPaths` / `SessionLayout`, `SessionRepository`, `SessionNaming`, zip and `.dat` codecs, storage budget, cache janitor |
-| `data/cloud/` | 24 | `CloudSync` with `CloudErase` / `CloudReconcile`, upload bundling / metadata / outcomes, `SessionMetadataDoc` (its field serializers in `SessionMetadataSerializers`), deletes, backup listing, account export, `WorkTags` / `TransferWork`, transfer log; the notifications: running (`TransferNotifications`, fed by `TransferMeter` / `TransferProgressUpdates`), outcome (`TransferResultNotifications`) and its Retry (`TransferRetryReceiver`, named in the manifest, so it stays put) |
+| `data/session/` | 21 | `SessionStore` / `SessionRecord` (the recycle bin's row writes in `SessionStoreBin`), `SessionOwner`, `SessionPaths` / `SessionLayout`, `SessionRepository`, `SessionNaming`, zip and `.dat` codecs, storage budget, cache janitor |
+| `data/cloud/` | 26 | `CloudSync` with `CloudErase` / `CloudReconcile`, `CloudBackfill` (Settings' back-up-what-is-phone-only offer), `cancelUploadAndWait` (a delete's upload stop), upload bundling / metadata / outcomes, `SessionMetadataDoc` (its field serializers in `SessionMetadataSerializers`), deletes, backup listing, account export, `WorkTags` / `TransferWork`, transfer log; the notifications: running (`TransferNotifications`, fed by `TransferMeter` / `TransferProgressUpdates`), outcome (`TransferResultNotifications`) and its Retry (`TransferRetryReceiver`, named in the manifest, so it stays put) |
 | `data/cloud/restore/` | 10 | `CloudRestore` with `RestoreBundleFetcher`, `RestoreUnpacker`, `RestoreZipVerifier`; `DownloadFailure`, restore start, download outcomes and progress |
 | `data/cloud/sync/` | 3 | "Download from my other phones": `PhoneSyncWorker` (periodic), `PhoneSyncRun` (one run), `PhoneSync` (what it restores, pure) |
+| `data/cloud/bin/` | 2 | The recycle bin (ADR-035): `RecycleBin` (list, restore, erase for good, mapped to `BinOutcome`) and `BinReconcile` (what the reconcile does with each row, pure) |
 | `data/account/` | 15 | `AuthRepository` with `AuthLinks`, `AccessStatusResolver`, `FirebaseOp`, `ReauthCredentials`; device key and env, licence entitlements / errors, seat lease and heartbeat, legal terms, TOTP |
 | `data/prefs/` | 7 | `AppSettings`, `CoachPrefs`, `ParamClipboard`, `WizardDraft`, `AccountDeletionMarker`, `PrefKey` / `PrefFiles` |
-| `data/net/` | 23 | `SemperApi` with `SemperApiCalls`, `SemperApiSigning`, `SemperApiClients` (the shared OkHttp clients), `Paging`, `ApiHost`; the interceptors; `Authed` / `HttpFailure`; token store/provider; remote config |
+| `data/net/` | 28 | `SemperApi` (also `PhonesApi` and `RecycleBinApi`, each with its DTO file) with `SemperApiCalls`, `SemperApiSigning`, `SemperApiClients` (the shared OkHttp clients), `Paging`, `ApiHost`; the interceptors; `Authed` / `HttpFailure`; token store/provider; remote config |
 | `data/net/drive/` | 5 | `DriveTransfer` over `DriveUploader` and `DriveDownloader` (one `DriveDownload` per call) — bytes straight to and from Drive |
 | `report/` | 22 | PDF (`ReportBuilder` with extrema, annotations, colour bar; `PdfReportGenerator`), CSV, GIF, heatmaps (`VisualizationEngine` over `HeatmapColorScale`, `HeatmapRenderer`, `DeformedHeatmap`) |
 | `imaging/` | 9 | `BitmapDecoder`, `ImageEncoder`, AVI reader, PNG encoder — decode/encode away from the UI classes |
@@ -125,20 +127,47 @@ the viewer's frame title read them. Neither goes to the cloud copy's
 `metadata.json`, so a restored video analysis has neither and its frames are
 known by their names.
 
+Each row has an owner, `ownerUid`: the Firebase uid of the account that ran or
+restored it, set by `SessionStore.save` and left out while blank like any
+default. On a phone two accounts share, `SessionStore.list` and `get` see only
+the current account's rows (`SessionOwner`: the signed-in uid, else the last
+account that signed in, kept through sign-out), so Home, Settings, the quota's
+phone count, the storage budget, the reconcile, the sync from other phones and
+the upload and retry paths never show, count, free or upload another account's
+analyses into this one. Writes keep every account's rows; an account deletion
+wipes only its own (`SessionStore.deleteAll`). A row an older build wrote has
+no owner until the first account that is current after the update adopts it,
+once. A sign-in as another uid over a live session clears the previous
+account's cache first, as a sign-out does (`AccountSwitch`).
+
+A row whose backup is in the account's recycle bin (ADR-035) carries
+`binnedCloudId`, the binned backup's id, and `binPurgeAt`, when the bin erases it
+(epoch ms, 0 when unknown); both are left out while unset. Such a row is
+`LOCAL_ONLY` with no `cloudSessionId` (`SessionRecordFields.inRecycleBin`), so the
+reconcile neither repairs nor requeues it, the storage budget never frees it (it
+frees SYNCED rows only), and no upload runs for it. Its writes are
+`SessionStore.markBinned`, `clearBinned` and `markSyncedIfPending`
+(`SessionStoreBin.kt`), each one `SessionStore.update`, so the check and the write
+share the index lock. The bin's calls are `data/net/RecycleBinApi`
+(list, signed restore, signed erase), mapped once to `BinOutcome` by
+`data/cloud/bin/RecycleBin`; the reconcile's per-row decisions are
+`data/cloud/bin/BinReconcile`, pure.
+
 ## Sync workers
 
 When cloud is configured (`SEMPER_API_BASE_URL`):
 
 | Type | File | Job |
 |---|---|---|
-| Upload | `DicUploadWorker` | Resume/create remote session, stage artifacts, upload bundles. Home tells a failed backup's reason once, not once per Home (`BackupFailureLedger`) |
+| Upload | `DicUploadWorker` | Resume/create remote session, stage artifacts, upload bundles. Runs only for a row that is PENDING and not in the recycle bin, checked when the worker starts and again before it creates a session; marks the row SYNCED only while it is still PENDING (`markSyncedIfPending`), so a delete that lands meanwhile is not undone. The backend's 409 `session_in_recycle_bin: <sid>` marks the row binned and ends the run with no "not backed up" notice (`UploadFailures` `inRecycleBin`). Home tells a failed backup's reason once, not once per Home (`BackupFailureLedger`) |
+| Reconcile | `CloudSync.reconcile` / `CloudReconcile` | Lists this app's backups and puts the current account's rows right. When a SYNCED row's backup is missing (and is not the other app's), or a row in the bin is not listed again, it reads the recycle bin once (ADR-035): a backup deleted on another phone is marked binned and not uploaded again; one erased from the bin leaves the row phone-only (a stub with no frames is deleted); one restored from the bin is SYNCED again. A bin it cannot read repairs nothing that pass. Only a backup in neither is marked PENDING and uploaded again |
 | Metadata JSON | `SessionUploadMetadata` | frames / device / engine JSON for the API |
 | Bundle build | `SessionUploadBundler` | Render frame bundles + CSV lists offline-testable |
 | Restore | `CloudRestore` / `DicRestoreWorker` | Pull remote sessions back into local session dirs. Home (row tap, multi-select **Restore**, the cloud-backups card) and Settings all start one through `RestoreStart.start`, which writes the row first so either screen shows its progress; `RestoreFailureLedger` announces each failure once across both screens |
 | Backups not on this phone | `CloudBackupListing` | The COMPLETED backups the last successful reconcile listed, saved in prefs, so Home's `CloudBackupsCard` can offer those no row claims (by local id or stored cloud id, the rule `AnalysisEntries.merge` uses) without another request. A cloud delete forgets its entry, sign-out clears it, Hide is remembered per cloud id until that backup leaves the cloud |
-| Sync from other phones | `PhoneSyncWorker` / `PhoneSyncRun` / `PhoneSync` | Every 6 hours on an unmetered network with the battery not low, while Settings' **Download from my other phones** is on (default on) and the licence has restore (`LicenseEntitlements.restoreEnabled`: licence, backup, the `restore` kill switch, the version gate): lists this app's backups (`CloudRestore.listCompleted`, no `app`, so Semper and Semper Classroom never cross), saves the listing for the Home card, and starts a restore through `RestoreStart.startAll`, as the card's **Restore** does, of each backup no row on this phone claims. Skips backups hidden from the card, restores already queued, and any it has started before (`PrefFiles.CloudListing.SYNC_TRIED`, cleared at sign-out), so a removed-from-this-phone row ("Only in cloud") or a failed or cancelled restore is never pulled down again on its own. Scheduled on each approved status check (`AccessStatusResolver`), cancelled by the switch and at sign-out. Deletes and changes nothing on the phone |
+| Sync from other phones | `PhoneSyncWorker` / `PhoneSyncRun` / `PhoneSync` | Every 6 hours on an unmetered network with the battery not low, while Settings' **Download from my other phones** is on (default on) and the licence has restore (`LicenseEntitlements.restoreEnabled`: licence, backup, the `restore` kill switch, the version gate): lists this app's backups (`CloudRestore.listCompleted`, no `app`, so Semper and Semper Classroom never cross), saves the listing for the Home card, and starts a restore through `RestoreStart.startAll`, as the card's **Restore** does, of each backup no row on this phone claims (by local id, stored cloud id, or the binned cloud id of a row in the recycle bin). A backup in the recycle bin is not in the listing, so it is never restored; one restored from the bin is listed again and restored on a phone without it, as any backup is. Skips backups hidden from the card, restores already queued, and any it has started before (`PrefFiles.CloudListing.SYNC_TRIED`, cleared at sign-out), so a removed-from-this-phone row ("Only in cloud") or a failed or cancelled restore is never pulled down again on its own. Scheduled on each approved status check (`AccessStatusResolver`), cancelled by the switch and at sign-out. Deletes and changes nothing on the phone |
 | Bundle download | `DicBundleDownloadWorker` | Write a session `.zip` into a SAF document the user picked **before** enqueue. Falls back to packing the local session when the cloud copy is unavailable, and deletes the empty destination on failure |
-| Delete queue | `SessionDeletes` / `BackupDeleteWorker` | Every delete that touches the cloud: one unique chain, a 5-second undo window, one analysis at a time, 429s waited out. Phone-only deletes stay inline (`CloudSync.eraseLocalOnly`). `ui/common/transfer/DeleteFeedback` reports progress and the outcome on Home and Settings |
+| Delete queue | `SessionDeletes` / `BackupDeleteWorker` | Every delete that touches the cloud: one unique chain, a 5-second undo window, one analysis at a time, 429s waited out. A cloud delete moves the backup to the account's recycle bin for 30 days (ADR-035): the row keeps the binned id (`CloudErase.binCloudCopy`), and a delete everywhere still removes the row. Before anything is sent, a backup on its way is stopped: a PENDING or FAILED row is stamped LOCAL_ONLY, its upload work cancelled and waited for (about 10 s, `cancelUploadAndWait`), and the rows read again for a cloud id the upload stored meanwhile; a row whose backup cannot be looked up is not reported deleted. `Mode.PURGE` erases a binned backup for good (`RecycleBin.purge`). Phone-only deletes stay inline (`CloudSync.eraseLocalOnly`). `ui/common/transfer/DeleteFeedback` reports progress and the outcome on Home and Settings |
 
 A backup's `Session.zip` holds what a restore needs: since `metadata.json`
 schema `/4` the reference as `ref/Reference.png` (`SessionZip.REFERENCE_ENTRY`),
@@ -158,7 +187,10 @@ first page. Anything that lists cloud sessions should go through it rather than
 issuing a single request. It lists this app's sessions (`X-App-Id`, ADR-014);
 `app = CloudApi.ALL_APPS` lists the whole account, which the reconcile asks
 only when a SYNCED row is missing from its own list, so a row restored from the
-other app's backup is not uploaded again (`CloudReconcile.list`).
+other app's backup is not uploaded again (`CloudReconcile.list`). Those rows
+are remembered (`OtherAppBackups`): this app's restore of one is `404
+session_not_found`, so the storage budget never drops its phone copy and Home
+warns before "From this phone" deletes it.
 
 ### The interceptors on the shared client
 
@@ -179,8 +211,14 @@ nonce: the bucket is a route dependency (`deps.rate_limited`) resolved ahead of
 it before *and* after handing a request on, so it is retried only for GET and
 for the POSTs whose handlers are idempotent by contract. Session create and the
 upload broker are deliberately absent — a duplicate there costs a Drive object.
-Three attempts with a ceiling, honouring `Retry-After`; where a call is
-worker-mediated, WorkManager's own backoff owns the long game.
+A device-signed request's 503 is not retried by the interceptor: it may have
+been delivered after `verified_device` claimed its single-use nonce, so the
+same request again is `401 nonce_invalid_or_replayed`. `SemperApiSigning`
+retries it instead, on the same rule, signed under a fresh nonce each time; a
+nonce refusal that follows such a retry falls back to a server challenge for
+that call without turning client nonces off for the process. Three attempts
+with a ceiling, honouring `Retry-After`; where a call is worker-mediated,
+WorkManager's own backoff owns the long game.
 
 `AppCheckHeader` attaches `X-Firebase-AppCheck` to the configured API host
 only — Drive shares this client and has no use for it — and **fails open**: a
@@ -329,6 +367,13 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
   It must stay serialized: an earlier version launched a coroutine per neighbour on
   every frame load, so peak memory scaled with *how fast the user scrubbed* rather than
   with any bound.
+  Out of memory, the loader drops the decoded frames only (`ScrubFrameCache.clearData`):
+  the cached heatmaps include the one on screen, so they are recycled only by `clear`
+  in the viewer's `onDestroy`, which spares that one. The caches key a render and its
+  stats by the frame whose data was drawn (`ResultViewerActivity.rawFrameIndex`), not
+  by `currentFrameIndex`, which Prev / Next move before the debounced decode lands;
+  the photo under the map (`ViewerImageLoader.onFramePhoto`, and which decoded photo
+  is kept) follows the same frame.
 - **Whole-batch passes are started on demand, never on open.** The summary's colour-scale
   scan (`ViewerSummaryController.start`) decodes **every frame in the batch**, so it runs from
   `show()` rather than from viewer startup — opening straight onto a frame must not pay

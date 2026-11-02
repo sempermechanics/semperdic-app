@@ -8,6 +8,7 @@ import com.sempermechanics.semper.data.net.AccountPhonesDto
 import com.sempermechanics.semper.data.net.ActivationDto
 import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.HttpFailure
+import com.sempermechanics.semper.ui.common.Note
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -75,6 +76,32 @@ class PhonesViewTest {
         assertEquals(Note(R.plurals.phones_count_fmt, listOf(1, 2), quantity = 2), PhonesView.count(1, 2, pool = false))
         assertEquals(Note(R.plurals.phones_pool_fmt, listOf(3, 5), quantity = 5), PhonesView.count(3, 5, pool = true))
         assertNull(PhonesView.count(0, 0, pool = false))
+    }
+
+    @Test
+    fun `a licence with no limit says so, not the backend's sentinel count`() {
+        val uncounted = PhonesView.UNCOUNTED
+        assertEquals(
+            Note(R.plurals.phones_pool_unlimited_fmt, listOf(3), quantity = 3),
+            PhonesView.count(3, uncounted, pool = true),
+        )
+        assertEquals(
+            Note(R.plurals.phones_count_unlimited_fmt, listOf(1), quantity = 1),
+            PhonesView.count(1, uncounted, pool = false),
+        )
+        // One below the sentinel is a real count.
+        assertEquals(
+            Note(R.plurals.phones_pool_fmt, listOf(3, uncounted - 1), quantity = uncounted - 1),
+            PhonesView.count(3, uncounted - 1, pool = true),
+        )
+    }
+
+    @Test
+    fun `only a licence that runs activations deactivates a phone`() {
+        assertTrue(PhonesView.canDeactivate(list(1, 2, model = "activation")))
+        assertFalse(PhonesView.canDeactivate(list(1, 1, model = "lock")))
+        assertFalse(PhonesView.canDeactivate(list(0, 0, model = "none")))
+        assertFalse(PhonesView.canDeactivate(list(0, 0, model = "")))
     }
 
     @Test

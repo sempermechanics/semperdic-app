@@ -27,6 +27,13 @@ internal sealed interface RunEnd {
     data object NotSaved : RunEnd
 
     /**
+     * The region's grid at its step did not fit this phone's memory
+     * ([RunStop.TooLarge]): refused at the start, or out of memory mid-run.
+     * Nothing was kept.
+     */
+    data object TooLarge : RunEnd
+
+    /**
      * The run threw an exception of class [kind]. What it said stays in the log the
      * catch writes (RunChannels): it can name a path, a file or a specimen, and it is
      * not the user's language, so the screen says the app's own words (ADR-018).
@@ -87,6 +94,7 @@ internal sealed interface RunEnd {
                 outcome.indexUnavailable -> NotSaved
                 outcome.stop == RunStop.Cancelled -> Cancelled
                 outcome.stop == RunStop.SessionLimit -> SessionLimit
+                outcome.stop == RunStop.TooLarge -> TooLarge
                 outcome.failedSweep != null -> SweepFailed(outcome.failedSweep)
                 record != null && record.isSweep -> SweepSaved(record)
                 record == null || outcome.firstFrameValidPoints <= 0 -> failed(outcome)

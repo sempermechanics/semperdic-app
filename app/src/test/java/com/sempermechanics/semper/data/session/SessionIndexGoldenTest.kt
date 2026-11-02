@@ -113,6 +113,25 @@ class SessionIndexGoldenTest {
     }
 
     @Test
+    fun `a row in the recycle bin writes its bin fields, and a row out of it writes neither`() {
+        SessionStore.upsert(context, batch, allowOverLimit = true)
+        assertFalse(index().contains("binnedCloudId"))
+        assertFalse(index().contains("binPurgeAt"))
+
+        SessionStore.markBinned(context, "batch-1", "cloud-7", purgeAt = 1_702_000_000_000L)
+        assertTrue(index().contains(""""binnedCloudId":"cloud-7","binPurgeAt":1702000000000"""))
+        val binned = checkNotNull(SessionStore.get(context, "batch-1"))
+        assertTrue(binned.inRecycleBin)
+        assertEquals(SessionRecord.SyncState.LOCAL_ONLY, binned.syncState)
+
+        SessionStore.clearBinned(context, "batch-1")
+        assertFalse(index().contains("binnedCloudId"))
+        assertFalse(index().contains("binPurgeAt"))
+    }
+
+    private fun index() = File(context.filesDir, "sessions/index.json").readText(Charsets.UTF_8)
+
+    @Test
     fun `a row without video fields writes neither, and an old row reads them as null`() {
         SessionStore.upsert(context, batch, allowOverLimit = true)
 

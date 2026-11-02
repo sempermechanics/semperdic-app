@@ -204,6 +204,33 @@ def _revoke_fanout(ref, license_id: str, lic: dict) -> None:
                                 app=apps.licence_slot(lic))
     if lic.get("supersedes"):
         _withdraw_pending_upgrade(lic["supersedes"], license_id)
+    pending = lic.get("upgradePendingId") or ""
+    if pending and not lic.get("supersededBy"):
+        _cancel_pending_upgrade(license_id, pending, lic.get("revokedByUid") or "")
+
+
+def _cancel_pending_upgrade(old_id: str, new_id: str, actor_uid: str) -> None:
+    """A licence with an upgrade waiting is revoked (ADR-033): the upgrade
+    goes with it, or the holder's Activate would license them again on the
+    successor. An apply writes `supersededBy` before its revoke, so this
+    never runs for the upgrade being applied.
+
+    An individual successor nobody has claimed is revoked too: it was minted
+    for this holder only, as this licence's replacement, and left live it
+    would be a working key locked to the address the revoke meant to stop.
+    Its own revoke withdraws both pointers. An institution successor has its
+    own administrators, and one already claimed has a holder, so either only
+    stops being offered; staff revoke it from the desk if that is meant."""
+    new_snap = _get(db().collection("licenses").document(new_id))
+    new = (new_snap.to_dict() or {}) if new_snap.exists else {}
+    unclaimed = bool(new) and not _is_revoked(new) and not _is_institution(new) \
+        and not new.get("redeemedByUid")
+    obs.log_event(log, logging.INFO, "upgrade_withdrawn", licenseId=old_id,
+                  outcome="revoked" if unclaimed else "withdrawn")
+    if unclaimed:
+        revoke_license(new_id, actor_uid)
+    else:
+        _withdraw_pending_upgrade(old_id, new_id)
 
 
 def _withdraw_pending_upgrade(old_id: str, new_id: str) -> None:

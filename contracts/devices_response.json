@@ -1,0 +1,28 @@
+{
+  "app": "semper",
+  "licenseId": "9b2e4f6a8c0d1e3f5a7b9c1d3e5f7a9b2c4d6e8f0a1b3c5d7e9f1a3b5c7d9e1f",
+  "devicesActive": 1,
+  "maxDevices": 2,
+  "pool": false,
+  "model": "activation",
+  "devices": [
+    {
+      "deviceId": "and-7f3e9a1c2b4d6e8f",
+      "model": "Pixel 5",
+      "registeredAt": "2026-10-30T09:12:44.512301+00:00",
+      "activated": true,
+      "thisDevice": true,
+      "activatedAt": "2026-11-02T08:40:03.118204+00:00",
+      "activatedBy": "self"
+    },
+    {
+      "deviceId": "and-0b1c2d3e4f5a6b7c",
+      "model": "Galaxy S22+",
+      "registeredAt": "2026-10-21T17:05:12.004417+00:00",
+      "activated": false,
+      "thisDevice": false,
+      "activatedAt": null,
+      "activatedBy": ""
+    }
+  ]
+}

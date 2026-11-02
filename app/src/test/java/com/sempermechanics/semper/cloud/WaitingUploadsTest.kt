@@ -122,7 +122,14 @@ class WaitingUploadsTest {
     }
 
     private fun reconcile(api: FakeCloudApi, reupload: Boolean = true) = runBlocking {
-        CloudSync.reconcile(context, reupload = reupload, deep = true, api = api, tokens = tokens)
+        CloudSync.reconcile(
+            context,
+            reupload = reupload,
+            deep = true,
+            api = api,
+            tokens = tokens,
+            bin = FakeRecycleBinApi.empty(),
+        )
     }
 
     private fun states() = SessionStore.list(context).associate { it.id to it.syncState }

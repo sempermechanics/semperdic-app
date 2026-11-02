@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.cloud.TransferPhase
 import com.sempermechanics.semper.data.session.SessionRecord
+import com.sempermechanics.semper.data.session.inRecycleBin
 import com.sempermechanics.semper.databinding.ItemSessionBinding
 import com.sempermechanics.semper.databinding.ItemSessionHeaderBinding
 import com.sempermechanics.semper.ui.common.transfer.TransferWorkObserver
@@ -205,7 +206,7 @@ class SessionListAdapter(
             SessionStateIcon.forTransfer(prog.phase)
         } else {
             progressBar.isIndeterminate = false
-            SessionStateIcon.forState(r.syncState, framesOnPhone = hasLocalData(r.id))
+            SessionStateIcon.forState(r.syncState, framesOnPhone = hasLocalData(r.id), binned = r.inRecycleBin)
         }
         stateView.setImageResource(icon.icon)
         stateView.imageTintList = ColorStateList.valueOf(context.getColor(icon.tint))

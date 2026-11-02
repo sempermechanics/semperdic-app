@@ -2,6 +2,7 @@ package com.sempermechanics.semper.session
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.sempermechanics.semper.data.cloud.OtherAppBackups
 import com.sempermechanics.semper.data.net.AppConfigDto
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.prefs.AppSettings
@@ -11,6 +12,7 @@ import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionRepository
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.data.session.StorageBudget
+import com.sempermechanics.semper.data.session.markBinned
 import com.sempermechanics.semper.diagnostics.EngineDebug
 import com.sempermechanics.semper.fixtures.CleanAppState
 import com.sempermechanics.semper.fixtures.sessionRecord
@@ -251,6 +253,31 @@ class LocalStorageFootprintTest {
         assertTrue(File(pending, "frame_0000.dat").exists())
         // The reference survives so the Home row still renders as "only in cloud".
         assertTrue(File(synced, "reference.png").exists())
+    }
+
+    @Test
+    fun `a row whose backup is in the recycle bin is never freed`() {
+        val binned = seedSession("binned", SessionRecord.SyncState.SYNCED)
+        SessionStore.markBinned(ctx, "binned", "c-binned", purgeAt = 0L)
+
+        assertEquals(0L, StorageBudget.reclaimableBytes(ctx))
+        assertEquals(0, StorageBudget.freeAllBackedUp(ctx).sessionsDropped)
+        // The bin can erase its copy; this one may be the only one left.
+        assertTrue(File(binned, "frame_0000.dat").exists())
+    }
+
+    @Test
+    fun `a row backed up only by the other app is not dropped, since this app cannot restore it`() {
+        val mine = seedSession("synced", SessionRecord.SyncState.SYNCED)
+        val theirs = seedSession("theirs", SessionRecord.SyncState.SYNCED)
+        OtherAppBackups.record(ctx, setOf("theirs"))
+
+        assertEquals(512L + 2048L, StorageBudget.reclaimableBytes(ctx))
+        val outcome = StorageBudget.freeAllBackedUp(ctx)
+
+        assertEquals(1, outcome.sessionsDropped)
+        assertFalse(File(mine, "frame_0000.dat").exists())
+        assertTrue(File(theirs, "frame_0000.dat").exists())
     }
 
     @Test

@@ -30,6 +30,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
+import java.io.FileNotFoundException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.Executor
@@ -125,6 +126,21 @@ class SessionThumbsTest {
         writeFrame(failed, 0, accepted = false)
         assertEquals(ThumbnailLoader.Decoded.Undecodable, SessionThumbs.decodeResult(key(failed), edge, hole))
         assertFalse(SessionPaths.resultThumb(failed).exists())
+    }
+
+    @Test
+    fun `a render that throws is no thumbnail, not a crash on the decode thread`() {
+        // The decode runs on a bare executor: a throw out of it killed the app.
+        val dir = tmp.newFolder("s1")
+        writeFrame(dir, 0)
+
+        val broken = SessionThumbs.decodeResult(key(dir)) { _, _ -> error("a frame the renderer cannot draw") }
+        assertEquals(ThumbnailLoader.Decoded.Undecodable, broken)
+        val starved = SessionThumbs.decodeResult(key(dir)) { _, _ -> throw OutOfMemoryError("test") }
+        assertEquals("tried again on the next bind", ThumbnailLoader.Decoded.Missing, starved)
+        val unreadable = SessionThumbs.decodeResult(key(dir)) { dat, _ -> throw FileNotFoundException(dat.path) }
+        assertEquals("deleted mid-read: tried again", ThumbnailLoader.Decoded.Missing, unreadable)
+        assertFalse(SessionPaths.resultThumb(dir).exists())
     }
 
     @Test

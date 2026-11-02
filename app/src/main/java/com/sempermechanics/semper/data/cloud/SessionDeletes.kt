@@ -6,8 +6,12 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.sempermechanics.semper.data.BackupDeleteWorker
+import com.sempermechanics.semper.data.cloud.bin.BinOutcome
+import com.sempermechanics.semper.data.cloud.bin.RecycleBin
 import com.sempermechanics.semper.data.net.Authed
 import com.sempermechanics.semper.data.net.CloudApi
+import com.sempermechanics.semper.data.net.HttpFailure
+import com.sempermechanics.semper.data.net.RecycleBinApi
 import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.net.TokenProvider
 import com.sempermechanics.semper.data.net.TokenSource
@@ -35,8 +39,13 @@ import java.util.UUID
  */
 object SessionDeletes {
 
-    /** What to remove for one analysis. A phone-only delete never needs the network and stays inline. */
-    enum class Mode { CLOUD, EVERYWHERE }
+    /**
+     * What to remove for one analysis. A phone-only delete never needs the
+     * network and stays inline. [CLOUD] and [EVERYWHERE] move the backup to the
+     * account's recycle bin (ADR-035); [PURGE] erases one from the bin for good
+     * (its [Item.cloudId] is the binned backup's).
+     */
+    enum class Mode { CLOUD, EVERYWHERE, PURGE }
 
     /**
      * One analysis to delete. [cloudId] may be blank for a phone row that does
@@ -45,7 +54,11 @@ object SessionDeletes {
     data class Item(val localId: String, val cloudId: String, val mode: Mode)
 
     /** What happened, so the screen can say it plainly and retry exactly what is left. */
-    data class Report(val done: Int, val stillInCloud: List<Item>, val nothingSent: Boolean)
+    data class Report(val done: Int, val stillInCloud: List<Item>, val nothingSent: Boolean) {
+        /** How many of [items] (the run's input) were erased for good from the bin. */
+        fun purged(items: List<Item>): Int =
+            items.count { it.mode == Mode.PURGE } - stillInCloud.count { it.mode == Mode.PURGE }
+    }
 
     const val TAG = WorkTags.DELETE
     const val UNIQUE_WORK = WorkTags.DELETE_NAME
@@ -53,6 +66,9 @@ object SessionDeletes {
     const val KEY_DONE = "done"
     const val KEY_TOTAL = "total"
     const val KEY_STILL_IN_CLOUD = "still_in_cloud"
+
+    /** How many of [KEY_DONE] were [Mode.PURGE]: erased for good rather than moved to the bin. */
+    const val KEY_PURGED = "purged"
 
     /** How long a confirmed delete stays cancellable before anything is sent. */
     const val UNDO_WINDOW_SECONDS = 5L
@@ -76,11 +92,7 @@ object SessionDeletes {
     /** Rows a queued or running delete will remove: a list leaves them out meanwhile. */
     @WorkerThread
     fun pendingRowIds(context: Context): Set<String> =
-        runCatching { WorkManager.getInstance(context.applicationContext).getWorkInfosByTag(TAG).get() }
-            .onFailure { Timber.w(it, "Could not read queued deletes") }
-            .getOrDefault(emptyList())
-            .filterNot { it.state.isFinished }
-            .flatMapTo(mutableSetOf()) { rowIdsIn(it.tags) }
+        unfinishedDeleteTags(context).flatMapTo(mutableSetOf()) { rowIdsIn(it) }
 
     /**
      * Queue [items] behind any delete already running. Returns the work id,
@@ -88,7 +100,9 @@ object SessionDeletes {
      */
     fun enqueue(context: Context, items: List<Item>): UUID {
         val work = oneTimeWork<BackupDeleteWorker>(
-            tags = listOf(TAG) + items.filter { it.mode == Mode.EVERYWHERE }.map { rowTag(it.localId) },
+            tags = listOf(TAG) +
+                items.filter { it.mode == Mode.EVERYWHERE }.map { rowTag(it.localId) } +
+                items.filter { it.mode == Mode.PURGE }.map { WorkTags.deletePurgeTag(it.cloudId) },
             input = workDataOf(KEY_ITEMS to encode(items)),
             initialDelaySeconds = UNDO_WINDOW_SECONDS,
         )
@@ -104,27 +118,51 @@ object SessionDeletes {
      * Delete [items] one at a time. Safe to run again after a partial run: an
      * analysis already gone, or unlinked from its backup, costs no request.
      *
+     * Before anything is sent, a backup still on its way is stopped (L5-3):
+     *  1. the rows are read as they are now (the snapshot);
+     *  2. a PENDING or FAILED row is stamped LOCAL_ONLY, so an upload that
+     *     starts or finishes from here on records nothing
+     *     (`DicUploadWorker`'s guard, `markSyncedIfPending`);
+     *  3. its upload work is cancelled and waited for ([cancelUpload], up to
+     *     `UPLOAD_STOP_WAIT_MS`, [cancelUploadAndWait]);
+     *  4. the rows are read again: the upload may have created its cloud
+     *     session and stored its id meanwhile;
+     *  5. rows with no stored id are looked up, judged by their snapshot state;
+     *  6. then each is deleted.
+     *
+     * @param bin the recycle bin, for [Mode.PURGE].
+     * @param cancelUpload stops one row's upload work and waits for it; replaced in tests.
      * @param pause waits out a 429; replaced in tests.
      * @param onProgress called after each item with (done, total).
      */
-    @Suppress("LongParameterList") // the last four are test seams
+    @Suppress("LongParameterList") // the last five are test seams
     suspend fun run(
         context: Context,
         items: List<Item>,
         api: CloudApi = SemperApi.get(context),
         tokens: TokenSource = TokenProvider,
+        bin: RecycleBinApi = SemperApi.get(context),
+        cancelUpload: suspend (Context, String) -> Unit = ::cancelUploadAndWait,
         pause: suspend (Long) -> Unit = { delay(it) },
         onProgress: suspend (Int, Int) -> Unit = { _, _ -> },
     ): Report = withContext(Dispatchers.IO) {
         val appContext = context.applicationContext
-        linkMissingCloudIds(appContext, items, api, tokens)
+        val toBin = items.filter { it.mode != Mode.PURGE }
+        val snapshot = toBin.mapNotNull { SessionStore.get(appContext, it.localId) }.associateBy { it.id }
+        val waiting = snapshot.values.filter {
+            it.syncState == SessionRecord.SyncState.PENDING || it.syncState == SessionRecord.SyncState.FAILED
+        }
+        waiting.forEach { SessionStore.setSyncState(appContext, it.id, SessionRecord.SyncState.LOCAL_ONLY) }
+        waiting.forEach { cancelUpload(appContext, it.id) }
+        val unresolved = linkMissingCloudIds(appContext, toBin, snapshot, api, tokens)
+        val calls = Calls(api, tokens, bin)
         val stillInCloud = mutableListOf<Item>()
         items.forEachIndexed { index, item ->
-            var result = eraseOne(appContext, item, api, tokens)
+            var result = eraseOne(appContext, item, calls, unresolved)
             var tries = 1
             while (result == CloudSync.EraseOutcome.RATE_LIMITED && tries < RATE_LIMIT_TRIES) {
                 pause(RATE_LIMIT_WAIT_MS)
-                result = eraseOne(appContext, item, api, tokens)
+                result = eraseOne(appContext, item, calls, unresolved)
                 tries++
             }
             if (result != CloudSync.EraseOutcome.ERASED_EVERYWHERE) stillInCloud += item
@@ -135,14 +173,24 @@ object SessionDeletes {
         Report(done = done, stillInCloud = stillInCloud, nothingSent = done == 0 && items.isNotEmpty())
     }
 
+    /** The backend seams one [run] erases through. */
+    private class Calls(val api: CloudApi, val tokens: TokenSource, val bin: RecycleBinApi)
+
+    /**
+     * Delete one [item]. A row in [unresolved] has a backup that may exist and
+     * could not be looked up: nothing is sent for it, and it counts as still
+     * in the cloud, so the delete is tried again rather than reported done.
+     */
     private suspend fun eraseOne(
         appContext: Context,
         item: Item,
-        api: CloudApi,
-        tokens: TokenSource,
-    ): CloudSync.EraseOutcome = when (item.mode) {
-        Mode.EVERYWHERE -> CloudSync.eraseEverywhere(appContext, item.localId, api, tokens)
-        Mode.CLOUD -> {
+        calls: Calls,
+        unresolved: Set<String>,
+    ): CloudSync.EraseOutcome = when {
+        item.mode == Mode.PURGE -> purgeOne(appContext, item, calls.bin, calls.tokens)
+        item.localId in unresolved -> CloudSync.EraseOutcome.LOCAL_ONLY_CLOUD_UNREACHABLE
+        item.mode == Mode.EVERYWHERE -> CloudSync.eraseEverywhere(appContext, item.localId, calls.api, calls.tokens)
+        else -> {
             val cloudId = item.cloudId.ifBlank {
                 SessionStore.get(appContext, item.localId)?.cloudSessionId.orEmpty()
             }
@@ -151,7 +199,7 @@ object SessionDeletes {
                 CloudErase.forgetCloudCopy(appContext, item.localId)
                 CloudSync.EraseOutcome.ERASED_EVERYWHERE
             } else {
-                CloudSync.eraseCloudBackup(appContext, cloudId, item.localId, api, tokens)
+                CloudSync.eraseCloudBackup(appContext, cloudId, item.localId, calls.api, calls.tokens)
             }
         }
     }
@@ -161,28 +209,31 @@ object SessionDeletes {
      * [CloudSync] would list the account once per row to find it. Look them all
      * up with one listing instead: write the link where the cloud has the
      * analysis, and mark the rest LOCAL_ONLY so no per-row lookup follows.
+     *
+     * The rows are read again here, after [run] stopped their uploads, and
+     * judged by their [snapshot] state: a row [run] stamped LOCAL_ONLY may
+     * still have a backup on the way. When the listing fails, such a row is
+     * marked FAILED, so a later delete still looks for its backup, and every
+     * row left unlooked-up is returned.
      */
     private suspend fun linkMissingCloudIds(
         appContext: Context,
         items: List<Item>,
+        snapshot: Map<String, SessionRecord>,
         api: CloudApi,
         tokens: TokenSource,
-    ) {
+    ): Set<String> {
         val unlinked = items.filter { it.cloudId.isBlank() }
             .mapNotNull { SessionStore.get(appContext, it.localId) }
-            .filter { it.cloudSessionId.isBlank() && it.syncState != SessionRecord.SyncState.LOCAL_ONLY }
-        if (unlinked.isEmpty()) return
+            .filter {
+                val state = snapshot[it.id]?.syncState ?: it.syncState
+                it.cloudSessionId.isBlank() && state != SessionRecord.SyncState.LOCAL_ONLY
+            }
+        if (unlinked.isEmpty()) return emptySet()
         val listed = api.authed(tokens) { token -> this.listSessions(token).sessions }
         if (listed is Authed.Failed) Timber.w(listed.failure.cause, "Could not list backups before a delete")
-        val byLocalId = listed.getOrNull()?.associate { it.localSessionId to it.sessionId } ?: return
-        for (record in unlinked) {
-            val cloudId = byLocalId[record.id]
-            if (cloudId.isNullOrBlank()) {
-                CloudErase.forgetCloudCopy(appContext, record.id)
-            } else {
-                SessionStore.setCloudSessionId(appContext, record.id, cloudId)
-            }
-        }
+        val byLocalId = listed.getOrNull()?.associate { it.localSessionId to it.sessionId }
+        return if (byLocalId == null) unresolved(appContext, unlinked) else linked(appContext, unlinked, byLocalId)
     }
 
     fun encode(items: List<Item>): String = JSONArray().apply {
@@ -199,4 +250,71 @@ object SessionDeletes {
             Item(o.getString("l"), o.optString("c"), Mode.valueOf(o.getString("m")))
         }
     }
+}
+
+/**
+ * Binned backups a queued or running [SessionDeletes.Mode.PURGE] will erase
+ * ([WorkTags.deletePurgeTag]): the recycle bin leaves them out meanwhile.
+ */
+@WorkerThread
+fun SessionDeletes.pendingPurgeIds(context: Context): Set<String> =
+    unfinishedDeleteTags(context).flatMapTo(mutableSetOf()) { tags ->
+        tags.filter { it.startsWith(WorkTags.DELETE_PURGE_PREFIX) }
+            .map { it.removePrefix(WorkTags.DELETE_PURGE_PREFIX) }
+    }
+
+/** The tags of every delete not yet finished. */
+@WorkerThread
+private fun unfinishedDeleteTags(context: Context): List<Set<String>> =
+    runCatching { WorkManager.getInstance(context.applicationContext).getWorkInfosByTag(SessionDeletes.TAG).get() }
+        .onFailure { Timber.w(it, "Could not read queued deletes") }
+        .getOrDefault(emptyList())
+        .filterNot { it.state.isFinished }
+        .map { it.tags }
+
+/** Erase [item]'s binned backup for good ([RecycleBin.purge]); one already gone counts as done. */
+private suspend fun purgeOne(
+    appContext: Context,
+    item: SessionDeletes.Item,
+    bin: RecycleBinApi,
+    tokens: TokenSource,
+): CloudSync.EraseOutcome = when (val done = RecycleBin.purge(appContext, item.cloudId, bin, tokens)) {
+    is BinOutcome.Ok, BinOutcome.Gone -> CloudSync.EraseOutcome.ERASED_EVERYWHERE
+    is BinOutcome.Failed -> if (done.failure.kind == HttpFailure.Kind.RATE_LIMITED) {
+        CloudSync.EraseOutcome.RATE_LIMITED
+    } else {
+        CloudSync.EraseOutcome.LOCAL_ONLY_CLOUD_UNREACHABLE
+    }
+    BinOutcome.NoRoom, BinOutcome.Offline -> CloudSync.EraseOutcome.LOCAL_ONLY_CLOUD_UNREACHABLE
+}
+
+/**
+ * [unlinked] rows the listing [byLocalId] answered for: linked to their
+ * backup, or marked LOCAL_ONLY when it has none. Returns no row left unresolved.
+ */
+private fun linked(
+    appContext: Context,
+    unlinked: List<SessionRecord>,
+    byLocalId: Map<String, String>,
+): Set<String> {
+    for (record in unlinked) {
+        val cloudId = byLocalId[record.id]
+        if (cloudId.isNullOrBlank()) {
+            CloudErase.forgetCloudCopy(appContext, record.id)
+        } else {
+            SessionStore.setCloudSessionId(appContext, record.id, cloudId)
+        }
+    }
+    return emptySet()
+}
+
+/**
+ * [unlinked] rows whose lookup failed: one `SessionDeletes.run` stamped
+ * LOCAL_ONLY is FAILED again, so a later delete still looks for its backup,
+ * and all of them are returned.
+ */
+private fun unresolved(appContext: Context, unlinked: List<SessionRecord>): Set<String> {
+    unlinked.filter { it.syncState == SessionRecord.SyncState.LOCAL_ONLY }
+        .forEach { SessionStore.setSyncState(appContext, it.id, SessionRecord.SyncState.FAILED) }
+    return unlinked.mapTo(HashSet()) { it.id }
 }

@@ -118,7 +118,11 @@ def forget_device_sessions(uid: str, device_ids) -> int:
     for device_id in {d for d in device_ids if d}:
         query = (db().collection("sessions")
                  .where("uid", "==", uid).where("deviceId", "==", device_id))
-        refs = [snap.reference for snap in _stream(query)]
+        # The recycle bin's entries too (ADR-035): a restore puts the session
+        # back with the `deviceId` it was binned with.
+        binned = (db().collection("deleted_sessions")
+                  .where("uid", "==", uid).where("deviceId", "==", device_id))
+        refs = [snap.reference for q in (query, binned) for snap in _stream(q)]
         for start in range(0, len(refs), _BATCH_LIMIT):
             batch = db().batch()
             for ref in refs[start:start + _BATCH_LIMIT]:
@@ -293,6 +297,12 @@ def consume_nonce(nonce: str, uid: str, device_id: str) -> bool:
             return False
         d = snap.to_dict()
         if d.get("uid") != uid or d.get("deviceId") != device_id:
+            return False
+        # A used client nonce (`claim_client_nonce`) shares this collection.
+        # It is a record of a spent nonce, not a challenge: with client
+        # nonces switched off (`parse_client_nonce`) it would otherwise be
+        # accepted once more as one, and deleted.
+        if d.get("kind") == "client":
             return False
         exp = d.get("expireAt")
         if not (exp and exp > _now()):

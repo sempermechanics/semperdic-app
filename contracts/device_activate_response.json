@@ -1,0 +1,44 @@
+{
+  "activation": {
+    "licenseId": "9b2e4f6a8c0d1e3f5a7b9c1d3e5f7a9b2c4d6e8f0a1b3c5d7e9f1a3b5c7d9e1f",
+    "app": "semper",
+    "deviceId": "and-7f3e9a1c2b4d6e8f",
+    "pool": false,
+    "already": false,
+    "devicesActive": 1,
+    "maxDevices": 2,
+    "model": "activation"
+  },
+  "config": {
+    "mode": "licensed",
+    "plan": "professional",
+    "licenseKind": "individual",
+    "licenseDuration": "perpetual",
+    "licenseExpiresAt": null,
+    "licenseGraceEndsAt": null,
+    "inGrace": false,
+    "licenseSeating": "assigned",
+    "leaseExpiresAt": null,
+    "leaseHeartbeatMinutes": 30,
+    "cloudBackupEnabled": true,
+    "shareEnabled": true,
+    "maxSessions": 999,
+    "maxFilesPerSession": 600,
+    "maxFrames": 500,
+    "datCodecEncodingEnabled": false,
+    "licensePrefix": "SEMP-CD34",
+    "entitlement": "header.payload.signature",
+    "minSupportedVersionCode": 30,
+    "recommendedVersionCode": 36,
+    "killSwitches": [],
+    "testAccount": null,
+    "activation": {
+      "state": "active",
+      "devicesActive": 1,
+      "maxDevices": 2,
+      "pool": false,
+      "model": "activation"
+    },
+    "pendingLicence": null
+  }
+}

@@ -88,7 +88,7 @@ feedback mail, which the user sends from their own app
 | Is all of the user data collected by your app encrypted in transit? | **Yes** | Cleartext refused app-wide (`app/src/main/res/xml/network_security_config.xml:4`); a release build fails unless the API URL is `https://` (`app/build.gradle.kts:71-72`); Firebase SDKs and Drive uploads use HTTPS |
 | Which methods of account creation does your app support? | **Username and password**; **Username and other authentication** (passwordless email link); **OAuth** (Sign in with Google) | Email-link and reset App Links (`AndroidManifest.xml`, `AuthActivity` intent filters); Credential Manager + Google ID (`app/build.gradle.kts:428-430`) |
 | Delete account URL | **OWNER DECISION 1** | In the app: Settings → Your data → Delete account (`ui/settings/SettingsYourDataSection.kt:232`, `DELETE /v1/me`, `data/net/SemperApi.kt:385`) |
-| Do you provide a way for users to request that some or all of their data is deleted, without requiring them to delete their account? | **Yes** | Each cloud analysis can be deleted (`DELETE /v1/sessions/{id}`, `data/net/SemperApi.kt:397-399`); turning diagnostics off deletes queued crash reports (`diagnostics/Diagnostics.kt:76-77`); privacy requests by mail (Privacy Policy §10) |
+| Do you provide a way for users to request that some or all of their data is deleted, without requiring them to delete their account? | **Yes** | Each cloud analysis can be deleted (`DELETE /v1/sessions/{id}`, `data/net/SemperApi.kt:421`): it waits 30 days in the recycle bin, then is erased, or at once with Delete permanently there (`DELETE /v1/recycle-bin/{id}`, ADR-035; Privacy Policy §4, held with counsel, TD-277); turning diagnostics off deletes queued crash reports (`diagnostics/Diagnostics.kt:76-77`); privacy requests by mail (Privacy Policy §10) |
 
 **Security practices badges** (if the form shows them): *Independent security
 review*: **No** (TD-240). *Families policy*: not applicable (adults only, Privacy
@@ -133,7 +133,7 @@ definition. **Processed ephemerally: No** for every type.
 | Type | Collected | Required or optional | Purposes |
 |---|---|---|---|
 | Approximate location | Yes | **Optional** (diagnostics opt-in, `AndroidManifest.xml:47-52`; Settings → Your data → Send crash reports and usage data) | Analytics |
-| Name | Yes | **Optional** (only from Google sign-in, `backend/app/repo/users.py:264`; password and email-link accounts have none) | Account management |
+| Name | Yes | **Optional** (only from Google sign-in, `backend/app/repo/users.py:288`; password and email-link accounts have none) | Account management |
 | Email address | Yes | **Required** (every account) | App functionality, Account management, Fraud prevention, security, and compliance |
 | User IDs | Yes (Firebase uid; it keys the terms-acceptance and consent records) | **Required** | App functionality, Account management, Fraud prevention, security, and compliance |
 | Photos | Yes (source frames and rendered images of each recorded analysis) | **Required**: demo analyses upload with no toggle (`data/cloud/CloudSync.kt:342-345`), so not every user can turn it off | App functionality; **Analytics** (product improvement, only for users who keep the improvement consent: Privacy Policy §2.8) |

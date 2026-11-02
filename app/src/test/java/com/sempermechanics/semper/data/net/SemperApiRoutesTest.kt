@@ -110,6 +110,56 @@ class SemperApiRoutesTest {
     }
 
     @Test
+    fun `deleteSession reads the bin's answer, and an older backend's empty one`() {
+        answer(200, body = """{"deleted":"s1","filesRemoved":3,"binned":true,"purgeAt":"2026-12-03T09:14:05+00:00"}""")
+        answer(200, body = """{"deleted":"s1","filesRemoved":3}""")
+        answer(200, body = "")
+
+        val binned = runBlocking { api.deleteSession("tok", "s1") }
+        val erased = runBlocking { api.deleteSession("tok", "s1") }
+        val empty = runBlocking { api.deleteSession("tok", "s1") }
+
+        assertEquals(true, binned.binned)
+        assertEquals(1_796_289_245_000L, binned.purgeAtMs)
+        assertEquals(false, erased.binned)
+        assertEquals(SessionDeleteResponse(), empty)
+    }
+
+    @Test
+    fun `the recycle bin lists every page by token, and restores and erases signed`() {
+        answer(
+            200,
+            body = """{"items":[{"sessionId":"a","purgeAt":"2026-12-03T09:14:05+00:00"}],"erased":[],""" +
+                """"retentionDays":30,"page":{"nextPageToken":"t 1","hasMore":true}}""",
+        )
+        answer(200, body = """{"items":[],"erased":[{"sessionId":"b","localSessionId":"lb"}],"retentionDays":30}""")
+        answer(200, body = """{"sessionId":"a","localSessionId":"la","status":"COMPLETED","restored":true}""")
+        answer(200, body = """{"sessionId":"a","localSessionId":"la","filesRemoved":2,"erased":true}""")
+        answer(404, "session_not_found")
+
+        val listed = runBlocking { api.listRecycleBin("tok") }
+        val restored = runBlocking { api.restoreFromRecycleBin("tok", "a") }
+        val purged = runBlocking { api.purgeFromRecycleBin("tok", "a") }
+
+        assertEquals(listOf("a"), listed.items.map { it.sessionId })
+        assertEquals(listOf("b"), listed.erased.map { it.sessionId })
+        assertEquals(30, listed.retentionDays)
+        assertEquals(true, restored.restored)
+        assertEquals(2, purged.filesRemoved)
+        assertEquals("/v1/recycle-bin", server.takeRequest().target)
+        assertEquals("/v1/recycle-bin?page_token=t+1", server.takeRequest().target)
+        val restore = server.takeRequest()
+        assertEquals("POST", restore.method)
+        assertEquals("/v1/recycle-bin/a/restore", restore.target)
+        assertEquals(true, restore.headers["X-Signature"]?.isNotEmpty())
+        val purge = server.takeRequest()
+        assertEquals("DELETE", purge.method)
+        assertEquals("/v1/recycle-bin/a", purge.target)
+        assertEquals(true, purge.headers["X-Signature"]?.isNotEmpty())
+        assertEquals(404, fails<ApiException> { api.purgeFromRecycleBin("tok", "a") }.code)
+    }
+
+    @Test
     fun `deleteSession accepts only our own session_not_found 404`() {
         answer(404, "session_not_found")
         runBlocking { api.deleteSession("tok", "s1") }

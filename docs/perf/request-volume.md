@@ -211,9 +211,9 @@ read fails the suite. Python 3.13, Windows 11; the counts are deterministic
 | `GET /v1/config` | 1 | 0 |
 | `GET /v1/me` | 1 | 0 |
 | `GET /v1/sessions` | S + 2 = 22 (S + 3 = 23 since #224) | 0 |
-| `POST /v1/sessions` | 14 → **9** (10 since #224, 9 again since TD-180; **11** for a demo account since 2026-10-18) | 11 |
+| `POST /v1/sessions` | 14 → **9** (10 since #224, 9 again since TD-180; **11** for a demo account since 2026-10-18; `backend/tests/test_read_budget.py` holds the current figure, 14 with ADR-033's per-app counts and ADR-035's recycle-bin lookup) | 11 |
 | `POST /v1/files/{id}/complete`, each | 6 | 4 |
-| `DELETE /v1/sessions/{id}` | 7 | 5 |
+| `DELETE /v1/sessions/{id}` | 7 | 5 (6 since it bins, ADR-035) |
 
 **Bottleneck.** Up to 8 files (a bundle upload is 3), a create provisions its
 Drive targets inside the request. It then read back what it had just written:

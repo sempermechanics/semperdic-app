@@ -132,6 +132,27 @@ data class SessionRecord(
      */
     val extras: JsonObject = NO_EXTRAS,
 
+    /**
+     * The Firebase uid of the account that ran or restored this analysis, set
+     * by [SessionStore.save]. On a phone two accounts share, only the current
+     * account's rows are listed, counted, reconciled or uploaded ([SessionOwner]).
+     * Blank for a row an older build wrote until an account adopts it, and
+     * left out of `index.json` while blank, so such rows write as they did.
+     */
+    val ownerUid: String = "",
+
+    /**
+     * The cloud id of this analysis's backup while it sits in the account's
+     * recycle bin (ADR-035), else "". Such a row is [SyncState.LOCAL_ONLY]
+     * with no [cloudSessionId], so the reconcile neither repairs nor requeues
+     * it, the storage budget never frees it, and no upload starts for it
+     * ([inRecycleBin]). Left out of `index.json` while blank.
+     */
+    val binnedCloudId: String = "",
+
+    /** When the bin erases [binnedCloudId] for good, epoch ms; 0 when unknown or not binned. */
+    val binPurgeAt: Long = 0L,
+
 ) {
 
     /**

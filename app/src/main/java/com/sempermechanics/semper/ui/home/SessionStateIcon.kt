@@ -20,9 +20,20 @@ internal data class SessionStateIcon(
     companion object {
         /**
          * The idle icon for a backup in [state]; a synced one whose frames are
-         * not on this phone is "Only in cloud".
+         * not on this phone is "Only in cloud". A row whose backup is in the
+         * recycle bin ([binned], ADR-035) says so whatever its state, and its
+         * tap opens the bin.
          */
-        fun forState(state: SessionRecord.SyncState, framesOnPhone: Boolean = true): SessionStateIcon = when (state) {
+        fun forState(
+            state: SessionRecord.SyncState,
+            framesOnPhone: Boolean = true,
+            binned: Boolean = false,
+        ): SessionStateIcon = if (binned) IN_RECYCLE_BIN else idle(state, framesOnPhone)
+
+        private val IN_RECYCLE_BIN =
+            SessionStateIcon(R.drawable.ic_delete, R.string.sync_state_in_recycle_bin, R.color.text_secondary)
+
+        private fun idle(state: SessionRecord.SyncState, framesOnPhone: Boolean): SessionStateIcon = when (state) {
             SessionRecord.SyncState.SYNCED -> if (framesOnPhone) {
                 SessionStateIcon(R.drawable.ic_cloud_done, R.string.sync_state_backed_up, R.color.sky_primary)
             } else {

@@ -203,7 +203,15 @@ class SessionMetadataSyncTest {
             )
         }
 
-        runBlocking { CloudSync.reconcile(context, deep = true, api = api, tokens = tokens) }
+        runBlocking {
+            CloudSync.reconcile(
+                context,
+                deep = true,
+                api = api,
+                tokens = tokens,
+                bin = FakeRecycleBinApi.empty(),
+            )
+        }
 
         assertEquals(listOf("s1"), queued)
     }

@@ -3,6 +3,7 @@ package com.sempermechanics.semper.ui.home
 import android.view.View
 import android.widget.TextView
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.cloud.OtherAppBackups
 import com.sempermechanics.semper.data.cloud.SessionDeletes
 import com.sempermechanics.semper.fixtures.idleUntil
 import org.junit.Assert.assertEquals
@@ -131,12 +132,13 @@ class SessionSelectionControllerTest : SessionSelectionFixture() {
     }
 
     @Test
-    fun `a cloud-only stub is named with where it is deleted from`() {
+    fun `a cloud-only stub is named with where it is deleted from, and its backup goes to the recycle bin`() {
         val stub = record("s", local = false, cloud = true)
         list(stub)
         controller.confirmDelete(stub)
         assertEquals("Delete Specimen s from the cloud?", dialogTitle())
-        assertEquals(activity.getString(R.string.delete_body_cant_undo), dialogMessage())
+        // It used to say "This can't be undone." (ADR-035: the backup waits 30 days in the bin).
+        assertEquals(activity.getString(R.string.cloud_delete_body), dialogMessage())
     }
 
     @Test
@@ -153,6 +155,19 @@ class SessionSelectionControllerTest : SessionSelectionFixture() {
         assertEquals(
             listOf("From this phone\ncloud stays", "From the cloud\nphone stays", "Everywhere"),
             choices().map { it.text.toString() },
+        )
+    }
+
+    @Test
+    fun `an analysis the other app backed up warns that this app cannot bring it back`() {
+        val theirs = record("d", cloud = true)
+        OtherAppBackups.record(activity, setOf("d"))
+        list(theirs)
+        controller.confirmDelete(theirs)
+
+        assertEquals(
+            activity.getString(R.string.delete_confirm_body_other_app),
+            latestDialog().findViewById<TextView>(R.id.tvDeleteMessage).text.toString(),
         )
     }
 
@@ -263,7 +278,7 @@ class SessionSelectionControllerTest : SessionSelectionFixture() {
         val message = dialogMessage().orEmpty()
         assertFalse(message.contains("Delete cloud"))
         assertFalse(message.contains("Delete device"))
-        assertTrue(message.contains("every copy"))
+        assertTrue(message.contains("removes it from this phone, and its backup stays in the recycle bin"))
     }
 
     @Test

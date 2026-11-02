@@ -3,11 +3,11 @@ package com.sempermechanics.semper.ui.settings
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.cloud.CloudBackfill
 import com.sempermechanics.semper.data.cloud.CloudSync
 import com.sempermechanics.semper.data.cloud.sync.PhoneSyncWorker
 import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.prefs.AppSettings
-import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.databinding.ViewSettingsScrollContentBinding
 import com.sempermechanics.semper.ui.common.SettingsSectionHeader
@@ -75,19 +75,27 @@ internal class SettingsCloudSection(
     private fun maybeOfferBackfill() {
         if (!SemperApi.get(activity).enabled) return
         activity.lifecycleScope.launch {
-            val localOnly = withContext(Dispatchers.IO) {
-                SessionStore.list(activity)
-                    .filter { it.syncState == SessionRecord.SyncState.LOCAL_ONLY }
-            }
+            // Not a row whose backup is in the recycle bin: it was deleted from the cloud on purpose.
+            val localOnly = withContext(Dispatchers.IO) { CloudBackfill.candidates(activity) }
             if (localOnly.isEmpty()) return@launch
             Dialogs.confirm(
                 activity,
                 activity.getText(R.string.cloud_backfill_title),
                 activity.resources.getQuantityString(R.plurals.cloud_backfill_body, localOnly.size, localOnly.size),
                 R.string.cloud_backfill_confirm,
-            ) {
-                localOnly.forEach { CloudSync.enqueueUpload(activity, it.id) }
-            }
+            ) { backUp(localOnly.map { it.id }) }
+        }
+    }
+
+    /**
+     * Stamps [ids] PENDING, then queues each: the worker uploads PENDING rows
+     * only, so a queued LOCAL_ONLY row would do nothing. Same order as Home's
+     * Back up ([CloudBackfill.stamp]).
+     */
+    private fun backUp(ids: List<String>) {
+        activity.lifecycleScope.launch {
+            val stamped = withContext(Dispatchers.IO) { CloudBackfill.stamp(activity, ids) }
+            stamped.forEach { CloudSync.enqueueUpload(activity, it) }
         }
     }
 }

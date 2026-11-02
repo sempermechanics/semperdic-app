@@ -188,6 +188,10 @@
             android:exported="false"
             android:launchMode="singleTop" />
         <activity
+            android:name=".ui.recyclebin.RecycleBinActivity"
+            android:exported="false"
+            android:launchMode="singleTop" />
+        <activity
             android:name=".ui.limit.UpdateRequiredActivity"
             android:exported="false"
             android:launchMode="singleTop" />

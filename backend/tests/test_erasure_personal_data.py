@@ -13,7 +13,8 @@ import logging
 import pytest
 
 import repo_view as repo
-from app import deps, drive
+from app import deps
+from drive_stubs import erasure_drive
 
 
 def _mint(domain="university.edu"):
@@ -143,8 +144,7 @@ async def test_the_erasure_audit_row_carries_the_counts(store, audited, client, 
     repo.add_institution_member(license_id, "dev@university.edu")
     store._data["auth_links"] = {"dev-user": {"uid": "dev-user"}}
     monkeypatch.setattr(deps, "_DEV_USER", {**deps._DEV_USER, "driveFolderId": "uf"})
-    monkeypatch.setattr(drive, "access_token", lambda: "tok")
-    monkeypatch.setattr(drive, "delete_file", lambda token, fid: None)
+    erasure_drive(monkeypatch)
 
     r = await client.delete("/v1/me")
 
@@ -170,8 +170,7 @@ async def test_linked_auth_users_are_deleted(store, audited, client, monkeypatch
     store._data["auth_links"] = {"dev-user": {"uid": "dev-user"}, "sub-b": {"uid": "dev-user"},
                                  "sub-c": {"uid": "dev-user"}, "other": {"uid": "u2"}}
     monkeypatch.setattr(deps, "_DEV_USER", {**deps._DEV_USER, "driveFolderId": "uf"})
-    monkeypatch.setattr(drive, "access_token", lambda: "tok")
-    monkeypatch.setattr(drive, "delete_file", lambda token, fid: None)
+    erasure_drive(monkeypatch)
     deleted = []
     monkeypatch.setattr(google_auth.fb_auth, "delete_user", lambda uid, app=None: deleted.append(uid))
 
@@ -191,8 +190,7 @@ async def test_a_linked_auth_user_that_survives_is_reported(store, audited, clie
     store._data["users"] = {}
     _account(store, "dev-user", "dev@university.edu", driveFolderId="uf",
              linkedAuthUids=["sub-b"])
-    monkeypatch.setattr(drive, "access_token", lambda: "tok")
-    monkeypatch.setattr(drive, "delete_file", lambda token, fid: None)
+    erasure_drive(monkeypatch)
     monkeypatch.setattr(deps, "_DEV_USER", {**deps._DEV_USER, "driveFolderId": "uf"})
 
     def delete_user(uid, app=None):

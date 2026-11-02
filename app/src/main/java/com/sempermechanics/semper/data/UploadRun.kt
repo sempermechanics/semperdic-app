@@ -9,6 +9,7 @@ import com.sempermechanics.semper.data.net.SemperApiHttp
 import com.sempermechanics.semper.data.net.TokenSource
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
+import com.sempermechanics.semper.data.session.inRecycleBin
 import com.sempermechanics.semper.diagnostics.SemperAnalytics
 import com.sempermechanics.semper.navigation.IntentKeys
 import timber.log.Timber
@@ -43,6 +44,24 @@ internal object UploadLog {
         return ListenableWorker.Result.retry()
     }
 }
+
+/**
+ * Whether an upload may run for this row: it waits to upload (PENDING) and is
+ * not in the recycle bin. A delete stamps a waiting row LOCAL_ONLY before it
+ * cancels the upload (`SessionDeletes.run`), so a worker that starts after it
+ * sends nothing.
+ */
+internal fun SessionRecord.mayUpload(): Boolean = syncState == SessionRecord.SyncState.PENDING && !inRecycleBin
+
+/** Output key of an upload a delete stopped: it succeeds with nothing to announce. */
+internal const val UPLOAD_STOPPED = "UPLOAD_STOPPED"
+
+/** The success of an upload a delete stopped ([UPLOAD_STOPPED]). */
+internal fun stoppedResult(): ListenableWorker.Result =
+    ListenableWorker.Result.success(workDataOf(UPLOAD_STOPPED to true))
+
+/** " (in the recycle bin)" for a log line about [record], else "". */
+internal fun binNote(record: SessionRecord): String = if (record.inRecycleBin) " (in the recycle bin)" else ""
 
 /** Mark backup [localId] FAILED, and count it under [analyticsReason] when there is one. */
 internal fun markBackupFailed(context: Context, localId: String, analyticsReason: String?) {

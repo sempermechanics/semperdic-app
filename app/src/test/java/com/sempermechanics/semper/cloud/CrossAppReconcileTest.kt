@@ -3,6 +3,7 @@ package com.sempermechanics.semper.cloud
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.data.cloud.CloudSync
+import com.sempermechanics.semper.data.cloud.OtherAppBackups
 import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.net.CloudApi
@@ -71,6 +72,8 @@ class CrossAppReconcileTest {
         assertEquals(CloudSync.Outcome.Ok(cloudCount = 1, quotaUsed = 1, quotaMax = 25, repaired = 0), outcome)
         assertEquals(mapOf("own" to SyncState.SYNCED, "theirs" to SyncState.SYNCED), states())
         assertTrue(queued.isEmpty())
+        // Remembered, so the storage budget does not drop a copy this app cannot restore.
+        assertEquals(setOf("theirs"), OtherAppBackups.ids(context))
     }
 
     @Test
@@ -122,7 +125,14 @@ class CrossAppReconcileTest {
             awaitCancellation()
         }
         val call = async(Dispatchers.Default) {
-            CloudSync.reconcile(context, reupload = true, deep = true, api = api, tokens = tokens)
+            CloudSync.reconcile(
+                context,
+                reupload = true,
+                deep = true,
+                api = api,
+                tokens = tokens,
+                bin = FakeRecycleBinApi.empty(),
+            )
         }
         inFlight.await()
         call.cancel()
@@ -146,7 +156,14 @@ class CrossAppReconcileTest {
     }
 
     private fun reconcile() = runBlocking {
-        CloudSync.reconcile(context, reupload = true, deep = true, api = api, tokens = tokens)
+        CloudSync.reconcile(
+            context,
+            reupload = true,
+            deep = true,
+            api = api,
+            tokens = tokens,
+            bin = FakeRecycleBinApi.empty(),
+        )
     }
 
     private fun completed(cloudId: String, localId: String) =

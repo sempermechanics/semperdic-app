@@ -109,8 +109,8 @@ async def test_one_licence_reads_like_a_row(store, client):
 
 def _two_seat_roster(store):
     store._data["users"] = {
-        "u1": {"email": "a@university.edu", "access_status": "APPROVED", "plan": "demo"},
-        "u2": {"email": "b@university.edu", "access_status": "APPROVED", "plan": "demo"},
+        "u1": {"email": "a@university.edu", "emailVerified": True, "access_status": "APPROVED", "plan": "demo"},
+        "u2": {"email": "b@university.edu", "emailVerified": True, "access_status": "APPROVED", "plan": "demo"},
     }
     minted = _mint_institution()
     for i, uid in enumerate(("u1", "u2")):

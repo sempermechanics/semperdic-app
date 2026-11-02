@@ -17,7 +17,9 @@ Paths are from the repository root; app paths from
 `claude/readiness-followups-jhfhj9` at `75bac5f` (2026-10-18): hashed addresses
 in audit rows, the wider erasure and the POST licence search are in code there,
 not yet deployed. The claim-code audit row and the per-device count are at `2371bec` on the same
-branch ([ADR-024](../adr/ADR-024-account-anchored-entitlements.md)).
+branch ([ADR-024](../adr/ADR-024-account-anchored-entitlements.md)). The recycle bin
+rows ([ADR-035](../adr/ADR-035-recycle-bin.md)) are from the branch
+`claude/review-recycle-bin-ui` (2026-11-02), not yet deployed.
 
 ## Categories of data subject
 
@@ -42,7 +44,7 @@ Email address, display name, sign-in provider, password hash (password accounts)
 TOTP enrolment (staff and console users). Purpose: identity. Retention: until the
 account is erased; `DELETE /v1/me` deletes the Auth user, and every other Auth
 user linked to the account (`linkedAuthUids`, `auth_links`; `repo.sign_in_uids`), once
-the runtime SA holds Firebase Auth admin (`backend/app/services/account.py:124`; TD-214). Both apps sign in to this one Auth project, so deleting the account removes the sign-in for both, consistent with the account-wide erase ([ADR-023](../adr/ADR-023-signed-offline-entitlement.md), decision note).
+the runtime SA holds Firebase Auth admin (`backend/app/services/account.py:142`; TD-214). Both apps sign in to this one Auth project, so deleting the account removes the sign-in for both, consistent with the account-wide erase ([ADR-023](../adr/ADR-023-signed-offline-entitlement.md), decision note).
 
 ### Firestore (project `indicvision-dic-app`; location unrecorded, TD-227)
 
@@ -56,21 +58,27 @@ no client can read or write any of them (`firestore.rules:7-9`).
 | `auth_links/{firebaseSub}` | the canonical uid a Firebase subject maps to (`backend/app/repo/users.py:96`) | Merging sign-in methods | Until erasure: every row whose `uid` is the account is deleted (`backend/app/repo/account.py:237-239`). Rows left by erasures before that change stay until a sweep (TD-271) |
 | `devices/{deviceId}` | `uid`, `app`, `publicKeyPem`, `model`, `osVersion`, `appVersion`, `status`, registration and last-assertion times (`backend/app/repo/devices.py:80-92`) | Device binding, request signatures | Until erasure |
 | `challenges/{nonce}` | `uid`, `deviceId` | Replay protection | TTL on `expireAt` (`backend/firestore.indexes.json:104-122`); deleted on use |
-| `sessions/{sid}` | `uid`, `deviceId`, `app`, `specimen` (the reference image's file name), `name` (the analysis name), small run metrics, Drive folder id (`backend/app/repo/sessions.py:531-551`) | Cloud backup index; `deviceId` also counts a demo device's stored analyses across accounts (`count_device_sessions`, `:415-439`) | Until the session or account is erased |
-| `files/{fileId}` | `uid`, `sessionId`, file `name`, size, `sha256`, Drive ids | Upload tracking | Until the session or account is erased |
+| `sessions/{sid}` | `uid`, `deviceId`, `app`, `specimen` (the reference image's file name), `name` (the analysis name), small run metrics, Drive folder id (`backend/app/repo/sessions.py:531-551`) | Cloud backup index; `deviceId` also counts a demo device's stored analyses across accounts (`count_device_sessions`, `:415-439`) | Until the session is deleted, which moves it to `deleted_sessions` (below), or the account is erased |
+| `files/{fileId}` | `uid`, `sessionId`, file `name`, size, `sha256`, Drive ids | Upload tracking | Until the account is erased, or the session's recycle bin entry is erased. While the session is in the bin its file docs stay, flagged `binnedAt` (`flag_session_files`, `backend/app/repo/recycle_bin.py:96-104`), and refuse completion and download |
+| `deleted_sessions/{sid}`, binned or purging | every field of the deleted session above, plus `priorStatus`, `deletedAt`, `deletedByDeviceId`, `deletedByApp`, `filesBinned`, `purgeAt` and, while purging, `purgingAt` (`move_to_bin`, `backend/app/repo/recycle_bin.py:107-146`) | The recycle bin: a deleted backup can be restored for 30 days, and no phone uploads it again meanwhile | `purgeAt` is `deletedAt` + 30 days (`RECYCLE_BIN_DAYS`, `backend/app/config.py:435`). Until a restore (back to `sessions`), a permanent delete (`DELETE /v1/recycle-bin/{sid}`), or the purge after `purgeAt`: the daily `POST /v1/tasks/recycle-bin-purge` (`backend/app/routers/provision_tasks.py:45`), and up to 3 due entries on each `GET /v1/recycle-bin`. Not a TTL field: the purge deletes the Drive folder first. Erasure deletes it (`backend/app/repo/account.py:245-250`) |
+| `deleted_sessions/{sid}`, erased marker | `uid`, `app`, `localSessionId`, `erasedAt`, `erasedReason` (`user` or `expired`), `expireAt`; the document id is the session id. The purge replaces the whole entry with this (`erase_binned`, `backend/app/repo/recycle_bin.py:280-296`) | Lets another phone tell a deleted backup from a lost one, after the purge | TTL on `expireAt`, `erasedAt` + 30 days (`ERASED_MARKER_DAYS`, `backend/app/config.py:436`; `backend/firestore.indexes.json:224-241`), once the owner enables the policy; until then it stays. Erasure deletes it. Exported as `erasedBackups` (`sessionId`, `localSessionId`, `erasedAt`) |
 | `licenses/{id}` | `emailLock` and `redeemedByUid` (individual); `adminEmails`, `domainLock` (institution); per-app `deviceIdLock`; `createdByUid` | Licensing | Until deleted; then 30 days in `deleted_licenses` |
 | `licenses/{id}/seats/{uid}` | `uid`, `email`, per-app `deviceIdLock`, lease fields (`backend/app/repo/claims.py:246-254`) | Institution roster | The current seat's `email` follows its holder's verified sign-in address (TD-297). A revoked seat keeps `email` until its holder's account is erased, which blanks it on every seat the account held, live seats revoked first (`_blank_seat_addresses`, `backend/app/repo/account.py:186-203`). Seats on other licences are found by a collection-group query whose index must be deployed first (TD-271) |
 | `licenseInvites/{id}` | `email`, `licenseId`, `invitedByUid` (`backend/app/repo/invites.py:155-163`) | Promise of a seat before sign-up | Until redeemed or withdrawn; an individual licence is re-invited to its address after its holder's erasure (`backend/app/repo/account.py:146-148`) |
 | `deleted_licenses/{id}`, `…/deleted_seats/{uid}` | copies of the above | 30-day hold for restore | TTL on `purgeAt` (`backend/firestore.indexes.json:123-160`); a held seat's `email` is blanked on its holder's erasure |
-| `audit_logs/{autoId}` | `uid`, `deviceId`, `action`, `target`, `detail`, `licenseId` (`backend/app/audit.py:71-83`, written by `backend/app/repo/audit_log.py`). An `ip` field exists but no caller sets it. `detail` holds no address: mint, convert and an `adminEmails` edit record hashes (`emailLockHash`, `adminEmailHashes`, `adminEmailCount`; `audit.address_tag`, `backend/app/audit.py:27-38`). A licence edit records only that its free-text `note` changed and its length (`noteChanged`, `noteLength`; `backend/app/routers/admin.py:29-40`). A claim-code redemption (`POST /v1/me/claim`, since 2026-10-18) writes `LICENSE_CLAIM_CODE` with the account's `uid`, the device id when a signed device redeemed it (none from a browser), `outcome` `OK` or `DENIED`, and `detail` holding `keyPrefix` (`SEMP-` and the code's first group, never the code), `via` (`web` or `app`) and `mode` or `errorCode`; an `OK` row's `target` is the licence id (`backend/app/routers/licenses.py:239-255`) | Security and accountability; customer-visible per licence | **Kept after erasure, 365 days** (owner, 2026-10-22): each row's `expireAt`, for a TTL policy declared but not yet enabled (TD-237) |
+| `audit_logs/{autoId}` | `uid`, `deviceId`, `action`, `target`, `detail`, `licenseId` (`backend/app/audit.py:71-83`, written by `backend/app/repo/audit_log.py`). An `ip` field exists but no caller sets it. `detail` holds no address: mint, convert and an `adminEmails` edit record hashes (`emailLockHash`, `adminEmailHashes`, `adminEmailCount`; `audit.address_tag`, `backend/app/audit.py:27-38`). A licence edit records only that its free-text `note` changed and its length (`noteChanged`, `noteLength`; `backend/app/routers/admin.py:29-40`). A claim-code redemption (`POST /v1/me/claim`, since 2026-10-18) writes `LICENSE_CLAIM_CODE` with the account's `uid`, the device id when a signed device redeemed it (none from a browser), `outcome` `OK` or `DENIED`, and `detail` holding `keyPrefix` (`SEMP-` and the code's first group, never the code), `via` (`web` or `app`) and `mode` or `errorCode`; an `OK` row's `target` is the licence id (`backend/app/routers/licenses.py:239-255`)  The recycle bin writes `SESSION_BIN` (`localSessionId`, `app`, `filesBinned`, `purgeAt`), `SESSION_BIN_RESTORE` (`localSessionId`, `app`) and `SESSION_PURGE` (`reason` `user` or `expired`, `filesRemoved`, `localSessionId`), each with the session id as `target`; a purge's row is under the owner's uid, whoever ran it (`backend/app/services/recycle_bin.py:72-76, 154-157, 192-195`). `SESSION_DELETE` is no longer written | Security and accountability; customer-visible per licence | **Kept after erasure, 365 days** (owner, 2026-10-22): each row's `expireAt`, for a TTL policy declared but not yet enabled (TD-237) |
 
 ### Google Drive (Shared Drive, runtime SA as Manager)
 
 Per user and session folders holding what the app uploads: reference and deformed
 images, `.dat` results, reports, CSV, `metadata.json` (analysis name, specimen,
-parameters). Purpose: backup and restore. Retention: deleted with the session or
-account (`DELETE /v1/me` removes the user folder first,
-`backend/app/services/account.py:71-142`); Shared Drive trash per Workspace policy.
+parameters). Purpose: backup and restore. Retention: a deleted session's folder
+stays while it is in the recycle bin (binning makes no Drive call) and is deleted
+by its purge, after 30 days or at once on a permanent delete (`purge_one`,
+`backend/app/services/recycle_bin.py:167-198`); or with the account
+(`DELETE /v1/me` removes every user folder of the account, then each session's
+and each bin entry's folder still there, before any record, `_purge_drive`,
+`backend/app/services/account.py:92-180`); Shared Drive trash per Workspace policy.
 
 ### Cloud Logging (project `indicvision-dic-app`)
 
@@ -129,7 +137,9 @@ transfer exclude preferences and session files
 
 | Data | Retention | Mechanism |
 |---|---|---|
-| Account, devices, sessions, files, Drive content | Until erasure | `DELETE /v1/me`; per session `DELETE /v1/sessions/{sid}` |
+| Account, devices, sessions, files, Drive content | Until erasure | `DELETE /v1/me`; a session deleted with `DELETE /v1/sessions/{sid}` goes to the recycle bin (next row) |
+| Recycle bin entries (a deleted session, its file docs and Drive folder) | 30 days from the delete, unless restored or deleted permanently first; up to a day more for the daily job | `purgeAt`; `POST /v1/tasks/recycle-bin-purge` (Cloud Scheduler) and `DELETE /v1/recycle-bin/{sid}`; erasure |
+| Erased-backup markers (ids only) | 30 days from the erasure | TTL `deleted_sessions.expireAt` (owner enables it); erasure |
 | Nonces | Minutes | TTL `challenges.expireAt`, delete on use |
 | Deleted licences and seats | 30 days | TTL `purgeAt` |
 | Audit rows | 365 days (TTL enabled 2026-10-23); their log copy 365 days in the locked `audit-trail` bucket | TTL `audit_logs.expireAt`; older rows stamped by the TD-246 backfill |

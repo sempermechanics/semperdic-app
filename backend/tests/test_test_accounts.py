@@ -97,7 +97,8 @@ def world(monkeypatch):
     monkeypatch.setattr(drive, "access_token", lambda: "tok")
     monkeypatch.setattr(drive, "delete_file", lambda _t, fid: deleted.append(fid))
     monkeypatch.setattr(drive, "delete_files", lambda _t, ids: len([i for i in ids if i]))
-    monkeypatch.setattr(drive, "find_user_folder", lambda _t, _uid, **k: None)
+    monkeypatch.setattr(drive, "find_user_folders", lambda _t, _uid, **k: [])
+    monkeypatch.setattr(drive, "probe_files", lambda _t, ids: {i: drive.ALIVE for i in ids if i})
     return {"store": store, "auth": fake, "audit": rows, "drive_deleted": deleted}
 
 
@@ -721,8 +722,8 @@ def test_the_holders_own_erasure_is_unchanged(world):
 
 def test_a_test_accounts_drive_fallback_looks_under_its_own_tree(world, monkeypatch):
     looked = []
-    monkeypatch.setattr(drive, "find_user_folder",
-                        lambda _t, uid, **k: looked.append((uid, k)) or "found")
+    monkeypatch.setattr(drive, "find_user_folders",
+                        lambda _t, uid, **k: looked.append((uid, k)) or ["found"])
     user = _test_user(world["store"], "t-3")
     account_service.erase_data(user)
     _real_user(world["store"], uid="real-1")
@@ -1062,17 +1063,17 @@ def test_a_test_account_uploads_under_the_test_tree(monkeypatch):
 
 def test_the_test_tree_is_found_for_erasure(monkeypatch):
     looked = []
-    monkeypatch.setattr(drive, "_find_folder",
-                        lambda _t, name, parent: looked.append(name) or f"id-{name}")
-    assert drive.find_user_folder("tok", "t-1", test=True) == "id-t-1"
+    monkeypatch.setattr(drive, "_find_folders",
+                        lambda _t, name, parent: looked.append(name) or [f"id-{name}"])
+    assert drive.find_user_folders("tok", "t-1", test=True) == ["id-t-1"]
     assert looked == ["Research Storage", "_test", "t-1"]
 
 
 def test_the_test_tree_may_be_missing(monkeypatch, caplog):
-    monkeypatch.setattr(drive, "_find_folder",
-                        lambda _t, name, parent: None if name == "_test" else f"id-{name}")
+    monkeypatch.setattr(drive, "_find_folders",
+                        lambda _t, name, parent: [] if name == "_test" else [f"id-{name}"])
     caplog.set_level(logging.WARNING)
-    assert drive.find_user_folder("tok", "t-1", test=True) is None
+    assert drive.find_user_folders("tok", "t-1", test=True) == []
     assert "no '_test' folder" in caplog.text
 
 

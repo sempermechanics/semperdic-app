@@ -1,13 +1,18 @@
 package com.sempermechanics.semper.cloud
 
+import com.sempermechanics.semper.data.net.AccountPhonesDto
 import com.sempermechanics.semper.data.net.AppConfigDto
 import com.sempermechanics.semper.data.net.ChallengeResponse
 import com.sempermechanics.semper.data.net.ConsentUpdateRequest
+import com.sempermechanics.semper.data.net.DeviceActivateRequest
+import com.sempermechanics.semper.data.net.DeviceActivateResponse
+import com.sempermechanics.semper.data.net.DeviceDeactivateResponse
 import com.sempermechanics.semper.data.net.DeviceRegisterRequest
 import com.sempermechanics.semper.data.net.ErasureStatus
 import com.sempermechanics.semper.data.net.FileCompleteRequest
 import com.sempermechanics.semper.data.net.LicenseActivateResponse
 import com.sempermechanics.semper.data.net.MeResponse
+import com.sempermechanics.semper.data.net.RecycleBinResponse
 import com.sempermechanics.semper.data.net.SessionCreateRequest
 import com.sempermechanics.semper.data.net.SessionCreateResponse
 import com.sempermechanics.semper.data.net.SessionFilesResponse
@@ -128,6 +133,21 @@ class ApiDtosContractTest {
     }
 
     @Test
+    fun `recycle bin listing decodes its items, erased markers and page`() {
+        val resp = response<RecycleBinResponse>("recycle_bin_response")
+        val item = resp.items.single()
+        assertEquals("3f9c2a7e5b1d4c8e9a0b6f2d1e4c7a95", item.sessionId)
+        assertEquals("a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", item.localSessionId)
+        assertEquals("COMPLETED", item.status)
+        assertEquals(48215355L, item.totalBytes)
+        // The backend's microsecond, offset timestamp reads as epoch ms.
+        assertEquals(1_796_289_245_123L, item.purgeAtMs)
+        assertEquals("b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e", resp.erased.single().localSessionId)
+        assertEquals(30, resp.retentionDays)
+        assertFalse(resp.page!!.hasMore)
+    }
+
+    @Test
     fun `session create response decodes upload targets`() {
         val resp = response<SessionCreateResponse>("session_create_response")
         assertEquals("UPLOADING", resp.status)
@@ -220,6 +240,42 @@ class ApiDtosContractTest {
     }
 
     @Test
+    fun `phone activate response decodes the activation and the config it brings`() {
+        val resp = response<DeviceActivateResponse>("device_activate_response")
+        val activation = resp.activation!!
+        assertEquals("and-7f3e9a1c2b4d6e8f", activation.deviceId)
+        assertFalse(activation.already)
+        assertEquals(1 to 2, activation.devicesActive to activation.maxDevices)
+        assertEquals("activation", activation.model)
+        assertEquals("active", resp.config.activation?.state)
+        assertEquals(2, resp.config.activation?.maxDevices)
+        assertNull(resp.config.pendingLicence)
+    }
+
+    @Test
+    fun `phones list decodes an activated phone and one not`() {
+        val list = response<AccountPhonesDto>("devices_response")
+        assertEquals("activation", list.model)
+        assertEquals(1 to 2, list.devicesActive to list.maxDevices)
+        assertFalse(list.pool)
+        val (here, other) = list.devices
+        assertTrue(here.thisDevice && here.activated)
+        assertEquals("Pixel 5", here.model)
+        assertEquals("self", here.activatedBy)
+        assertEquals("2026-11-02T08:40:03.118204+00:00", here.activatedAt)
+        assertFalse(other.thisDevice || other.activated)
+        assertNull(other.activatedAt)
+        assertEquals("2026-10-21T17:05:12.004417+00:00", other.registeredAt)
+    }
+
+    @Test
+    fun `phone deactivate response decodes the count after it`() {
+        val resp = response<DeviceDeactivateResponse>("device_deactivate_response")
+        assertEquals("and-7f3e9a1c2b4d6e8f", resp.deviceId)
+        assertEquals(0 to 2, resp.devicesActive to resp.maxDevices)
+    }
+
+    @Test
     fun `challenge response decodes the nonce`() {
         assertEquals("c7Fq2xLp9ZbT4mWv8nRk3sYd6hJa1eUg", response<ChallengeResponse>("challenge_response").nonce)
     }
@@ -260,6 +316,11 @@ class ApiDtosContractTest {
         val req = request<DeviceRegisterRequest>("device_register_request")
         assertEquals("and-7f3e9a1c2b4d6e8f", req.deviceId)
         assertTrue(req.publicKeyPem.startsWith("-----BEGIN PUBLIC KEY-----"))
+    }
+
+    @Test
+    fun `phone activate request is exactly the fixture's body`() {
+        assertFalse(request<DeviceActivateRequest>("device_activate_request").upgrade)
     }
 
     @Test

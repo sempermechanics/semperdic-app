@@ -426,6 +426,18 @@ class Settings:
     # written afterwards.
     AUDIT_RETENTION_DAYS = _env_int("AUDIT_RETENTION_DAYS", "365")
 
+    # The recycle bin (ADR-035). A deleted cloud backup is held this many days
+    # before it is purged (`deleted_sessions.purgeAt`); once purged, an
+    # erased marker of ids alone is kept `ERASED_MARKER_DAYS` (its `expireAt`,
+    # the Firestore TTL field), so another phone can tell "deleted" from
+    # "lost". Fixed, not read from the environment: the Privacy Policy names
+    # the 30 days, so changing one is a policy change, not a deploy setting.
+    RECYCLE_BIN_DAYS = 30
+    ERASED_MARKER_DAYS = 30
+    # How many due bin entries one run of the daily purge job takes on; the
+    # rest are due again the next day.
+    RECYCLE_BIN_PURGE_BATCH = 100
+
     @property
     def tasks_enabled(self) -> bool:
         return bool(self.TASKS_QUEUE and self.TASKS_TARGET_BASE_URL and self.GCP_PROJECT)

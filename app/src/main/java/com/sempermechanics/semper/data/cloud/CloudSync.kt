@@ -15,6 +15,7 @@ import com.sempermechanics.semper.data.cloud.CloudErase.toEraseResult
 import com.sempermechanics.semper.data.net.AccountCache
 import com.sempermechanics.semper.data.net.Authed
 import com.sempermechanics.semper.data.net.CloudApi
+import com.sempermechanics.semper.data.net.RecycleBinApi
 import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.net.TokenProvider
 import com.sempermechanics.semper.data.net.TokenSource
@@ -61,12 +62,17 @@ object CloudSync {
      * reach the user.
      */
     sealed interface Outcome {
-        /** Reconciled successfully. [repaired] sessions were found missing and re-queued. */
+        /**
+         * Reconciled successfully. [repaired] sessions were found missing and
+         * re-queued; [binned] were found deleted on another phone, in the
+         * recycle bin (ADR-035), and are not uploaded again.
+         */
         data class Ok(
             val cloudCount: Int,
             val quotaUsed: Int,
             val quotaMax: Int,
             val repaired: Int,
+            val binned: Int = 0,
         ) : Outcome
 
         /** Cloud sync isn't configured — nothing to check, say nothing. */
@@ -94,13 +100,18 @@ object CloudSync {
      * With [reupload], a row still waiting to upload is queued again: an upload
      * deferred while the quota was unknown ([enqueueUpload]) has nothing else
      * to start it, and used to read "upload pending" for good.
+     *
+     * [bin] is read when a backed-up row is missing from the listing, or a
+     * row in the recycle bin is not listed again ([CloudReconcile.list]).
      */
+    @Suppress("LongParameterList") // the last three are test seams (ADR-002)
     suspend fun reconcile(
         context: Context,
         reupload: Boolean = true,
         deep: Boolean = false,
         api: CloudApi = SemperApi.get(context),
         tokens: TokenSource = TokenProvider,
+        bin: RecycleBinApi = SemperApi.get(context),
     ): Outcome {
         return withContext(Dispatchers.IO) {
             val appContext = context.applicationContext
@@ -124,7 +135,7 @@ object CloudSync {
                     CloudReconcile.refreshRemoteConfig(appContext, this, token, throttled)
                     // The expensive per-session reconcile below is throttled; the cheap
                     // config fetch above is not, so quota still recovers between reconciles.
-                    if (throttled) null else CloudReconcile.list(appContext, this, token, verify = deep)
+                    if (throttled) null else CloudReconcile.list(appContext, this, bin, token, verify = deep)
                 }
                 val listing = when (listed) {
                     is Authed.Ok -> listed.value ?: run {
@@ -140,18 +151,18 @@ object CloudSync {
                 val cloud = listing.cloud
                 // Home offers the backups this phone has no row for from this.
                 CloudBackupListing.record(appContext, cloud.sessions)
+                OtherAppBackups.record(appContext, listing.keep)
 
                 // Waiting rows respect the save-to-cloud toggle; a repair does not,
                 // because it restores a backup the user already had.
-                val repaired = CloudReconcile.repairRows(
+                val repairs = CloudReconcile.repairRows(
                     appContext,
-                    listing.backedUp,
-                    listing.keep,
+                    listing,
                     reupload,
                     requeue = reupload && uploadsEnabled(appContext, api),
                 )
                 prefs.edit { put(PrefFiles.CloudSyncPrefs.LAST_RECONCILE_AT, System.currentTimeMillis()) }
-                Outcome.Ok(cloud.sessions.size, cloud.quota.used, cloud.quota.max, repaired)
+                Outcome.Ok(cloud.sessions.size, cloud.quota.used, cloud.quota.max, repairs.repaired, repairs.binned)
             }
         }
     }
@@ -278,16 +289,18 @@ object CloudSync {
     }
 
     /**
-     * Erase one cloud backup addressed by its **backend** id. The settings
+     * Delete one cloud backup addressed by its **backend** id. The settings
      * list is built from cloud rows, which may have no local copy at all, so
-     * the backend id is the only key always available. Permanent: the Drive
-     * artifacts and Firestore metadata both go.
+     * the backend id is the only key always available. The backend moves it
+     * to the account's recycle bin (ADR-035), from where it can be restored
+     * until it is erased for good.
      *
-     * When a local record does point at this backup, it drops back to
-     * LOCAL_ONLY so the Home badge stops claiming a backup that no longer
-     * exists, and forgets the link so that a later delete of the phone copy
-     * does not ask the backend to erase this backup a second time. Anything
-     * but [EraseOutcome.ERASED_EVERYWHERE] means nothing was deleted.
+     * When a local record does point at this backup, it becomes a row in the
+     * bin ([CloudErase.binCloudCopy]): LOCAL_ONLY, so the Home badge stops
+     * claiming a backup, with no live link, so a later delete of the phone
+     * copy does not ask the backend to delete this backup a second time, and
+     * nothing uploads it again. Anything but [EraseOutcome.ERASED_EVERYWHERE]
+     * means nothing was deleted.
      */
     suspend fun eraseCloudBackup(
         context: Context,
@@ -298,9 +311,9 @@ object CloudSync {
     ): EraseOutcome = withContext(Dispatchers.IO) {
         val appContext = context.applicationContext
         api.authed(tokens) { token ->
-            this.deleteSession(token, cloudSessionId)
+            val answer = this.deleteSession(token, cloudSessionId)
             CloudBackupListing.forget(appContext, cloudSessionId)
-            CloudErase.forgetCloudCopy(appContext, localSessionId)
+            CloudErase.binCloudCopy(appContext, localSessionId, cloudSessionId, answer)
             Timber.i("Deleted cloud backup %s", cloudSessionId)
         }.toEraseResult { Timber.e(it, "Cloud backup delete failed for %s", cloudSessionId) }
     }

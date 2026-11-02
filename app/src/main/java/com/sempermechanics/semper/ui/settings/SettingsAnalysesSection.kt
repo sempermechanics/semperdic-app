@@ -29,6 +29,8 @@ import com.sempermechanics.semper.ui.common.transfer.RestoreFailureNotice
 import com.sempermechanics.semper.ui.common.transfer.TransferBannerController
 import com.sempermechanics.semper.ui.common.transfer.TransferWorkObserver
 import com.sempermechanics.semper.ui.home.SessionStateIcon
+import com.sempermechanics.semper.ui.recyclebin.RecycleBinActivity
+import com.sempermechanics.semper.ui.recyclebin.RecycleBinView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -270,6 +272,8 @@ internal class SettingsAnalysesSection(
     /** Which backup action a row offers, or null when none applies. */
     private fun backupLabel(entry: AnalysisEntry): Int? {
         val record = entry.record ?: return null
+        // Its backup is in the recycle bin: a new upload would be refused, so it comes back from there.
+        if (entry.location == AnalysisLocation.IN_RECYCLE_BIN) return R.string.recycle_bin_restore_backup
         return when (record.syncState) {
             SessionRecord.SyncState.FAILED, SessionRecord.SyncState.PENDING -> R.string.cloud_retry_backup
             SessionRecord.SyncState.LOCAL_ONLY ->
@@ -282,6 +286,11 @@ internal class SettingsAnalysesSection(
 
     private fun startBackup(entry: AnalysisEntry) {
         val record = entry.record ?: return
+        if (entry.location == AnalysisLocation.IN_RECYCLE_BIN) {
+            // Restored on the bin's screen, whose ViewModel the call outlives a rotation on (ADR-016).
+            RecycleBinActivity.open(activity, restore = record.binnedCloudId)
+            return
+        }
         val label = backupLabel(entry) ?: return
         if (!SemperApi.get(activity).enabled) {
             Feedback.toast(activity, R.string.cloud_backup_no_backend, long = true)
@@ -316,6 +325,8 @@ internal class SettingsAnalysesSection(
         // claiming the backup is gone.
         AnalysisLocation.PHONE_SYNC_STATE ->
             entry.record?.let { activity.getString(SessionStateIcon.label(it.syncState)) }.orEmpty()
+        AnalysisLocation.IN_RECYCLE_BIN ->
+            RecycleBinView.inBinLine(activity, entry.record?.binPurgeAt ?: 0L, System.currentTimeMillis())
     }
 
     private companion object {

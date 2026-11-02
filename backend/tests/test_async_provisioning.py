@@ -87,6 +87,28 @@ async def test_worker_fills_in_every_upload_target(store, queued, client):
     assert store._data["sessions"][sid]["driveFolderId"] == "sf"
 
 
+async def test_a_task_that_finishes_before_the_answer_keeps_its_uploading(
+    store, client, monkeypatch,
+):
+    """Cloud Tasks may run the task before the request answers. The request
+    then wrote PROVISIONING over the task's UPLOADING, and the app polled a
+    session nothing would ever move again (review L3-3)."""
+    monkeypatch.setattr(settings, "INLINE_PROVISION_MAX_FILES", 0)
+    monkeypatch.setattr(rate_limit.listing_bucket, "allow", lambda uid: True)
+    monkeypatch.setattr(
+        tasks, "enqueue_provision",
+        lambda sid: session_provision.provision_session(sid) is not None,
+    )
+
+    sid = (await client.post(
+        "/v1/sessions", json={"specimen": "s", "files": [_file("a"), _file("b")]},
+    )).json()["sessionId"]
+
+    assert store._data["sessions"][sid]["status"] == "UPLOADING"
+    polled = (await client.get(f"/v1/sessions/{sid}/uploads")).json()
+    assert polled["status"] == "UPLOADING" and len(polled["uploads"]) == 2
+
+
 async def test_polling_uploads_reports_provisioning_then_the_targets(
     store, queued, client, monkeypatch,
 ):
@@ -566,7 +588,7 @@ def _task_routes() -> list[str]:
 
 def test_every_task_route_is_found():
     assert _task_routes() == ["/v1/tasks/license-fanout", "/v1/tasks/provision-session",
-                              "/v1/tasks/test-account-expiry"]
+                              "/v1/tasks/recycle-bin-purge", "/v1/tasks/test-account-expiry"]
 
 
 @pytest.mark.parametrize("path", _task_routes())
@@ -685,8 +707,10 @@ async def test_delete_during_provision_leaves_no_folder(store, queued, client, m
     r = await client.delete(f"/v1/sessions/{sid}")
 
     assert r.status_code == 200, r.text
-    assert deleted == ["sf"]
+    # Binned (ADR-035), with the folder it now records: the purge deletes it.
+    assert deleted == []
     assert sid not in store._data["sessions"]
+    assert store._data["deleted_sessions"][sid]["driveFolderId"] == "sf"
 
 
 async def test_a_session_stuck_provisioning_can_still_be_deleted(store, queued, client):

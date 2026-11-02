@@ -24,13 +24,13 @@ exclude_tags = ["release-smoke"]
 
 [[lane]]
 id = "B"
-title = "Semper and Classroom side by side: per app, sync, offline"
+title = "Semper and Classroom side by side: per app, sync, offline; the recycle bin on two phones"
 devices = ["Medium_Phone_2", "Pixel_10"]
 builds = ["semper-debug-staging", "classroom-debug-staging"]
 backend = "staging"
-suites = ["licence-activation"]
-groups = ["L6", "L10", "L11"]
-scenarios = ["L15.6"]
+suites = ["licence-activation", "recycle-bin"]
+groups = ["L6", "L10", "L11", "R1", "R2", "R3", "R4", "R5"]
+scenarios = ["L15.6", "R6.1"]
 
 [[lane]]
 id = "C"
@@ -54,12 +54,12 @@ scenarios = ["L15.7"]
 
 [[lane]]
 id = "E"
-title = "No phone: backend, console and migration tests, the L13 dry-run report"
+title = "No phone: backend, console and migration tests, the L13 dry-run report, the recycle bin's backend"
 devices = []
 builds = []
 backend = "staging"
-suites = ["licence-activation"]
-groups = ["L13"]
+suites = ["licence-activation", "recycle-bin"]
+groups = ["L13", "R6"]
 
 # ---------------------------------------------------------------------------
 # Human gates. A scenario that lists one in `human_gate` stops its lane at

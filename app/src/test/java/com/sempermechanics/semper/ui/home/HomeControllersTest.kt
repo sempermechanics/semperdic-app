@@ -295,6 +295,25 @@ class HomeControllersTest {
     }
 
     @Test
+    fun `a row whose backup is in the recycle bin opens the bin, whatever its state`() {
+        // ADR-035: backing it up again would be refused (409 session_in_recycle_bin).
+        AppSettings.setSaveToCloudEnabled(context, true)
+        var binOpened = 0
+        val badge = BackupBadgeActions(activity, SessionListAdapter({ false }, {}, {}), { binOpened++ }) {
+            settingsOpened++
+        }
+
+        badge.retryOrBackup(record(SessionRecord.SyncState.LOCAL_ONLY).copy(binnedCloudId = "S1"))
+        badge.retryOrBackup(record(SessionRecord.SyncState.FAILED).copy(binnedCloudId = "S1"))
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertEquals(2, binOpened)
+        assertEquals(0, settingsOpened)
+        assertNull("no upload queued", ShadowDialog.getLatestDialog())
+        assertTrue(WorkManager.getInstance(context).getWorkInfosForUniqueWork(WorkTags.uploadName("a")).get().isEmpty())
+    }
+
+    @Test
     fun `a failed row explains the retained failure before offering a retry`() {
         val failed = OneTimeWorkRequestBuilder<FailingWorker>()
             .setInputData(workDataOf(IntentKeys.UPLOAD_FAIL_REASON to "Too large (ref r9)"))

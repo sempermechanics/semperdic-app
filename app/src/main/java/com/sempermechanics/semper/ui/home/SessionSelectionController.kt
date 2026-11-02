@@ -20,11 +20,13 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.cloud.SessionDeletes
 import com.sempermechanics.semper.data.session.SessionRecord
+import com.sempermechanics.semper.data.session.inRecycleBin
 import com.sempermechanics.semper.data.session.isKnownInCloud
 import com.sempermechanics.semper.data.session.isRestorable
 import com.sempermechanics.semper.ui.common.dialog.DeleteChoiceDialog
 import com.sempermechanics.semper.ui.common.dialog.Dialogs
 import com.sempermechanics.semper.ui.common.dialog.Feedback
+import com.sempermechanics.semper.ui.recyclebin.RecycleBinView
 import java.util.UUID
 
 /**
@@ -303,14 +305,14 @@ class SessionSelectionController(
         when {
             allHaveLocal && allHaveCloud -> showChoices(
                 title,
-                activity.resources.getQuantityString(
+                otherAppDeleteWarning(activity, records) ?: activity.resources.getQuantityString(
                     R.plurals.delete_confirm_body_choice_multi,
                     records.size,
                     records.size,
                 ),
                 records,
             )
-            allHaveLocal && !anyCloud -> confirm(title, activity.getString(R.string.delete_body_cant_undo)) {
+            allHaveLocal && !anyCloud -> confirm(title, phoneOnlyMessage(records)) {
                 eraseLocally(records, deviceOnly = false)
             }
             // Only-cloud stubs and mixed selections: one Delete that erases every copy.
@@ -323,12 +325,23 @@ class SessionSelectionController(
     /** The prompt above a Delete that erases every copy, naming how many are backed up. */
     private fun eraseEverywhereMessage(records: List<SessionRecord>): String {
         val backedUp = records.count { it.isKnownInCloud }
-        if (backedUp == 0) return activity.getString(R.string.delete_body_cant_undo)
+        if (backedUp == 0) return phoneOnlyMessage(records)
         return activity.resources.getQuantityString(
             R.plurals.delete_confirm_body_everywhere_multi,
             backedUp,
             backedUp,
         )
+    }
+
+    /**
+     * The prompt above a Delete that touches no backup: "This can't be undone",
+     * or, when some rows' backups are in the recycle bin (ADR-035), that those
+     * stay there.
+     */
+    private fun phoneOnlyMessage(records: List<SessionRecord>): String {
+        val binned = records.count { it.inRecycleBin }
+        if (binned == 0) return activity.getString(R.string.delete_body_cant_undo)
+        return activity.resources.getQuantityString(R.plurals.delete_binned_body_multi, binned, binned)
     }
 
     /**
@@ -371,7 +384,9 @@ class SessionSelectionController(
 
     /**
      * Delete an analysis, named in the title. Dual-presence rows choose phone,
-     * cloud or both; only-cloud stubs erase everywhere; local-only deletes fully.
+     * cloud or both; only-cloud stubs erase everywhere, the backup to the
+     * recycle bin; local-only deletes fully. A row whose backup is already in
+     * the bin is deleted from the phone only: the bin keeps the backup.
      */
     fun confirmDelete(record: SessionRecord) {
         val hasCloud = record.isKnownInCloud
@@ -381,12 +396,23 @@ class SessionSelectionController(
 
         when {
             hasLocal && hasCloud ->
-                showChoices(title, activity.getString(R.string.delete_confirm_body_cloud), listOf(record))
+                showChoices(
+                    title,
+                    otherAppDeleteWarning(activity, listOf(record))
+                        ?: activity.getString(R.string.delete_confirm_body_cloud),
+                    listOf(record),
+                )
             !hasLocal && hasCloud -> confirm(
                 activity.getString(R.string.delete_cloud_title_fmt, record.name),
-                cantUndo,
+                activity.getString(R.string.cloud_delete_body),
             ) {
                 queueDelete(listOf(record), SessionDeletes.Mode.EVERYWHERE)
+            }
+            record.inRecycleBin -> confirm(
+                title,
+                RecycleBinView.deleteBinnedBody(activity, record.binPurgeAt, System.currentTimeMillis()),
+            ) {
+                eraseLocally(listOf(record), deviceOnly = false)
             }
             else -> confirm(title, cantUndo) {
                 eraseLocally(listOf(record), deviceOnly = false)

@@ -38,6 +38,19 @@ class UploadErrorsTest {
     }
 
     @Test
+    fun `an analysis in the recycle bin is its own kind, told apart before any other 409`() {
+        val refusal = body("session_in_recycle_bin: 3f9c2a7e")
+
+        assertEquals(Kind.IN_RECYCLE_BIN, UploadErrors.classify(409, refusal))
+        assertEquals("3f9c2a7e", UploadErrors.binnedSessionId(refusal))
+        assertEquals("", UploadErrors.binnedSessionId(body("session_in_recycle_bin")))
+        // Only as a 409: the code on another status is not the bin's refusal.
+        assertEquals(Kind.TRANSIENT, UploadErrors.classify(503, refusal))
+        // An older build's reading of the same answer: terminal, never requeued.
+        assertTrue(UploadWorkOutcomes.fromHttpCode(409, refusal) is ListenableWorker.Result.Failure)
+    }
+
+    @Test
     fun `bad bytes at complete are an integrity rebuild, not a retry of the same object`() {
         assertEquals(Kind.INTEGRITY, UploadErrors.classify(422, body("checksum_mismatch")))
         assertEquals(Kind.INTEGRITY, UploadErrors.classify(422, body("size_mismatch")))

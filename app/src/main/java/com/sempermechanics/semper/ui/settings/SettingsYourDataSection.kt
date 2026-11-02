@@ -21,13 +21,14 @@ import com.sempermechanics.semper.ui.common.auth.ExternalLinks
 import com.sempermechanics.semper.ui.common.dialog.Dialogs
 import com.sempermechanics.semper.ui.common.dialog.Feedback
 import com.sempermechanics.semper.ui.common.transfer.TransferBannerController
+import com.sempermechanics.semper.ui.recyclebin.RecycleBinActivity
 import com.sempermechanics.semper.ui.viewer.share.SendToSheet
 import com.sempermechanics.semper.util.ProgressCount
 import kotlinx.coroutines.launch
 
 /**
- * Export / erasure / diagnostics. Session restore / download / delete stay on
- * [SettingsActivity].
+ * The recycle bin, export / erasure / diagnostics. Session restore / download /
+ * delete stay on [SettingsActivity].
  */
 class SettingsYourDataSection(
     private val activity: SettingsActivity,
@@ -37,6 +38,7 @@ class SettingsYourDataSection(
     private var deletionProgress: AlertDialog? = null
 
     fun wire() {
+        views.btnRecycleBin.setOnClickListener { RecycleBinActivity.open(activity) }
         views.btnExportData.setOnClickListener { exportMyData() }
         views.btnExportCloudData.setOnClickListener { exportCloudAccountData() }
         views.btnDeleteAccount.setOnClickListener { confirmDeleteAccount() }

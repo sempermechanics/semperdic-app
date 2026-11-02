@@ -291,8 +291,12 @@ class AccountDeletionDeathTest {
         assertEquals(State.Idle, resume())
 
         assertFalse("the backend is not asked", "getErasureStatus" in api.calls)
-        assertEquals(1, SessionStore.list(app).size)
         assertNull(AccountDeletionMarker.read(app))
+        // The analysis is the first account's: hidden from the other one
+        // (SessionOwner), not wiped, and back when its own account signs in.
+        assertTrue(SessionStore.list(app).isEmpty())
+        AccountCache.saveIdentity(app, UID, "user@example.com")
+        assertEquals(1, SessionStore.list(app).size)
     }
 
     @Test

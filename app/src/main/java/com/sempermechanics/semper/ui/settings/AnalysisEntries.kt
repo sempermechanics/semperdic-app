@@ -4,6 +4,7 @@ import androidx.annotation.WorkerThread
 import com.sempermechanics.semper.data.net.CloudSessionDto
 import com.sempermechanics.semper.data.session.CloudNaming
 import com.sempermechanics.semper.data.session.SessionRecord
+import com.sempermechanics.semper.data.session.inRecycleBin
 
 /** Where one analysis lives, which decides its row's wording and actions. */
 enum class AnalysisLocation {
@@ -18,6 +19,12 @@ enum class AnalysisLocation {
      * analysis is "on phone only" reads as "your backup is gone".
      */
     PHONE_SYNC_STATE,
+
+    /**
+     * On this phone, with its backup in the account's recycle bin (ADR-035):
+     * the row says until when, and offers Restore backup, not Back up.
+     */
+    IN_RECYCLE_BIN,
 }
 
 /** One analysis, wherever it lives. A null half means it is not there. */
@@ -43,6 +50,7 @@ data class AnalysisEntry(
         get() = when {
             cloud != null && !hasLocalData -> AnalysisLocation.CLOUD_ONLY
             cloud != null -> AnalysisLocation.PHONE_AND_CLOUD
+            record?.inRecycleBin == true -> AnalysisLocation.IN_RECYCLE_BIN
             record?.syncState == SessionRecord.SyncState.LOCAL_ONLY -> AnalysisLocation.PHONE_ONLY
             else -> AnalysisLocation.PHONE_SYNC_STATE
         }

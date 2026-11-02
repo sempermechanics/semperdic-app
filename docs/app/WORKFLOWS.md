@@ -127,6 +127,7 @@ The session list and the only entry point to a new analysis.
    ├── Session list
    │   ├── open a session ............ → 8. Result viewer, or 7. Lattice for sweeps
    │   ├── cloud state icon tap ...... retry backup / open Settings
+   │   ├── recycle bin icon tap ...... → 4.2 Recycle bin (the row's backup is in the bin)
    │   ├── "Only in cloud" row ....... "Restore <name>?" → background restore
    │   ├── live row progress ......... backup (prepare/upload) and restore/download
    │   └── "session data gone" dialog  (local frames deleted, no cloud copy either)
@@ -134,7 +135,8 @@ The session list and the only entry point to a new analysis.
    │   ├── select all
    │   ├── rename                      (only with exactly one selected)
    │   └── delete → phone / cloud backup / everywhere when every row has both;
-   │                otherwise one Delete that removes every copy
+   │                otherwise one Delete that removes every copy; a deleted
+   │                backup goes to the recycle bin for 30 days
    ├── Quota chip (from 80% of cap) .... → 9. Session limit / 4. Settings
    ├── Pull-to-refresh                  (deep cloud reconcile, repairs blobs)
    ├── Empty state → "Start analysis"   (same as the FAB — no longer Settings)
@@ -146,7 +148,7 @@ The session list and the only entry point to a new analysis.
 ```
 
 **Entry:** Splash, Pending approval, the viewer's home button, sign-in.
-**Exit:** Analysis, Settings, Result viewer, Lattice, Session limit.
+**Exit:** Analysis, Settings, Result viewer, Lattice, Session limit, Recycle bin.
 
 | # | Action | Expected |
 |---|---|---|
@@ -166,7 +168,7 @@ The session list and the only entry point to a new analysis.
 | [ ] 3.4i | Open Home on a phone an earlier version left with two rows of one name, or a restored row named "steel_00.png" | Every row reads differently: the oldest keeps the plain name, the others take "(2)", "(3)"; the "steel_00.png" row reads "steel_00" (or, from its backup's metadata, e.g. "steel_24 sweep"). Its id, files and backup are untouched |
 | [ ] 3.4g | Look at the row of an analysis made from a video | "Video · 40 frames, 0:00–0:12 · 91.2%": the first and last frame's times in the clip, then the convergence, amber under 85% as on any row. TalkBack reads "… 91.2% converged". The same analysis restored from the cloud reads like a photo row ("40 frames · 91.2%"): the clip's times are not backed up |
 | [ ] 3.4h | Run a parameter sweep on frame `steel_24` | The new row is named "steel_24 sweep" (a second one "steel_24 sweep (2)"); sweeps named before this change keep "Parameter sweep · …" |
-| [ ] 3.4c | Read each cloud state icon with TalkBack | Cloud with tick "Backed up", up arrow "Upload pending", crossed out "Not backed up" (red when the backup failed), down arrow "Only in cloud" |
+| [ ] 3.4c | Read each cloud state icon with TalkBack | Cloud with tick "Backed up", up arrow "Upload pending", crossed out "Not backed up" (red when the backup failed), down arrow "Only in cloud", a bin "Backup in the recycle bin" |
 | [ ] 3.5 | Tap a normal session | Result viewer opens on frame 1 |
 | [ ] 3.6 | Tap a sweep session | **Lattice** opens, not the viewer |
 | [ ] 3.7 | Tap a row whose local files were deleted but which has a cloud backup | Its icon is the **"Only in cloud"** cloud-download; tapping raises a **"Restore steel_00?"** dialog (the analysis's name; "It's only in the cloud.") with a **Restore** button, which queues a background restore and **leaves you on Home** — it does not open the analysis when it lands |
@@ -181,6 +183,9 @@ The session list and the only entry point to a new analysis.
 | [ ] 3.7g1 | Read that checklist when the account has several backups of one image, and the phone a row of that name | No extension and no two alike: "steel_00 (2) · 128 MB", "pmma_00 · 216 MB", "pmma_00 (2) · 216 MB". Restore them all: each lands in a row of its own, under the name it was backed up with ("steel_24 sweep", or "steel_00" for an old dated or "steel_00.png" name), numbered if another row has it — never two rows that read alike |
 | [ ] 3.7h | Tap **Hide** | The card goes, with a message saying Settings can still restore them. It stays gone across relaunches until the account gains a backup it has not seen, which brings the card back for that one only |
 | [ ] 3.7i | Delete a backup from Settings, or sign out and in as another account | The card stops offering the deleted backup at once; the other account starts with nothing hidden and nothing offered until its own cloud check |
+| [ ] 3.7i1 | Phone shared by two accounts (the first released or deactivated, so the second may sign in): A runs two analyses and signs out; B signs in | B meets the Terms screen (A's acceptance is not B's), and Home shows none of A's analyses: B's own list, B's own quota count ("0 / 25" on a new demo account). B's backups and the cloud check never touch A's rows: none is uploaded into B's account, freed, or counted. B signs out and A signs back in: A's two analyses are there as before (`SessionOwner`, owner decision 2026-11-01) |
+| [ ] 3.7i2 | As 3.7i1, but B signs in from the sign-in screen while A's session is still live (after "Your session expired" or a refused device binding), with no sign-out between | The same: B meets the Terms screen, A's cached approval, device binding and limits are gone, and A's analyses are hidden (`AccountSwitch.signedIn`) |
+| [ ] 3.7i3 | Update from a version before analysis owners, with analyses on the phone, and sign in | Every analysis is still on Home: the first account signed in after the update owns them. A different account signing in later does not see them |
 | [ ] 3.7j | Licensed account: open Settings → **Cloud backup** | A **Download from my other phones** switch, on by default, under **Wi‑Fi only**; TalkBack reads that it downloads, on Wi‑Fi, analyses your other phones backed up, and not ones freed from this phone. A demo account sees it off and locked with the other switches. Turn it off and on: it stays as set across relaunches |
 | [ ] 3.7k | Two activated phones on one licensed account, both with the switch on. Back up a new analysis on phone A, then put phone B on Wi‑Fi (not low on battery) and wait for the next sync (up to 6 hours) | Phone B restores the analysis with no tap: it lands as a row with its own progress, as a Home card **Restore** would, and the card no longer offers it. On mobile data nothing downloads. Phone B's own analyses, and a Semper Classroom analysis on the same account, are untouched |
 | [ ] 3.7l | On phone B, **Delete** → **From this phone** that analysis ("Freed from this phone · in the cloud"); separately **Hide** another backup on the Home card, and cancel a third's restore; wait for the next sync | The removed row stays "Only in cloud", the hidden one stays hidden, the cancelled one is not started again; each can still be restored by hand. Turn the switch off: a restore already running finishes, and no new one starts |
@@ -206,13 +211,18 @@ The session list and the only entry point to a new analysis.
 | [ ] 3.12 | Rename a single selection | Text dialog; the new name persists after leaving and returning |
 | [ ] 3.12b | Rename a row to another row's name | It is saved with the next free "(2)", "(3)", and a toast reads "Saved as steel_00 (2)" |
 | [ ] 3.12a | Rename a backed-up analysis, then restore it on another phone (or after a reinstall) | It restores under the new name: the rename re-sends the backup's metadata.json (ADR-013) |
-| [ ] 3.13 | Delete one session that exists **both** on the phone and in the cloud | "Delete steel_00?" (the analysis's name) and "A deleted cloud copy can't be recovered.", then **From this phone** (hint "cloud stays"), **From the cloud** (hint "phone stays") and **Everywhere**, plus Cancel |
+| [ ] 3.13 | Delete one session that exists **both** on the phone and in the cloud | "Delete steel_00?" (the analysis's name) and "A deleted cloud copy stays in the recycle bin for 30 days.", then **From this phone** (hint "cloud stays"), **From the cloud** (hint "phone stays") and **Everywhere**, plus Cancel |
 | [ ] 3.13a | Choose **From this phone** | Message pill: "Removed from this phone · in the cloud". The row stays, its icon now "Only in cloud" |
 | [ ] 3.13b | Delete a row that is already cloud-only, on device only | No-op branch — there is nothing local left to remove |
-| [ ] 3.14 | Delete several sessions | "Delete 5 analyses?" with the same three choices when every row is on both ("5 are in the cloud. A deleted cloud copy can't be recovered."). A selection with no cloud copy gets one plural confirm ("This can't be undone."); a mixed selection or cloud-only stubs get one Delete that removes every copy ("3 are in the cloud. Delete removes every copy. …"). One phone-only row deleted reads "Deleted steel_00" |
-| [ ] 3.14a | Choose **Everywhere** for ten rows | The rows disappear at once; a message pill offers **Undo** for 5 s, then reads "Deleting 4 of 10…", then "10 deleted". Production logs show ten DELETEs and no 404 |
+| [ ] 3.13c | Choose **From the cloud**, and wait past the undo window | The row stays on the phone; its end icon is a bin, read "Backup in the recycle bin". The backup is in the recycle bin (§4.2) for 30 days, and no backup or cloud check uploads it again |
+| [ ] 3.13d | Tap that bin icon | The **Recycle bin** screen opens (§4.2) |
+| [ ] 3.13e | Delete that row (its backup in the bin) | One confirm, phone only: "Delete steel_00?" and "It's deleted from this phone. Its backup stays in the recycle bin until 3 Dec." with **Delete**. No From the cloud or Everywhere choice; the backup stays in the bin |
+| [ ] 3.13f | Delete one cloud-only row ("Only in cloud") | "Delete steel_00 from the cloud?" and "Raw images, results and report. They stay in the recycle bin for 30 days, then they're erased for good." with **Delete** (it used to say "This can't be undone.") |
+| [ ] 3.14 | Delete several sessions | "Delete 5 analyses?" with the same three choices when every row is on both ("5 are in the cloud. Deleted cloud copies stay in the recycle bin for 30 days."). A selection with no cloud copy gets one plural confirm ("This can't be undone."); a mixed selection or cloud-only stubs get one Delete ("3 are in the cloud. Delete removes them from this phone, and their backups stay in the recycle bin for 30 days."). One phone-only row deleted reads "Deleted steel_00" |
+| [ ] 3.14a | Choose **Everywhere** for ten rows | The rows disappear at once; a message pill offers **Undo** for 5 s, then reads "Deleting 4 of 10…", then "10 deleted · in the recycle bin for 30 days". Production logs show ten DELETEs and no 404; the ten backups are in the recycle bin (§4.2) |
 | [ ] 3.14b | Tap **Undo** inside the 5 s | The rows come back and nothing reaches the backend |
 | [ ] 3.14c | Delete while offline | The rows stay hidden; the delete runs when the network returns. If it still cannot reach the cloud, the pill names how many are left, with **Try again** |
+| [ ] 3.14d | Select several rows, all on the phone, none in the cloud, some with a backup in the bin (3.13c), and delete | One Delete, phone only: "They're deleted from this phone. 2 have a backup in the recycle bin; they stay there." The binned backups stay in the bin |
 | [ ] 3.15 | Press Back in selection mode | Selection clears; the app does not exit |
 | [ ] 3.16 | Tap the quota chip below the cap | Settings (or the limit screen at the cap) |
 | [ ] 3.17 | Reach the quota cap | The chip turns red |
@@ -255,7 +265,7 @@ downloads and the two data exports run behind a **transfer banner** pinned at th
 top of Settings (§4.0).
 
 **Entry:** the Home gear (also the quota chip and any cloud state icon on a row).
-**Exit:** Home, Admin, a result, or Login.
+**Exit:** Home, Admin, a result, the Recycle bin (§4.2), or Login.
 
 #### 4.0 The transfer banner
 
@@ -314,10 +324,12 @@ data**.
 | [ ] 4.14g | Cause a Download to fail | The empty destination file is removed rather than left as a 0-byte zip, and the failure is named |
 | [ ] 4.14h | Look at cloud-only rows of backups made from one image, beside a phone row of that name | Named without the extension and never alike: "steel_00 (2)", "pmma_00", "pmma_00 (2)"; restored, each keeps the name it was backed up with, numbered on a clash |
 | [ ] 4.14i | Back up a sweep and a renamed analysis, then look at their cloud-only rows here and on Home's restore list (another phone, or after deleting the phone copies) | Listed by the analysis's name ("steel_24 sweep", the new name), the name the restore gives the row, not the reference's file name. Rename one after its backup: after the metadata re-send the list shows the new name. A backup from an older build, or on a backend from before TD-208, is still listed by its reference's name |
-| [ ] 4.15 | Tap the bin on a row with a local copy | The same three choices as Home §3.13: phone / cloud backup / everywhere, plus Cancel |
-| [ ] 4.16 | Tap the bin on a cloud-only row | "Delete steel_00 from the cloud?" naming the analysis, "Raw images, results and report. This can't be undone.", and **Delete** |
+| [ ] 4.15 | Tap the bin on a row with a local copy | As Home §3.13: "Delete steel_00?" and "A deleted cloud copy stays in the recycle bin for 30 days.", then **From this phone**, **From the cloud** and **Everywhere**, plus Cancel |
+| [ ] 4.15a | Choose **From the cloud**, wait past the undo window, and look at the row | Its state line reads "In the recycle bin until 3 Dec" (the day it is erased for good; "In the recycle bin" when the date is not known), with a **Restore backup** button. Home's row shows the bin icon (§3.13c) |
+| [ ] 4.15b | Tap **Restore backup** | The **Recycle bin** screen (§4.2) opens and restores that backup there, as 4.2.4 |
+| [ ] 4.16 | Tap the bin on a cloud-only row | "Delete steel_00 from the cloud?" naming the analysis, "Raw images, results and report. They stay in the recycle bin for 30 days, then they're erased for good.", and **Delete** |
 | [ ] 4.17 | Confirm any backup delete, then tap **Undo** within 5 s | The row returns; nothing is deleted server-side |
-| [ ] 4.18 | Confirm and wait past the undo window | The backup is really gone after a refresh |
+| [ ] 4.18 | Confirm and wait past the undo window | After a refresh the backup is no longer listed. It is in **Your data → Recycle bin** for 30 days; a phone row for it reads "In the recycle bin until 3 Dec" with **Restore backup** |
 | [ ] 4.18a | Expand **Storage** | Analyses and cache sizes are measured and shown, not left on "Measuring…" |
 | [ ] 4.18b | Tap **Free up N MB** with backed-up analyses present (the row only shows then, its N what the backed-up analyses hold here) | A confirm dialog first, **naming how much it will reclaim** — only the frames, raw images and processed/staging folders it drops, not the kept `reference.png` / small files (`LocalArtifacts`), so the figure matches what is freed; accepting drops those local frames, the rows become "Only in cloud" on Home and the analyses total falls |
 | [ ] 4.18c | Look for it with nothing safely backed up | There is no free-up row at all — it cannot strand un-backed-up data. A demo account never has one |
@@ -327,6 +339,8 @@ data**.
 | [ ] 4.18g | Tap the ⓘ beside it | Explains what Off means (analyses stay until you remove them), what a size does, and that only cloud-backed analyses are ever dropped |
 | [ ] 4.19 | Tap **Export my data** | A master ZIP is built behind the **transfer banner** (§4.0) — not a blocking dialog — then handed to the **Send to** sheet (§8.5a) |
 | [ ] 4.19a | Tap **Download cloud data** | The server-side export of the account is fetched the same way, banner and all, then offered through the same sheet |
+| [ ] 4.19e | Open that file for an account with a backup in the recycle bin | After `sessionCount` and before `"complete": true`: `recycleBin`, each binned analysis with its `deletedAt`, `purgeAt` and file list, and `erasedBackups`, the ids of backups erased for good in the last 30 days (`sessionId`, `localSessionId`, `erasedAt`) |
+| [ ] 4.19f | Expand **Your data**, on a licensed account and on a Demo account | A **Recycle bin** button on both (the section has no licence lock); it opens the Recycle bin (§4.2) |
 | [ ] 4.19b | Trigger either export with no network | It fails with a named reason, not a silent no-op |
 | [ ] 4.19c | Toggle **Send crash reports** off, then force a crash on a debug build | Nothing is uploaded; turning it on again resumes collection without a restart |
 | [ ] 4.19d | Read what that toggle actually controls | It gates **both** crash reporting and consent-gated product analytics (analysis started/completed/failed, exports, feedback), and the label now says so: **Send crash reports and usage data**, with the subtitle naming the usage events and what is never sent |
@@ -359,6 +373,43 @@ data**.
 | [ ] 4.1.2 | With no one waiting | "No pending requests." |
 | [ ] 4.1.3 | Tap **Approve** | Toast, list reloads, that user can now get past Pending approval |
 | [ ] 4.1.4 | Tap **Deny** | Toast, the row disappears |
+
+### 4.2 Recycle bin
+
+A deleted cloud backup waits here for 30 days, then the backend erases it for
+good ([ADR-035](../adr/ADR-035-recycle-bin.md)). The screen lists this app's
+backups in the account's bin, soonest erased first; a Semper Classroom backup
+is in that app's bin. Restore puts a backup back in the cloud backups, not on
+the phone; from there it restores as any backup does.
+
+```
+4.2 Recycle bin — RecycleBinActivity
+   ├── Empty recycle bin ............. "Erase N backups for good?" → the paced delete of them all
+   ├── Rows (soonest erased first)
+   │   ├── Restore ................... back in the backups; no room → 9. Session limit
+   │   └── Delete permanently ........ "Delete <name> permanently?" → 5 s Undo → erased for good
+   ├── Empty state ................... "The recycle bin is empty."
+   └── Offline / load failure ........ a line and Try again
+```
+
+**Entry:** Settings → Your data → **Recycle bin** (§4.19f); a Home row's bin
+icon (§3.13d); **Restore backup** on a Settings analysis row (§4.15b).
+**Exit:** back to where it was opened; Session limit when a restore has no room.
+
+| # | Action | Expected |
+|---|---|---|
+| [ ] 4.2.1 | Open it with backups in the bin | Title "Recycle bin"; "A deleted backup stays here for 30 days, then it's erased for good. Restore it before then to get it back."; an **Empty recycle bin** button. Each row: the analysis's name, its size, "Deleted 3 Nov · erased for good on 3 Dec", "12 days left" ("1 day left"; past its time "Being erased for good"), and **Restore** and **Delete permanently** |
+| [ ] 4.2.2 | Open it with nothing in the bin | "The recycle bin is empty." and no **Empty recycle bin** button |
+| [ ] 4.2.3 | Open it offline; then with the backend failing | "Couldn't reach semper. Check your connection and try again." with **Try again**, which loads it once the network is back. Any other failure: "Couldn't load the recycle bin." |
+| [ ] 4.2.4 | Tap **Restore** on a row | Toast "steel_00 is backed up again"; the row leaves the list. This phone's row for it goes back to "Backed up" (or only leaves the bin, if the backup was never finished), and Home shows it at once: the cloud check after a restore is not held back by its throttle |
+| [ ] 4.2.5 | Tap **Restore** with no room: the account at its analysis cap, or a Demo phone at its cap | Toast "There's no room to restore it: your account or this phone is at its analysis limit. Delete an analysis first." and the Session limit screen (§9) opens. The backup stays in the bin |
+| [ ] 4.2.6 | Tap **Restore** on a backup another phone has since deleted permanently (the list not yet reloaded) | "That backup was already erased for good." and the list reloads without it |
+| [ ] 4.2.7 | Rotate the phone with the list up, just after tapping **Restore**, and with the **Delete permanently** question open | The list is still there; the restore's toast shows once, on the new screen; the question is still up. Opened from a Settings row's **Restore backup** (4.15b), the restore runs once, not again after a rotation |
+| [ ] 4.2.8 | Tap **Delete permanently** on a row | "Delete steel_00 permanently?" and "Its raw images, results and report are erased from the cloud for good. This can't be undone." with **Delete permanently**. Confirm: the row hides, a pill offers **Undo** for 5 s, then "Deleting 1 of 1…", then "1 backup erased for good". This phone's row for it: a stub with no frames is removed; a row with frames reads "Not backed up" |
+| [ ] 4.2.9 | Tap **Undo** inside the 5 s | The row comes back and nothing reaches the backend |
+| [ ] 4.2.10 | Tap **Empty recycle bin** with three backups in it | "Erase 3 backups for good?" and "Everything in the recycle bin is erased from the cloud for good. This can't be undone." Confirm: the rows hide and the empty state shows; the same queued delete as 4.2.8 then runs for all three, one at a time, with Undo first; a 429 is waited out, not reported as a failure |
+| [ ] 4.2.11 | Two phones on one account, both holding an analysis as backed up. On phone A, **Delete** → **Everywhere**; then pull to refresh on phone B | Phone B's row shows the bin icon, "Backup in the recycle bin"; it is never uploaded again, and the sync from other phones does not restore it on B or A (L5-2). Restore it from the bin on A: phone B's row is "Backed up" again after its next check, and a phone that lacks the analysis (A here) restores it at its next sync from other phones (3.7k's conditions), as any backup |
+| [ ] 4.2.12 | Start a backup of a large analysis and, while it uploads, delete the row **From the cloud** or **Everywhere** | The upload stops first. A backup it had already started goes to the recycle bin with the rest; the row is never marked "Backed up" afterwards (L5-3) |
 
 ---
 
@@ -1067,8 +1118,9 @@ verified, both are live; §1.13a covers the in-app reset form it opens.
   checks.
 - **Coach marks cannot be replayed or reset** — the flags are write-once with no
   UI to clear them.
-- **There is still no dedicated restore screen** — restoring is done from a Home
-  row or from Settings → Analyses data management.
+- **There is still no dedicated restore screen** — restoring to the phone is done
+  from a Home row or from Settings → Analyses data management. The Recycle bin
+  (§4.2) restores a deleted backup to the cloud, not to the phone.
 - **The advanced-parameters and sweep-settings headers look collapsible** (icon,
   title) but have no click listener. Only the lattice-samples panel really
   collapses.

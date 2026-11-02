@@ -1,0 +1,469 @@
+# The recycle bin (ADR-035): a deleted cloud backup waits 30 days, then it is
+# erased for good; it can be restored or deleted permanently before then.
+# One [[scenario]] per check; ids are R<group>.<n>, stable and never reused.
+# Retire a scenario with status = "retired" and a `note`; never delete it.
+# Add one by taking the next number in its group and raising that group in
+# [issued]. Field reference: qa/SCHEMA.md. The manual pass is
+# docs/app/WORKFLOWS.md §3.13-3.14, §4.15-4.19 and §4.2.
+
+schema = 1
+id = "recycle-bin"
+title = "Recycle bin: a deleted cloud backup kept 30 days, restored or deleted permanently"
+prefix = "R"
+since = "ADR-035"
+note = "Needs the ADR-035 backend on staging, which is the owner's deploy (gate `deploy`). Production waits for counsel's Privacy Policy release (TD-277); run this suite on staging only."
+
+# The highest number ever issued in each group. Every id up to it must still
+# be in this file (retired or not); a new id raises it by one.
+[issued]
+R1 = 7
+R2 = 4
+R3 = 4
+R4 = 3
+R5 = 3
+R6 = 4
+
+# ===========================================================================
+# R1 Deleting a backup: the copy on Home and in Settings
+# ===========================================================================
+
+[[scenario]]
+id = "R1.1"
+title = "One row on both: the delete says the cloud copy goes to the recycle bin"
+area = "delete"
+tags = ["semper", "holder", "home"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Back up an analysis (steel_00) and wait for 'Backed up'",
+  "Home: long-press it, tap Delete",
+  "Read the dialog, then choose From the cloud and wait past the 5 s undo",
+  "Tap the row's end icon",
+]
+expected = "'Delete steel_00?' and 'A deleted cloud copy stays in the recycle bin for 30 days.' with From this phone, From the cloud and Everywhere. After the undo window the row stays; its end icon is a bin read 'Backup in the recycle bin'. Tapping it opens the Recycle bin, which lists steel_00"
+automation = ["unitTest:DeleteChoiceDialogTest", "unitTest:SessionSelectionBinTest", "unitTest:SessionStateIconTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R1.2"
+title = "Several rows: the choice, the single Delete and the done pill name the recycle bin"
+area = "delete"
+tags = ["semper", "holder", "home"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Select 5 rows that are each on the phone and in the cloud; tap Delete and read the dialog; Cancel",
+  "Select a mix: 3 backed-up rows and 2 phone-only rows; tap Delete and read the dialog; Cancel",
+  "Select 2 phone-only rows; tap Delete and read the dialog; Cancel",
+  "Select 10 backed-up rows; Delete, Everywhere; let the 5 s pass",
+]
+expected = "Every row on both: '5 are in the cloud. Deleted cloud copies stay in the recycle bin for 30 days.' with the three choices. Mixed: one Delete, '3 are in the cloud. Delete removes them from this phone, and their backups stay in the recycle bin for 30 days.' No cloud copy: 'This can't be undone.' The pill offers Undo for 5 s, reads 'Deleting 4 of 10…', then '10 deleted · in the recycle bin for 30 days'; the ten are in the Recycle bin"
+automation = ["unitTest:SessionSelectionControllerTest", "unitTest:SessionSelectionBinTest", "unitTest:DeleteDoneTextTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R1.3"
+title = "A cloud-only row deleted: 'They stay in the recycle bin for 30 days'"
+area = "delete"
+tags = ["semper", "holder", "home", "settings"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Make a backed-up row cloud-only (Delete, From this phone)",
+  "Home: select it and tap Delete; read the dialog; Cancel",
+  "Settings, Analyses data management: tap the bin on that row; confirm",
+]
+expected = "Both read 'Delete steel_00 from the cloud?' and 'Raw images, results and report. They stay in the recycle bin for 30 days, then they're erased for good.' with Delete (no longer 'This can't be undone.'). After the undo window the backup is in the Recycle bin"
+automation = ["unitTest:SessionSelectionControllerTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R1.4"
+title = "A row whose backup is in the bin deletes from this phone only"
+area = "delete"
+tags = ["semper", "holder", "home"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Take a row from R1.1 (on the phone, its backup in the bin); select it and tap Delete",
+  "Confirm",
+  "Select 3 phone-only rows, 2 of them with a backup in the bin; tap Delete and read the dialog",
+]
+expected = "One confirm: 'Delete steel_00?' and 'It's deleted from this phone. Its backup stays in the recycle bin until 3 Dec.' with Delete, and no cloud choice. The row goes; the Recycle bin still lists the backup. Several: 'They're deleted from this phone. 2 have a backup in the recycle bin; they stay there.'"
+automation = ["unitTest:SessionSelectionBinTest", "unitTest:SessionListAdapterTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R1.5"
+title = "Settings shows a binned backup's row 'In the recycle bin until …' with Restore backup"
+area = "settings"
+tags = ["semper", "holder", "settings"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Settings, Analyses data management: on a backed-up row with a local copy, tap the bin, From the cloud; wait past the undo",
+  "Read the row; tap Restore backup",
+]
+expected = "The state line reads 'In the recycle bin until 3 Dec' ('In the recycle bin' when the date is unknown) with a Restore backup button. The tap opens the Recycle bin and restores that backup there; the row goes back to 'Backed up'"
+automation = ["unitTest:AnalysisEntriesTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R1.6"
+title = "Settings, Your data has a Recycle bin button, on Demo too"
+area = "settings"
+tags = ["semper", "holder", "settings", "demo"]
+accounts = ["qc-ind1", "qc-demo"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "As qc-ind1: Settings, expand Your data, tap Recycle bin",
+  "Sign out; as qc-demo: Settings, expand Your data, tap Recycle bin",
+]
+expected = "Both accounts see the button (Your data has no licence lock) and it opens the Recycle bin screen"
+automation = ["unitTest:RecycleBinEntryTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R1.7"
+title = "Undo within 5 s keeps the backup out of the bin"
+area = "delete"
+tags = ["semper", "holder", "home", "settings"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Delete a backed-up row Everywhere on Home; tap Undo inside 5 s",
+  "In Settings, delete a cloud-only row; tap Undo inside 5 s",
+  "Open the Recycle bin",
+]
+expected = "Both rows come back; nothing reaches the backend (no DELETE in the staging logs) and neither backup is in the Recycle bin"
+automation = ["unitTest:SessionDeletesTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+# ===========================================================================
+# R2 The Recycle bin screen
+# ===========================================================================
+
+[[scenario]]
+id = "R2.1"
+title = "The list: name, size, dates, days left, Restore and Delete permanently"
+area = "screen"
+tags = ["semper", "holder", "bin-screen"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "With two backups in the bin, open Settings, Your data, Recycle bin",
+  "Read the title, the intro and each row",
+]
+expected = "Title 'Recycle bin'; 'A deleted backup stays here for 30 days, then it's erased for good. Restore it before then to get it back.'; an Empty recycle bin button. Rows soonest erased first, each with the analysis's name, its size, 'Deleted 3 Nov · erased for good on 3 Dec', 'N days left' (one day: '1 day left'), and Restore and Delete permanently"
+automation = ["unitTest:RecycleBinViewTest", "unitTest:RecycleBinActivityTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R2.2"
+title = "An empty bin says so and offers no Empty button"
+area = "screen"
+tags = ["semper", "holder", "bin-screen"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = ["Empty the bin (R4.3) or use an account with nothing deleted; open the Recycle bin"]
+expected = "'The recycle bin is empty.' and no Empty recycle bin button"
+automation = ["unitTest:RecycleBinActivityTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R2.3"
+title = "Offline, the screen says so and Try again loads it"
+area = "screen"
+tags = ["semper", "holder", "bin-screen", "offline"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Turn the emulator's network off (adb shell svc wifi disable; svc data disable)",
+  "Open the Recycle bin",
+  "Turn the network on; tap Try again",
+]
+expected = "'Couldn't reach semper. Check your connection and try again.' with Try again; once online, Try again shows the list. Any other failure reads 'Couldn't load the recycle bin.'"
+automation = ["unitTest:RecycleBinViewModelTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R2.4"
+title = "A rotation keeps the list, and a restore's outcome shows once"
+area = "screen"
+tags = ["semper", "holder", "bin-screen"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Open the Recycle bin with a backup in it; rotate the phone",
+  "Tap Restore and rotate at once",
+  "Tap Delete permanently and rotate with the question open",
+  "From Settings, tap Restore backup on a row in the bin and rotate as the screen opens",
+]
+expected = "The list is still there after the rotation; the restore's toast shows once, on the new screen. The Delete permanently question is still up. The Restore backup from Settings runs once, not again after the rotation"
+automation = ["unitTest:RecycleBinRotationTest", "unitTest:RecycleBinActivityTest", "unitTest:RecycleBinViewModelTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+# ===========================================================================
+# R3 Restore
+# ===========================================================================
+
+[[scenario]]
+id = "R3.1"
+title = "Restore puts the backup back, and this phone's row is Backed up again"
+area = "restore"
+tags = ["semper", "holder", "restore"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Delete a backed-up row From the cloud (its row stays, bin icon)",
+  "Open the Recycle bin; tap Restore on it",
+  "Go back to Home without pulling to refresh",
+]
+expected = "Toast 'steel_00 is backed up again'; the row leaves the list. On Home the row reads 'Backed up' at once (the check after a restore is not held back by its throttle). An unfinished backup only leaves the bin and is backed up as usual"
+automation = ["unitTest:RecycleBinTest", "unitTest:RecycleBinViewModelTest", "unitTest:RecycleBinActivityTest", "pytest:backend/tests/test_recycle_bin.py::test_a_restore_puts_the_session_back_as_it_was"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R3.2"
+title = "Restore with no room says so and opens the Session limit screen"
+area = "restore"
+tags = ["semper", "holder", "restore", "quota"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+human_gate = ["staff-step-up"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Staff set qc-ind1's maxSessions override (PATCH /v1/admin/users/{uid}/config) to the number of backups it holds now",
+  "Delete one backup From the cloud; back up one new analysis, so the account is at its cap again",
+  "Open the Recycle bin; tap Restore on the deleted one",
+  "Staff clear the override (maxSessions null)",
+]
+expected = "Toast 'There's no room to restore it: your account or this phone is at its analysis limit. Delete an analysis first.' and the Session limit screen opens. The backup stays in the bin"
+automation = ["unitTest:RecycleBinActivityTest", "unitTest:RecycleBinTest", "pytest:backend/tests/test_recycle_bin.py::test_a_restore_needs_room_under_the_quota", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R3.3"
+title = "Restore of a backup already erased for good says so and reloads"
+area = "restore"
+tags = ["semper", "holder", "restore", "two-phones"]
+accounts = ["qc-ind2"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Phones A and B (both qc-ind2, both activated): open the Recycle bin on both with the same backup listed",
+  "Phone B: Delete permanently, confirm, wait for '1 backup erased for good'",
+  "Phone A, without reloading: tap Restore on it",
+]
+expected = "Phone A: 'That backup was already erased for good.' and the list reloads without it"
+automation = ["unitTest:RecycleBinViewModelTest", "unitTest:RecycleBinTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R3.4"
+title = "A backup past its 30 days cannot be restored, even before the job erases it"
+area = "restore"
+tags = ["backend", "restore"]
+accounts = []
+needs = ["backend"]
+steps = ["Run the backend recycle bin tests (cd backend && python -m pytest tests/test_recycle_bin.py -q)"]
+expected = "A restore past purgeAt is refused 404 session_not_found, in the route and in the transaction; the app reads it as 'That backup was already erased for good.'"
+automation = ["pytest:backend/tests/test_recycle_bin.py::test_a_restore_past_its_purge_date_is_refused", "pytest:backend/tests/test_recycle_bin.py::test_the_restore_transaction_refuses_past_the_date_too"]
+status = "active"
+since = "ADR-035"
+
+# ===========================================================================
+# R4 Delete permanently and Empty recycle bin
+# ===========================================================================
+
+[[scenario]]
+id = "R4.1"
+title = "Delete permanently: confirm, Undo for 5 s, then erased for good"
+area = "purge"
+tags = ["semper", "holder", "purge"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Put two backups in the bin: one deleted From the cloud (the phone keeps its frames), one deleted while it was cloud-only (a stub)",
+  "Open the Recycle bin; tap Delete permanently on each; confirm; let the 5 s pass",
+  "Look at Home",
+]
+expected = "'Delete steel_00 permanently?' and 'Its raw images, results and report are erased from the cloud for good. This can't be undone.' with Delete permanently. The row hides, the pill offers Undo for 5 s, then 'Deleting 1 of 1…', then '1 backup erased for good'. On Home the row with frames reads 'Not backed up'; the stub with no frames is gone"
+automation = ["unitTest:SessionDeletesTest", "unitTest:RecycleBinActivityTest", "pytest:backend/tests/test_recycle_bin.py::test_a_permanent_delete_erases_drive_files_and_leaves_a_marker"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R4.2"
+title = "Undo on a permanent delete sends nothing"
+area = "purge"
+tags = ["semper", "holder", "purge"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = ["In the Recycle bin, tap Delete permanently, confirm, then Undo inside 5 s"]
+expected = "The row comes back; nothing reaches the backend (no DELETE /v1/recycle-bin in the staging logs); it can still be restored"
+automation = ["unitTest:RecycleBinActivityTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R4.3"
+title = "Empty recycle bin erases them all, one at a time"
+area = "purge"
+tags = ["semper", "holder", "purge"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Put three backups in the bin; open the Recycle bin; tap Empty recycle bin",
+  "Read the dialog; confirm; let the 5 s pass",
+]
+expected = "'Erase 3 backups for good?' and 'Everything in the recycle bin is erased from the cloud for good. This can't be undone.' Then the queued delete of R4.1 for all three: Undo first, one at a time, a 429 waited out rather than reported, then '3 backups erased for good' and the empty state"
+automation = ["unitTest:SessionDeletesTest", "unitTest:RecycleBinActivityTest", "manual"]
+status = "active"
+since = "ADR-035"
+
+# ===========================================================================
+# R5 Two phones, and a delete during an upload (L5-2, L5-3)
+# ===========================================================================
+
+[[scenario]]
+id = "R5.1"
+title = "A delete Everywhere on one phone does not come back from the other (L5-2)"
+area = "two-phones"
+tags = ["semper", "holder", "two-phones", "sync"]
+accounts = ["qc-ind2"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Phones A and B (both qc-ind2, activated, Download from my other phones on): an analysis backed up on A and restored on B, Backed up on both",
+  "Phone A: Delete, Everywhere; let the 5 s pass",
+  "Phone B: pull to refresh on Home; then wait for the next sync from other phones on both (or run it from WorkManager)",
+]
+expected = "Phone B's row shows the bin icon, 'Backup in the recycle bin'; no upload of it starts on B (staging logs: no POST /v1/sessions for its local id), and neither phone restores it. The Recycle bin on A and B lists it"
+automation = ["unitTest:CloudReconcileBinTest", "unitTest:PhoneSyncTest", "pytest:backend/tests/test_recycle_bin.py::test_a_reupload_of_a_binned_analysis_is_refused"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R5.2"
+title = "A backup restored from the bin is linked again on B and restored on a phone without it"
+area = "two-phones"
+tags = ["semper", "holder", "two-phones", "sync"]
+accounts = ["qc-ind2"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "After R5.1: phone A opens the Recycle bin and taps Restore",
+  "Phone B: pull to refresh",
+  "Phone A (which has no row for it): wait for the next sync from other phones on Wi-Fi",
+]
+expected = "Phone B's row reads 'Backed up' again (relinked, not uploaded again). Phone A restores the analysis as a new row, as any backup from another phone"
+automation = ["unitTest:CloudReconcileBinTest", "unitTest:PhoneSyncTest"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R5.3"
+title = "A delete during an upload stops it, and the row is never marked backed up (L5-3)"
+area = "upload"
+tags = ["semper", "holder", "upload"]
+accounts = ["qc-ind1"]
+needs = ["emulator"]
+builds = ["semper-debug-staging"]
+steps = [
+  "Start a backup of a large analysis (Back up now); while the row reads 'Backing up', select it and Delete From the cloud (then repeat with Everywhere on another)",
+  "Let the 5 s pass; watch the row; open the Recycle bin; pull to refresh on Home",
+]
+expected = "The upload stops first. A cloud session it had already created is in the Recycle bin with the rest (or nothing is, if it had not got that far); the row never reads 'Backed up' afterwards, and no later check uploads it again"
+automation = ["unitTest:SessionDeletesTest", "unitTest:DicUploadWorkerGuardTest", "pytest:backend/tests/test_recycle_bin.py::test_a_binned_file_refuses_completion"]
+status = "active"
+since = "ADR-035"
+
+# ===========================================================================
+# R6 Backend, export and erasure
+# ===========================================================================
+
+[[scenario]]
+id = "R6.1"
+title = "The account export lists recycleBin and erasedBackups"
+area = "export"
+tags = ["semper", "holder", "export"]
+accounts = ["qc-ind1"]
+needs = ["emulator", "backend"]
+builds = ["semper-debug-staging"]
+steps = [
+  "With one backup in the bin and one erased for good (R4.1), Settings, Your data, Download cloud data",
+  "Open the JSON",
+]
+expected = "After sessionCount and before \"complete\": true: recycleBin, the binned backup with deletedAt, purgeAt and its files; erasedBackups, the erased one's sessionId, localSessionId and erasedAt"
+automation = ["pytest:backend/tests/test_recycle_bin.py::test_the_export_lists_the_bin_before_complete", "manual"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R6.2"
+title = "The daily job erases what is due and leaves an erased marker"
+area = "purge-job"
+tags = ["backend", "purge"]
+accounts = []
+needs = ["backend"]
+steps = ["Run the backend recycle bin tests (cd backend && python -m pytest tests/test_recycle_bin.py -q)"]
+expected = "POST /v1/tasks/recycle-bin-purge (task invoker only) purges entries past purgeAt, at most a batch a run, one failure not stopping the rest; a Drive failure leaves the entry binned; each purged entry becomes a marker of ids alone"
+automation = ["pytest:backend/tests/test_recycle_bin.py::test_the_job_purges_what_is_due_and_nothing_else", "pytest:backend/tests/test_recycle_bin.py::test_one_failed_purge_does_not_stop_the_rest", "pytest:backend/tests/test_recycle_bin.py::test_a_drive_failure_leaves_the_entry_in_the_bin"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R6.3"
+title = "Account erasure removes the recycle bin and its folders"
+area = "erasure"
+tags = ["backend", "erasure"]
+accounts = []
+needs = ["backend"]
+steps = ["Run the backend recycle bin tests (cd backend && python -m pytest tests/test_recycle_bin.py -q)"]
+expected = "DELETE /v1/me deletes every deleted_sessions entry of the account, binned or erased, and the Drive fallback deletes the binned folders too"
+automation = ["pytest:backend/tests/test_recycle_bin.py::test_account_erasure_removes_the_bin", "pytest:backend/tests/test_recycle_bin.py::test_the_erasure_fallback_deletes_the_binned_folders_too"]
+status = "active"
+since = "ADR-035"
+
+[[scenario]]
+id = "R6.4"
+title = "Each app's bin lists its own backups only"
+area = "apps"
+tags = ["backend", "per-app"]
+accounts = []
+needs = ["backend"]
+steps = ["Run the backend recycle bin tests (cd backend && python -m pytest tests/test_recycle_bin.py -q)"]
+expected = "GET /v1/recycle-bin lists the asking app's entries (by X-App-Id), every app's with ?app=all; a restore or permanent delete of another app's entry is 404"
+automation = ["pytest:backend/tests/test_recycle_bin.py::test_the_bin_lists_the_asking_apps_entries_alone", "pytest:backend/tests/test_recycle_bin.py::test_a_restore_of_what_is_not_the_callers_binned_entry_is_not_found", "pytest:backend/tests/test_recycle_bin.py::test_a_permanent_delete_of_what_is_not_the_callers_is_not_found"]
+status = "active"
+since = "ADR-035"

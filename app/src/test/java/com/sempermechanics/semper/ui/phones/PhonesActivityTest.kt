@@ -9,6 +9,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.account.entitlement.ConfigFetch
 import com.sempermechanics.semper.data.account.phones.ActivateOutcome
 import com.sempermechanics.semper.data.account.phones.DeactivateOutcome
 import com.sempermechanics.semper.data.account.phones.PhonesOutcome
@@ -49,10 +50,12 @@ class PhonesActivityTest {
         var max = 2
         var state = ActivationDto.STATE_AVAILABLE
         var pending: String? = null
+        var fetch = ConfigFetch.ANSWERED
+        var model = "activation"
 
         override suspend fun list(): PhonesOutcome {
             calls += "list"
-            return PhonesOutcome.Listed(AccountPhonesDto("lic-1", active, max, model = "activation", devices = phones))
+            return PhonesOutcome.Listed(AccountPhonesDto("lic-1", active, max, model = model, devices = phones))
         }
 
         override suspend fun activate(upgrade: Boolean): ActivateOutcome {
@@ -72,8 +75,13 @@ class PhonesActivityTest {
 
         override suspend fun pendingPrefix() = pending
 
-        override suspend fun refreshConfig() {
+        override suspend fun refreshConfig(): ConfigFetch {
             calls += "refreshConfig"
+            return fetch
+        }
+
+        override fun queueRefresh() {
+            calls += "queueRefresh"
         }
     }
 
@@ -123,6 +131,21 @@ class PhonesActivityTest {
         assertEquals("Pixel 5", first.findViewById<TextView>(R.id.tvPhoneModel).text.toString())
         assertFalse(first.findViewById<View>(R.id.btnPhoneDeactivate).isShown)
         assertTrue(activity.row(1).findViewById<View>(R.id.btnPhoneDeactivate).isShown)
+    }
+
+    @Test
+    fun `a lock licence's phone offers no Deactivate, and no limit is said as such`() {
+        fake.model = "lock"
+        fake.phones = listOf(here(activated = true))
+        fake.max = 1
+        val lock = screen().get()
+        assertFalse(lock.row(0).findViewById<View>(R.id.btnPhoneDeactivate).isShown)
+
+        fake.model = "activation"
+        fake.active = 3
+        fake.max = PhonesView.UNCOUNTED
+        val open = screen().get()
+        assertEquals("Licensed on 3 phones, with no limit", open.text(R.id.tvPhonesCount))
     }
 
     @Test
@@ -194,6 +217,25 @@ class PhonesActivityTest {
         idle()
 
         assertEquals(listOf("deactivate(and-here)", "refreshConfig"), fake.calls.filter { it != "list" })
+    }
+
+    @Test
+    fun `deactivating this phone while the config fetch fails queues the retrying refresh`() {
+        fake.phones = listOf(here(activated = true), other(activated = true))
+        fake.state = ActivationDto.STATE_ACTIVE
+        fake.fetch = ConfigFetch.FAILED
+        val activity = screen().get()
+        activity.row(0).findViewById<View>(R.id.btnPhoneDeactivate).performClick()
+        idle()
+        (ShadowDialog.getLatestDialog() as AlertDialog).getButton(AlertDialog.BUTTON_POSITIVE).performClick()
+        idle()
+
+        // The server has deactivated it: a refresh that did not land must not
+        // leave the cached config licensed until the next periodic one.
+        assertEquals(
+            listOf("deactivate(and-here)", "refreshConfig", "queueRefresh"),
+            fake.calls.filter { it != "list" },
+        )
     }
 
     @Test

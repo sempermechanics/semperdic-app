@@ -49,7 +49,14 @@ class CloudSyncConcurrencyTest {
     private fun reconcileAtOnce(vararg deep: Boolean): List<CloudSync.Outcome> = runBlocking {
         deep.map { d ->
             async(Dispatchers.Default) {
-                CloudSync.reconcile(context, reupload = false, deep = d, api = api, tokens = FakeTokens())
+                CloudSync.reconcile(
+                    context,
+                    reupload = false,
+                    deep = d,
+                    api = api,
+                    tokens = FakeTokens(),
+                    bin = FakeRecycleBinApi.empty(),
+                )
             }
         }.awaitAll()
     }

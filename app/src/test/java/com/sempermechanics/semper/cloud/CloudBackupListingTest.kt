@@ -157,7 +157,16 @@ class CloudBackupListingTest {
             SessionsResponse(sessions = listOf(dto("c1", "s1")), quota = QuotaDto(used = 1, max = 25))
         }
 
-        runBlocking { CloudSync.reconcile(context, reupload = false, deep = true, api = api, tokens = tokens) }
+        runBlocking {
+            CloudSync.reconcile(
+                context,
+                reupload = false,
+                deep = true,
+                api = api,
+                tokens = tokens,
+                bin = FakeRecycleBinApi.empty(),
+            )
+        }
 
         assertEquals(listOf("c1"), CloudBackupListing.read(context).map { it.cloudId })
     }
@@ -168,7 +177,16 @@ class CloudBackupListingTest {
         api.onGetConfig = { throw IOException("config down") }
         api.onListSessions = { _, _ -> throw IOException("no route") }
 
-        runBlocking { CloudSync.reconcile(context, reupload = false, deep = true, api = api, tokens = tokens) }
+        runBlocking {
+            CloudSync.reconcile(
+                context,
+                reupload = false,
+                deep = true,
+                api = api,
+                tokens = tokens,
+                bin = FakeRecycleBinApi.empty(),
+            )
+        }
 
         assertEquals(listOf("c1"), CloudBackupListing.read(context).map { it.cloudId })
     }

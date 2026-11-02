@@ -28,15 +28,25 @@ object AccountCache {
     /** Survives sign-out so a per-account beta ack is not re-prompted on every login. */
     private fun onboardingPrefs(context: Context) = privatePrefs(context, Onboarding.NAME)
 
-    /** Cache the signed-in identity (from the Firebase user) for offline UI. */
+    /**
+     * Cache the signed-in identity (from the Firebase user) for offline UI.
+     * The uid is also kept as [lastSignedInUid], which [clear] leaves.
+     */
     fun saveIdentity(context: Context, uid: String?, email: String?) {
         prefs(context).edit {
             put(Session.UID, uid)
             put(Session.EMAIL, email)
         }
+        if (uid != null) onboardingPrefs(context).edit { put(Onboarding.LAST_SIGNED_IN_UID, uid) }
     }
 
     fun cachedUid(context: Context): String? = prefs(context)[Session.UID]
+
+    /**
+     * The account that signed in last, signed in now or not: whose analyses
+     * the phone shows while nobody is (`SessionOwner`). Survives [clear].
+     */
+    fun lastSignedInUid(context: Context): String? = onboardingPrefs(context)[Onboarding.LAST_SIGNED_IN_UID]
     fun cachedEmail(context: Context): String? = prefs(context)[Session.EMAIL]
 
     fun cachedStatus(context: Context): String? = prefs(context)[Session.STATUS]

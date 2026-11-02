@@ -89,6 +89,23 @@ class RestoreStartTest {
     }
 
     @Test
+    fun `a row id that names no session dir is refused before anything is written`() {
+        val sentinel = File(context.filesDir, "sentinel.txt").apply { writeText("keep") }
+
+        for (id in listOf("..", ".", "a/../b")) {
+            assertEquals(id, RestoreStart.Outcome.FAILED, RestoreStart.start(context, "c1", id, "Beam test"))
+            assertNull(id, SessionStore.get(context, id))
+        }
+        // Before L5-1's fix the failed enqueue deleted the row's dir: filesDir itself for `..`.
+        assertTrue(sentinel.isFile)
+    }
+
+    @Test
+    fun `a listed backup with an unsafe local id targets a restored row`() {
+        assertEquals("restored-c1", RestoreStart.targetFor("c1", "..", "Beam test").targetLocalId)
+    }
+
+    @Test
     fun `a new row that cannot be queued is removed again`() {
         assertEquals(RestoreStart.Outcome.FAILED, RestoreStart.start(context, "c1", "restored-c1", "Beam test"))
         assertNull(SessionStore.get(context, "restored-c1"))
