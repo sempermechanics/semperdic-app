@@ -36,6 +36,9 @@ internal interface ShareControllerHost {
     /** The frame on screen's data; null while it is still loading. */
     val rawData: FloatArray?
 
+    /** The frame [rawData] is; it lags the ViewModel's frame while a Prev / Next decode is pending. */
+    val rawFrameIndex: Int
+
     /** The stored record behind this viewer, or null when it was opened without one. */
     val sessionRecord: SessionRecord?
 }
@@ -123,16 +126,19 @@ internal class ViewerShareController(
     /**
      * Everything an export needs, or null before the frame set is read or when
      * there are no frames. The frame on screen may still be loading ([ShareControllerHost.rawData]
-     * null): only the photo kinds need it, and they read it from disk then.
+     * null, or still the previous frame's after a Prev / Next): then the data
+     * is left out, and the photo kinds read the frame asked for from disk, so
+     * its data, photo and name are all the one frame.
      */
     override fun buildShareSnapshot(): ShareCenter.Snapshot? {
         if (!host.frameSetLoaded || host.batchFiles.isEmpty()) return null
         val isSweep = host.isSweep
+        val frameIndex = host.viewModel.currentFrameIndex
         return ShareCenter.Snapshot(
-            data = host.rawData,
+            data = host.rawData.takeIf { host.rawFrameIndex == frameIndex },
             batchFiles = host.batchFiles,
             baseName = shareBaseName(),
-            frameIndex = host.viewModel.currentFrameIndex,
+            frameIndex = frameIndex,
             dataIndex = host.viewModel.field.dataIndex,
             typeString = host.viewModel.field.label,
             summary = if (isSweep) null else summary.animation,

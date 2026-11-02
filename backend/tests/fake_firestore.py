@@ -341,8 +341,17 @@ class _Query:
         rows.sort(key=lambda snap: self._sort_key(snap.id, snap.to_dict()), reverse=desc)
         if self._start_after is not None:
             after_id = getattr(self._start_after, "id", None)
+            after_data = None
+            if isinstance(self._start_after, dict):
+                # `start_after({"__name__": ref})`: a cursor by document id,
+                # which needs no document behind it. Only the id order
+                # takes one (`repo._base._after_token`).
+                assert field == "__name__", "an id cursor on another order"
+                named = self._start_after["__name__"]
+                after_id = getattr(named, "id", named)
+            elif after_id is not None and hasattr(self._start_after, "to_dict"):
+                after_data = self._start_after.to_dict()
             if after_id is not None:
-                after_data = self._start_after.to_dict() if hasattr(self._start_after, "to_dict") else None
                 after = self._sort_key(after_id, after_data)
                 rows = [snap for snap in rows
                         if (self._sort_key(snap.id, snap.to_dict()) < after if desc

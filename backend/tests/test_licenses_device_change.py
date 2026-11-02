@@ -38,7 +38,7 @@ def _bound_individual(store, device_id="old-phone"):
 def _bound_seat(store, device_id="old-phone"):
     """An institution seat held by u1 and bound to `device_id`."""
     store._data["users"] = {
-        "u1": {"uid": "u1", "email": "a@university.edu",
+        "u1": {"uid": "u1", "email": "a@university.edu", "emailVerified": True,
                "access_status": "APPROVED", "plan": "demo"},
     }
     minted = _mint_institution()

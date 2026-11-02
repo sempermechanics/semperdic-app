@@ -234,7 +234,7 @@ async def live(client, monkeypatch, scenario_user):
     )
     monkeypatch.setattr(drive, "init_resumable", lambda *a, **k: "https://drive/resumable")
     monkeypatch.setattr(tasks, "enqueue_provision", lambda sid: True)
-    store._data["users"] = {"dev-user": {"email": "dev@local", "access_status": "APPROVED", "plan": "demo"}}
+    store._data["users"] = {"dev-user": {"email": "dev@local", "emailVerified": True, "access_status": "APPROVED", "plan": "demo"}}
     out: dict = {}
 
     async def call(name, method, path, status=200, **kw):

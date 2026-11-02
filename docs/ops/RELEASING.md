@@ -17,7 +17,7 @@ Private alpha uses the same **`beta`** Release channel — there is no separate
 3. Smoke sign-in, one analysis, backup/sync, and open results. Do not publish to
    Play or the public website for this ring.
 
-Check the R8 mapping reached Crashlytics (the release build uploads it); the workflow artifact is a 90-day fallback.
+Check the R8 mapping reached Crashlytics (the release build uploads it); the workflow artifact is a 14-day fallback, and readable by any signed-in GitHub user while it is kept (the repository is public).
 
 ## Versioning
 
@@ -418,7 +418,7 @@ fails.
 8. Uploads three artifacts: the APK, the **`release-aab`** Android App Bundle
    (built in the same Gradle run as the APK, `:app:bundleRelease`, so both
    share one R8 mapping; for a Play Console upload by hand: nothing here uploads
-   to Play), and **`release-mapping-<version>`**, the R8 mapping file (90-day
+   to Play), and **`release-mapping-<version>`**, the R8 mapping file (14-day
    retention, `if-no-files-found: error`).
 
 **The R8 mapping is not attached to the GitHub Release, deliberately.** It is the
@@ -426,8 +426,13 @@ deobfuscation key — publishing it would undo the obfuscation for everyone — 
 without it a field stack trace from that build is unreadable, and it cannot be
 regenerated afterwards. The build passes `-PuploadCrashlyticsMapping=true`, so
 the Crashlytics Gradle plugin uploads the mapping to Firebase and field crashes
-stay readable there for the life of the project (TD-40). The 90-day workflow
-artifact is only the fallback for a manual `retrace`. Local builds never upload.
+stay readable there for the life of the project (TD-40). The workflow artifact
+is only the fallback for a manual `retrace`, and it is **not private**: on a public
+repository any signed-in GitHub user can download a workflow artifact while it is
+kept. So it is kept 14 days, long enough to check Crashlytics has the mapping
+(CI's Tier 5 `release-mapping`, from an unshipped build, 3 days). A copy needed
+longer (a pentest under NDA, [PENTEST_SCOPE.md](PENTEST_SCOPE.md)) is downloaded
+in that window and kept outside GitHub. Local builds never upload.
 
 ### `publish`
 

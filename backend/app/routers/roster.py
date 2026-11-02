@@ -355,7 +355,10 @@ def roster_router(tier: Tier) -> APIRouter:
             raise HTTPException(400, errors.EMPTY_PATCH)
         cleared = {}
         if body.clearDeviceLock:
-            cleared = repo.clear_device_lock(license_id, uid, actor=tier.actor)
+            # The caller, so IT's clear keeps to the domain IT's devices
+            # route does (ADR-033: each scope checked in the repository).
+            cleared = repo.clear_device_lock(license_id, uid, actor=tier.actor,
+                                             caller=admin.user)
         if body.enabled is not None:
             repo.set_seat_enabled(license_id, uid, body.enabled)
         audit.record(

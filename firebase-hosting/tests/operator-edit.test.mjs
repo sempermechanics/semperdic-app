@@ -230,6 +230,21 @@ test("a convert sends the cleaned fields, shows the new key once, and both rows 
   assert.equal($("convertDialog").open, false, "Done closes it");
 });
 
+test("closing the convert dialog, with Done or Escape, takes the claim code out of the page", async () => {
+  await openConvert({
+    [CONVERT]: () => json(200, { key: "SEMP-LAB1-KEY-ONCE", license: LAB, claimedByUid: "u1" }),
+    [`GET /v1/admin/licenses/${IND.id}`]: () => json(200, IND),
+  });
+  $("convertAdmins").value = "it@lab.org";
+  await submitConvert();
+  assert.equal($("convertedKey").textContent, "SEMP-LAB1-KEY-ONCE");
+  // Escape closes a modal dialog without a click; the browser fires "close".
+  $("convertDialog").close();
+  $("convertDialog").dispatch("close");
+  assert.equal($("convertedKey").textContent, "", "the code goes with the dialog");
+  assert.equal($("convertedBox").hidden, true);
+});
+
 test("a convert nobody had signed in for says the invitation moved; reopening starts afresh", async () => {
   await openConvert({
     [CONVERT]: () => json(200, { key: "K2", license: LAB }),

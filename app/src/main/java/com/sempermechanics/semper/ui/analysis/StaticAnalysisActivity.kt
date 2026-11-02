@@ -166,7 +166,9 @@ class StaticAnalysisActivity :
     private fun buildPages() {
         val frameSizeChip = WarnChip(settings.frameSizeWarnRow.root, ::confirmOpenFaq)
             .apply { setFaq(getString(R.string.url_faq_frame_size)) }
-        readyGate = AnalysisReadyGate(viewModel, binding, settings, frameSizeChip)
+        val gridSizeChip = WarnChip(settings.gridSizeWarnRow.root, ::confirmOpenFaq)
+            .apply { setFaq(getString(R.string.url_faq_grid_too_large)) }
+        readyGate = AnalysisReadyGate(viewModel, binding, settings, frameSizeChip, gridSizeChip)
         // Text is set per-refresh by AnalysisWizardSlots.updateFormatChip: it
         // names the formats actually loaded, so it cannot be fixed here.
         val formatChip = WarnChip(binding.formatWarnRow.root, ::confirmOpenFaq)

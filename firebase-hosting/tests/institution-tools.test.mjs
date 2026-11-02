@@ -369,6 +369,25 @@ test("Show reads the log for the dates chosen and names members by address", asy
   assert.equal($("auditMore").hidden, true);
 });
 
+test("Show more continues the range its rows were read for, not dates changed since", async () => {
+  const first = `${localRange([2026, 9, 1], [2026, 9, 3])}&page_size=50`;
+  await open({ routes: {
+    [`GET ${L1}/audit?${first}`]: () => json(200, { events, page: { nextPageToken: "e2" } }),
+    [`GET ${L1}/audit?${first}&page_token=e2`]: () => json(200, { events: [], page: {} }),
+  } });
+  $("auditSince").value = "2026-10-01";
+  $("auditUntil").value = "2026-10-02";
+  $("auditLoad").click();
+  await settle();
+  // Dates changed but Show not pressed: the token is still the shown range's.
+  $("auditSince").value = "2026-09-01";
+  $("auditUntil").value = "";
+  $("auditMore").click();
+  await settle();
+  assert.deepEqual(sent(/audit/), [`GET ${L1}/audit?${first}`, `GET ${L1}/audit?${first}&page_token=e2`]);
+  assert.equal(tableRows("auditRows").length, 2);
+});
+
 test("an empty range says so, and a refused one is explained", async () => {
   await open({ routes: { [`GET ${L1}/audit?page_size=50`]: () => json(200, { events: [] }) } });
   $("auditLoad").click();

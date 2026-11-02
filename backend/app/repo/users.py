@@ -137,6 +137,15 @@ def _user_for_device(device_id: str | None):
         found = _load_user(dev["uid"])
         if found:
             return found
+    if dev and dev.get("status") != statuses.DEVICE_ACTIVE:
+        # A phone retired from service (released, superseded, revoked) no
+        # longer ties a new sign-in to the account that once held it. An
+        # account's `claimedDeviceId` is the first phone it signed in from
+        # and is never cleared, so read without this a released phone was
+        # `device_in_use` to every other account for good. The claim alone
+        # still counts while the phone has no record at all: an account that
+        # signed in there but has not registered it yet.
+        return None
     query = (
         db().collection("users")
         .where("claimedDeviceId", "==", device_id)
@@ -170,9 +179,17 @@ def _touch_existing(cur: dict, claims: dict, device_id: str | None) -> dict:
         changed["email"] = email
     if cur.get("schemaVersion") != SCHEMA_VERSION:
         changed["schemaVersion"] = SCHEMA_VERSION
-    # Keep admin role in sync with ADMIN_EMAILS for pre-existing users.
-    if is_admin_email(claims) and cur.get("role") != "admin":
-        changed["role"] = "admin"
+    # Keep admin role in sync with ADMIN_EMAILS for pre-existing users, both
+    # ways: an address taken out of ADMIN_EMAILS (staff off-boarding) is
+    # demoted on its next request, not left `admin` in the record for the
+    # consoles and the app to read. `deps.admin_user` asks the token itself,
+    # so authority goes with the redeploy either way; this keeps the stored
+    # role from saying otherwise.
+    if is_admin_email(claims):
+        if cur.get("role") != "admin":
+            changed["role"] = "admin"
+    elif cur.get("role") == "admin":
+        changed["role"] = "user"
     # A previously-PENDING user who has since verified a domain email (or been
     # made admin) is auto-approved on this sign-in.
     if cur.get("access_status") == statuses.ACCESS_PENDING and _auto_approved(claims):
@@ -251,7 +268,12 @@ def get_or_create_user(claims: dict, device_id: str | None = None) -> dict:
         # Adopting a bound account hands over its sessions and entitlement, so
         # the address has to be proven rather than asserted: any provider can
         # mint a token carrying an address it never checked.
-        unproven = bool(bound.get("email")) and not claims.get("email_verified")
+        # Both ends: the bound account's address must have been proven too.
+        # An account that typed someone's address and never verified it would
+        # otherwise be handed to them on a shared phone, with its own
+        # password sign-in still reaching it.
+        unproven = bool(bound.get("email")) and not (
+            claims.get("email_verified") and bound.get("emailVerified"))
         if unproven or _emails_conflict(bound.get("email"), claims.get("email")):
             raise DeviceInUseError()
         _link_auth_uid(bound["uid"], uid)

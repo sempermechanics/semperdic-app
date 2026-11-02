@@ -59,6 +59,11 @@ export function auditRow(event, who = (uid) => uid) {
  */
 export function wireAuditLog({ rows, since, until, show, more, csv, json, base, name, who, report }) {
   let next = null;
+  // The range the shown rows were read for: "Show more" continues that query
+  // with its token, not whatever the date boxes say since. A token is a
+  // cursor into one query; sent with another range it read events outside
+  // the new one, or skipped some, under rows that claimed one list.
+  let shown = null;
   let ticket = 0; // the latest page asked for; an older answer is dropped
 
   // Local days, as the rows are shown (util.js `localDayRange`).
@@ -73,9 +78,11 @@ export function wireAuditLog({ rows, since, until, show, more, csv, json, base, 
     more.disabled = true;
     report("Loading the audit log…");
     try {
-      const query = auditQuery(range(), { page_size: PAGE, page_token: append ? next : "" });
+      const asked = append ? shown : range();
+      const query = auditQuery(asked, { page_size: PAGE, page_token: append ? next : "" });
       const page = await api(`${root}/audit${query}`);
       if (mine !== ticket) return;
+      shown = asked;
       const events = page.events || [];
       const html = events.map((e) => auditRow(e, who)).join("");
       rows.innerHTML = append ? rows.innerHTML + html
@@ -133,6 +140,7 @@ export function wireAuditLog({ rows, since, until, show, more, csv, json, base, 
   return function reset() {
     ticket += 1;
     next = null;
+    shown = null;
     rows.innerHTML = EMPTY;
     more.hidden = true;
     show.disabled = false;

@@ -56,7 +56,7 @@ class DatFieldOracleTest {
         // The golden is little-endian; every Android ABI the app ships is too.
         assumeTrue(ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN)
         val all = field()
-        val buffer = DicFieldIo.allocateDirect(GRID_W * GRID_H)
+        val buffer = DicFieldIo.allocateDirect(GRID_W.toLong() * GRID_H)
         buffer.asFloatBuffer().put(all)
 
         val out = temp.newFile("frame_0000.dat")

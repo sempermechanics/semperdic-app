@@ -87,6 +87,28 @@ async def test_worker_fills_in_every_upload_target(store, queued, client):
     assert store._data["sessions"][sid]["driveFolderId"] == "sf"
 
 
+async def test_a_task_that_finishes_before_the_answer_keeps_its_uploading(
+    store, client, monkeypatch,
+):
+    """Cloud Tasks may run the task before the request answers. The request
+    then wrote PROVISIONING over the task's UPLOADING, and the app polled a
+    session nothing would ever move again (review L3-3)."""
+    monkeypatch.setattr(settings, "INLINE_PROVISION_MAX_FILES", 0)
+    monkeypatch.setattr(rate_limit.listing_bucket, "allow", lambda uid: True)
+    monkeypatch.setattr(
+        tasks, "enqueue_provision",
+        lambda sid: session_provision.provision_session(sid) is not None,
+    )
+
+    sid = (await client.post(
+        "/v1/sessions", json={"specimen": "s", "files": [_file("a"), _file("b")]},
+    )).json()["sessionId"]
+
+    assert store._data["sessions"][sid]["status"] == "UPLOADING"
+    polled = (await client.get(f"/v1/sessions/{sid}/uploads")).json()
+    assert polled["status"] == "UPLOADING" and len(polled["uploads"]) == 2
+
+
 async def test_polling_uploads_reports_provisioning_then_the_targets(
     store, queued, client, monkeypatch,
 ):

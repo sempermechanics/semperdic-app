@@ -2,6 +2,7 @@ package com.sempermechanics.semper.ui.viewer
 
 import android.graphics.BitmapFactory
 import android.os.Trace
+import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.sempermechanics.semper.R
@@ -31,6 +32,9 @@ internal interface FrameLoaderHost {
 
     /** Frame [index]'s `.dat` could not be read: say so, and keep the frame on screen. Main thread. */
     fun onFrameUnreadable(index: Int)
+
+    /** Frame [index] ran out of memory while it decoded: keep the frame on screen. Main thread. */
+    fun onFrameOutOfMemory(index: Int)
 }
 
 /**
@@ -66,6 +70,10 @@ internal class ViewerFrameLoader(
     private var maxDatBytes: Long = 0L
 
     private val loadFrameJob = SerialJob()
+
+    /** Decodes one frame's `.dat`; a test swaps it to fail a decode. Any thread. */
+    @VisibleForTesting
+    internal var decodeDat: (File) -> FloatArray? = DicResult::decodeDatFile
 
     /** The single in-flight look-ahead worker; see [prefetchAround]. */
     private val prefetchJob = SerialJob()
@@ -110,9 +118,11 @@ internal class ViewerFrameLoader(
             } catch (e: OutOfMemoryError) {
                 // Error, not Exception — must be caught explicitly or the process dies.
                 Timber.e(e, "OOM loading frame $index")
-                scrubCache.clear()
+                // The frames only: the heatmap on screen must not be recycled under its view.
+                scrubCache.clearData()
                 withContext(Dispatchers.Main) {
                     captions.openingDone()
+                    if (host.viewModel.currentFrameIndex == index) host.onFrameOutOfMemory(index)
                     FaqRedirect.snackbar(
                         activity,
                         R.string.viewer_frame_oom,
@@ -171,7 +181,8 @@ internal class ViewerFrameLoader(
                 throw e // never swallow coroutine cancellation
             } catch (e: OutOfMemoryError) {
                 Timber.w(e, "Prefetch around frame %d OOM — clearing scrub cache", center)
-                scrubCache.clear()
+                // The frames only, off Main: the heatmap on screen must not be recycled under its view.
+                scrubCache.clearData()
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 Timber.w(e, "Prefetch around frame %d failed", center)
             }
@@ -198,7 +209,7 @@ internal class ViewerFrameLoader(
             // goes on decides how its map is drawn.
             images.lookUpFramePhoto(index)
             val file = batchFiles[index]
-            val data = DicResult.decodeDatFile(file)
+            val data = decodeDat(file)
             if (data == null) {
                 Timber.e("Invalid file size for frame $index")
             }

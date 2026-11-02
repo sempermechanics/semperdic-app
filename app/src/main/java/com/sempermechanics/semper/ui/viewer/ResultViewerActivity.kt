@@ -107,8 +107,13 @@ class ResultViewerActivity :
      */
     private var opened: ViewerFrameLoader.FrameSet? = null
 
-    /** The frame whose data is on screen; -1 until one is drawn. */
-    private var shownFrameIndex = -1
+    /**
+     * The frame [rawData] is, set with it ([applyLoadedFrame]); -1 until one is
+     * drawn. Not [ResultViewerViewModel.currentFrameIndex]: Prev / Next move
+     * that at once, before the debounced decode brings the frame's data.
+     */
+    override var rawFrameIndex = -1
+        private set
 
     /** True once [onFrameSetRead] has run: [batchFiles] and the rest are final. */
     override val frameSetLoaded: Boolean get() = opened != null
@@ -157,7 +162,7 @@ class ResultViewerActivity :
         // the same ends instead of the hidden first frame's extrema.
         if (!isShowingSummary) return
         val data = rawData ?: return
-        val metrics = viewModel.fieldMetricsFor(viewModel.currentFrameIndex, viewModel.field.dataIndex, data)
+        val metrics = viewModel.fieldMetricsFor(rawFrameIndex, viewModel.field.dataIndex, data)
         captions.applyFieldMetrics(metrics, viewModel.field.dataIndex)
     }
 
@@ -355,7 +360,7 @@ class ResultViewerActivity :
 
     override fun applyLoadedFrame(index: Int, data: FloatArray) {
         rawData = data
-        shownFrameIndex = index
+        rawFrameIndex = index
         // A sweep's frames each have their own grid pitch.
         step = frameParams.at(index).step
         // Invalidate rather than rebuild: the O(n) bucket map is only needed for
@@ -380,16 +385,32 @@ class ResultViewerActivity :
      * not there (readiness AE1-013).
      */
     override fun onFrameUnreadable(index: Int) {
-        val shown = shownFrameIndex
-        val message = if (shown in batchFiles.indices && shown != index) {
-            viewModel.currentFrameIndex = shown
-            frameJump.updateNavButtons()
-            frameJump.syncFrameNumber()
+        val shown = rawFrameIndex
+        val message = if (backToShownFrame(index)) {
             getString(R.string.viewer_frame_unreadable_fmt, index + 1, shown + 1)
         } else {
             getString(R.string.viewer_frame_unreadable_none_fmt, index + 1)
         }
         CrispToast.show(this, message, long = true)
+    }
+
+    /** The loader has said why (its out-of-memory snackbar); the frame field goes back to the frame on screen. */
+    override fun onFrameOutOfMemory(index: Int) {
+        backToShownFrame(index)
+    }
+
+    /**
+     * Puts the frame field (and [ResultViewerViewModel.currentFrameIndex]) back
+     * on the frame still on screen, in place of [index] that did not load.
+     * False when there is no other frame on screen to go back to.
+     */
+    private fun backToShownFrame(index: Int): Boolean {
+        val shown = rawFrameIndex
+        if (shown !in batchFiles.indices || shown == index) return false
+        viewModel.currentFrameIndex = shown
+        frameJump.updateNavButtons()
+        frameJump.syncFrameNumber()
+        return true
     }
 
     /**

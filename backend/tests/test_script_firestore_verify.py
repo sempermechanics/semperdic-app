@@ -128,6 +128,8 @@ def _source() -> dict[str, dict[str, dict]]:
         },
         "licenses": {"L1": {}},
         "seats": {"L1-a": {}, "L1-b": {}},
+        # licenses/L1/activations (ADR-033), counted as a collection group.
+        "activations": {"L1-dev1": {}},
         "challenges": {"c1": {}, "c2": {}},
     }
 
@@ -165,6 +167,7 @@ def test_emit_counts_every_collection_and_samples_session_edges(fv, connect):
     assert manifest["counts"]["users"] == 2
     assert manifest["counts"]["files"] == 3
     assert manifest["counts"]["seats"] == 2
+    assert manifest["counts"]["activations"] == 1
     assert manifest["counts"]["auth_links"] == 0
     assert "challenges" not in manifest["counts"]
     assert manifest["volatileCounts"] == {"challenges": 2}
@@ -179,7 +182,7 @@ def test_subcollections_are_counted_as_collection_groups(fv, connect):
     connect(db)
     fv.emit("p")
     groups = {name for kind, name in db.calls if kind == "group"}
-    assert groups == set(fv.GROUPS) == {"seats", "deleted_seats"}
+    assert groups == set(fv.GROUPS) == {"seats", "activations", "deleted_seats"}
     assert ("collection", "seats") not in db.calls
 
 
@@ -224,7 +227,7 @@ def test_an_empty_restore_fails_on_every_non_empty_collection(fv, connect):
     manifest = _manifest(fv, connect)
     connect(FakeDb({}))
     failures = fv.verify("r", manifest)
-    for name in ("users", "devices", "sessions", "files", "licenses", "seats"):
+    for name in ("users", "devices", "sessions", "files", "licenses", "seats", "activations"):
         assert f"{name}: expected {manifest['counts'][name]} documents, restored 0" in failures
     assert "sample session s1 is missing after restore" in failures
     assert "no sampled user document carries schemaVersion — wrong or stale export?" in failures
@@ -341,7 +344,7 @@ def test_main_emit_writes_a_sorted_manifest(fv, connect, monkeypatch, tmp_path, 
     assert text == json.dumps(manifest, indent=2, sort_keys=True)
     assert manifest["project"] == "src"
     total = sum(manifest["counts"].values())
-    assert total == 2 + 1 + 2 + 3 + 1 + 2
+    assert total == 2 + 1 + 2 + 3 + 1 + 2 + 1
     n = len(fv.COLLECTIONS) + len(fv.GROUPS)
     assert f"Manifest written to {path}: {total} documents across {n} collections" in capsys.readouterr().out
 
@@ -375,3 +378,22 @@ def test_main_verify_exits_1_and_lists_every_failure(fv, connect, monkeypatch, t
     assert "  - devices: expected 1 documents, restored 0" in out.err
     assert "  - sample session s1 came back owned by a different uid" in out.err
     assert "Restore verified" not in out.out
+
+
+def test_a_manifest_from_before_activations_still_verifies(fv, connect):
+    """Exports taken before `activations` was counted carry no count for it;
+    verify compares what the manifest holds."""
+    manifest = _manifest(fv, connect)
+    del manifest["counts"]["activations"]
+    restored = _source()
+    restored["activations"] = {}
+    connect(FakeDb(restored))
+    assert fv.verify("r", manifest) == []
+
+
+def test_lost_activations_fail_the_restore(fv, connect):
+    manifest = _manifest(fv, connect)
+    restored = _source()
+    restored["activations"] = {}
+    connect(FakeDb(restored))
+    assert fv.verify("r", manifest) == ["activations: expected 1 documents, restored 0"]

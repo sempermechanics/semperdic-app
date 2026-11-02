@@ -81,6 +81,7 @@ class BatchRunController(
             RunEnd.Cancelled -> Unit
             RunEnd.SessionLimit -> AnalysisNavHelper.openSessionLimit(activity)
             RunEnd.NotSaved -> showNotSaved()
+            RunEnd.TooLarge -> showTooLarge()
             is RunEnd.Unexpected -> showUnexpected()
             is RunEnd.Failed -> showFailure(end)
             is RunEnd.Partial -> showPartial(end)
@@ -99,6 +100,13 @@ class BatchRunController(
         status.setFaq(null)
         status.show(activity.getString(R.string.analysis_unexpected_title))
         Dialogs.info(activity, R.string.analysis_unexpected_title, R.string.analysis_unexpected_body)
+    }
+
+    /** The grid did not fit this phone's memory: nothing was kept, and the dialog says how to make it fit. */
+    private fun showTooLarge() {
+        status.setFaq(null)
+        status.show(activity.getString(R.string.run_too_large_title))
+        Dialogs.info(activity, R.string.run_too_large_title, R.string.run_too_large_body)
     }
 
     /** The run solved, but the session index could not be read or written, so nothing was saved. */

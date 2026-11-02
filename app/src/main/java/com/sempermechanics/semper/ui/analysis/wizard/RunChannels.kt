@@ -18,6 +18,7 @@ import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.diagnostics.SemperAnalytics
 import com.sempermechanics.semper.field.RunStop
 import com.sempermechanics.semper.ui.analysis.run.BatchRun
+import com.sempermechanics.semper.ui.analysis.run.DicFieldIo
 import com.sempermechanics.semper.ui.analysis.run.RunEnd
 import com.sempermechanics.semper.ui.analysis.run.RunInputs
 import com.sempermechanics.semper.ui.analysis.run.RunSpec
@@ -216,13 +217,24 @@ fun AnalysisViewModel.launchSweep(appContext: Context, spec: RunSpec) {
 }
 
 /**
- * What the session quota made of a run at its start ([admitRun]). Only
- * starting is blocked: a run admitted here saves its session even if the cap
+ * What the start checks made of a run ([admitRun]). Only starting is
+ * blocked: a run the quota admitted here saves its session even if the cap
  * fills while it runs ([admitted] is the save's `allowOverLimit`).
  */
 internal sealed interface RunAdmission {
-    /** At the limit: the run ends with [outcome] before any native work. */
-    class Blocked(val outcome: BatchAnalysisOutcome) : RunAdmission
+    /** At the limit, or a grid too large for this phone: the run ends with [outcome] before any native work. */
+    class Blocked(val outcome: BatchAnalysisOutcome) : RunAdmission {
+        /** Stopped with [stop] before a run of [plannedFrames] frames began. */
+        constructor(stop: RunStop, plannedFrames: Int) : this(
+            BatchAnalysisOutcome(
+                engineErrorCode = stop.wireCode,
+                firstFrameValidPoints = 0,
+                totalFrames = plannedFrames,
+                executionTimeMs = 0,
+                batchDirPath = "",
+            ),
+        )
+    }
 
     /** A new analysis [SessionQuota.blocked] let start. */
     data object Admitted : RunAdmission
@@ -232,29 +244,33 @@ internal sealed interface RunAdmission {
 }
 
 /**
- * Hard stop before any native work: a new analysis cannot start at the
- * account's limit ([SessionQuota.blocked], with the index's live rows; this
- * runs on the native thread). Every run is checked: a saved analysis is
- * never written over (owner decision, 2026-10-15), so whatever a run saves is
- * a new Home row.
+ * Hard stop before any native work. A grid of [gridPoints] (the run's
+ * largest, `DicFieldIo.gridPoints`) that would not fit a heap of
+ * [maxHeapBytes] ([DicFieldIo.fits]) is [RunStop.TooLarge]: its buffers would
+ * throw an `OutOfMemoryError` that no `catch (Exception)` stops. And a new
+ * analysis cannot start at the account's limit ([SessionQuota.blocked], with
+ * the index's live rows; this runs on the native thread). Every run is
+ * checked: a saved analysis is never written over (owner decision,
+ * 2026-10-15), so whatever a run saves is a new Home row.
  */
 @WorkerThread
-internal fun AnalysisViewModel.admitRun(appContext: Context, plannedFrames: Int): RunAdmission = when {
+internal fun AnalysisViewModel.admitRun(
+    appContext: Context,
+    plannedFrames: Int,
+    gridPoints: Long,
+    maxHeapBytes: Long = Runtime.getRuntime().maxMemory(),
+): RunAdmission = when {
+    !DicFieldIo.fits(gridPoints, maxHeapBytes) -> {
+        Timber.w("Hard stop: a grid of %d points does not fit this heap", gridPoints)
+        RunAdmission.Blocked(RunStop.TooLarge, plannedFrames)
+    }
     // Before the config is fetched a demo account is held to the demo cap
     // (LicenseEntitlements.analysisCap); a licensed one has no local cap.
     // The upload is gated separately in CloudSync until config is known.
     !SessionQuota.blocked(appContext, SessionStore.list(appContext).size) -> RunAdmission.Admitted
     else -> {
         Timber.w("Hard stop: analysis blocked at session limit")
-        RunAdmission.Blocked(
-            BatchAnalysisOutcome(
-                engineErrorCode = RunStop.SessionLimit.wireCode,
-                firstFrameValidPoints = 0,
-                totalFrames = plannedFrames,
-                executionTimeMs = 0,
-                batchDirPath = "",
-            ),
-        )
+        RunAdmission.Blocked(RunStop.SessionLimit, plannedFrames)
     }
 }
 

@@ -343,23 +343,29 @@ export function enrolInPage(enrolment, account, qrSvg) {
 
   return new Promise((resolve, reject) => {
     const done = (fn, value) => { card.remove(); fn(value); };
+    const confirmBtn = card.querySelector(".confirm");
     const confirm = async () => {
       const code = input.value.trim();
-      if (!code) return;
+      // Being checked: Enter in the box must not send the code again while
+      // the first finish() runs (the button alone was disabled).
+      if (!code || confirmBtn.disabled) return;
       feedback.textContent = "";
-      card.querySelector(".confirm").disabled = true;
+      input.disabled = true;
+      confirmBtn.disabled = true;
       try {
         await enrolment.finish(code);
         done(resolve);
       } catch (e) {
-        card.querySelector(".confirm").disabled = false;
+        input.disabled = false;
+        confirmBtn.disabled = false;
+        input.focus();
         feedback.textContent = e.code === "auth/invalid-verification-code"
           ? "That code was not accepted. Check the phone's clock is set automatically, " +
             "then try the next code."
           : `That did not work: ${authErrorText(e)}. Try the next code.`;
       }
     };
-    card.querySelector(".confirm").addEventListener("click", confirm);
+    confirmBtn.addEventListener("click", confirm);
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") confirm(); });
     const cancel = () => done(reject, new Error(ERR_CANCELLED));
     card.querySelector(".cancel").addEventListener("click", cancel);

@@ -133,7 +133,9 @@ LICENSING_IMPORTS = {
     "entitlement": {"_base", "claims", "holders", "invites", "mint"},
     "license_admin": {"_base", "claims", "invites", "mint"},
     "upgrade": {"_base", "claims", "invites", "mint", "license_admin"},
-    "deletion": {"_base", "claims", "holders", "invites", "mint", "license_admin"},
+    # A restore settles the licence's phones (`_settle_activations`, ADR-033).
+    "deletion": {"_base", "activations", "claims", "holders", "invites", "mint",
+                 "license_admin"},
     "institution_admin": {"_base", "claims", "holders", "invites", "mint"},
 }
 

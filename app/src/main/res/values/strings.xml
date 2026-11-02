@@ -70,6 +70,7 @@
     <string name="roi_hud_dimensions_fmt">ROI: %1$d × %2$d px  |  Pos: (%3$d, %4$d)</string>
     <string name="roi_full_image_selected">Full image selected</string>
     <string name="roi_invalid_size">Invalid ROI size</string>
+    <string name="roi_mask_read_failed">Couldn\'t read the region you drew. Draw it again.</string>
 
     <!-- Static analysis -->
     <string name="exit_semper_title">Exit semper?</string>
@@ -88,6 +89,10 @@
     <string name="run_failed_status_fmt">❌ Error: %1$s</string>
     <string name="analysis_unexpected_title">Analysis stopped unexpectedly</string>
     <string name="analysis_not_saved_title">Couldn\'t save results</string>
+    <string name="run_too_large_title">Not enough memory</string>
+    <string name="run_too_large_body">This phone doesn\'t have the memory for a region this large at this step, so nothing was kept. Raise the step or draw a smaller ROI, then run again.</string>
+    <!-- Under the settings when the grid would not fit the heap; %1$s is the grid's points, %2$s the most this phone can solve. -->
+    <string name="grid_too_large_fmt">%1$s points is more than this phone has memory for (%2$s at most). Raise the step or draw a smaller ROI.</string>
     <string name="analysis_index_unavailable_body">The list of analyses couldn\'t be updated. Free up space and run again.</string>
     <string name="analysis_unexpected_body">The run ended with an error.
 
@@ -976,6 +981,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="url_faq_speckle" translatable="false">https://sempermechanics.com/support/troubleshooting/#loading</string>
     <string name="url_faq_frame_size" translatable="false">https://sempermechanics.com/support/troubleshooting/#loading</string>
     <string name="url_faq_roi_too_small" translatable="false">https://sempermechanics.com/support/troubleshooting/#setup</string>
+    <string name="url_faq_grid_too_large" translatable="false">https://sempermechanics.com/support/troubleshooting/#setup</string>
     <string name="url_faq_sweep_subset_range" translatable="false">https://sempermechanics.com/support/troubleshooting/#reading</string>
     <string name="url_faq_sweep_empty_plan" translatable="false">https://sempermechanics.com/support/troubleshooting/#reading</string>
     <string name="url_faq_engine_features" translatable="false">https://sempermechanics.com/support/troubleshooting/#during-a-run</string>

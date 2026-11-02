@@ -127,6 +127,13 @@ the import, which on a 150-frame batch is minutes.
   before the write lands reports **LOST**, even when the previous list holds
   as many frames. A Bundle without the key (saved by an older app) is
   checked on the frame count alone.
+  *Since 2026-11-01* the reference and the mask are checked the same way: the
+  Bundle holds `referenceDigest` and `maskDigest` (size and CRC32 of the bytes
+  the wizard held, `WizardState.digest`), and `reference.bin` / `mask.bin`
+  must match them, or the restore is **LOST**: a kill before a new
+  reference's write landed used to bring the old image back with the new
+  size, ROI and mask. A Bundle without the keys checks only that each part is
+  there.
 - **Ordering across wizards** is closed by a generation tag
   (`WizardDraftBinding`). A finishing wizard queues its delete from
   `onDestroy`, which can land after a new wizard's first writes. So each
