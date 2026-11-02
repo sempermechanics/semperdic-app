@@ -64,6 +64,7 @@ import {
   TotpMultiFactorGenerator,
 } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 import { ERR_CANCELLED, askInPage, codeCard, enrolInPage } from "./dialogs.js";
+import { COMMON } from "./messages.js";
 import { clearPendingStatus, mark, setStatus } from "./status.js";
 import { authErrorText, challengeExpired, reauthMethods, sessionEnded } from "./util.js";
 
@@ -522,8 +523,7 @@ export function requireSignIn(onReady, { showApp = true } = {}) {
       }
       appEl.hidden = true;
       if (e.message === ERR_REAUTH_INCOMPLETE) {
-        setStatus("Re-authentication with Google did not complete. Sign out, " +
-          "then sign in again.", true);
+        setStatus(COMMON[ERR_REAUTH_INCOMPLETE], true);
         return;
       }
       // A remembered sign-in Firebase can no longer renew: Sign in, not Sign out.

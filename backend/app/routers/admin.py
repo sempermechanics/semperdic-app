@@ -337,12 +337,21 @@ def admin_delete_license(
 @router.get("/v1/admin/deleted-licenses")
 def admin_list_deleted_licenses(
     limit: int = 50,
+    page_token: PageToken = "",
     admin=Depends(admin_user),
 ):
     """Licences deleted within the hold, most recent first, each with the
-    date it is purged."""
+    date it is purged.
+
+    Cursor-paginated: `limit` (1..200, default 50) and optional `page_token`.
+    Response includes `page.nextPageToken` / `page.hasMore`.
+    """
     rate_limit.enforce(rate_limit.admin_bucket, admin["uid"])
-    return {"licenses": repo.list_deleted_licenses(limit=clamp_page_size(limit, 200))}
+    limit = clamp_page_size(limit, 200)
+    licenses, next_token = repo.list_deleted_licenses(
+        limit=limit, page_token=page_token or None,
+    )
+    return {"licenses": licenses, "page": page_block(limit, len(licenses), next_token)}
 
 
 @router.post(

@@ -280,7 +280,8 @@ withdraws entitlement and leaves every saved analysis in place.
 **Delete** asks the same (it revokes first) and is offered on revoked rows
 too, but not on a system Demo key. The licence moves to **Recently deleted**,
 a card loaded only when opened (`GET /v1/admin/deleted-licenses`), which
-shows the days left and **Restore** until `purgeAt`.
+shows the days left and **Restore** until `purgeAt`, 50 at a time with
+**Load more** past them.
 
 ## Deploying
 

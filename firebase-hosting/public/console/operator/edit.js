@@ -187,6 +187,12 @@ export function openConvert(id) {
 }
 
 $("convertCancel").addEventListener("click", () => $("convertDialog").close());
+// The claim code is shown once: closing the dialog any way (Done, Cancel,
+// Escape) takes it out of the page, as mint.js and upgrade.js do theirs.
+$("convertDialog").addEventListener("close", () => {
+  $("convertedKey").textContent = "";
+  $("convertedBox").hidden = true;
+});
 $("convertForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const lic = converting;

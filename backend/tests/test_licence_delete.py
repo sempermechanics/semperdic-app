@@ -161,10 +161,47 @@ def test_the_deleted_list_is_newest_first(store):
         repo.delete_license(lid, "admin")
         store._data["deleted_licenses"][lid]["deletedAt"] = datetime(2026, 9, 1 + i, tzinfo=timezone.utc)
 
-    rows = repo.list_deleted_licenses()
+    rows, next_token = repo.list_deleted_licenses()
 
     assert [r["id"] for r in rows] == ids[::-1]
     assert rows[0]["priorStatus"] == "unused"
+    assert next_token is None
+
+
+def test_the_deleted_list_pages_newest_first(store):
+    store._data["users"] = {}
+    ids = [_mint_individual(email=f"p{i}@lab.org")["license"]["id"] for i in range(5)]
+    for i, lid in enumerate(ids):
+        repo.delete_license(lid, "admin")
+        store._data["deleted_licenses"][lid]["deletedAt"] = datetime(2026, 9, 1 + i, tzinfo=timezone.utc)
+
+    first, token = repo.list_deleted_licenses(limit=2)
+    second, token2 = repo.list_deleted_licenses(limit=2, page_token=token)
+    third, token3 = repo.list_deleted_licenses(limit=2, page_token=token2)
+
+    assert [r["id"] for r in first] == [ids[4], ids[3]]
+    assert token == ids[3]
+    assert [r["id"] for r in second] == [ids[2], ids[1]]
+    assert [r["id"] for r in third] == [ids[0]]
+    assert token3 is None
+
+
+@pytest.mark.asyncio
+async def test_the_deleted_list_route_pages(store, client):
+    store._data["users"] = {}
+    ids = [_mint_individual(email=f"q{i}@lab.org")["license"]["id"] for i in range(3)]
+    for i, lid in enumerate(ids):
+        repo.delete_license(lid, "admin")
+        store._data["deleted_licenses"][lid]["deletedAt"] = datetime(2026, 9, 1 + i, tzinfo=timezone.utc)
+
+    first = (await client.get("/v1/admin/deleted-licenses?limit=2")).json()
+    assert [r["id"] for r in first["licenses"]] == [ids[2], ids[1]]
+    assert first["page"]["hasMore"] is True
+    token = first["page"]["nextPageToken"]
+    rest = (await client.get(f"/v1/admin/deleted-licenses?limit=2&page_token={token}")).json()
+    assert [r["id"] for r in rest["licenses"]] == [ids[0]]
+    assert rest["page"]["hasMore"] is False
+    assert rest["page"]["nextPageToken"] is None
 
 
 # ------------------------------------------------- phones (ADR-033, review L2-2)
