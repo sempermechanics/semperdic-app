@@ -77,13 +77,20 @@ def download_file(file_id: DocumentId, request: Request, ctx=Depends(verified_de
     """
     user = ctx.user
     f = _owned_file(file_id, user)
-    # The asking app's licence (ADR-033); it lists and restores its own.
-    if not repo.cloud_backup_enabled(user, app):
+    # The licence of the app the file's analysis was backed up from (ADR-033),
+    # as the bundle route checks: a Semper licence does not read Semper
+    # Classroom's backups back. One session read per range window.
+    sid = f.get("sessionId")
+    if not repo.cloud_backup_enabled(user, repo.session_app(repo.get_session(sid) if sid else None)):
         raise HTTPException(403, errors.feature_not_licensed_detail())
     drive_file_id = f.get("driveFileId")
     if not drive_file_id:
         raise HTTPException(409, errors.FILE_NOT_UPLOADED)
-    token = drive.access_token()
+    try:
+        token = drive.access_token()
+    except drive.FAILURES as e:
+        raise drive_failure(e, "download token", drive_file_id,
+                            gone=404, failed=errors.DRIVE_DOWNLOAD_FAILED) from e
     byte_range = request.headers.get("range")
     # A restore fetches one file in many adaptive-size Range windows (see
     # DriveTransfer.nextWindowBytes on the client), each hitting this route —
@@ -115,8 +122,10 @@ def _require_landed(rec: dict, body: FileComplete) -> None:
     session's folder: right size, matching md5, the right parent."""
     try:
         meta = drive.get_file_meta(drive.access_token(), body.driveFileId)
-    except requests.HTTPError as e:
-        # 400, not 404: the app discards the session and rebuilds it.
+    except drive.FAILURES as e:
+        # 400, not 404: the app discards the session and rebuilds it. A
+        # timeout or a token that could not be minted is 502, as any other
+        # Drive failure, not an unhandled 500.
         raise drive_failure(e, "meta", body.driveFileId,
                             gone=400, failed=errors.DRIVE_META_FAILED) from e
     if meta["size"] != rec.get("sizeBytes"):

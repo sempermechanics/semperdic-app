@@ -419,6 +419,17 @@ Three properties worth knowing before you change this path:
   and re-caches. A Cloud Tasks retry reuses the session's stored
   `driveFolderId` instead of creating a second one. `session_provisioned`
   logs `folderMs` (the folder phase) next to `latencyMs` (the whole provision).
+- **A name can still be doubled.** Find-then-create has no lock, so two first
+  uploads at once can each make `user/{uid}`. A folder create is not retried
+  blindly: after a 5xx or a timeout it looks the folder up by name first,
+  since Drive may have made it. A lookup takes the oldest of a doubled name
+  (`orderBy=createdTime`), so later walks converge, and erasure deletes every
+  `{uid}` folder (`drive.find_user_folders`) and each session's stored folder.
+- **A 404 is believed only while the Shared Drive is visible.** Drive answers
+  404 for every file of a drive the service account has lost. `file_exists`
+  and `probe_files` confirm `drives/{id}` (the `ping` read, once per probe
+  page) before taking a 404 as gone; otherwise the probe is `UNKNOWN`, verify
+  purges nothing, and a delete or an erasure raises (`drive.DriveAccessLost`).
 
 `/v1/tasks/provision-session` is authenticated by `tasks.tasks_caller`, not by
 anything in `deps.py`: the caller is Google, so there is no uid, no device and no
@@ -2900,8 +2911,9 @@ licence takes the account but binds no phone: Activate does.
 **The quota counts per app.** `count_user_sessions(uid, app)` counts the asking
 app's stored analyses; Semper's is the account's less every other app's, since a
 session from before the tag is Semper's. `GET /v1/sessions`'s `quota` and
-`POST /v1/sessions`'s cap use it; restore (`/v1/files/{id}/content`) checks the
-asking app's licence, and the browser bundle the analysis's own app's. The
+`POST /v1/sessions`'s cap use it; restore (`/v1/files/{id}/content`) and the
+browser bundle both check the licence of the analysis's own app (`session_app`),
+so a Semper licence does not read a Semper Classroom backup back. The
 demo per-device cap is unchanged.
 
 **Leaving gives the phones back.** A seat revoke on an app's licence deactivates

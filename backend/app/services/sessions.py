@@ -198,7 +198,7 @@ def record_session(user: dict, device: dict, device_id: str | None,
     # reading the session and every file doc back (docs/perf/request-volume.md).
     try:
         provisioned = provision_session(sid, purge_on_failure=True, session=session)
-    except requests.RequestException as e:
+    except drive.FAILURES as e:
         # Rolled back already; a Drive outage is a deliberate 502 the app
         # retries, not an unhandled 500 (readiness TE3-007).
         raise HTTPException(502, errors.DRIVE_WRITE_FAILED) from e
