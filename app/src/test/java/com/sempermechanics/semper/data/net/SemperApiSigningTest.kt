@@ -108,6 +108,63 @@ class SemperApiSigningTest {
         assertFalse("the process falls back to challenges", ClientNonce.isUsable())
     }
 
+    /** Signing over the app's own interceptor, so a retry it made would show. */
+    private val retrying by lazy {
+        SemperApiSigning(
+            OkHttpClient.Builder().addInterceptor(RetryOnTransient()).build(),
+            endpoint = { path -> server.url("/").toString().trimEnd('/') + path },
+            deviceId = { "device-1" },
+            sign = { Digests.toHex(it) },
+        )
+    }
+
+    @Test
+    fun `a 503 on a signed GET is sent again under a fresh nonce, never the claimed one`() {
+        ClientNonce.observeServerTime(System.currentTimeMillis())
+        server.enqueue(MockResponse(code = 503))
+        server.enqueue(MockResponse(code = 200))
+
+        retrying.execute("tok", SignedCall("GET", "/v1/config")).use { assertEquals(200, it.code) }
+
+        val first = server.takeRequest()
+        val second = server.takeRequest()
+        assertEquals(2, server.requestCount)
+        val nonce = second.headers["X-Nonce"].orEmpty()
+        assertTrue(nonce.startsWith("t1."))
+        assertTrue("the retry signs a new nonce", nonce != first.headers["X-Nonce"])
+        assertEquals(expectedSignature(nonce, "GET", "/v1/config", ByteArray(0)), second.headers["X-Signature"])
+        assertTrue(ClientNonce.isUsable())
+    }
+
+    @Test
+    fun `a 503 on a signed POST that is not idempotent is not sent again`() {
+        ClientNonce.observeServerTime(System.currentTimeMillis())
+        server.enqueue(MockResponse(code = 503))
+
+        retrying.execute("tok", SignedCall("POST", "/v1/sessions", "{}".toByteArray())).use {
+            assertEquals(503, it.code)
+        }
+
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `a nonce refusal after a retry re-sends with a challenge but keeps client nonces`() {
+        ClientNonce.observeServerTime(System.currentTimeMillis())
+        server.enqueue(MockResponse(code = 503))
+        server.enqueue(MockResponse(code = 401, body = """{"detail":"nonce_invalid_or_replayed"}"""))
+        server.enqueue(MockResponse(code = 200, body = """{"nonce":"n4"}"""))
+        server.enqueue(MockResponse(code = 200))
+
+        retrying.execute("tok", SignedCall("GET", "/v1/config")).use { assertEquals(200, it.code) }
+
+        server.takeRequest()
+        server.takeRequest()
+        assertEquals("/v1/challenge", server.takeRequest().url.encodedPath)
+        assertEquals("n4", server.takeRequest().headers["X-Nonce"])
+        assertTrue("one call's refusal does not end client nonces", ClientNonce.isUsable())
+    }
+
     @Test
     fun `download headers use a client nonce without a round trip when one is usable`() {
         ClientNonce.observeServerTime(System.currentTimeMillis())

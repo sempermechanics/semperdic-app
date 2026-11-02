@@ -151,6 +151,7 @@ object CloudSync {
                 val cloud = listing.cloud
                 // Home offers the backups this phone has no row for from this.
                 CloudBackupListing.record(appContext, cloud.sessions)
+                OtherAppBackups.record(appContext, listing.keep)
 
                 // Waiting rows respect the save-to-cloud toggle; a repair does not,
                 // because it restores a backup the user already had.

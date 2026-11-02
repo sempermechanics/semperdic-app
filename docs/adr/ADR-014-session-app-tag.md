@@ -60,7 +60,7 @@ Every app call already names its app (`X-App-Id`, ADR-010), resolved once in
 | Route | Why it is not gated |
 |-------|---------------------|
 | `GET /v1/sessions/{sid}/bundle` | The browser's way out (§20.11). A browser cannot send `X-App-Id` (CORS allows `Authorization` and `Content-Type` only), so it would always read as Semper and lose Material Testing's backups. It is a zip download, not a restore into an app. |
-| `GET /v1/files/{id}/content`, `POST /v1/files/{id}/complete` | Per file, not per session; reaching them needs a file id from the gated manifest or from an upload this app started. Gating them costs a session read per range window. |
+| `GET /v1/files/{id}/content`, `POST /v1/files/{id}/complete` | Per file, not per session; reaching them needs a file id from the gated manifest or from an upload this app started. Gating them costs a session read per range window. *Since [ADR-033](ADR-033-licence-per-app-explicit-activation.md) `/content` pays that read anyway: it checks the licence of the session's app, not the asking app's (2026-11-01), and still answers either app.* |
 | `GET /v1/sessions/{sid}/uploads` | The resume path of an upload the asking app created, so it is that app's session already. |
 | `PUT /v1/sessions/{sid}/metadata` | Written only by the app that holds the analysis (ADR-013); the body must match the session's `localSessionId`. |
 | `DELETE /v1/sessions/{sid}` | Erasure is the account holder's right whatever the app, and a phone that restored the other app's backup before this change holds a link to it (`cloudSessionId`) that its delete must still reach. |

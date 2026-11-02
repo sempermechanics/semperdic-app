@@ -6,7 +6,9 @@ import kotlinx.serialization.Serializable
  * Wire DTOs for a licence's phones (ADR-033): `/v1/config`'s `activation` and
  * `pendingLicence` blocks, and the `/v1/me/devices*` routes
  * (`backend/app/routers/activations.py`). Every field has a default, so a
- * backend that predates a field, or the block, still decodes.
+ * backend that predates a field, or the block, still decodes; the bodies in
+ * `contracts/` (`device_activate_*`, `devices_response`,
+ * `device_deactivate_response`) pin today's names on both sides.
  */
 
 /**

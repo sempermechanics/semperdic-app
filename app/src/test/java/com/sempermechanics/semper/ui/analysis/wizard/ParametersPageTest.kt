@@ -1,6 +1,8 @@
 package com.sempermechanics.semper.ui.analysis.wizard
 
 import android.app.Application
+import android.widget.TextView
+import androidx.core.view.isVisible
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.prefs.AppSettings
 import com.sempermechanics.semper.databinding.WizardStepSweepBinding
@@ -13,6 +15,8 @@ import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupController
 import com.sempermechanics.semper.ui.common.dialog.WarnChip
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -33,6 +37,7 @@ class ParametersPageTest {
         bed.binding,
         bed.settings,
         WarnChip(bed.settings.frameSizeWarnRow.root) {},
+        WarnChip(bed.settings.gridSizeWarnRow.root) {},
     )
 
     /** The sweep page's controller, its views never found: its Run button is not there to enable. */
@@ -99,6 +104,35 @@ class ParametersPageTest {
         bed.viewModel.edit { it.copy(hasCustomRoi = false, sweepMode = true) }
         gate.apply(isProcessing = false, sweepController = sweep)
         assertEquals("Full image", bed.settings.tvInstruction.text.toString())
+    }
+
+    @Test
+    fun `a grid this heap cannot hold says so and blocks Compute`() {
+        loadRun()
+        bed.viewModel.edit { it.copy(refBytes = ByteArray(1), settingsReviewed = true) }
+        // Room for 8,000 points at four 32-byte copies each; the run needs 8,800.
+        val tight = AnalysisReadyGate(
+            bed.viewModel,
+            bed.binding,
+            bed.settings,
+            WarnChip(bed.settings.frameSizeWarnRow.root) {},
+            WarnChip(bed.settings.gridSizeWarnRow.root) {},
+            maxHeapBytes = 8_000L * 4 * 32,
+        )
+
+        tight.apply(isProcessing = false, sweepController = sweep)
+
+        assertFalse(bed.binding.btnCalculateFullField.isEnabled)
+        assertTrue(bed.settings.gridSizeWarnRow.root.isVisible)
+        assertEquals(
+            "8,800 points is more than this phone has memory for (8,000 at most). " +
+                "Raise the step or draw a smaller ROI.",
+            bed.settings.gridSizeWarnRow.root.findViewById<TextView>(R.id.tvWarnText).text.toString(),
+        )
+
+        gate.apply(isProcessing = false, sweepController = sweep)
+        assertTrue("this JVM's heap holds it", bed.binding.btnCalculateFullField.isEnabled)
+        assertFalse(bed.settings.gridSizeWarnRow.root.isVisible)
     }
 
     @Test

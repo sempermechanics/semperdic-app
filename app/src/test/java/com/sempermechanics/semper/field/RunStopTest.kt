@@ -17,6 +17,7 @@ class RunStopTest {
         assertEquals(EngineFailure.ENGINE_ERROR_INIT, RunStop.InitFailed.wireCode)
         assertEquals(EngineFailure.ENGINE_ERROR_SEED, RunStop.SeedFailed.wireCode)
         // The app's own codes, which RunStop now defines, pinned as stored records hold them.
+        assertEquals(-95, RunStop.TooLarge.wireCode)
         assertEquals(-96, RunStop.LowConvergence.wireCode)
         // No code path produces -97 any more; the value is pinned as it was stored.
         assertEquals(-97, RunStop.SweepEngineFailed.wireCode)
@@ -30,6 +31,7 @@ class RunStopTest {
         RunStop.InvalidRoi,
         RunStop.InitFailed,
         RunStop.SeedFailed,
+        RunStop.TooLarge,
         RunStop.LowConvergence,
         RunStop.SweepEngineFailed,
         RunStop.SessionLimit,
@@ -43,6 +45,7 @@ class RunStopTest {
         RunStop.InvalidRoi,
         RunStop.InitFailed,
         RunStop.SeedFailed,
+        RunStop.TooLarge,
         RunStop.LowConvergence,
         RunStop.SweepEngineFailed,
         RunStop.SessionLimit,

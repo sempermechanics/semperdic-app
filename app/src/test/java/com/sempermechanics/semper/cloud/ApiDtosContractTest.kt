@@ -1,8 +1,12 @@
 package com.sempermechanics.semper.cloud
 
+import com.sempermechanics.semper.data.net.AccountPhonesDto
 import com.sempermechanics.semper.data.net.AppConfigDto
 import com.sempermechanics.semper.data.net.ChallengeResponse
 import com.sempermechanics.semper.data.net.ConsentUpdateRequest
+import com.sempermechanics.semper.data.net.DeviceActivateRequest
+import com.sempermechanics.semper.data.net.DeviceActivateResponse
+import com.sempermechanics.semper.data.net.DeviceDeactivateResponse
 import com.sempermechanics.semper.data.net.DeviceRegisterRequest
 import com.sempermechanics.semper.data.net.ErasureStatus
 import com.sempermechanics.semper.data.net.FileCompleteRequest
@@ -236,6 +240,42 @@ class ApiDtosContractTest {
     }
 
     @Test
+    fun `phone activate response decodes the activation and the config it brings`() {
+        val resp = response<DeviceActivateResponse>("device_activate_response")
+        val activation = resp.activation!!
+        assertEquals("and-7f3e9a1c2b4d6e8f", activation.deviceId)
+        assertFalse(activation.already)
+        assertEquals(1 to 2, activation.devicesActive to activation.maxDevices)
+        assertEquals("activation", activation.model)
+        assertEquals("active", resp.config.activation?.state)
+        assertEquals(2, resp.config.activation?.maxDevices)
+        assertNull(resp.config.pendingLicence)
+    }
+
+    @Test
+    fun `phones list decodes an activated phone and one not`() {
+        val list = response<AccountPhonesDto>("devices_response")
+        assertEquals("activation", list.model)
+        assertEquals(1 to 2, list.devicesActive to list.maxDevices)
+        assertFalse(list.pool)
+        val (here, other) = list.devices
+        assertTrue(here.thisDevice && here.activated)
+        assertEquals("Pixel 5", here.model)
+        assertEquals("self", here.activatedBy)
+        assertEquals("2026-11-02T08:40:03.118204+00:00", here.activatedAt)
+        assertFalse(other.thisDevice || other.activated)
+        assertNull(other.activatedAt)
+        assertEquals("2026-10-21T17:05:12.004417+00:00", other.registeredAt)
+    }
+
+    @Test
+    fun `phone deactivate response decodes the count after it`() {
+        val resp = response<DeviceDeactivateResponse>("device_deactivate_response")
+        assertEquals("and-7f3e9a1c2b4d6e8f", resp.deviceId)
+        assertEquals(0 to 2, resp.devicesActive to resp.maxDevices)
+    }
+
+    @Test
     fun `challenge response decodes the nonce`() {
         assertEquals("c7Fq2xLp9ZbT4mWv8nRk3sYd6hJa1eUg", response<ChallengeResponse>("challenge_response").nonce)
     }
@@ -276,6 +316,11 @@ class ApiDtosContractTest {
         val req = request<DeviceRegisterRequest>("device_register_request")
         assertEquals("and-7f3e9a1c2b4d6e8f", req.deviceId)
         assertTrue(req.publicKeyPem.startsWith("-----BEGIN PUBLIC KEY-----"))
+    }
+
+    @Test
+    fun `phone activate request is exactly the fixture's body`() {
+        assertFalse(request<DeviceActivateRequest>("device_activate_request").upgrade)
     }
 
     @Test

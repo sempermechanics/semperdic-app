@@ -45,47 +45,35 @@ private const val PAUSED_PEEK_BYTES = 512L
  * a settings action, an admin screen — which until now surfaced a one-second
  * throttle to the user as a flat failure.
  *
+ * **A device-signed request's 503 is not retried here.** Its `X-Nonce` is
+ * single use, so a 503 delivered after `verified_device` claimed it would
+ * answer the repeat with `401 nonce_invalid_or_replayed`. [SemperApiSigning]
+ * retries it itself, on the same rule ([waitBeforeResigning]), signed afresh
+ * each time. Its 429 is retried here unchanged: the bucket is resolved ahead
+ * of `verified_device`, so the nonce was never claimed.
+ *
  * Mirrors `backend/app/drive.py`, which honours `Retry-After` the same way for
  * the backend's own egress.
  */
 class RetryOnTransient : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        val signed = request.header(NONCE_HEADER) != null
+        var response = chain.proceed(request)
         var attempt = 0
-        var response = chain.proceed(chain.request())
-        while (attempt < MAX_ATTEMPTS - 1 && shouldRetry(chain, response)) {
-            val wait = delayFor(response, attempt)
-            Timber.d("HTTP %d from %s — retrying in %dms", response.code, chain.request().url.encodedPath, wait)
+        while (true) {
+            if (signed && response.code == HttpStatus.SERVICE_UNAVAILABLE) return response
+            val wait = waitBeforeRetry(response, attempt) ?: return response
+            Timber.d("HTTP %d from %s — retrying in %dms", response.code, request.url.encodedPath, wait)
             response.close()
             // Safe: every SemperApi entry point already runs inside
             // withContext(Dispatchers.IO), so no main thread is ever parked.
             awaitUnlessCanceled(chain, wait)
             attempt++
-            response = chain.proceed(chain.request())
-        }
-        return response
-    }
-
-    private fun shouldRetry(chain: Interceptor.Chain, response: Response): Boolean {
-        val request = chain.request()
-        return when (response.code) {
-            // Rejected before the handler ran, so nothing happened.
-            HttpStatus.TOO_MANY_REQUESTS -> true
-            // May already have been delivered, so only where a repeat is harmless.
-            // A kill switch's pause is not a blip: it lasts minutes, so the
-            // caller hears it at once instead of after every backoff.
-            HttpStatus.SERVICE_UNAVAILABLE -> {
-                val harmless = request.method == "GET" ||
-                    (request.method == "POST" && request.url.encodedPath in IDEMPOTENT_POSTS)
-                harmless && !isPaused(response)
-            }
-            else -> false
+            response = chain.proceed(request)
         }
     }
-
-    /** Whether [response] is a kill switch's `feature_paused`, read without consuming its body. */
-    private fun isPaused(response: Response): Boolean =
-        ApiErrors.hasCode(response.peekBody(PAUSED_PEEK_BYTES).string(), ApiErrors.FEATURE_PAUSED)
 
     /**
      * Waits [millis] before the retry, in slices, so a call cancelled meanwhile
@@ -110,16 +98,54 @@ class RetryOnTransient : Interceptor {
         }
     }
 
-    /** `Retry-After` when the server names one, else exponential with a ceiling. */
-    private fun delayFor(response: Response, attempt: Int): Long {
-        val header = response.header("Retry-After")?.trim()?.toLongOrNull()
-        if (header != null) {
-            return (header * MS_PER_SECOND).coerceIn(BASE_DELAY_MS, MAX_DELAY_MS)
-        }
-        return (BASE_DELAY_MS shl attempt).coerceAtMost(MAX_DELAY_MS)
-    }
-
     companion object {
+        /**
+         * How long to wait before sending [response]'s request again after
+         * [attempt] retries, or null when it is not sent again: a 429 always,
+         * a 503 only where a repeat is harmless and not a kill switch's pause,
+         * and never past [MAX_ATTEMPTS] in all.
+         */
+        internal fun waitBeforeRetry(response: Response, attempt: Int): Long? =
+            if (attempt < MAX_ATTEMPTS - 1 && shouldRetry(response)) delayFor(response, attempt) else null
+
+        /**
+         * [waitBeforeRetry] for a device-signed request's 503, which
+         * [SemperApiSigning] sends again under a new nonce; null for anything
+         * else (its 429 was retried by the interceptor already).
+         */
+        internal fun waitBeforeResigning(response: Response, attempt: Int): Long? =
+            if (response.code == HttpStatus.SERVICE_UNAVAILABLE) waitBeforeRetry(response, attempt) else null
+
+        private fun shouldRetry(response: Response): Boolean {
+            val request = response.request
+            return when (response.code) {
+                // Rejected before the handler ran, so nothing happened.
+                HttpStatus.TOO_MANY_REQUESTS -> true
+                // May already have been delivered, so only where a repeat is harmless.
+                // A kill switch's pause is not a blip: it lasts minutes, so the
+                // caller hears it at once instead of after every backoff.
+                HttpStatus.SERVICE_UNAVAILABLE -> {
+                    val harmless = request.method == "GET" ||
+                        (request.method == "POST" && request.url.encodedPath in IDEMPOTENT_POSTS)
+                    harmless && !isPaused(response)
+                }
+                else -> false
+            }
+        }
+
+        /** Whether [response] is a kill switch's `feature_paused`, read without consuming its body. */
+        private fun isPaused(response: Response): Boolean =
+            ApiErrors.hasCode(response.peekBody(PAUSED_PEEK_BYTES).string(), ApiErrors.FEATURE_PAUSED)
+
+        /** `Retry-After` when the server names one, else exponential with a ceiling. */
+        private fun delayFor(response: Response, attempt: Int): Long {
+            val header = response.header("Retry-After")?.trim()?.toLongOrNull()
+            if (header != null) {
+                return (header * MS_PER_SECOND).coerceIn(BASE_DELAY_MS, MAX_DELAY_MS)
+            }
+            return (BASE_DELAY_MS shl attempt).coerceAtMost(MAX_DELAY_MS)
+        }
+
         /**
          * POST paths whose handlers are idempotent by contract, so a 503 that
          * may have been delivered can still be repeated. Keep this list short

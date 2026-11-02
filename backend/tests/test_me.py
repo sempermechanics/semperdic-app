@@ -1,4 +1,3 @@
-import threading
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -6,6 +5,7 @@ import pytest
 from app import deps, drive, legal
 from app.config import settings
 from app.licenses import invite_id
+from drive_stubs import ErasureDrive
 import repo_view as repo
 
 
@@ -41,16 +41,13 @@ def _seed_two_accounts(store):
     }
 
 
-class _DriveSpy:
-    """Records drive deletes; the fake Drive holds `user_folder` for the caller."""
+class _DriveSpy(ErasureDrive):
+    """Records drive deletes; the fake Drive holds `user_folder` for the caller,
+    and the caller's session folders inside it."""
 
     def __init__(self, monkeypatch, user_folder="dev-user-folder"):
-        self.deleted: list[str] = []
+        super().__init__(monkeypatch, [user_folder] if user_folder else [])
         self.batch: list[list] = []
-        self._lock = threading.Lock()
-        monkeypatch.setattr(drive, "access_token", lambda: "tok")
-        monkeypatch.setattr(drive, "delete_file", self._delete)
-        monkeypatch.setattr(drive, "find_user_folder", lambda _t, uid: user_folder)
         real = drive.delete_files
 
         def delete_files(token, ids, **kw):
@@ -58,10 +55,6 @@ class _DriveSpy:
             return real(token, ids, **kw)
 
         monkeypatch.setattr(drive, "delete_files", delete_files)
-
-    def _delete(self, _token, fid):
-        with self._lock:
-            self.deleted.append(fid)
 
 
 @pytest.fixture
@@ -188,7 +181,7 @@ async def test_get_me_reads_nothing_from_firestore(client, monkeypatch):
 # ------------------------------------------------------------- DELETE /v1/me
 
 @pytest.mark.asyncio
-async def test_delete_me_with_a_stored_folder_erases_it_in_one_call(
+async def test_delete_me_with_a_stored_folder_erases_its_tree_and_finds_the_sessions_gone(
         me_store, audited, client, monkeypatch):
     _seed_two_accounts(me_store)
     monkeypatch.setitem(deps._DEV_USER, "driveFolderId", "dev-user-folder")
@@ -201,8 +194,10 @@ async def test_delete_me_with_a_stored_folder_erases_it_in_one_call(
     assert body["deleted"] == "dev-user"
     assert (body["sessions"], body["files"], body["devices"]) == (1, 1, 1)
     assert body["driveFolders"] == 0 and body["userFolderFound"] is True
+    assert body["userFolders"] == 1
     assert spy.deleted == ["dev-user-folder"]  # the subtree, not each session
-    assert spy.batch == []
+    assert spy.probed == [["f-mine"]]  # checked, gone with the subtree
+    assert spy.batch == [[]]
     # The caller is gone; the other account is exactly as it was.
     assert "dev-user" not in me_store._data["users"]
     assert set(me_store._data["sessions"]) == {"s-theirs"}
@@ -223,7 +218,7 @@ async def test_delete_me_without_any_drive_folder_still_erases_the_records(
     body = (await client.delete("/v1/me")).json()
 
     assert body["userFolderFound"] is False and body["driveFolders"] == 0
-    assert spy.batch == [[None]] and spy.deleted == []
+    assert spy.batch == [[]] and spy.deleted == []
     assert set(me_store._data["sessions"]) == {"s-theirs"}
     assert "dev-user" not in me_store._data["users"]
 
@@ -241,9 +236,10 @@ async def test_a_drive_failure_aborts_before_any_record_is_erased(me_store, clie
     monkeypatch.setattr(drive, "delete_file", refuse)
     before = {k: dict(v) for k, v in me_store._data.items()}
 
-    with pytest.raises(PermissionError):
-        await client.delete("/v1/me")
+    r = await client.delete("/v1/me")
 
+    # A 502 the app retries (L3-5), not an unhandled 500.
+    assert (r.status_code, r.json()) == (502, {"detail": "drive_write_failed"})
     assert me_store._data == before
 
 

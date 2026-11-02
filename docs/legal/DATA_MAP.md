@@ -44,7 +44,7 @@ Email address, display name, sign-in provider, password hash (password accounts)
 TOTP enrolment (staff and console users). Purpose: identity. Retention: until the
 account is erased; `DELETE /v1/me` deletes the Auth user, and every other Auth
 user linked to the account (`linkedAuthUids`, `auth_links`; `repo.sign_in_uids`), once
-the runtime SA holds Firebase Auth admin (`backend/app/services/account.py:124`; TD-214). Both apps sign in to this one Auth project, so deleting the account removes the sign-in for both, consistent with the account-wide erase ([ADR-023](../adr/ADR-023-signed-offline-entitlement.md), decision note).
+the runtime SA holds Firebase Auth admin (`backend/app/services/account.py:142`; TD-214). Both apps sign in to this one Auth project, so deleting the account removes the sign-in for both, consistent with the account-wide erase ([ADR-023](../adr/ADR-023-signed-offline-entitlement.md), decision note).
 
 ### Firestore (project `indicvision-dic-app`; location unrecorded, TD-227)
 
@@ -76,9 +76,9 @@ parameters). Purpose: backup and restore. Retention: a deleted session's folder
 stays while it is in the recycle bin (binning makes no Drive call) and is deleted
 by its purge, after 30 days or at once on a permanent delete (`purge_one`,
 `backend/app/services/recycle_bin.py:167-198`); or with the account
-(`DELETE /v1/me` removes the user folder first, or, with no user folder stored,
-each session's and each bin entry's folder, `_purge_drive`,
-`backend/app/services/account.py:92-126`); Shared Drive trash per Workspace policy.
+(`DELETE /v1/me` removes every user folder of the account, then each session's
+and each bin entry's folder still there, before any record, `_purge_drive`,
+`backend/app/services/account.py:92-180`); Shared Drive trash per Workspace policy.
 
 ### Cloud Logging (project `indicvision-dic-app`)
 

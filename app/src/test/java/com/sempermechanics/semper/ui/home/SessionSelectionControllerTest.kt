@@ -3,6 +3,7 @@ package com.sempermechanics.semper.ui.home
 import android.view.View
 import android.widget.TextView
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.cloud.OtherAppBackups
 import com.sempermechanics.semper.data.cloud.SessionDeletes
 import com.sempermechanics.semper.fixtures.idleUntil
 import org.junit.Assert.assertEquals
@@ -154,6 +155,19 @@ class SessionSelectionControllerTest : SessionSelectionFixture() {
         assertEquals(
             listOf("From this phone\ncloud stays", "From the cloud\nphone stays", "Everywhere"),
             choices().map { it.text.toString() },
+        )
+    }
+
+    @Test
+    fun `an analysis the other app backed up warns that this app cannot bring it back`() {
+        val theirs = record("d", cloud = true)
+        OtherAppBackups.record(activity, setOf("d"))
+        list(theirs)
+        controller.confirmDelete(theirs)
+
+        assertEquals(
+            activity.getString(R.string.delete_confirm_body_other_app),
+            latestDialog().findViewById<TextView>(R.id.tvDeleteMessage).text.toString(),
         )
     }
 

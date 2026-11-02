@@ -1,6 +1,7 @@
 package com.sempermechanics.semper.ui.analysis.sweep
 
 import androidx.annotation.VisibleForTesting
+import com.sempermechanics.semper.ProgressCallback
 import com.sempermechanics.semper.SemperNativeLib
 import com.sempermechanics.semper.data.session.SessionPaths
 import com.sempermechanics.semper.diagnostics.EngineDebug
@@ -34,6 +35,17 @@ import java.nio.ByteBuffer
 object SweepStudyRunner {
 
     private const val PERCENT = 100
+
+    /**
+     * The progress callback each solve gets: it shows nothing, and puts back a
+     * cancel the engine's solve start cleared ([AnalysisCancel.reassertIfRequested]).
+     */
+    @VisibleForTesting
+    internal val REASSERT_CANCEL = object : ProgressCallback {
+        override fun onProgressUpdate(percentage: Int) {
+            AnalysisCancel.reassertIfRequested()
+        }
+    }
 
     data class Params(
         val plan: List<SweepStudy.Point>,
@@ -192,7 +204,8 @@ object SweepStudyRunner {
             val starting = index * PERCENT / maxOf(1, total)
             onProgress(Progress(index, total, starting, point, 0, -1f, outcomes.toList(), lastSolved))
 
-            val solved = SemperEngine.solve(refBytes, defBytes, params.engineParams(point), buffer, metrics)
+            val solved = solveUnlessCancelled(refBytes, defBytes, params.engineParams(point), buffer, metrics)
+                ?: break
             // One bad node says nothing about the rest — a small subset can fail
             // where a larger one solves, and the plan starts at the smallest — so
             // skip and keep sweeping rather than abort. skipCodeFor also rejects a
@@ -246,6 +259,24 @@ object SweepStudyRunner {
     }
 
     /**
+     * One solve, or null when a Cancel was confirmed since the loop's check.
+     * The engine clears the cancel flag as its solve starts, so that Cancel
+     * would be wiped: checked again here, and put back once the solve is under
+     * way ([REASSERT_CANCEL]).
+     */
+    private fun solveUnlessCancelled(
+        refBytes: ByteArray,
+        defBytes: ByteArray,
+        engineParams: SemperEngine.Params,
+        buffer: ByteBuffer,
+        metrics: FloatArray,
+    ): Int? = if (cancelRequested) {
+        null
+    } else {
+        SemperEngine.solve(refBytes, defBytes, engineParams, buffer, metrics, REASSERT_CANCEL)
+    }
+
+    /**
      * Notes a combination the engine could not solve. The engine's own code
      * travels, not a sentence: the screen that shows it has a Context and turns
      * it into the same wording the failure dialog uses.
@@ -274,9 +305,7 @@ object SweepStudyRunner {
      */
     private fun allocateFor(params: Params): ByteBuffer {
         val finestStep = params.plan.minOfOrNull { it.step } ?: 1
-        val gridW = params.roiW / finestStep
-        val gridH = params.roiH / finestStep
-        return DicFieldIo.allocateDirect(gridW * gridH)
+        return DicFieldIo.allocateDirect(DicFieldIo.gridPoints(params.roiW, params.roiH, finestStep))
     }
 
     /**

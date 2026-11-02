@@ -305,7 +305,7 @@ class SessionSelectionController(
         when {
             allHaveLocal && allHaveCloud -> showChoices(
                 title,
-                activity.resources.getQuantityString(
+                otherAppDeleteWarning(activity, records) ?: activity.resources.getQuantityString(
                     R.plurals.delete_confirm_body_choice_multi,
                     records.size,
                     records.size,
@@ -396,7 +396,12 @@ class SessionSelectionController(
 
         when {
             hasLocal && hasCloud ->
-                showChoices(title, activity.getString(R.string.delete_confirm_body_cloud), listOf(record))
+                showChoices(
+                    title,
+                    otherAppDeleteWarning(activity, listOf(record))
+                        ?: activity.getString(R.string.delete_confirm_body_cloud),
+                    listOf(record),
+                )
             !hasLocal && hasCloud -> confirm(
                 activity.getString(R.string.delete_cloud_title_fmt, record.name),
                 activity.getString(R.string.cloud_delete_body),

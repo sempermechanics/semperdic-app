@@ -77,6 +77,7 @@ class SessionSelectionBinTest : SessionSelectionFixture() {
         val res = activity.resources
         val lines = listOf(
             activity.getString(R.string.delete_confirm_body_cloud),
+            activity.getString(R.string.delete_confirm_body_other_app),
             activity.getString(R.string.cloud_delete_body),
             res.getQuantityString(R.plurals.delete_confirm_body_choice_multi, 1, 1),
             res.getQuantityString(R.plurals.delete_confirm_body_choice_multi, 5, 5),

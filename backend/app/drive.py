@@ -11,6 +11,7 @@ import time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
 import requests
+from google.auth import exceptions as google_auth_errors
 from requests.adapters import HTTPAdapter
 
 from . import backoff, errors
@@ -112,6 +113,22 @@ def http() -> requests.Session:
     return _http
 
 
+class DriveAccessLost(PermissionError):
+    """The service account cannot see the Shared Drive at all.
+
+    Drive answers 404 for every file of a drive the caller has lost, the same
+    answer as for a file that is gone. Read as "gone", that let the verify
+    step purge metadata whose bytes were still in Drive, and an erasure
+    report success with every blob left behind. Raised instead of believing
+    the 404."""
+
+
+#: What a Drive call raises when Drive (not our code) failed: an HTTP error,
+#: a timeout or lost connection, a delete Drive refused, or a token that
+#: could not be minted. Routes answer these 502 rather than an unhandled 500.
+FAILURES = (requests.RequestException, PermissionError, google_auth_errors.GoogleAuthError)
+
+
 def access_token() -> str:
     return drive_access_token()
 
@@ -138,8 +155,9 @@ def _request_with_retry(
 ) -> requests.Response:
     """HTTP call with exponential backoff on 429/5xx (honors Retry-After).
 
-    Used for idempotent Drive GETs and folder find-or-create. Timeouts are
-    kept per attempt so a stuck socket still fails within the outer budget.
+    Used for idempotent Drive GETs; a folder create retries its own way
+    (`_create_folder`). Timeouts are kept per attempt so a stuck socket still
+    fails within the outer budget.
     """
     last: requests.Response | None = None
     slept = 0.0
@@ -192,7 +210,12 @@ def _escape_q_value(value: str) -> str:
 
 
 def _find_or_create_folder(token: str, name: str, parent: str) -> str:
-    """The folder `name` under `parent`, created when there is none."""
+    """The folder `name` under `parent`, created when there is none.
+
+    Two first uploads at once can each find nothing and each create one, so
+    a name can be doubled; the lookup takes the oldest, so every later walk
+    lands in the same folder, and erasure deletes them all
+    (`find_user_folders`)."""
     return _find_folder(token, name, parent) or _create_folder(token, name, parent)
 
 
@@ -202,45 +225,85 @@ def _create_folder(token: str, name: str, parent: str) -> str:
     For names that cannot exist yet — a session id minted moments ago — the
     search in _find_or_create_folder is a Drive round-trip that always comes
     back empty.
+
+    The POST is not retried blindly. Drive can make the folder and still
+    answer 5xx, or the answer can be lost to a timeout, and a second POST then
+    made a second folder of the same name: two `user/{uid}` trees, one that
+    erasure did not know about. After such a failure the folder is looked for
+    by name first, and posted again only when it is not there.
     """
-    r = _request_with_retry(
-        "POST",
-        f"{API}/files",
-        headers=_headers(token),
-        params={"supportsAllDrives": "true"},
-        json={"name": name, "mimeType": FOLDER_MIME, "parents": [parent],
-              "driveId": settings.SHARED_DRIVE_ID},
-        timeout=30,
-    )
-    r.raise_for_status()
-    return r.json()["id"]
+    slept = 0.0
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            r = http().request(
+                "POST",
+                f"{API}/files",
+                headers=_headers(token),
+                params={"supportsAllDrives": "true"},
+                json={"name": name, "mimeType": FOLDER_MIME, "parents": [parent],
+                      "driveId": settings.SHARED_DRIVE_ID},
+                timeout=30,
+            )
+        except (requests.Timeout, requests.ConnectionError) as e:
+            failure: requests.Response | Exception = e
+            delay = backoff.retry_delay(attempt, None)
+        else:
+            if r.status_code not in _RETRY_STATUSES:
+                r.raise_for_status()
+                return r.json()["id"]
+            failure, delay = r, _retry_delay(r, attempt)
+        if attempt == _MAX_ATTEMPTS - 1 or slept + delay > _RETRY_BUDGET_S:
+            break
+        log.warning("Drive folder create %r -> %s; looking for it before trying again in %.1fs",
+                    name, getattr(failure, "status_code", type(failure).__name__), delay)
+        time.sleep(delay)
+        slept += delay
+        made = _find_folder(token, name, parent)
+        if made:
+            return made
+    if isinstance(failure, requests.Response):
+        failure.raise_for_status()
+    raise failure
 
 
-def _find_folder(token: str, name: str, parent: str) -> str | None:
-    """Look a folder up WITHOUT creating it: the erasure path, and the
-    lookup half of `_find_or_create_folder`."""
+def _find_folders(token: str, name: str, parent: str) -> list[str]:
+    """Every live folder `name` under `parent`, oldest first."""
     safe = _escape_q_value(name)
     q = (
         f"name='{safe}' and mimeType='{FOLDER_MIME}' and "
         f"'{parent}' in parents and trashed=false"
     )
-    r = _request_with_retry(
-        "GET",
-        f"{API}/files",
-        headers=_headers(token),
-        params={
+    found: list[str] = []
+    page_token = None
+    while True:
+        params = {
             "q": q,
-            "fields": "files(id)",
+            "fields": "nextPageToken,files(id)",
+            "orderBy": "createdTime",
+            "pageSize": "100",
             "supportsAllDrives": "true",
             "includeItemsFromAllDrives": "true",
             "corpora": "drive",
             "driveId": settings.SHARED_DRIVE_ID,
-        },
-        timeout=30,
-    )
-    r.raise_for_status()
-    files = r.json().get("files", [])
-    return files[0]["id"] if files else None
+        }
+        if page_token:
+            params["pageToken"] = page_token
+        r = _request_with_retry("GET", f"{API}/files", headers=_headers(token),
+                                params=params, timeout=30)
+        r.raise_for_status()
+        body = r.json()
+        found += [f["id"] for f in body.get("files", [])]
+        page_token = body.get("nextPageToken")
+        if not page_token:
+            return found
+
+
+def _find_folder(token: str, name: str, parent: str) -> str | None:
+    """Look a folder up WITHOUT creating it: the lookup half of
+    `_find_or_create_folder`. The oldest when the name is doubled, so every
+    call picks the same one."""
+    found = _find_folders(token, name, parent)
+    return found[0] if found else None
 
 
 #: The folder under "Research Storage" that holds every account's subtree,
@@ -250,27 +313,34 @@ USERS_FOLDER = "user"
 TEST_USERS_FOLDER = "_test"
 
 
-def find_user_folder(token: str, uid: str, *, test: bool = False):
-    """The user's whole Drive subtree (…/Research Storage/user/{uid}), or None.
-    A test account's is …/Research Storage/_test/{uid} (`test`).
+def find_user_folders(token: str, uid: str, *, test: bool = False) -> list[str]:
+    """Every folder named {uid} under …/Research Storage/user/ — or, for a
+    test account (`test`), …/Research Storage/_test/ — oldest first; [] when
+    there is none.
 
-    Best-effort cleanup only. Callers deleting real data must go through the
-    stored `driveFolderId` per session — a name walk that quietly returns None
-    (renamed folder, wrong ROOT_FOLDER_ID, a level missing) would look exactly
-    like "nothing to delete" and strand the user's blobs.
+    Every one, not the first: two first uploads at once, or a folder create
+    Drive made but answered 5xx, can leave two `{uid}` folders, and erasure
+    must delete both. A doubled scaffolding level is walked too.
+
+    Not the only record erasure goes by: a name walk that quietly finds
+    nothing (renamed folder, wrong ROOT_FOLDER_ID, a level missing) would look
+    exactly like "nothing to delete", so each session's stored
+    `driveFolderId` is deleted as well (`services.account._purge_drive`).
     """
-    research = _find_folder(token, "Research Storage", settings.ROOT_FOLDER_ID)
-    if not research:
-        log.warning("find_user_folder: no 'Research Storage' under root %s", settings.ROOT_FOLDER_ID)
-        return None
-    user_dir = _find_folder(token, TEST_USERS_FOLDER if test else USERS_FOLDER, research)
-    if not user_dir:
-        log.warning("find_user_folder: no '%s' folder under Research Storage",
-                    TEST_USERS_FOLDER if test else USERS_FOLDER)
-        return None
-    found = _find_folder(token, uid, user_dir)
+    users_name = TEST_USERS_FOLDER if test else USERS_FOLDER
+    research_dirs = _find_folders(token, "Research Storage", settings.ROOT_FOLDER_ID)
+    if not research_dirs:
+        log.warning("find_user_folders: no 'Research Storage' under root %s", settings.ROOT_FOLDER_ID)
+        return []
+    user_dirs = [d for research in research_dirs for d in _find_folders(token, users_name, research)]
+    if not user_dirs:
+        log.warning("find_user_folders: no '%s' folder under Research Storage", users_name)
+        return []
+    found = [f for user_dir in user_dirs for f in _find_folders(token, uid, user_dir)]
     if not found:
-        log.warning("find_user_folder: no folder named %s under user/", uid)
+        log.warning("find_user_folders: no folder named %s under %s/", uid, users_name)
+    elif len(found) > 1:
+        log.warning("find_user_folders: %d folders named %s under %s/", len(found), uid, users_name)
     return found
 
 
@@ -360,11 +430,48 @@ def _check_and_create(token: str, sess_dir: str, sid: str) -> tuple[bool, str | 
     return False, None
 
 
-def file_exists(token: str, file_id: str) -> bool:
+def _shared_drive_visible(token: str) -> bool:
+    """Can the service account still see the Shared Drive? The same
+    `drives/{id}` read `ping` makes: False on its 404, and any other failure
+    raised, since that is no answer either way."""
+    r = _request_with_retry(
+        "GET",
+        f"{API}/drives/{settings.SHARED_DRIVE_ID}",
+        headers=_headers(token),
+        params={"fields": "id"},
+        timeout=30,
+    )
+    if r.status_code == 404:
+        return False
+    r.raise_for_status()
+    return True
+
+
+def _visibility_once(token: str):
+    """`_shared_drive_visible`, asked at most once however many calls share
+    it (a fan-out's probes). A failure is not kept, so the next caller asks."""
+    lock = threading.Lock()
+    answer: list[bool] = []
+
+    def visible() -> bool:
+        with lock:
+            if not answer:
+                answer.append(_shared_drive_visible(token))
+            return answer[0]
+
+    return visible
+
+
+def file_exists(token: str, file_id: str, *, drive_visible=None) -> bool:
     """Is this file/folder still really in Drive (and not trashed)?
 
     Firestore is only an index — if someone deletes a session folder straight in
     Drive, the index still claims COMPLETED. This is the check that catches that.
+
+    A 404 is believed only once the Shared Drive itself is visible: Drive
+    answers 404 for every file of a drive the service account has lost, and
+    that raises `DriveAccessLost` instead. `drive_visible` is that check,
+    shared across calls (`_visibility_once`); by default each 404 asks.
     """
     r = _request_with_retry(
         "GET",
@@ -374,6 +481,13 @@ def file_exists(token: str, file_id: str) -> bool:
         timeout=30,
     )
     if r.status_code == 404:
+        if not (drive_visible or (lambda: _shared_drive_visible(token)))():
+            log.error("drive %s: 404, and the Shared Drive itself is not visible; "
+                      "the service account has lost access", file_id)
+            raise DriveAccessLost(
+                f"Drive answered 404 for {file_id} and the Shared Drive "
+                f"{settings.SHARED_DRIVE_ID} is not visible to the service account."
+            )
         return False
     r.raise_for_status()
     return not r.json().get("trashed", False)
@@ -393,15 +507,18 @@ def probe_files(token: str, file_ids: list[str], *, max_workers: int = 8) -> dic
     over the current page only — callers must paginate so |file_ids| stays small.
 
     Returns ALIVE / MISSING / UNKNOWN per id. A probe that raises (Drive 5xx, a
-    timeout, an expired token) yields UNKNOWN, not MISSING: the caller purges
-    Firestore session metadata on MISSING, so mapping a transient outage to
-    "missing" turned a Drive blip into permanent data loss.
+    timeout, an expired token, a Shared Drive out of sight) yields UNKNOWN,
+    not MISSING: the caller purges Firestore session metadata on MISSING, so
+    mapping a transient outage to "missing" turned a Drive blip into permanent
+    data loss. The Shared Drive's visibility is asked once for the whole call,
+    on the first 404.
     """
     unique = [fid for fid in dict.fromkeys(file_ids) if fid]
+    visible = _visibility_once(token)
 
     def probe(fid: str) -> str:
         try:
-            return ALIVE if file_exists(token, fid) else MISSING
+            return ALIVE if file_exists(token, fid, drive_visible=visible) else MISSING
         except Exception:  # noqa: BLE001 - unreachable != absent
             log.warning("Drive existence probe failed for %s — treating as unknown", fid)
             return UNKNOWN
@@ -462,7 +579,8 @@ def delete_file(token: str, file_id: str) -> None:
         # Ambiguous: Drive returns 404 both for "already gone" AND for "you may
         # not touch this" (it hides existence instead of returning 403). Taking
         # it as success once meant erasure silently no-op'd while reporting that
-        # it had deleted everything. Never believe a 404 — check.
+        # it had deleted everything. Never believe a 404 — check. The check
+        # raises `DriveAccessLost` when the whole Shared Drive is out of sight.
         if file_exists(token, file_id):
             log.error("drive delete %s: 404 but the file is STILL THERE — permission problem", file_id)
             raise PermissionError(

@@ -11,7 +11,8 @@ from firebase_admin import auth as fb_auth
 
 import fake_firestore
 import repo_view as repo
-from app import config, deps, drive, google_auth, rate_limit, step_up
+from app import config, deps, google_auth, rate_limit, step_up
+from drive_stubs import erasure_drive
 from app.config import settings
 
 
@@ -76,6 +77,7 @@ def stepping_admin(monkeypatch, audited):
     every verify_id_token call (token, check_revoked)."""
     store = fake_firestore.install(monkeypatch)
     monkeypatch.setattr(settings, "DEV_INSECURE_AUTH", False)
+    monkeypatch.setattr(settings, "ADMIN_EMAILS", {"admin@sempermechanics.com"})
     monkeypatch.setattr(settings, "ADMIN_WEB_MFA_ENABLED", True)
     monkeypatch.setattr(settings, "ADMIN_WEB_REAUTH_SECONDS", 900)
     monkeypatch.setattr(repo.notify, "access_request", lambda *a, **k: None)
@@ -237,8 +239,7 @@ def erasable(store, audited, monkeypatch):
     store._data["users"] = {"dev-user": {"email": "dev@local", "access_status": "APPROVED",
                                          "driveFolderId": "uf"}}
     monkeypatch.setattr(deps, "_DEV_USER", {**deps._DEV_USER, "driveFolderId": "uf"})
-    monkeypatch.setattr(drive, "access_token", lambda: "tok")
-    monkeypatch.setattr(drive, "delete_file", lambda token, fid: None)
+    erasure_drive(monkeypatch)
     return store
 
 

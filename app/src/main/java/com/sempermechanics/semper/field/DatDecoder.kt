@@ -6,6 +6,7 @@ package com.sempermechanics.semper.field
 
 import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
@@ -48,9 +49,21 @@ object DatDecoder {
     /**
      * Chunked-read fallback for [decodeInto]: reads the file through a small heap
      * buffer into [out]. Kept for filesystems/sizes that cannot be memory-mapped.
+     * Null, like a short file, when the file cannot be opened or read (deleted
+     * since its length was read, or a directory named `.dat`), not a throw.
      */
     private fun decodeChunked(file: File, floatCount: Int, out: FloatArray): FloatArray? {
-        val complete = FileInputStream(file).channel.use { channel ->
+        val complete = try {
+            readChunks(file, floatCount, out)
+        } catch (_: IOException) {
+            false
+        }
+        return if (complete) out else null
+    }
+
+    /** [decodeChunked]'s read: true when all [floatCount] floats of [file] landed in [out]. */
+    private fun readChunks(file: File, floatCount: Int, out: FloatArray): Boolean =
+        FileInputStream(file).channel.use { channel ->
             val buf = ByteBuffer.allocate(DECODE_CHUNK_BYTES).order(ByteOrder.nativeOrder())
             var written = 0
             var intact = true
@@ -68,6 +81,4 @@ object DatDecoder {
             }
             intact && written == floatCount
         }
-        return if (complete) out else null
-    }
 }

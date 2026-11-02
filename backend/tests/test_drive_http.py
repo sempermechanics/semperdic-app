@@ -62,6 +62,11 @@ class FakeDrive:
     `fail(method, url_part, *responses)` queues canned responses for the next
     matching calls (FIFO), ahead of the emulated behaviour — the way to inject
     a 503, a 429 with Retry-After, or a 404 that is not the truth.
+    `fail_after` makes the call and then answers the canned response (or
+    raises the canned exception) instead: a create Drive made but answered
+    500, or whose answer timed out. `lose_access()` is the service
+    account removed from the Shared Drive: every call, the drive's own
+    included, answers 404.
     """
 
     def __init__(self, root: str):
@@ -69,17 +74,22 @@ class FakeDrive:
         self.items: dict[str, dict] = {root: {"name": "root", "parents": [], "folder": True}}
         self.calls: list[tuple[str, str, dict]] = []
         self._faults: list[tuple[str, str, requests.Response]] = []
+        self._after: list[tuple[str, str, requests.Response]] = []
+        self.access = True
         self._next = 0
         self._lock = threading.Lock()
 
     # ---- seeding / inspection
     def add(self, name: str, parent: str, *, folder=True, trashed=False,
-            content: bytes = b"") -> str:
+            content: bytes = b"", created: int | None = None) -> str:
+        """`created` orders `orderBy=createdTime` listings; by default the
+        order of adding."""
         with self._lock:
             self._next += 1
             fid = f"id{self._next}"
             self.items[fid] = {"name": name, "parents": [parent], "folder": folder,
-                               "trashed": trashed, "content": content}
+                               "trashed": trashed, "content": content,
+                               "created": self._next if created is None else created}
             return fid
 
     def children(self, parent: str) -> dict[str, str]:
@@ -96,6 +106,17 @@ class FakeDrive:
     def fail(self, method: str, url_part: str, *responses: requests.Response) -> None:
         for r in responses:
             self._faults.append((method, url_part, r))
+
+    def fail_after(self, method: str, url_part: str, *responses) -> None:
+        for r in responses:
+            self._after.append((method, url_part, r))
+
+    def lose_access(self) -> None:
+        self.access = False
+
+    def folders_named(self, name: str, parent: str) -> list[str]:
+        return [fid for fid, i in self.items.items()
+                if i["name"] == name and parent in i["parents"] and i.get("folder")]
 
     def count(self, method: str, url_part: str = "") -> int:
         return sum(1 for m, u, _ in self.calls if m == method and url_part in u)
@@ -125,7 +146,16 @@ class FakeDrive:
                     return resp
             if (headers or {}).get("Authorization") != f"Bearer {TOKEN}":
                 return _response(401, {"error": {"code": 401, "message": "Invalid Credentials"}})
-            return self._route(method, url, params or {}, json, data, headers or {})
+            if not self.access:
+                return _response(404, {"error": {"code": 404, "message": "File not found"}})
+            answer = self._route(method, url, params or {}, json, data, headers or {})
+            for i, (m, part, resp) in enumerate(self._after):
+                if m == method and part in url:
+                    del self._after[i]
+                    if isinstance(resp, Exception):
+                        raise resp
+                    return resp
+            return answer
 
     def _route(self, method, url, params, body, data, headers):
         if url.startswith(UPLOAD_MEDIA) and method == "PATCH":
@@ -146,10 +176,12 @@ class FakeDrive:
         if url == FILES and method == "GET":
             name = _unescape(_Q_NAME.search(params["q"]).group(1))
             parent = _Q_PARENT.search(params["q"]).group(1)
-            hits = [{"id": fid} for fid, i in self.items.items()
+            hits = [(i.get("created", 0), fid) for fid, i in self.items.items()
                     if i["name"] == name and parent in i["parents"]
                     and i.get("folder") and not i.get("trashed")]
-            return _response(200, {"files": hits})
+            if params.get("orderBy") == "createdTime":
+                hits.sort()
+            return _response(200, {"files": [{"id": fid} for _c, fid in hits]})
         if url == FILES and method == "POST":
             parent = body["parents"][0]
             if parent not in self.items:
@@ -157,7 +189,7 @@ class FakeDrive:
             self._next += 1
             fid = f"id{self._next}"
             self.items[fid] = {"name": body["name"], "parents": [parent], "folder": True,
-                               "trashed": False, "content": b""}
+                               "trashed": False, "content": b"", "created": self._next}
             return _response(200, {"id": fid})
         if url.startswith(FILES + "/"):
             fid = url[len(FILES) + 1:]
@@ -446,39 +478,40 @@ def test_folder_names_are_escaped_in_the_drive_query(fake):
     research = fake.add("Research Storage", fake.root)
     users = fake.add("user", research)
     other = fake.add("someone-else", users)
-    assert drive.find_user_folder(TOKEN, tricky) is None
+    assert drive.find_user_folders(TOKEN, tricky) == []
     mine = fake.add(tricky, users)
-    assert drive.find_user_folder(TOKEN, tricky) == mine != other
+    assert drive.find_user_folders(TOKEN, tricky) == [mine]
+    assert mine != other
     q = [c[2]["params"]["q"] for c in fake.calls if c[1] == FILES][-1]
     assert "name='o\\'brien\\\\'" in q
     assert q.endswith("trashed=false")
 
 
-# --------------------------------------------------------- find_user_folder
+# -------------------------------------------------------- find_user_folders
 
-def test_find_user_folder_finds_and_never_creates(fake):
+def test_find_user_folders_finds_and_never_creates(fake):
     tree = drive.ensure_session_folders(TOKEN, "u1", "s1", roles=())
     before = dict(fake.items)
-    assert drive.find_user_folder(TOKEN, "u1") == tree["userFolderId"]
-    assert drive.find_user_folder(TOKEN, "u2") is None
+    assert drive.find_user_folders(TOKEN, "u1") == [tree["userFolderId"]]
+    assert drive.find_user_folders(TOKEN, "u2") == []
     assert fake.items == before
 
 
 @pytest.mark.parametrize("levels", [[], ["Research Storage"], ["Research Storage", "user"]])
-def test_find_user_folder_is_none_when_a_level_is_missing(fake, levels):
+def test_find_user_folders_is_empty_when_a_level_is_missing(fake, levels):
     parent = fake.root
     for name in levels:
         parent = fake.add(name, parent)
     before = len(fake.items)
-    assert drive.find_user_folder(TOKEN, "u1") is None
+    assert drive.find_user_folders(TOKEN, "u1") == []
     assert len(fake.items) == before
 
 
-def test_find_user_folder_ignores_a_trashed_folder(fake):
+def test_find_user_folders_ignores_a_trashed_folder(fake):
     research = fake.add("Research Storage", fake.root)
     users = fake.add("user", research)
     fake.add("u1", users, trashed=True)
-    assert drive.find_user_folder(TOKEN, "u1") is None
+    assert drive.find_user_folders(TOKEN, "u1") == []
 
 
 # ---------------------------------------------------------------- deletes
@@ -488,7 +521,7 @@ def test_delete_file_removes_the_whole_subtree(fake):
     drive.delete_file(TOKEN, tree["userFolderId"])
     assert tree["sessionFolderId"] not in fake.items
     assert tree["raw"] not in fake.items
-    assert drive.find_user_folder(TOKEN, "u1") is None
+    assert drive.find_user_folders(TOKEN, "u1") == []
 
 
 def test_delete_of_an_already_gone_file_is_success(fake):
@@ -684,3 +717,227 @@ def test_a_retry_loop_with_no_attempts_is_refused(monkeypatch):
     monkeypatch.setattr(drive, "http", no_http)
     with pytest.raises(ValueError, match="max_attempts must be at least 1"):
         drive._request_with_retry("GET", drive.API, max_attempts=0)
+
+
+# ------------------------------------------- doubled folders (review L3-1)
+
+def _scaffold(fake):
+    research = fake.add("Research Storage", fake.root)
+    return fake.add("user", research)
+
+
+def test_a_create_drive_made_but_answered_500_is_found_not_made_twice(fake, sleeps):
+    """Drive made `u1/` and answered 500. Posting again made a second
+    `user/u1`, one tree erasure never knew of; the retry now looks first."""
+    users = _scaffold(fake)
+    fake.fail_after("POST", FILES, _response(500))
+
+    out = drive.ensure_session_folders(TOKEN, "u1", "s1", roles=())
+
+    assert fake.folders_named("u1", users) == [out["userFolderId"]]
+    assert fake.path_of(out["sessionFolderId"]) == "Research Storage/user/u1/session/s1"
+    assert sleeps == [1.0]
+
+
+def test_a_create_whose_answer_timed_out_is_found_not_made_twice(fake, sleeps):
+    users = _scaffold(fake)
+    fake.fail_after("POST", FILES, requests.Timeout("read timed out"))
+
+    out = drive.ensure_session_folders(TOKEN, "u1", "s1", roles=())
+
+    assert fake.folders_named("u1", users) == [out["userFolderId"]]
+
+
+def test_a_create_drive_did_not_make_is_posted_again_once_it_is_not_found(fake, sleeps):
+    users = _scaffold(fake)
+    fake.fail("POST", FILES, _response(503))
+
+    out = drive.ensure_session_folders(TOKEN, "u1", "s1", roles=())
+
+    assert fake.folders_named("u1", users) == [out["userFolderId"]]
+    assert fake.count("POST", FILES) == 4  # u1 refused, u1, session, s1
+    assert sleeps == [1.0]
+
+
+def test_a_create_that_keeps_failing_raises_drives_last_status(fake, sleeps):
+    users = _scaffold(fake)
+    fake.fail("POST", FILES, *[_response(503) for _ in range(drive._MAX_ATTEMPTS)])
+    with pytest.raises(requests.HTTPError) as err:
+        drive._create_folder(TOKEN, "u1", users)
+    assert err.value.response.status_code == 503
+    assert fake.count("POST", FILES) == drive._MAX_ATTEMPTS
+    assert fake.folders_named("u1", users) == []
+
+
+def test_a_create_that_keeps_timing_out_raises_the_timeout(fake, sleeps):
+    users = _scaffold(fake)
+
+    real = fake.request
+
+    def timeout(method, url, **kw):
+        if method == "POST":
+            raise requests.Timeout("no answer")
+        return real(method, url, **kw)
+
+    fake.request = timeout
+    with pytest.raises(requests.Timeout):
+        drive._create_folder(TOKEN, "u1", users)
+    assert len(sleeps) == drive._MAX_ATTEMPTS - 1
+
+
+def test_a_doubled_user_folder_resolves_to_the_oldest_every_time(fake):
+    """Two first uploads at once made two `user/u1`. Every later walk lands in
+    the oldest, whatever order Drive lists them in, so uploads converge."""
+    users = _scaffold(fake)
+    newer = fake.add("u1", users, created=20)
+    older = fake.add("u1", users, created=10)
+
+    first = drive.ensure_session_folders(TOKEN, "u1", "s1", roles=())
+    again = drive.ensure_session_folders(TOKEN, "u1", "s2", roles=())
+
+    assert first["userFolderId"] == again["userFolderId"] == older != newer
+    q = [c[2]["params"] for c in fake.calls if c[1] == FILES and c[0] == "GET"][-1]
+    assert q["orderBy"] == "createdTime"
+
+
+def test_find_folders_reads_every_page(fake):
+    users = _scaffold(fake)
+    real = fake.add("u1", users)
+    fake.fail("GET", FILES, _response(200, {"files": [{"id": "on-page-1"}], "nextPageToken": "p2"}))
+
+    assert drive._find_folders(TOKEN, "u1", users) == ["on-page-1", real]
+    assert [c[2]["params"].get("pageToken") for c in fake.calls if c[1] == FILES] == [None, "p2"]
+
+
+def test_find_user_folders_returns_every_doubled_folder_under_every_doubled_level(fake):
+    research_a = fake.add("Research Storage", fake.root)
+    research_b = fake.add("Research Storage", fake.root)
+    users_a = fake.add("user", research_a)
+    users_b = fake.add("user", research_b)
+    a1, a2 = fake.add("u1", users_a), fake.add("u1", users_a)
+    b1 = fake.add("u1", users_b)
+    fake.add("u2", users_a)
+    assert drive.find_user_folders(TOKEN, "u1") == [a1, a2, b1]
+
+
+def _session_under(fake, user_folder, sid):
+    sessions = fake.folders_named("session", user_folder)
+    parent = sessions[0] if sessions else fake.add("session", user_folder)
+    folder = fake.add(sid, parent)
+    fake.add("Session.zip", folder, folder=False, content=b"bytes")
+    return folder
+
+
+def test_erasure_deletes_every_user_folder_and_every_sessions_folder(fake, monkeypatch):
+    """Two `user/u1` trees with an analysis in each, the user doc pointing at
+    one, a session folder moved out of both, and a recycle-bin entry's folder
+    outside them too (ADR-035): all of it goes."""
+    from app.services import account as account_service
+    import repo_view as repo
+
+    users = _scaffold(fake)
+    tree_a = fake.add("u1", users, created=1)
+    tree_b = fake.add("u1", users, created=2)
+    s1 = _session_under(fake, tree_a, "s1")
+    s2 = _session_under(fake, tree_b, "s2")
+    moved = fake.add("s3", fake.root)
+    stored = [{"sessionId": sid, "driveFolderId": f}
+              for sid, f in (("s1", s1), ("s2", s2), ("s3", moved), ("s4", None))]
+    repo.patch(monkeypatch, "iter_user_sessions", lambda uid: iter(stored))
+    binned = fake.add("s5", fake.root)
+    repo.patch(monkeypatch, "iter_recycle_bin",
+               lambda uid: iter([{"sessionId": "s5", "driveFolderId": binned}]))
+    other = fake.add("u2", users)
+
+    folders, deleted_one_by_one = account_service._purge_drive(
+        TOKEN, {"uid": "u1", "driveFolderId": tree_b})
+
+    assert folders == [tree_b, tree_a]
+    assert deleted_one_by_one == 2  # s3 and the binned s5; s1 and s2 went with their trees
+    for gone in (tree_a, tree_b, s1, s2, moved, binned):
+        assert gone not in fake.items
+    assert fake.folders_named("u1", users) == []
+    assert other in fake.items
+
+
+# -------------------------------- the Shared Drive out of sight (review L3-2)
+
+def test_a_404_with_the_shared_drive_out_of_sight_is_not_believed(fake):
+    """The service account was removed from the Shared Drive: every file is
+    404, the drive's own `drives/{id}` too. That is not "gone"."""
+    folder = fake.add("f", fake.root)
+    fake.lose_access()
+
+    with pytest.raises(drive.DriveAccessLost):
+        drive.file_exists(TOKEN, folder)
+    with pytest.raises(PermissionError):
+        drive.delete_file(TOKEN, folder)
+    fake.access = True
+    assert folder in fake.items
+
+
+def test_probes_with_the_shared_drive_out_of_sight_are_unknown_and_ask_once(fake):
+    a, b = fake.add("a", fake.root), fake.add("b", fake.root)
+    fake.lose_access()
+
+    out = drive.probe_files(TOKEN, [a, b, "never-was"])
+
+    assert out == {a: drive.UNKNOWN, b: drive.UNKNOWN, "never-was": drive.UNKNOWN}
+    assert fake.count("GET", "/drives/") == 1
+
+
+def test_a_404_is_believed_once_the_shared_drive_answers(fake):
+    live = fake.add("live", fake.root)
+    out = drive.probe_files(TOKEN, [live, "gone-1", "gone-2"])
+    assert out == {live: drive.ALIVE, "gone-1": drive.MISSING, "gone-2": drive.MISSING}
+    assert fake.count("GET", "/drives/") == 1
+
+
+def test_a_404_when_the_shared_drive_check_fails_is_raised(fake, sleeps):
+    fake.fail("GET", "/drives/", *[_response(503) for _ in range(drive._MAX_ATTEMPTS)])
+    with pytest.raises(requests.HTTPError):
+        drive.file_exists(TOKEN, "gone")
+
+
+@pytest.mark.asyncio
+async def test_an_erasure_with_the_shared_drive_out_of_sight_erases_nothing(
+        fake, store, client, monkeypatch):
+    from app import audit, deps
+
+    users = _scaffold(fake)
+    tree = fake.add("dev-user", users)
+    folder = _session_under(fake, tree, "s-mine")
+    store._data["users"] = {"dev-user": {"email": "dev@local", "access_status": "APPROVED",
+                                         "driveFolderId": tree}}
+    store._data["sessions"] = {"s-mine": {"uid": "dev-user", "driveFolderId": folder}}
+    monkeypatch.setitem(deps._DEV_USER, "driveFolderId", tree)
+    monkeypatch.setattr(drive, "access_token", lambda: TOKEN)
+    monkeypatch.setattr(audit, "record", lambda *a, **k: None)
+    fake.lose_access()
+    before = {k: dict(v) for k, v in store._data.items()}
+
+    r = await client.delete("/v1/me")
+
+    assert (r.status_code, r.json()) == (502, {"detail": "drive_write_failed"})
+    assert store._data == before
+    fake.access = True
+    assert tree in fake.items and folder in fake.items
+
+
+@pytest.mark.asyncio
+async def test_a_verify_with_the_shared_drive_out_of_sight_purges_nothing(
+        fake, store, client, monkeypatch):
+    from app import audit
+
+    folder = fake.add("s1", fake.root)
+    store._data["sessions"] = {"s1": {
+        "uid": "dev-user", "status": "COMPLETED", "driveFolderId": folder,
+        "localSessionId": "l-s1", "fileCount": 1, "completedCount": 1, "totalBytes": 1}}
+    monkeypatch.setattr(drive, "access_token", lambda: TOKEN)
+    monkeypatch.setattr(audit, "record", lambda *a, **k: None)
+    fake.lose_access()
+
+    body = (await client.get("/v1/sessions?verify=true")).json()
+
+    assert body["verify"] == {"requested": True, "purged": 0, "indeterminate": 1}
+    assert set(store._data["sessions"]) == {"s1"}

@@ -25,8 +25,10 @@ COLLECTIONS = (
 )
 # Subcollections, counted across every parent as a collection group. Seats live
 # under licenses/{id}/seats, so a top-level count would always read zero; a
-# deleted licence's seats under deleted_licenses/{id}/deleted_seats.
-GROUPS = ("seats", "deleted_seats")
+# licence's phones under licenses/{id}/activations (ADR-033); a deleted
+# licence's seats under deleted_licenses/{id}/deleted_seats. A manifest written
+# before a group was added has no count for it, and verify skips it.
+GROUPS = ("seats", "activations", "deleted_seats")
 # Challenges are single-use nonces with a 120s TTL: they legitimately differ
 # between export and restore, so they are counted but never compared.
 VOLATILE = ("challenges",)

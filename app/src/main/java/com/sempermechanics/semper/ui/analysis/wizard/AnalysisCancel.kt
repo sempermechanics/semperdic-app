@@ -31,4 +31,19 @@ object AnalysisCancel {
     fun clear() {
         requested = false
     }
+
+    /**
+     * Hands a cancel the engine may have dropped back to it. The engine clears
+     * its flag as each solve starts (`full_field_solver.cpp`), so a Cancel
+     * confirmed between a run's last check and that start would be wiped and
+     * the frame solved to its end. A run calls this once its solve is under
+     * way (from the solve's progress ticks): while [requested] is set, the
+     * engine is told again, and the solve stops at its next poll. Any thread.
+     * Returns whether it told the engine.
+     */
+    fun reassertIfRequested(): Boolean {
+        if (!requested) return false
+        toEngine(true)
+        return true
+    }
 }

@@ -25,6 +25,9 @@ internal interface ImageHost : ViewerViews {
     /** The frame on screen's data; null until one is decoded. */
     val rawData: FloatArray?
 
+    /** The frame [rawData] is, whose photo is under the map; -1 until one is decoded. */
+    val rawFrameIndex: Int
+
     /** The deformed image behind the frame at [position], or null when it is not on disk. Disk only. */
     fun deformedImagePathAt(position: Int): String?
 
@@ -150,9 +153,11 @@ internal class ViewerImageLoader(
      * True when the frame on screen is drawn over its own photo, with its map
      * at the displaced positions. False shows the reference under the
      * reference-position map: a frame whose photo is gone (a restore without
-     * it, storage reclaim) still lines up.
+     * it, storage reclaim) still lines up. The frame whose data is drawn
+     * ([ImageHost.rawFrameIndex]), not the one Prev / Next has asked for and
+     * not yet decoded.
      */
-    val onFramePhoto: Boolean get() = framePhotoPathFor(host.viewModel.currentFrameIndex) != null
+    val onFramePhoto: Boolean get() = framePhotoPathFor(host.rawFrameIndex) != null
 
     /**
      * Puts the photo of the frame at [index] under its map — or the reference,
@@ -191,10 +196,13 @@ internal class ViewerImageLoader(
                 Timber.w("Frame %d photo did not decode; showing it on the reference", index)
                 framePhotos[index] = ""
                 val data = host.rawData
-                if (host.viewModel.currentFrameIndex == index && data != null) host.applyLoadedFrame(index, data)
+                if (host.rawFrameIndex == index && data != null) host.applyLoadedFrame(index, data)
                 return@launch
             }
-            if (framePhotoPathFor(host.viewModel.currentFrameIndex) != path) {
+            // Still the photo of the frame whose data is drawn? Not the frame
+            // Prev / Next has asked for: its decode is pending, and until it
+            // lands the map on screen is this frame's, drawn for this photo.
+            if (framePhotoPathFor(host.rawFrameIndex) != path) {
                 bmp.recycle()
                 return@launch
             }

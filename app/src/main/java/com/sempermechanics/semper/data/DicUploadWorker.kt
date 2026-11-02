@@ -99,7 +99,10 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         // expedited quota. Without an explicit foreground promotion the worker is
         // then eligible to be stopped when the app backgrounds mid-prepare —
         // which looked like "preparing finished → pending → preparing again".
-        setForeground(getForegroundInfo())
+        // A background retry may not start a foreground service (Android 12+,
+        // ForegroundServiceStartNotAllowedException): the upload goes on
+        // without the notification rather than failing the run.
+        TransferProgressUpdates.post(this@DicUploadWorker, getForegroundInfo())
 
         val api = DicUploadSeams.api(applicationContext)
         val tokens = DicUploadSeams.tokens
@@ -256,7 +259,11 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
             stoppedResult()
         }
         is SessionStep.Retry -> step.result
-        is SessionStep.Fail -> run.failure(step.reason)
+        // Provisioning failed: ended for good, through the one abandon (ADR-018).
+        is SessionStep.Fail -> {
+            run.abandon(stagingDir, step.analyticsReason)
+            run.failure(step.reason)
+        }
     }
 
     /**

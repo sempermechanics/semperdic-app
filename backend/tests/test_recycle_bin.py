@@ -701,7 +701,8 @@ def test_the_erasure_fallback_deletes_the_binned_folders_too(world, monkeypatch)
     bin_service.bin_session({"uid": UID}, repo.get_session("s1"), DEVICE, "semper")
     asked = []
     monkeypatch.setattr(drive, "delete_files", lambda token, ids: asked.extend(ids) or len(ids))
-    monkeypatch.setattr(drive, "find_user_folder", lambda *a, **k: None)
+    monkeypatch.setattr(drive, "find_user_folders", lambda *a, **k: [])
+    monkeypatch.setattr(drive, "probe_files", lambda token, ids, **k: {i: drive.ALIVE for i in ids if i})
 
     account_service._purge_drive("tok", {"uid": UID})
 

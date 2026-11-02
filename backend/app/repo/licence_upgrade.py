@@ -33,16 +33,20 @@ from ..licenses import (
 from . import _base
 from ._base import (
     ACTOR_SELF,
+    _delete_doc,
+    _get,
     _is_institution,
     _is_revoked,
     _license_mode,
+    _license_past_grace,
     _load_user,
     _now,
+    _run_tx,
     _update_doc,
     db,
     get_license,
 )
-from .activations import activate_device
+from .activations import activate_device, check_activation
 from .claims import (
     _member_patch,
     _public_claim_error,
@@ -166,14 +170,13 @@ def issue_upgrade(license_id: str, *, admin_uid: str, terms: dict | None = None,
 
     minted = _mint_successor(lic, address, admin_uid, terms, institution)
     new_id = minted["id"]
-    new_ref = db().collection("licenses").document(new_id)
-    _update_doc(new_ref, {SUPERSEDES: license_id})
     slot = apps.licence_slot(lic)
-    if user is not None:
-        _update_doc(db().collection("licenses").document(license_id), {UPGRADE_PENDING_ID: new_id})
-        _update_doc(db().collection("users").document(holder_uid),
-                    apps.written_fields("pendingLicenseId", slot, new_id))
-    else:
+    refusal = _promise(license_id, new_id, holder_uid if user is not None else "", slot)
+    if refusal is not None:
+        # Another issue won the race: this licence was never promised anyone.
+        _delete_doc(db().collection("licenses").document(new_id))
+        raise refusal
+    if user is None:
         if address:
             _delete_license_invites(license_id, lic.get("emailLock") or "", app=slot)
             _write_invite(new_id, address, admin_uid, app=slot)
@@ -187,15 +190,52 @@ def issue_upgrade(license_id: str, *, admin_uid: str, terms: dict | None = None,
     }
 
 
+def _promise(old_id: str, new_id: str, holder_uid: str, slot: str) -> Refusal | None:
+    """Point the old licence at `new_id`, and with `holder_uid` that account's
+    `slot` too, in one transaction that re-reads the old licence first:
+    `UPGRADE_PENDING` when another live upgrade already waits there, as two
+    issues at once would otherwise both mint and both point. The new licence
+    takes `supersedes` in the same commit. None once written."""
+    licences = db().collection("licenses")
+    old_ref, new_ref = licences.document(old_id), licences.document(new_id)
+
+    @_base.firestore.transactional
+    def _point(tx) -> Refusal | None:
+        snap = _get(old_ref, tx)
+        if not snap.exists:
+            return Refusal(errors.LICENSE_NOT_FOUND)
+        old = snap.to_dict() or {}
+        if _is_revoked(old):
+            return Refusal(errors.LICENSE_REVOKED)
+        pending = old.get(UPGRADE_PENDING_ID) or ""
+        if pending and pending != new_id:
+            waiting = _get(licences.document(pending), tx)
+            if waiting.exists and not _is_revoked(waiting.to_dict() or {}):
+                return Refusal(errors.UPGRADE_PENDING, pending)
+        tx.update(new_ref, {SUPERSEDES: old_id})
+        tx.update(old_ref, {UPGRADE_PENDING_ID: new_id})
+        if holder_uid:
+            tx.update(db().collection("users").document(holder_uid),
+                      apps.written_fields("pendingLicenseId", slot, new_id))
+        return None
+
+    return _run_tx(_point, on_contended=lambda: Refusal(errors.CLAIM_CONTENDED))
+
+
 def _retire(old_id: str, new_id: str, actor_uid: str) -> None:
     """Revoke the replaced licence, naming its successor. The holder's account
-    points at the new licence by now, so the revoke's demotion passes them by."""
-    revoke_license(old_id, actor_uid)
+    points at the new licence by now, so the revoke's demotion passes them by.
+
+    `supersededBy` is written before the revoke: revoking a licence whose
+    upgrade waits, with no successor named, withdraws that upgrade
+    (`license_admin._cancel_pending_upgrade`), and this is the one revoke
+    that must not."""
     _update_doc(db().collection("licenses").document(old_id), {
         "supersededBy": new_id,
         "supersededAt": _base.firestore.SERVER_TIMESTAMP,
         UPGRADE_PENDING_ID: _base.firestore.DELETE_FIELD,
     })
+    revoke_license(old_id, actor_uid)
 
 
 def pending_upgrade(user: dict, app: str) -> dict | None:
@@ -218,13 +258,20 @@ def apply_upgrade(new_id: str, uid: str, app: str, *, actor: str = ACTOR_SELF,
     """Move `uid` onto the licence issued them, then activate `device_id` on
     it when one is named. Raises `Refusal`.
 
-    In order, each step safe to run again: the account takes the new licence
-    (a seat on an institution one), the old licence is revoked with
-    `supersededBy`, the pointer is cleared, and the phone is activated. The
-    phone is checked before anything moves, so a phone that cannot activate
-    leaves the holder where they were. A step that dies part-way is finished
-    by the next Activate, since the pointer stays until the old licence is
-    revoked.
+    Not one transaction: separate writes, in order, each safe to run again.
+    The account takes the new licence (a seat on an institution one), the old
+    licence is revoked with `supersededBy`, the pointer is cleared, and the
+    phone is activated. A step that dies part-way is finished by the next
+    Activate, since the pointer stays until the old licence is revoked.
+
+    What the activation would refuse is checked before anything moves
+    (`check_activation`: the phone registered and ACTIVE for this account and
+    app, the new licence live, not floating, within its grace, a slot free),
+    so a phone that cannot activate leaves the holder where they were. Only a
+    slot taken between that check and the activation still lands the holder
+    on the new licence with this phone Demo; a plain Activate licenses it
+    once a slot is free. An old licence revoked by staff, rather than
+    replaced by this one, has no upgrade left to apply.
     """
     new = _licences(new_id)
     old_id = new.get(SUPERSEDES) or ""
@@ -235,10 +282,15 @@ def apply_upgrade(new_id: str, uid: str, app: str, *, actor: str = ACTOR_SELF,
     pointed = apps.read_field(user, "pendingLicenseId", slot) == new_id
     if not pointed and apps.slot_holding(user, new_id) is None:
         raise Refusal(errors.NO_PENDING_UPGRADE)
+    old = get_license(old_id) or {}
+    if old and _is_revoked(old) and old.get("supersededBy") != new_id:
+        # Revoked while the upgrade waited: the revoke's fan-out withdraws
+        # the upgrade, and until it has run this refuses.
+        raise Refusal(errors.NO_PENDING_UPGRADE)
+    if _license_past_grace(new):
+        raise Refusal(errors.LICENSE_EXPIRED)
     if device_id:
-        dev = (_base._get(db().collection("devices").document(device_id)).to_dict() or {})
-        if not (dev.get("uid") == uid and apps.same_app(dev.get("app"), app)):
-            raise Refusal(errors.DEVICE_NOT_FOUND)
+        check_activation(uid, device_id, app, new_id, new)
 
     address = normalize_email(verified_address(user) or new.get("emailLock"))
     patch = _member_patch(new_id, new)
@@ -248,7 +300,6 @@ def apply_upgrade(new_id: str, uid: str, app: str, *, actor: str = ACTOR_SELF,
         err = claim_individual_license(new_id, uid, address, patch)
     if err:
         raise Refusal(_public_claim_error(err))
-    old = get_license(old_id) or {}
     if old and not _is_revoked(old):
         _retire(old_id, new_id, by_uid or uid)
     if pointed:

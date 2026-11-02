@@ -16,6 +16,24 @@ object SessionPaths {
     /** The session index behind the Home list, in [SESSIONS_ROOT] (`SessionStore`). */
     const val INDEX_JSON = "index.json"
 
+    /** What a session id may be: it names the session's directory, so never `.`, `/` or `\`. */
+    private val SAFE_ID = Regex("[A-Za-z0-9_-]{1,128}")
+
+    /**
+     * Whether [id] is safe to name a session directory with: 1–128 ASCII
+     * letters, digits, `-` or `_`, as every id the app mints is (a UUID
+     * prefix, `restored-…`). A backup's `localSessionId` comes from the
+     * server, so a restore checks it here before it names a row or a
+     * directory: `..` would make the sessions root's parent the session dir,
+     * and a failed restore deletes that (L5-1). The backend's `SessionCreate`
+     * allows the same characters.
+     */
+    fun isSafeId(id: String): Boolean = SAFE_ID.matches(id)
+
+    /** [id] cut down to the characters [isSafeId] allows (the length is left to the caller). */
+    fun safeIdChars(id: String): String =
+        id.filter { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '-' || it == '_' }
+
     /** Session-dir subfolder holding the persisted raw deformed originals. */
     const val RAW_DEFORMED_SUBDIR = "raw_deformed"
 

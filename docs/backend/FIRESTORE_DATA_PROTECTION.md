@@ -48,12 +48,17 @@ UTC on the 1st) and on demand. It imports the latest export into the drill
 project, **waits** for the operation, verifies the result, and purges the drill
 database afterwards so a second full copy of production is not left sitting in a
 weaker project. Both the verify step (`scripts/firestore_verify.py`) and the
-purge cover every collection the backend writes — including `licenses`, their
-`seats` subcollection, `licenseInvites`, `auth_links`, and `deleted_licenses`
-with its `deleted_seats` (a deleted licence held 30 days, §20.6 of
-CLOUD_ARCHITECTURE_GCP.md) — so add a new collection to both when the backend
-starts writing one. The drill project has no TTL policies, so held licences
-are compared exactly like the rest.
+purge (`scripts/firestore-drill-purge.sh`) cover every collection the backend
+writes — including `licenses`, their `seats` and `activations` subcollections
+(a licence's phones, ADR-033), `licenseInvites`, `auth_links`, and
+`deleted_licenses` with its `deleted_seats` (a deleted licence held 30 days,
+§20.6 of CLOUD_ARCHITECTURE_GCP.md) — so add a new collection to both when the
+backend starts writing one; `scripts/tests/test_ci_deploy_guards.py` fails
+when a `collection("…")` in `backend/app` is missing from the purge. The purge
+tries every collection id and then fails the step, naming each one whose
+bulk-delete failed (until 2026-11-01 it logged a line and passed). The drill
+project has no TTL policies, so held licences are compared exactly like the
+rest.
 
 ### Configuring the `restore-drill` environment
 

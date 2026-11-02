@@ -33,6 +33,13 @@ internal interface ScaleHost : ViewerViews {
     /** The frame on screen's data; null until one is decoded. */
     val rawData: FloatArray?
 
+    /**
+     * The frame [rawData] is; -1 until one is decoded. It lags
+     * [ResultViewerViewModel.currentFrameIndex] while a Prev / Next decode is
+     * pending, and is what a render of [rawData] is cached under.
+     */
+    val rawFrameIndex: Int
+
     /** True while the summary animation, not a frame, is on screen. */
     val isShowingSummary: Boolean
     val scrubCache: ScrubFrameCache
@@ -71,9 +78,8 @@ internal class ViewerScaleController(
 
     private val visualizationJob = SerialJob()
 
-    /** The field and the frame on screen, as the ViewModel holds them. */
+    /** The field on screen, as the ViewModel holds it. */
     private val field: FieldKind get() = host.viewModel.field
-    private val frameIndex: Int get() = host.viewModel.currentFrameIndex
 
     /** Fixed colour scales per field; in the ViewModel so a rotation keeps them. */
     private val customBoundsMap: MutableMap<Int, ValueRange> get() = host.viewModel.customBounds
@@ -149,15 +155,18 @@ internal class ViewerScaleController(
 
         val custom = host.viewModel.customBounds[index]
         val displaced = images.onFramePhoto
+        // The frame [data] is, not the frame asked for: a Next whose decode is
+        // still pending has moved the ViewModel's index on already, and caching
+        // this render (or its metrics) under that index would serve this
+        // frame's map for the next one.
+        val frameAtStart = host.rawFrameIndex
         val heatKey = ScrubFrameCache.HeatKey(
-            frame = frameIndex,
+            frame = frameAtStart,
             field = index,
             step = host.step,
             custom = custom,
             displaced = displaced,
         )
-
-        val frameAtStart = frameIndex
 
         host.scrubCache.getHeat(heatKey)?.let { hit ->
             visualizationJob.cancel()
@@ -190,7 +199,7 @@ internal class ViewerScaleController(
             host.scrubCache.putHeat(heatKey, heatmap)
 
             withContext(Dispatchers.Main) {
-                if (field.dataIndex != index || frameIndex != frameAtStart) return@withContext
+                if (field.dataIndex != index || host.rawFrameIndex != frameAtStart) return@withContext
                 showHeatmap(heatmap, index)
                 captions.applyFieldMetrics(metrics, index)
             }
