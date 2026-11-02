@@ -24,3 +24,9 @@ c748630e2c3f2fb7899b19d11b2e221cb6c0feef:app/src/test/java/com/sempermechanics/s
 # (review fix L8-4): "SEMP-LAB1-KEY-ONCE" in a json(200, { key: … }) answer.
 # Not a real key; listed by fingerprint, as above.
 b71c0ec6920308ccb5dc831629e60052e5cf35b7:firebase-hosting/tests/operator-edit.test.mjs:generic-api-key:235
+
+# A made-up malformed JWT in the log-redaction test (readiness TE5-105,
+# 2026-10-28): the token the test proves never reaches the log. Not a real
+# credential; listed by fingerprint, as above. Caught by the weekly
+# full-history scan on 2026-11-02, which the PR scan does not cover.
+e5d6224e678ea1ea71e083f2239dac2a55c6b441:backend/tests/test_auth_log_redaction.py:generic-api-key:14
