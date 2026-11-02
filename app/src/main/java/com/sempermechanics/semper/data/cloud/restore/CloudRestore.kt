@@ -29,6 +29,7 @@ import com.sempermechanics.semper.data.net.authed
 import com.sempermechanics.semper.data.session.CacheJanitor
 import com.sempermechanics.semper.data.session.SessionLayout
 import com.sempermechanics.semper.data.session.SessionNaming
+import com.sempermechanics.semper.data.session.SessionPaths
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.data.session.SessionZip
@@ -135,8 +136,19 @@ object CloudRestore {
     /** How much of the cloud id names a row restored from a backup that carries no local id. */
     private const val RESTORED_ID_CHARS = 12
 
-    fun targetLocalId(cloud: CloudSessionDto): String =
-        cloud.localSessionId.ifBlank { "restored-" + cloud.sessionId.take(RESTORED_ID_CHARS) }
+    /**
+     * The row (and directory) a restore of [cloud] fills: the backup's own
+     * local id, or `restored-<cloud id>` when it carries none or one that is
+     * not safe to name a directory with ([SessionPaths.isSafeId]). The local
+     * id is the server's word, so `..` or `a/b` never reaches
+     * [SessionStore.dirFor] (L5-1).
+     */
+    fun targetLocalId(cloud: CloudSessionDto): String {
+        val own = cloud.localSessionId
+        if (SessionPaths.isSafeId(own)) return own
+        if (own.isNotBlank()) Timber.w("Backup %s carries an unsafe local id; restoring as a new row", cloud.sessionId)
+        return "restored-" + SessionPaths.safeIdChars(cloud.sessionId).take(RESTORED_ID_CHARS)
+    }
 
     /**
      * Why a restorable-list query failed or is empty — never collapse auth/config
@@ -364,7 +376,11 @@ object CloudRestore {
         discard(scratchFile(context.applicationContext.cacheDir, sessionId, RestoreBundleFetcher.BUNDLE_SCRATCH))
     }
 
-    /** Remove an interrupted restore's files while retaining its cloud-only index row. */
+    /**
+     * Remove an interrupted restore's files while retaining its cloud-only index row.
+     * Throws [IllegalArgumentException] for an id that does not name a directory
+     * directly under the sessions root ([SessionStore.dirFor]): nothing is deleted then.
+     */
     fun clearPartialArtifacts(context: Context, localId: String) {
         val dir = SessionStore.dirFor(context.applicationContext, localId)
         dir.deleteRecursively()

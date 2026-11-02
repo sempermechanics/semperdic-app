@@ -51,7 +51,7 @@ def _improvement_consent(user: dict) -> bool | None:
 
 
 @router.get("/v1/me")
-def me(user=Depends(current_user)):
+def me(request: Request, user=Depends(current_user)):
     """Who the caller is, and what their license currently grants.
 
     The `license` block answers "am I entitled, and for how much longer" in the
@@ -62,15 +62,19 @@ def me(user=Depends(current_user)):
 
     `/v1/config` remains the source of truth for limits and feature flags; this
     is deliberately the smaller answer.
+
+    `license` is the calling app's (`X-App-Id`, resolved by `current_user`),
+    the licence the same app's `/v1/config` answers for, so the two can be
+    compared. A browser sends no `X-App-Id` and so reads Semper's, as before.
     """
-    summary = repo.license_summary(user)
+    summary = repo.license_summary(user, getattr(request.state, "app", None) or apps.SEMPER)
     return {
         "uid": user["uid"],
         "email": user.get("email"),
         "role": user.get("role"),
         "access_status": user["access_status"],
         # Each app's own licence (ADR-033), for the web account page, which
-        # shows both. `license` stays Semper's, for the pages that read it.
+        # shows both. `license` is the calling app's: Semper's for a browser.
         "licences": {app: {**_licence_block(repo.license_summary(user, app)),
                            "pendingLicence": repo.pending_upgrade(user, app)}
                      for app in apps.ALL},

@@ -169,7 +169,11 @@ SA's public JWKS) — still keyless. Not needed at pilot scale.
 proves identity; it does not grant entry. `get_or_create_user`
 ([repo/users.py](../../backend/app/repo/users.py)) assigns:
 
-1. `role = admin` if a **verified** email is in `ADMIN_EMAILS`;
+1. `role = admin` if a **verified** email is in `ADMIN_EMAILS`, and back to
+   `user` on the first request whose token is not one (an address taken out
+   of the list, or a token that is not verified). The stored `role` is a copy
+   for the consoles and the app to read; `admin_user` grants nothing on it and
+   asks the token on every request (`deps.admin_user`);
 2. `access_status = APPROVED` if admin, or `AUTO_APPROVE=1`, or a **verified**
    email at `AUTO_APPROVE_HD`;
 3. otherwise `PENDING` — authenticated but refused with `403 not_approved`
@@ -1472,9 +1476,13 @@ second factor on a recent sign-in, or a signed device request) and a verified
 address (`403 email_not_verified`), shares the activation rate bucket, and
 writes a `LICENSE_CLAIM_CODE` audit row with the code's prefix only. A browser
 names no device, so `activate_license` compares and binds no lock
-(`backend/app/repo/activation.py:62-68`); the phone's next request binds it.
+(`backend/app/repo/activation.py:63-69`); the phone's next request binds it.
 No app screen takes a code ([ADR-024](../adr/ADR-024-account-anchored-entitlements.md)). `POST /v1/licenses/activate` runs the same
-redemption and stays for installed builds only (TD-278).
+redemption and stays for installed builds only (TD-278). Both are held to the
+account's **verified** address inside `repo.activate_license`: an unverified
+one is `403 email_not_verified`, before any email or domain lock is compared
+and before a seat is written (the legacy route used to compare the stored
+address, verified or not).
 
 #### The device lock is bound, not declared
 
@@ -2535,7 +2543,7 @@ address to hand to anybody: it signs the caller in, reads `GET /v1/me` and
 
 | Signal | Destination |
 |---|---|
-| `role == admin` (kept in sync with `ADMIN_EMAILS` at sign-in) | operator |
+| `role == admin` (follows `ADMIN_EMAILS` on every request, both ways; the desk itself asks the token, `admin_user`) | operator |
 | the address is named in some live institution licence's `adminEmails` | that roster, deep-linked when there is exactly one |
 | otherwise | their own account page |
 
@@ -2560,7 +2568,9 @@ not a refusal.
 
 #### The account page needs one call, not two
 
-`/v1/me`'s `license` block now carries `seating` and `leaseExpiresAt` alongside
+`/v1/me`'s `license` block is the calling app's licence (`X-App-Id`; a browser
+sends none and reads Semper's), the one that app's `/v1/config` answers for;
+`licences` carries every app's. It now carries `seating` and `leaseExpiresAt` alongside
 the term, and `held`: whether the stored mode is `licensed`. A Demo key and a
 licence revoked out from under the account both still have a kind and a
 prefix, so the page shows licence details and "Move licence" only when `held`. Both were already in `license_summary`, and `/v1/config` already
@@ -2924,24 +2934,39 @@ The new licence names the old in `supersedes`; nobody holds it yet.
 
 **It waits for Activate.** The holder's account points at it
 (`pendingLicenseId`, in the app's mirror slot) and the old licence at it
-(`upgradePendingId`); one upgrade waits at a time (`409 upgrade_pending`). The
+(`upgradePendingId`); one upgrade waits at a time (`409 upgrade_pending`), checked
+in the same transaction that writes both pointers, so two issues at once leave one
+successor and the loser's licence is deleted. The
 old licence keeps licensing its phones. `/v1/config`'s `pendingLicence` and
 `/v1/me`'s `licences.<app>.pendingLicence` show it (`{licenseId, prefix, kind,
 expiresAt, maxDevices, supersedes}`, or null), read only while one waits.
 
 **Activate moves the account.** `POST /v1/me/devices/activate` with
-`{"upgrade": true}` runs `apply_upgrade`: the phone is checked first, then the
-account takes the new licence (a seat on an institution one), the old licence
-is revoked with `supersededBy`, the pointers go, and the phone is activated on
-the new licence. Each step is safe to run again, and the pointer stays until the
-revoke, so an apply that dies part-way finishes on the next tap. The old
+`{"upgrade": true}` runs `apply_upgrade`. Everything the activation would refuse
+is checked first (`repo.activations.check_activation`: the phone registered and
+ACTIVE, the new licence live, not floating and within its grace, a slot free), with
+the code Activate answers, so a refusal leaves the holder where they were. Then the
+account takes the new licence (a seat on an institution one), the old licence is
+revoked with `supersededBy` (written before the revoke), the pointers go, and the
+phone is activated on the new licence. These are separate writes, not one
+transaction: each step is safe to run again, and the pointer stays until the
+revoke, so an apply that dies part-way finishes on the next tap. Only a slot taken
+between the check and the activation lands the holder on the new licence with that
+phone Demo, for a plain Activate to license. The old
 licence's other phones each activate again, within the new count. Staff apply it
 with no phone (`.../apply-upgrade`) for a build that has no Activate.
 
 **Edge cases.** A holder who never signed in has their invite moved and the old
 licence revoked at once, as `/convert` does. Revoking a waiting licence clears
 both pointers, so the holder stops being offered it and the old licence may be
-upgraded again. A licence from before the split, an institution licence and a
+upgraded again. Revoking the old licence while its upgrade waits withdraws the
+upgrade (`license_admin._cancel_pending_upgrade`, in the revoke's fan-out): an
+individual successor nobody has claimed is revoked too, since it was minted for this
+holder only and would otherwise be a live key for the address the revoke meant to
+stop; an institution successor, which has its own administrators, is only
+withdrawn. Until that fan-out has run, `apply_upgrade` refuses
+`no_pending_upgrade` for an old licence revoked without `supersededBy` naming the
+new one. A licence from before the split, an institution licence and a
 Demo key answer `409 license_not_upgradable`: the first converts in place, an
 institution is resized by an edit.
 
