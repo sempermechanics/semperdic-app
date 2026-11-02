@@ -175,7 +175,7 @@ class DeadRunReclaimTest {
         val NOW = System.currentTimeMillis()
         val OLD = NOW - 3_600_000L
 
-        /** Older than [SessionStore.UNSAVED_MIN_AGE_MS]. */
-        val DAYS_AGO = NOW - 2 * SessionStore.UNSAVED_MIN_AGE_MS
+        /** Older than [UNSAVED_RUN_MIN_AGE_MS]. */
+        val DAYS_AGO = NOW - 2 * UNSAVED_RUN_MIN_AGE_MS
     }
 }

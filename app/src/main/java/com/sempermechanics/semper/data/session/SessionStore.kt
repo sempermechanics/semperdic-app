@@ -18,7 +18,6 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.io.FileOutputStream
-import java.util.concurrent.TimeUnit
 
 /**
  * The local session index behind the Home list: one JSON file in app-private
@@ -310,48 +309,12 @@ object SessionStore {
     }
 
     /**
-     * Deletes the folders runs the process died in left behind (readiness
-     * TE1-101): a folder under the sessions root that no index row names,
-     * that holds a `run_staging/` and no record manifest, and that nothing has
-     * written since [startedAtMs] (a run started in this process is live).
-     * Nothing is deleted while the index does not parse. Returns the bytes freed.
+     * Deletes each folder under the root that no row names and [reclaimable]
+     * accepts, under the index lock; the bytes freed. Nothing goes while the
+     * index does not parse. The policies are in `RunFolderReclaim.kt`.
      */
     @WorkerThread
-    fun reclaimDeadRuns(context: Context, startedAtMs: Long): Long = reclaimUnindexed(context, "a killed run") { dir ->
-        SessionPaths.runStaging(dir).isDirectory &&
-            !SessionLayout(dir).recordManifest.exists() &&
-            dir.walkTopDown().all { it.lastModified() < startedAtMs }
-    }
-
-    /**
-     * Deletes the folders of runs that ended but saved nothing (a first frame
-     * that kept no points): the wizard reuses one only while it names it as
-     * its working session, and once it drops it (new inputs, or the wizard
-     * closed) nothing deletes it, frames and all. A folder goes when no index
-     * row names it, when it holds nothing only a saving run writes (the Home
-     * thumbnail `reference.png`, Re-run's `rerun/`, a backup's
-     * `metadata.json`: so an analysis whose row an index restored from its
-     * `.bak` lost is never one of them), and when nothing has written to it
-     * for [UNSAVED_MIN_AGE_MS] before [startedAtMs]. None goes while
-     * [draftLive]: a wizard restored from its draft may still be reading
-     * frames from one. Nothing is deleted while the index does not parse.
-     * Returns the bytes freed.
-     */
-    @WorkerThread
-    fun reclaimUnsavedRuns(context: Context, startedAtMs: Long, draftLive: Boolean): Long {
-        if (draftLive) return 0L
-        val before = startedAtMs - UNSAVED_MIN_AGE_MS
-        return reclaimUnindexed(context, "an unsaved run") { dir ->
-            val layout = SessionLayout(dir)
-            !layout.referencePng.exists() &&
-                !layout.rerunDir.exists() &&
-                !layout.metadataJson.exists() &&
-                dir.walkTopDown().all { it.lastModified() < before }
-        }
-    }
-
-    /** Deletes each folder under the root that no row names and [reclaimable] accepts; the bytes freed. */
-    private fun reclaimUnindexed(context: Context, what: String, reclaimable: (File) -> Boolean): Long =
+    internal fun reclaimUnindexed(context: Context, what: String, reclaimable: (File) -> Boolean): Long =
         synchronized(lock) {
             val rows = readRows(context) ?: return@synchronized 0L
             val named = rows.flatMap { listOf(it.id, File(it.sessionDir).name) }.toSet()
@@ -367,10 +330,6 @@ object SessionStore {
                     }
                 }
         }
-
-    /** How long an unsaved run's folder is left alone before [reclaimUnsavedRuns] takes it. */
-    val UNSAVED_MIN_AGE_MS: Long = TimeUnit.HOURS.toMillis(UNSAVED_MIN_AGE_HOURS)
-    private const val UNSAVED_MIN_AGE_HOURS = 24L
 
     /**
      * Wipes every local analysis — the index and all per-session directories.
