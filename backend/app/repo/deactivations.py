@@ -91,8 +91,9 @@ def deactivate_device(license_id: str, device_id: str, *, actor: str,
     institution = _is_institution(lic)
     seat_ref = _seat_ref(license_id, uid)
     seat = (_get(seat_ref).to_dict() or {}) if institution else None
-    # No caller is a device clear (`repo.clear_device_lock`), which its own
-    # route scoped to this holder or seat before it got here.
+    # No caller is a device clear (`repo.clear_device_lock`) its route scoped
+    # to this holder or seat before it got here: staff, the holder's own, or
+    # a seat revoke. The roster's clear passes its caller (`deactivate_holder`).
     if caller is not None and not _in_scope(actor, caller, license_id, lic, act, seat):
         raise Refusal(errors.ACTIVATION_NOT_FOUND)
     app = apps.canonical(act.get("app"))
@@ -147,15 +148,29 @@ def deactivate_device(license_id: str, device_id: str, *, actor: str,
             "devicesActive": out, "maxDevices": max_devices(lic), "released": released}
 
 
-def deactivate_holder(license_id: str, uid: str, *, actor: str) -> list[str]:
+def deactivate_holder(license_id: str, uid: str, *, actor: str,
+                      caller: dict | None = None) -> list[str]:
     """Deactivate every phone `uid` has active on `license_id`: a device
     clear (`repo.clear_device_lock`) on a licence that runs activations, which
     its route has already scoped to this holder. The ids deactivated, in no
-    order."""
+    order.
+
+    `caller`, when given, must have every one of those phones in its scope
+    (`_in_scope`), or nothing is deactivated and the answer is
+    `activation_not_found`, as `deactivate_device` answers. The roster's
+    **New device** is IT's too, and without it reached a member off the
+    licence's `domainLock` that IT's own devices route refuses (review L2-6).
+    """
+    acts = _holder_activations(license_id, uid)
+    if caller is not None and acts:
+        lic = _get(db().collection("licenses").document(license_id)).to_dict() or {}
+        seat = (_get(_seat_ref(license_id, uid)).to_dict() or {}) if _is_institution(lic) else None
+        if not all(_in_scope(actor, caller, license_id, lic, act, seat) for act in acts):
+            raise Refusal(errors.ACTIVATION_NOT_FOUND)
     out = []
-    for act in _holder_activations(license_id, uid):
+    for act in acts:
         try:
-            deactivate_device(license_id, act["deviceId"], actor=actor)
+            deactivate_device(license_id, act["deviceId"], actor=actor, caller=caller)
         except Refusal as exc:
             if exc.code != errors.ACTIVATION_NOT_FOUND:
                 raise

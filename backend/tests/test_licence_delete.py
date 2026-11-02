@@ -167,6 +167,85 @@ def test_the_deleted_list_is_newest_first(store):
     assert rows[0]["priorStatus"] == "unused"
 
 
+# ------------------------------------------------- phones (ADR-033, review L2-2)
+
+
+def _phone(store, uid, device_id):
+    store._data.setdefault("devices", {})[device_id] = {
+        "uid": uid, "status": "ACTIVE", "app": "semper"}
+    assert attempt(repo.activate_device, uid, device_id, "semper")[0] == ""
+
+
+def _acts(store, lid):
+    return store._data.get(f"licenses/{lid}/activations", {})
+
+
+def _moves_on(store, uid, email):
+    """`uid` takes another live licence while `email`'s old one is held."""
+    store._data["users"][uid].pop("licenseId", None)
+    other = _mint_individual(email=email)["license"]["id"]
+    assert _claimed(store, uid)["licenseId"] == other
+
+
+def test_a_seat_restored_revoked_frees_its_phone_slots(store):
+    """The member who moved on kept the pool's slot: `devicesActive` came
+    back from the copy and their activation stayed active."""
+    store._data["users"] = {}
+    lid = _mint_institution(max_seats=5)["license"]["id"]
+    store._data["licenses"][lid].update(app="semper", maxDevices=2)
+    for i in range(2):
+        _signed_in(store, f"m-{i}", f"m{i}@university.edu")
+        assert attempt_add(repo.add_institution_member, lid, f"m{i}@university.edu")[0] == ""
+        _phone(store, f"m-{i}", f"m{i}-phone")
+    repo.delete_license(lid, "admin")
+    _moves_on(store, "m-1", "m1@university.edu")
+
+    assert attempt(repo.restore_license, lid, "admin")[0] == ""
+
+    lic, seats, acts = store._data["licenses"][lid], _seats(store, lid), _acts(store, lid)
+    assert seats["m-1"]["status"] == "revoked"
+    assert acts["m1-phone"]["status"] == "deactivated"
+    assert acts["m1-phone"]["deactivatedByUid"] == "admin"
+    assert acts["m0-phone"]["status"] == "active"
+    assert lic["devicesActive"] == 1
+    assert (seats["m-0"]["devicesActive"], seats["m-1"]["devicesActive"]) == (1, 0)
+    assert seats["m-1"]["deviceIdLock"] == "" and seats["m-0"]["deviceIdLock"] == "m0-phone"
+    # The freed slot takes another member's phone.
+    _signed_in(store, "m-2", "m2@university.edu")
+    assert attempt_add(repo.add_institution_member, lid, "m2@university.edu")[0] == ""
+    _phone(store, "m-2", "m2-phone")
+
+
+def test_a_licence_restored_unused_takes_its_next_holders_phone(store):
+    lid = _held(store)
+    store._data["licenses"][lid].update(app="semper", maxDevices=1)
+    _phone(store, "solo-1", "solo-phone")
+    repo.delete_license(lid, "admin")
+    _moves_on(store, "solo-1", "solo@lab.org")
+
+    assert attempt(repo.restore_license, lid, "admin")[0] == ""
+
+    lic = store._data["licenses"][lid]
+    assert lic["status"] == "unused" and lic["devicesActive"] == 0
+    assert lic["deviceIdLock"] == ""
+    assert _acts(store, lid)["solo-phone"]["status"] == "deactivated"
+    # Its phone is still the moved-on holder's: only the activation went.
+    assert store._data["devices"]["solo-phone"]["status"] == "ACTIVE"
+
+
+def test_a_holder_put_back_keeps_their_phone(store):
+    lid = _held(store)
+    store._data["licenses"][lid].update(app="semper", maxDevices=1)
+    _phone(store, "solo-1", "solo-phone")
+    repo.delete_license(lid, "admin")
+    _claimed(store, "solo-1")
+
+    assert attempt(repo.restore_license, lid, "admin")[0] == ""
+
+    assert store._data["licenses"][lid]["devicesActive"] == 1
+    assert _acts(store, lid)["solo-phone"]["status"] == "active"
+
+
 @pytest.mark.asyncio
 async def test_the_routes(store, client, audited):
     lid = _held(store)

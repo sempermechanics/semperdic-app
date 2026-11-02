@@ -303,7 +303,7 @@ record rather than leaving it `ACTIVE` and unreachable:
 
 | Event | What happens to the device docs |
 |---|---|
-| Admin revokes or suspends a user | **Every** device of that uid moves to `REVOKED` with a `revokedAt`, and `users/{uid}.activeDeviceId` is cleared (`set_user_status` in `backend/app/repo/users.py`) |
+| Admin revokes or suspends a user | **Every** device of that uid moves to `REVOKED` with a `revokedAt`, and `users/{uid}.activeDeviceId` is cleared (`set_user_status` in `backend/app/repo/users.py`). The licence's activations stay active and keep their slots (§20.16) |
 | A new device is registered after that | The previous device moves to `SUPERSEDED` with a `revokedAt`, so history shows *why* it stopped being usable rather than just vanishing |
 
 Admin revoke itself requires a `verified_device` caller — an admin cannot revoke
@@ -396,6 +396,11 @@ Three properties worth knowing before you change this path:
   `COMPLETED` alone, so a finished analysis is never shown as uploading
   again. (Inline, the targets have not left the request, so nothing can have
   completed and the write stays plain.)
+- **The request writes no status after the enqueue.** The session is
+  reserved as `PROVISIONING`, and the task may have run before the request
+  answers: a second `PROVISIONING` written then went over the task's
+  `UPLOADING`, and the app polled a session nothing would move again (review
+  L3-3, `services/sessions.record_session`).
 - **A failed enqueue is an error, not a quiet fallback.** It logs
   `provision_enqueue_failed` at ERROR with `errorCode=tasks_enqueue_failed`
   and the exception type. Before it was logged, a missing
@@ -2883,6 +2888,33 @@ analysis: a deactivated phone keeps its files.
 
 Registration never retires an activated phone to make room
 (`activations.activated_devices`, read by `register_device`).
+
+**A suspension keeps the phones' activations** (owner decision, 2026-11-01).
+Suspending an account (`set_user_status`, `backend/app/repo/users.py`) revokes
+its device registrations but leaves its activations active, and they keep
+their slots in `devicesActive`: a reinstated holder who registers the same
+phone again is licensed on it with no Activate. Until then the slots count
+against `maxDevices` (a pool's too), and another account on the same licence
+that taps Activate on that phone is answered `409 device_in_use`. The answer
+does not say the holder is suspended, which would tell one account another's
+status; IT or staff free the slots by deactivating the phones (table above).
+
+**Deleting and restoring a licence** (`repo/deletion.py`). The activations stay
+under the deleted licence through the 30-day hold, as a revoke leaves them. A
+restore keeps the phones of every holder it puts back (and of a seat on hold)
+and deactivates the rest, as staff, without releasing their registrations: a
+seat that comes back revoked or a licence that comes back unused frees its
+slots. `devicesActive` is then counted from what is left, on the licence and
+on each seat.
+
+**The roster's New device** (`PATCH …/seats/{uid}` with `clearDeviceLock`)
+deactivates the member's phones with the caller's scope: IT reaches only
+members on the licence's `domainLock`, as by the devices route, and a member
+outside it answers `404 activation_not_found`. The same clear re-stamps a live
+holder's stored `mode` for the licence's app, as the lock's clear does
+(§20.10): an account still storing the Demo a device mismatch wrote before
+2026-09-28, or the copy of it the split put in Semper Classroom's mirror, is
+otherwise refused by Activate with `no_license`.
 
 ### 20.17 A licence per app
 
