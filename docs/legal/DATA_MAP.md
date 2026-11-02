@@ -42,7 +42,7 @@ Email address, display name, sign-in provider, password hash (password accounts)
 TOTP enrolment (staff and console users). Purpose: identity. Retention: until the
 account is erased; `DELETE /v1/me` deletes the Auth user, and every other Auth
 user linked to the account (`linkedAuthUids`, `auth_links`; `repo.sign_in_uids`), once
-the runtime SA holds Firebase Auth admin (`backend/app/services/account.py:124`; TD-214). Both apps sign in to this one Auth project, so deleting the account removes the sign-in for both, consistent with the account-wide erase ([ADR-023](../adr/ADR-023-signed-offline-entitlement.md), decision note).
+the runtime SA holds Firebase Auth admin (`backend/app/services/account.py:142`; TD-214). Both apps sign in to this one Auth project, so deleting the account removes the sign-in for both, consistent with the account-wide erase ([ADR-023](../adr/ADR-023-signed-offline-entitlement.md), decision note).
 
 ### Firestore (project `indicvision-dic-app`; location unrecorded, TD-227)
 
@@ -69,8 +69,8 @@ no client can read or write any of them (`firestore.rules:7-9`).
 Per user and session folders holding what the app uploads: reference and deformed
 images, `.dat` results, reports, CSV, `metadata.json` (analysis name, specimen,
 parameters). Purpose: backup and restore. Retention: deleted with the session or
-account (`DELETE /v1/me` removes the user folder first,
-`backend/app/services/account.py:71-142`); Shared Drive trash per Workspace policy.
+account (`DELETE /v1/me` removes every user folder of the account, then each
+session's folder still there, before any record, `backend/app/services/account.py:72-158`); Shared Drive trash per Workspace policy.
 
 ### Cloud Logging (project `indicvision-dic-app`)
 

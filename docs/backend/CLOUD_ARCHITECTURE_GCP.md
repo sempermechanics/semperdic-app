@@ -169,7 +169,11 @@ SA's public JWKS) — still keyless. Not needed at pilot scale.
 proves identity; it does not grant entry. `get_or_create_user`
 ([repo/users.py](../../backend/app/repo/users.py)) assigns:
 
-1. `role = admin` if a **verified** email is in `ADMIN_EMAILS`;
+1. `role = admin` if a **verified** email is in `ADMIN_EMAILS`, and back to
+   `user` on the first request whose token is not one (an address taken out
+   of the list, or a token that is not verified). The stored `role` is a copy
+   for the consoles and the app to read; `admin_user` grants nothing on it and
+   asks the token on every request (`deps.admin_user`);
 2. `access_status = APPROVED` if admin, or `AUTO_APPROVE=1`, or a **verified**
    email at `AUTO_APPROVE_HD`;
 3. otherwise `PENDING` — authenticated but refused with `403 not_approved`
@@ -299,7 +303,7 @@ record rather than leaving it `ACTIVE` and unreachable:
 
 | Event | What happens to the device docs |
 |---|---|
-| Admin revokes or suspends a user | **Every** device of that uid moves to `REVOKED` with a `revokedAt`, and `users/{uid}.activeDeviceId` is cleared (`set_user_status` in `backend/app/repo/users.py`) |
+| Admin revokes or suspends a user | **Every** device of that uid moves to `REVOKED` with a `revokedAt`, and `users/{uid}.activeDeviceId` is cleared (`set_user_status` in `backend/app/repo/users.py`). The licence's activations stay active and keep their slots (§20.16) |
 | A new device is registered after that | The previous device moves to `SUPERSEDED` with a `revokedAt`, so history shows *why* it stopped being usable rather than just vanishing |
 
 Admin revoke itself requires a `verified_device` caller — an admin cannot revoke
@@ -392,6 +396,11 @@ Three properties worth knowing before you change this path:
   `COMPLETED` alone, so a finished analysis is never shown as uploading
   again. (Inline, the targets have not left the request, so nothing can have
   completed and the write stays plain.)
+- **The request writes no status after the enqueue.** The session is
+  reserved as `PROVISIONING`, and the task may have run before the request
+  answers: a second `PROVISIONING` written then went over the task's
+  `UPLOADING`, and the app polled a session nothing would move again (review
+  L3-3, `services/sessions.record_session`).
 - **A failed enqueue is an error, not a quiet fallback.** It logs
   `provision_enqueue_failed` at ERROR with `errorCode=tasks_enqueue_failed`
   and the exception type. Before it was logged, a missing
@@ -415,6 +424,17 @@ Three properties worth knowing before you change this path:
   and re-caches. A Cloud Tasks retry reuses the session's stored
   `driveFolderId` instead of creating a second one. `session_provisioned`
   logs `folderMs` (the folder phase) next to `latencyMs` (the whole provision).
+- **A name can still be doubled.** Find-then-create has no lock, so two first
+  uploads at once can each make `user/{uid}`. A folder create is not retried
+  blindly: after a 5xx or a timeout it looks the folder up by name first,
+  since Drive may have made it. A lookup takes the oldest of a doubled name
+  (`orderBy=createdTime`), so later walks converge, and erasure deletes every
+  `{uid}` folder (`drive.find_user_folders`) and each session's stored folder.
+- **A 404 is believed only while the Shared Drive is visible.** Drive answers
+  404 for every file of a drive the service account has lost. `file_exists`
+  and `probe_files` confirm `drives/{id}` (the `ping` read, once per probe
+  page) before taking a 404 as gone; otherwise the probe is `UNKNOWN`, verify
+  purges nothing, and a delete or an erasure raises (`drive.DriveAccessLost`).
 
 `/v1/tasks/provision-session` is authenticated by `tasks.tasks_caller`, not by
 anything in `deps.py`: the caller is Google, so there is no uid, no device and no
@@ -1461,9 +1481,13 @@ second factor on a recent sign-in, or a signed device request) and a verified
 address (`403 email_not_verified`), shares the activation rate bucket, and
 writes a `LICENSE_CLAIM_CODE` audit row with the code's prefix only. A browser
 names no device, so `activate_license` compares and binds no lock
-(`backend/app/repo/activation.py:62-68`); the phone's next request binds it.
+(`backend/app/repo/activation.py:63-69`); the phone's next request binds it.
 No app screen takes a code ([ADR-024](../adr/ADR-024-account-anchored-entitlements.md)). `POST /v1/licenses/activate` runs the same
-redemption and stays for installed builds only (TD-278).
+redemption and stays for installed builds only (TD-278). Both are held to the
+account's **verified** address inside `repo.activate_license`: an unverified
+one is `403 email_not_verified`, before any email or domain lock is compared
+and before a seat is written (the legacy route used to compare the stored
+address, verified or not).
 
 #### The device lock is bound, not declared
 
@@ -2525,7 +2549,7 @@ address to hand to anybody: it signs the caller in, reads `GET /v1/me` and
 
 | Signal | Destination |
 |---|---|
-| `role == admin` (kept in sync with `ADMIN_EMAILS` at sign-in) | operator |
+| `role == admin` (follows `ADMIN_EMAILS` on every request, both ways; the desk itself asks the token, `admin_user`) | operator |
 | the address is named in some live institution licence's `adminEmails` | that roster, deep-linked when there is exactly one |
 | otherwise | their own account page |
 
@@ -2550,7 +2574,9 @@ not a refusal.
 
 #### The account page needs one call, not two
 
-`/v1/me`'s `license` block now carries `seating` and `leaseExpiresAt` alongside
+`/v1/me`'s `license` block is the calling app's licence (`X-App-Id`; a browser
+sends none and reads Semper's), the one that app's `/v1/config` answers for;
+`licences` carries every app's. It now carries `seating` and `leaseExpiresAt` alongside
 the term, and `held`: whether the stored mode is `licensed`. A Demo key and a
 licence revoked out from under the account both still have a kind and a
 prefix, so the page shows licence details and "Move licence" only when `held`. Both were already in `license_summary`, and `/v1/config` already
@@ -2864,6 +2890,33 @@ analysis: a deactivated phone keeps its files.
 Registration never retires an activated phone to make room
 (`activations.activated_devices`, read by `register_device`).
 
+**A suspension keeps the phones' activations** (owner decision, 2026-11-01).
+Suspending an account (`set_user_status`, `backend/app/repo/users.py`) revokes
+its device registrations but leaves its activations active, and they keep
+their slots in `devicesActive`: a reinstated holder who registers the same
+phone again is licensed on it with no Activate. Until then the slots count
+against `maxDevices` (a pool's too), and another account on the same licence
+that taps Activate on that phone is answered `409 device_in_use`. The answer
+does not say the holder is suspended, which would tell one account another's
+status; IT or staff free the slots by deactivating the phones (table above).
+
+**Deleting and restoring a licence** (`repo/deletion.py`). The activations stay
+under the deleted licence through the 30-day hold, as a revoke leaves them. A
+restore keeps the phones of every holder it puts back (and of a seat on hold)
+and deactivates the rest, as staff, without releasing their registrations: a
+seat that comes back revoked or a licence that comes back unused frees its
+slots. `devicesActive` is then counted from what is left, on the licence and
+on each seat.
+
+**The roster's New device** (`PATCH …/seats/{uid}` with `clearDeviceLock`)
+deactivates the member's phones with the caller's scope: IT reaches only
+members on the licence's `domainLock`, as by the devices route, and a member
+outside it answers `404 activation_not_found`. The same clear re-stamps a live
+holder's stored `mode` for the licence's app, as the lock's clear does
+(§20.10): an account still storing the Demo a device mismatch wrote before
+2026-09-28, or the copy of it the split put in Semper Classroom's mirror, is
+otherwise refused by Activate with `no_license`.
+
 ### 20.17 A licence per app
 
 [ADR-033](../adr/ADR-033-licence-per-app-explicit-activation.md), step 4. Staff
@@ -2891,8 +2944,9 @@ licence takes the account but binds no phone: Activate does.
 **The quota counts per app.** `count_user_sessions(uid, app)` counts the asking
 app's stored analyses; Semper's is the account's less every other app's, since a
 session from before the tag is Semper's. `GET /v1/sessions`'s `quota` and
-`POST /v1/sessions`'s cap use it; restore (`/v1/files/{id}/content`) checks the
-asking app's licence, and the browser bundle the analysis's own app's. The
+`POST /v1/sessions`'s cap use it; restore (`/v1/files/{id}/content`) and the
+browser bundle both check the licence of the analysis's own app (`session_app`),
+so a Semper licence does not read a Semper Classroom backup back. The
 demo per-device cap is unchanged.
 
 **Leaving gives the phones back.** A seat revoke on an app's licence deactivates
@@ -2913,24 +2967,39 @@ The new licence names the old in `supersedes`; nobody holds it yet.
 
 **It waits for Activate.** The holder's account points at it
 (`pendingLicenseId`, in the app's mirror slot) and the old licence at it
-(`upgradePendingId`); one upgrade waits at a time (`409 upgrade_pending`). The
+(`upgradePendingId`); one upgrade waits at a time (`409 upgrade_pending`), checked
+in the same transaction that writes both pointers, so two issues at once leave one
+successor and the loser's licence is deleted. The
 old licence keeps licensing its phones. `/v1/config`'s `pendingLicence` and
 `/v1/me`'s `licences.<app>.pendingLicence` show it (`{licenseId, prefix, kind,
 expiresAt, maxDevices, supersedes}`, or null), read only while one waits.
 
 **Activate moves the account.** `POST /v1/me/devices/activate` with
-`{"upgrade": true}` runs `apply_upgrade`: the phone is checked first, then the
-account takes the new licence (a seat on an institution one), the old licence
-is revoked with `supersededBy`, the pointers go, and the phone is activated on
-the new licence. Each step is safe to run again, and the pointer stays until the
-revoke, so an apply that dies part-way finishes on the next tap. The old
+`{"upgrade": true}` runs `apply_upgrade`. Everything the activation would refuse
+is checked first (`repo.activations.check_activation`: the phone registered and
+ACTIVE, the new licence live, not floating and within its grace, a slot free), with
+the code Activate answers, so a refusal leaves the holder where they were. Then the
+account takes the new licence (a seat on an institution one), the old licence is
+revoked with `supersededBy` (written before the revoke), the pointers go, and the
+phone is activated on the new licence. These are separate writes, not one
+transaction: each step is safe to run again, and the pointer stays until the
+revoke, so an apply that dies part-way finishes on the next tap. Only a slot taken
+between the check and the activation lands the holder on the new licence with that
+phone Demo, for a plain Activate to license. The old
 licence's other phones each activate again, within the new count. Staff apply it
 with no phone (`.../apply-upgrade`) for a build that has no Activate.
 
 **Edge cases.** A holder who never signed in has their invite moved and the old
 licence revoked at once, as `/convert` does. Revoking a waiting licence clears
 both pointers, so the holder stops being offered it and the old licence may be
-upgraded again. A licence from before the split, an institution licence and a
+upgraded again. Revoking the old licence while its upgrade waits withdraws the
+upgrade (`license_admin._cancel_pending_upgrade`, in the revoke's fan-out): an
+individual successor nobody has claimed is revoked too, since it was minted for this
+holder only and would otherwise be a live key for the address the revoke meant to
+stop; an institution successor, which has its own administrators, is only
+withdrawn. Until that fan-out has run, `apply_upgrade` refuses
+`no_pending_upgrade` for an old licence revoked without `supersededBy` naming the
+new one. A licence from before the split, an institution licence and a
 Demo key answer `409 license_not_upgradable`: the first converts in place, an
 institution is resized by an edit.
 

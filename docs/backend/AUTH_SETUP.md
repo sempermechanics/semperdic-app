@@ -125,7 +125,7 @@ separate decision made in `get_or_create_user`
 
 | Env var | Effect |
 |---|---|
-| `ADMIN_EMAILS` | Addresses separated by whitespace, `;` or `,` — **prefer spaces**, because the deploy workflow's `env_vars` block splits pairs on commas and would ship only the first address. A **verified** email in this list gets `role=admin` and is always approved |
+| `ADMIN_EMAILS` | Addresses separated by whitespace, `;` or `,` — **prefer spaces**, because the deploy workflow's `env_vars` block splits pairs on commas and would ship only the first address. A **verified** email in this list gets `role=admin` and is always approved. Taken out of the list, the account is `user` again on its next request |
 | `AUTO_APPROVE_HD` | A **verified** email at this domain is created `APPROVED` |
 | `AUTO_APPROVE` | `1` = every new user is created `APPROVED`. Pilot convenience; turn off for production |
 
@@ -150,11 +150,20 @@ leak or escalate into:
 | Tier | Dependency | How it is decided |
 |---|---|---|
 | **User** | `current_user` | Verified ID token, `access_status == APPROVED`. Also re-checks the license/device lock on every call carrying `X-Device-Id` (see CLOUD_ARCHITECTURE_GCP §20.2). |
-| **Admin** (Semper staff) | `admin_user` | `role == "admin"` or a verified email in `ADMIN_EMAILS`. Token only — enough for read-only admin screens. |
+| **Admin** (Semper staff) | `admin_user` | A verified email in `ADMIN_EMAILS`, read off the ID token on every request. The stored `role` is not consulted (it is a display copy that follows the token, `repo.users._touch_existing`); only `DEV_INSECURE_AUTH`, which has no token, reads it. Token only — enough for read-only admin screens. |
 | **Device-attested admin** | `verified_device` + `admin_user` | Device-attested calls from the phone admin screen. Still the strongest tier, and still what any request carrying device headers is held to. Since 2026-10-19 the device must have been registered from a sign-in that completed a second factor (`devices/{id}.stepUpEligible`), else 403 `mfa_required`; the same holds for institution IT's phone path. The holder tier (`attested_or_mfa_user`) takes any of the holder's registered devices ([ADR-010](../adr/ADR-010-device-binding-per-app.md) amendment). |
 | **Step-up admin** | `attested_or_mfa_admin` | Every *mutating* admin route except whole-licence revoke: approve, user revoke, config patch, license mint. Satisfied by device attestation, **or** by an admin whose ID token records a completed second factor (`firebase.sign_in_second_factor`) from a sign-in newer than `ADMIN_WEB_REAUTH_SECONDS`. The second form exists for the staff console — a browser cannot produce an attestation — and is deliberately weaker: a phished live MFA session inside the window can act. `ADMIN_WEB_MFA_ENABLED=0` removes it and restores attestation-only admin. |
 | **Step-up admin (revoke)** | `attested_or_mfa_admin_fresh` | Whole-licence revoke only. Same MFA proof, tighter `ADMIN_WEB_REVOKE_REAUTH_SECONDS` so the console's password/Google re-auth plus TOTP is required rather than a long-lived dashboard session. |
 | **Institution admin** | `institution_admin_stepup` | **Not** a role and **not** `ADMIN_EMAILS`. An APPROVED user whose *verified* email appears in one specific license's `adminEmails`, plus the same MFA/freshness check as other dashboards. Authority is scoped to that license alone; a license the caller does not administer 404s identically to one that does not exist (membership is checked before MFA). |
+
+**Off-boarding a staff member.** Remove the address from `ADMIN_EMAILS` and
+redeploy the backend: from the first request the new revision serves, every
+admin route answers 403 `not_admin`, and the stored `role` drops to `user` on
+that request. Until the redeploy the address is still staff. When access has
+to end before a deploy can, or the person should lose the account too,
+suspend it (`POST /v1/admin/users/{uid}/revoke`): the account is refused on
+its next request, its devices are revoked, and its Firebase refresh tokens are
+revoked (best-effort; the audit row says whether that happened).
 
 The tiers are asserted structurally in
 `backend/tests/test_route_authz_matrix.py`, which walks every route's

@@ -98,7 +98,7 @@ def test_new_verified_approved_user_with_device_gets_demo_key(store, monkeypatch
 def test_activate_professional_requires_email_and_device_lock(store):
     store._data["users"] = {
         "dev-user": {
-            "email": "dev@local", "access_status": "APPROVED", "plan": "demo",
+            "email": "dev@local", "emailVerified": True, "access_status": "APPROVED", "plan": "demo",
         },
     }
     minted = repo.create_individual_license(
@@ -125,7 +125,7 @@ def test_activate_professional_requires_email_and_device_lock(store):
 
 
 def test_activate_unknown_key(store):
-    store._data["users"] = {"dev-user": {"email": "dev@local", "access_status": "APPROVED"}}
+    store._data["users"] = {"dev-user": {"email": "dev@local", "emailVerified": True, "access_status": "APPROVED"}}
     err, cfg = attempt(repo.activate_license, "dev-user", "dev@local", "dev-device", "SEMP-ZZZZ-ZZZZ-ZZZZ-ZZZZ")
     assert err == "license_not_found"
     assert cfg is None
@@ -133,7 +133,7 @@ def test_activate_unknown_key(store):
 
 def test_revoke_professional_drops_user_to_demo(store):
     store._data["users"] = {
-        "u1": {"email": "a@b.com", "access_status": "APPROVED", "plan": "demo"},
+        "u1": {"email": "a@b.com", "emailVerified": True, "access_status": "APPROVED", "plan": "demo"},
     }
     minted = repo.create_individual_license(
         email_lock="a@b.com",
@@ -154,7 +154,7 @@ async def test_demo_records_an_analysis(client, monkeypatch):
     tests). Installed builds that predate licensing retry a 403 from this
     route forever, so the gate must never come back here."""
     store = fake_firestore.install(monkeypatch)
-    store._data["users"] = {"dev-user": {"email": "dev@test", "access_status": "APPROVED"}}
+    store._data["users"] = {"dev-user": {"email": "dev@test", "emailVerified": True, "access_status": "APPROVED"}}
     _recording_stubs(monkeypatch)
     monkeypatch.setattr(deps, "_DEV_USER", {**deps._DEV_USER, "mode": "demo", "plan": "demo"})
     resp = await client.post(
@@ -190,7 +190,7 @@ async def test_activate_endpoint_happy_path(client, monkeypatch, audited):
     monkeypatch.setattr(repo.notify, "access_request", lambda *a, **k: None)
     store._data["users"] = {
         "dev-user": {
-            "email": "dev@local", "access_status": "APPROVED", "plan": "demo",
+            "email": "dev@local", "emailVerified": True, "access_status": "APPROVED", "plan": "demo",
         },
     }
     minted = repo.create_individual_license(

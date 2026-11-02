@@ -105,6 +105,7 @@ QUERY_SHAPES: dict[str, list[Shape]] = {
         _q("auth_links", ("uid", "==")),
     ],
     "app/repo/claims.py::_drop_superseded_demos": [_q("licenses", ("redeemedByUid", "in"))],
+    "app/repo/deletion.py::_settle_activations": [_q("activations", ("status", "=="))],
     "app/repo/deletion.py::list_deleted_licenses": [
         _q("deleted_licenses", order=(("deletedAt", DESC),)),
     ],

@@ -985,6 +985,7 @@
           "localSessionId": {
             "default": "",
             "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_-]*$",
             "title": "Localsessionid",
             "type": "string"
           },
@@ -7782,7 +7783,7 @@
         "summary": "Delete Account"
       },
       "get": {
-        "description": "Who the caller is, and what their license currently grants.\n\nThe `license` block answers \"am I entitled, and for how much longer\" in the\nsame round trip as identity, so the app can warn about an approaching\nexpiry instead of only discovering it when `mode` silently flips to demo.\nIt costs no extra Firestore read — `current_user` already returns the whole\nuser document, and the summary is pure over it.\n\n`/v1/config` remains the source of truth for limits and feature flags; this\nis deliberately the smaller answer.",
+        "description": "Who the caller is, and what their license currently grants.\n\nThe `license` block answers \"am I entitled, and for how much longer\" in the\nsame round trip as identity, so the app can warn about an approaching\nexpiry instead of only discovering it when `mode` silently flips to demo.\nIt costs no extra Firestore read — `current_user` already returns the whole\nuser document, and the summary is pure over it.\n\n`/v1/config` remains the source of truth for limits and feature flags; this\nis deliberately the smaller answer.\n\n`license` is the calling app's (`X-App-Id`, resolved by `current_user`),\nthe licence the same app's `/v1/config` answers for, so the two can be\ncompared. A browser sends no `X-App-Id` and so reads Semper's, as before.",
         "operationId": "me_v1_me_get",
         "parameters": [
           {
@@ -8148,7 +8149,7 @@
     },
     "/v1/me/devices/activate": {
       "post": {
-        "description": "Activate: license the phone that signs this request, for the app it\nruns (`X-App-Id`), on the licence the account holds for that app.\n\nSigned by the phone, so only the phone itself activates itself; staff add\none from the operator console instead. `409 device_limit_reached: n/m`\nwhen every slot is taken, `409 seating_floating` on a floating licence\n(check out a seat instead), `404 no_license` with none. A phone already\nactive answers as a success.\n\n`{\"upgrade\": true}` activates it on the new licence issued to the\naccount instead, which moves the account there and revokes the old one\n(`repo.apply_upgrade`); `404 no_pending_upgrade` with none waiting.\n\nThe answer carries the config the phone holds from now on, so the app\nunlocks without a restart or a second call.",
+        "description": "Activate: license the phone that signs this request, for the app it\nruns (`X-App-Id`), on the licence the account holds for that app.\n\nSigned by the phone, so only the phone itself activates itself; staff add\none from the operator console instead. `409 device_limit_reached: n/m`\nwhen every slot is taken, `409 seating_floating` on a floating licence\n(check out a seat instead), `404 no_license` with none. A phone already\nactive answers as a success.\n\n`{\"upgrade\": true}` activates it on the new licence issued to the\naccount instead, which moves the account there and revokes the old one\n(`repo.apply_upgrade`); `404 no_pending_upgrade` with none waiting, or\nwhen the old licence was revoked rather than replaced. Any refusal the\nactivation would give is found before the account moves, with the same\ncode, so the holder stays on the old licence.\n\nThe answer carries the config the phone holds from now on, so the app\nunlocks without a restart or a second call.",
         "operationId": "activate_this_phone_v1_me_devices_activate_post",
         "parameters": [
           {
