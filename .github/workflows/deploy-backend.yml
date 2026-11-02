@@ -4,8 +4,12 @@ name: Deploy Backend
 # post-deploy smoke on /readyz, and automatic traffic rollback on smoke failure.
 # Reminder: challenges.expireAt Firestore TTL is a one-time field policy
 # (docs/backend/BACKEND_SETUP_GCP.md §A2a), not applied by this workflow.
-# Auth is via Workload Identity Federation — set GCP_WIF_PROVIDER / GCP_DEPLOY_SA
-# in each GitHub Environment (staging / production) before first use.
+# Auth is via Workload Identity Federation. GCP_WIF_PROVIDER / GCP_DEPLOY_SA are
+# repo-level secrets, so staging and production mint the same identity; only
+# the `production` environment has protection rules (main + the owner's
+# review). The service and gateway names are therefore checked against the
+# environment (scripts/check_deploy_target.sh) before any credential is used:
+# a staging run cannot reach semper-api / semper-gw (docs/ops/ENVIRONMENTS.md).
 on:
   workflow_dispatch:
     inputs:
@@ -33,7 +37,10 @@ on:
         required: true
         default: asia-south1
       service:
-        description: Cloud Run service name (empty = semper-api / semper-api-staging)
+        description: >
+          Cloud Run service name (empty = semper-api / semper-api-staging).
+          staging takes only a *-staging name, production never one
+          (scripts/check_deploy_target.sh).
         required: false
         default: ""
       release_train:
@@ -108,6 +115,7 @@ jobs:
           SVC_INPUT: ${{ github.event.inputs.service }}
           TARGET_ENV: ${{ github.event.inputs.environment }}
         run: |
+          set -euo pipefail
           SVC="${SVC_INPUT}"
           if [ -z "$SVC" ]; then
             if [ "${TARGET_ENV}" = "production" ]; then
@@ -116,6 +124,11 @@ jobs:
               SVC="semper-api-staging"
             fi
           fi
+          # Both environments share the repo-level WIF provider and deploy SA,
+          # and only `production` is gated (main + review). So the service
+          # must belong to the environment: staging only a *-staging service,
+          # production never one (L9-1). Before any credential is minted.
+          bash scripts/check_deploy_target.sh "${TARGET_ENV}" "$SVC"
           echo "service=$SVC" >> "$GITHUB_OUTPUT"
           # Production is reachable only through API Gateway, which invokes the
           # service with its own SA (see gateway/openapi.yaml jwt_audience). A
@@ -621,6 +634,14 @@ jobs:
       CORS_ORIGIN_LIST: ${{ vars.CONSOLE_ORIGINS || 'https://app.sempermechanics.com' }}
     steps:
       - uses: actions/checkout@v7
+
+      # The same rule as the deploy job's service (L9-1): a GATEWAY_ID or
+      # GATEWAY_API variable must not point a staging run at the production
+      # gateway, nor the reverse. Before the credentials.
+      - name: Check the gateway belongs to the environment
+        env:
+          TARGET_ENV: ${{ github.event.inputs.environment }}
+        run: bash scripts/check_deploy_target.sh "$TARGET_ENV" "$SERVICE" "$GW_ID" "$GW_API"
 
       - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
