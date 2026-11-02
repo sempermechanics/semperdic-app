@@ -30,6 +30,8 @@ scripts/qa/tests/      its tests
 
 The first suite is [`suites/licence-activation.toml`](suites/licence-activation.toml)
 (ADR-033: licence per app, explicit activation, device count, upgrade by issue).
+[`suites/recycle-bin.toml`](suites/recycle-bin.toml) (prefix `R`, ADR-035) checks the
+recycle bin: lane B runs its phone scenarios on two emulators, lane E its backend ones.
 
 ## Glossary
 
