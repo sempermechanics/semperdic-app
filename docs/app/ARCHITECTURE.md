@@ -125,6 +125,19 @@ the viewer's frame title read them. Neither goes to the cloud copy's
 `metadata.json`, so a restored video analysis has neither and its frames are
 known by their names.
 
+Each row has an owner, `ownerUid`: the Firebase uid of the account that ran or
+restored it, set by `SessionStore.save` and left out while blank like any
+default. On a phone two accounts share, `SessionStore.list` and `get` see only
+the current account's rows (`SessionOwner`: the signed-in uid, else the last
+account that signed in, kept through sign-out), so Home, Settings, the quota's
+phone count, the storage budget, the reconcile, the sync from other phones and
+the upload and retry paths never show, count, free or upload another account's
+analyses into this one. Writes keep every account's rows; an account deletion
+wipes only its own (`SessionStore.deleteAll`). A row an older build wrote has
+no owner until the first account that is current after the update adopts it,
+once. A sign-in as another uid over a live session clears the previous
+account's cache first, as a sign-out does (`AccountSwitch`).
+
 ## Sync workers
 
 When cloud is configured (`SEMPER_API_BASE_URL`):

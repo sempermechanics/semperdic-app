@@ -6,7 +6,9 @@ import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.LicenseConfigWorker
 import com.sempermechanics.semper.data.account.SeatLease
+import com.sempermechanics.semper.data.account.entitlement.ConfigFetch
 import com.sempermechanics.semper.data.account.phones.ActivateOutcome
 import com.sempermechanics.semper.data.account.phones.DeactivateOutcome
 import com.sempermechanics.semper.data.account.phones.DeviceActivation
@@ -77,8 +79,12 @@ class PhonesViewModel(app: Application) : AndroidViewModel(app) {
     /** Deactivate [deviceId] ([thisPhone] when it is this one). */
     fun deactivate(deviceId: String, thisPhone: Boolean) = act {
         val outcome = phones.deactivate(deviceId)
-        // This phone is Demo now, not at its next refresh.
-        if (thisPhone && outcome is DeactivateOutcome.Deactivated) phones.refreshConfig()
+        // This phone is Demo now, not at its next refresh. The server has
+        // said so; a fetch that failed is retried until it lands, or the
+        // cached config kept this phone licensed until the next periodic one.
+        if (thisPhone && outcome is DeactivateOutcome.Deactivated && phones.refreshConfig() == ConfigFetch.FAILED) {
+            phones.queueRefresh()
+        }
         noteChannel.send(PhonesView.deactivated(outcome))
         if (outcome is DeactivateOutcome.Deactivated || outcome is DeactivateOutcome.NotFound) reload()
     }
@@ -138,8 +144,11 @@ class PhonesViewModel(app: Application) : AndroidViewModel(app) {
         /** The new licence's key prefix while one waits, else null. */
         suspend fun pendingPrefix(): String?
 
-        /** Fetch `/v1/config` again. */
-        suspend fun refreshConfig()
+        /** Fetch `/v1/config` again; whether it answered, failed or was not made. */
+        suspend fun refreshConfig(): ConfigFetch
+
+        /** Queue the retrying `/v1/config` refresh ([LicenseConfigWorker.refreshNow]). */
+        fun queueRefresh()
 
         class Live(private val app: Application) : Phones {
             override suspend fun list() = DeviceActivation.list(app)
@@ -153,9 +162,9 @@ class PhonesViewModel(app: Application) : AndroidViewModel(app) {
             override suspend fun pendingPrefix() =
                 withContext(Dispatchers.IO) { AppRemoteConfig.pendingLicence(app)?.prefix }
 
-            override suspend fun refreshConfig() {
-                withContext(Dispatchers.IO) { SeatLease.fetchConfig(app) }
-            }
+            override suspend fun refreshConfig() = withContext(Dispatchers.IO) { SeatLease.fetchConfig(app) }
+
+            override fun queueRefresh() = LicenseConfigWorker.refreshNow(app)
         }
     }
 }
