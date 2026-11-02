@@ -116,10 +116,11 @@ class SemperApi @VisibleForTesting internal constructor(
      *
      * At launch the status check and the cloud reconcile both ask for it within
      * ~100 ms, so a call that arrives while one is running shares its answer
-     * (docs/perf/request-volume.md, Pass 2). Both callers hold the same signed-in
-     * user's token.
+     * (docs/perf/request-volume.md, Pass 2). A call joins only one sent with
+     * the same ID token: another account's answer (a sign-in that raced the
+     * last one's call) carries that account's limits and entitlement.
      */
-    override suspend fun getConfig(idToken: String): AppConfigDto = configFlight.run {
+    override suspend fun getConfig(idToken: String): AppConfigDto = configFlight.run(idToken) {
         calls.bearer(idToken, { url(endpoint("/v1/config")) }, ApiAnswer::failApprovedOnly) { decode(it) }
     }
 
