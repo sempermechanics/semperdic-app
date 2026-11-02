@@ -76,6 +76,7 @@ def stepping_admin(monkeypatch, audited):
     every verify_id_token call (token, check_revoked)."""
     store = fake_firestore.install(monkeypatch)
     monkeypatch.setattr(settings, "DEV_INSECURE_AUTH", False)
+    monkeypatch.setattr(settings, "ADMIN_EMAILS", {"admin@sempermechanics.com"})
     monkeypatch.setattr(settings, "ADMIN_WEB_MFA_ENABLED", True)
     monkeypatch.setattr(settings, "ADMIN_WEB_REAUTH_SECONDS", 900)
     monkeypatch.setattr(repo.notify, "access_request", lambda *a, **k: None)

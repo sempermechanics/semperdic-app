@@ -70,7 +70,7 @@ from cryptography.hazmat.primitives.asymmetric.utils import (
     encode_dss_signature,
 )
 
-from . import statuses
+from . import apps, statuses
 from .config import settings
 
 log = logging.getLogger("semper.entitlement")
@@ -303,7 +303,8 @@ def issue(
         device_id=device_id,
         device_public_key_pem=pem,
         config=config,
-        license_id=user.get("licenseId"),
+        # The calling app's own licence (ADR-033), not Semper's mirror.
+        license_id=apps.licence_view(dict(user), app).get("licenseId"),
         iat=int(time.time()) if now is None else now,
         offline_grace_days=settings.ENTITLEMENT_OFFLINE_GRACE_DAYS,
     )

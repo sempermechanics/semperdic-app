@@ -7772,7 +7772,7 @@
         "summary": "Delete Account"
       },
       "get": {
-        "description": "Who the caller is, and what their license currently grants.\n\nThe `license` block answers \"am I entitled, and for how much longer\" in the\nsame round trip as identity, so the app can warn about an approaching\nexpiry instead of only discovering it when `mode` silently flips to demo.\nIt costs no extra Firestore read — `current_user` already returns the whole\nuser document, and the summary is pure over it.\n\n`/v1/config` remains the source of truth for limits and feature flags; this\nis deliberately the smaller answer.",
+        "description": "Who the caller is, and what their license currently grants.\n\nThe `license` block answers \"am I entitled, and for how much longer\" in the\nsame round trip as identity, so the app can warn about an approaching\nexpiry instead of only discovering it when `mode` silently flips to demo.\nIt costs no extra Firestore read — `current_user` already returns the whole\nuser document, and the summary is pure over it.\n\n`/v1/config` remains the source of truth for limits and feature flags; this\nis deliberately the smaller answer.\n\n`license` is the calling app's (`X-App-Id`, resolved by `current_user`),\nthe licence the same app's `/v1/config` answers for, so the two can be\ncompared. A browser sends no `X-App-Id` and so reads Semper's, as before.",
         "operationId": "me_v1_me_get",
         "parameters": [
           {

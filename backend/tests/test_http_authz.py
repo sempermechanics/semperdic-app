@@ -18,6 +18,7 @@ from app.config import settings
 def secure(monkeypatch):
     store = fake_firestore.install(monkeypatch)
     monkeypatch.setattr(settings, "DEV_INSECURE_AUTH", False)
+    monkeypatch.setattr(settings, "ADMIN_EMAILS", {"admin@sempermechanics.com"})
     monkeypatch.setattr(repo.notify, "access_request", lambda *a, **k: None)
     monkeypatch.setattr(audit, "record", lambda *a, **k: None)
     return store

@@ -18,7 +18,7 @@ Three ways of reaching a paid entitlement had grown up side by side:
    signs in and the backend attaches what they are owed on their first request
    (`ensure_entitlement`, `backend/app/repo/entitlement.py:181`, called for
    every authenticated request through `get_or_create_user`,
-   `backend/app/repo/users.py:172-176`). Nothing is typed.
+   `backend/app/repo/users.py:221, 227, 316`). Nothing is typed.
 2. **A typed key.** `POST /v1/licenses/activate` redeems a key for the calling
    account. The branch added an in-app screen for it (c748630, "Licence
    activation screen (TD-259)"); no released build ever had one: v1.2-beta.4
@@ -131,7 +131,7 @@ There is nothing to type, so the app has to ask:
 Every authenticated request re-resolves the account (`get_or_create_user` →
 `ensure_entitlement`) and, when it carries `X-Device-Id`, re-validates the
 licence or seat device lock and drops to Demo on a mismatch or revocation
-(`backend/app/deps.py:181-188`). On top of that:
+(`backend/app/deps.py:183-193`). On top of that:
 
 | Route | Caller | Gates, in order |
 |---|---|---|

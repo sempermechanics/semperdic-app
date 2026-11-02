@@ -169,7 +169,11 @@ SA's public JWKS) — still keyless. Not needed at pilot scale.
 proves identity; it does not grant entry. `get_or_create_user`
 ([repo/users.py](../../backend/app/repo/users.py)) assigns:
 
-1. `role = admin` if a **verified** email is in `ADMIN_EMAILS`;
+1. `role = admin` if a **verified** email is in `ADMIN_EMAILS`, and back to
+   `user` on the first request whose token is not one (an address taken out
+   of the list, or a token that is not verified). The stored `role` is a copy
+   for the consoles and the app to read; `admin_user` grants nothing on it and
+   asks the token on every request (`deps.admin_user`);
 2. `access_status = APPROVED` if admin, or `AUTO_APPROVE=1`, or a **verified**
    email at `AUTO_APPROVE_HD`;
 3. otherwise `PENDING` — authenticated but refused with `403 not_approved`
@@ -1461,9 +1465,13 @@ second factor on a recent sign-in, or a signed device request) and a verified
 address (`403 email_not_verified`), shares the activation rate bucket, and
 writes a `LICENSE_CLAIM_CODE` audit row with the code's prefix only. A browser
 names no device, so `activate_license` compares and binds no lock
-(`backend/app/repo/activation.py:62-68`); the phone's next request binds it.
+(`backend/app/repo/activation.py:63-69`); the phone's next request binds it.
 No app screen takes a code ([ADR-024](../adr/ADR-024-account-anchored-entitlements.md)). `POST /v1/licenses/activate` runs the same
-redemption and stays for installed builds only (TD-278).
+redemption and stays for installed builds only (TD-278). Both are held to the
+account's **verified** address inside `repo.activate_license`: an unverified
+one is `403 email_not_verified`, before any email or domain lock is compared
+and before a seat is written (the legacy route used to compare the stored
+address, verified or not).
 
 #### The device lock is bound, not declared
 
@@ -2524,7 +2532,7 @@ address to hand to anybody: it signs the caller in, reads `GET /v1/me` and
 
 | Signal | Destination |
 |---|---|
-| `role == admin` (kept in sync with `ADMIN_EMAILS` at sign-in) | operator |
+| `role == admin` (follows `ADMIN_EMAILS` on every request, both ways; the desk itself asks the token, `admin_user`) | operator |
 | the address is named in some live institution licence's `adminEmails` | that roster, deep-linked when there is exactly one |
 | otherwise | their own account page |
 
@@ -2549,7 +2557,9 @@ not a refusal.
 
 #### The account page needs one call, not two
 
-`/v1/me`'s `license` block now carries `seating` and `leaseExpiresAt` alongside
+`/v1/me`'s `license` block is the calling app's licence (`X-App-Id`; a browser
+sends none and reads Semper's), the one that app's `/v1/config` answers for;
+`licences` carries every app's. It now carries `seating` and `leaseExpiresAt` alongside
 the term, and `held`: whether the stored mode is `licensed`. A Demo key and a
 licence revoked out from under the account both still have a kind and a
 prefix, so the page shows licence details and "Move licence" only when `held`. Both were already in `license_summary`, and `/v1/config` already
