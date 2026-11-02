@@ -57,6 +57,14 @@ val SessionRecord.isKnownInCloud: Boolean
  */
 fun SessionRecord.isRestorable(hasLocalData: Boolean): Boolean = !hasLocalData && isKnownInCloud
 
+/**
+ * True while this analysis's backup is in the account's recycle bin
+ * (ADR-035): the row carries the binned cloud id and no live one. Nothing
+ * uploads it, and the reconcile leaves it unrepaired, until it is restored
+ * from the bin or erased there.
+ */
+val SessionRecord.inRecycleBin: Boolean get() = binnedCloudId.isNotBlank()
+
 /** `Roi(roiX, roiY, roiW, roiH)`. */
 val SessionRecordSettings.roi: Roi get() = Roi(roiX, roiY, roiW, roiH)
 

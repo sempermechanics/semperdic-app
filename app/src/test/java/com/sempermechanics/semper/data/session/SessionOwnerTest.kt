@@ -9,7 +9,11 @@ import com.sempermechanics.semper.data.account.AccountSwitch
 import com.sempermechanics.semper.data.cloud.CloudReconcile
 import com.sempermechanics.semper.data.cloud.CloudSync
 import com.sempermechanics.semper.data.cloud.SessionMetadataSync
+import com.sempermechanics.semper.data.cloud.bin.BinReconcile
 import com.sempermechanics.semper.data.net.AccountCache
+import com.sempermechanics.semper.data.net.RecycleBinItemDto
+import com.sempermechanics.semper.data.net.RecycleBinResponse
+import com.sempermechanics.semper.data.net.SessionsResponse
 import com.sempermechanics.semper.data.session.SessionRecord.SyncState
 import com.sempermechanics.semper.fixtures.CleanAppState
 import com.sempermechanics.semper.fixtures.sessionRecord
@@ -110,16 +114,17 @@ class SessionOwnerTest {
 
         signIn(UID_B)
         save("b-synced", SyncState.SYNCED)
-        // B's cloud holds none of these: only B's own row may be repaired.
-        val repaired = CloudReconcile.repairRows(
-            context,
+        // B's cloud holds none of these: only B's own row may be repaired. B's
+        // bin naming A's row (one analysis has one local id) changes nothing of A's.
+        val listing = CloudReconcile.Listing(
+            SessionsResponse(),
             backedUp = emptySet(),
             keep = emptySet(),
-            reupload = true,
-            requeue = true,
+            bin = BinReconcile.Bin(RecycleBinResponse(items = listOf(RecycleBinItemDto("c-a", "a-synced")))),
         )
+        val repairs = CloudReconcile.repairRows(context, listing, reupload = true, requeue = true)
 
-        assertEquals(1, repaired)
+        assertEquals(CloudReconcile.Repairs(repaired = 1, binned = 0), repairs)
         assertEquals(listOf("b-synced"), queued)
         signIn(UID_A)
         assertEquals(

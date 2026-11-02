@@ -110,6 +110,35 @@ class PhoneSyncTest {
     // ── What is remembered as tried ─────────────────────────────────────────
 
     @Test
+    fun `a backup deleted on another phone is not restored, the bin keeping it out of the listing`() {
+        // `GET /v1/sessions` leaves a binned backup out (ADR-035), so a phone
+        // with no row for it is not offered it either.
+        val listed = listOf(backup("c-kept", "kept"))
+
+        assertEquals(listOf("c-kept"), ids(PhoneSync.toRestore(listed, emptyList(), none, none, none)))
+    }
+
+    @Test
+    fun `a row in the bin claims its binned backup, so its restore from the bin is not doubled here`() {
+        val inBin = sessionRecord(id = "restored-c1").copy(binnedCloudId = "c1")
+
+        val picked = PhoneSync.toRestore(listOf(backup("c1", "l1")), listOf(inBin), none, none, none)
+
+        assertEquals(emptyList<String>(), ids(picked))
+    }
+
+    @Test
+    fun `a backup restored from the bin is restored again on a phone without it, as intended`() {
+        // Binned: absent from the listing, so the run forgets it was tried.
+        val whileBinned = PhoneSync.triedAfter(setOf("c1"), emptyList(), emptyList())
+        assertEquals(none, whileBinned)
+
+        // Restored from the bin: listed again, and this phone has no row for it.
+        val back = listOf(backup("c1", "l1"))
+        assertEquals(listOf("c1"), ids(PhoneSync.toRestore(back, emptyList(), none, whileBinned, none)))
+    }
+
+    @Test
     fun `tried keeps what is still listed and adds what was started`() {
         val listed = listOf(backup("c1", "a"), backup("c3", "c"))
 

@@ -8,6 +8,7 @@ import com.sempermechanics.semper.data.net.ErasureStatus
 import com.sempermechanics.semper.data.net.FileCompleteRequest
 import com.sempermechanics.semper.data.net.LicenseActivateResponse
 import com.sempermechanics.semper.data.net.MeResponse
+import com.sempermechanics.semper.data.net.RecycleBinResponse
 import com.sempermechanics.semper.data.net.SessionCreateRequest
 import com.sempermechanics.semper.data.net.SessionCreateResponse
 import com.sempermechanics.semper.data.net.SessionFilesResponse
@@ -124,6 +125,21 @@ class ApiDtosContractTest {
         assertEquals("1QwErTyUiOpAsDfGhJkLzXcVbNm098765", s.driveFolderId)
         assertEquals(1, resp.quota.used)
         assertEquals(999, resp.quota.max)
+        assertFalse(resp.page!!.hasMore)
+    }
+
+    @Test
+    fun `recycle bin listing decodes its items, erased markers and page`() {
+        val resp = response<RecycleBinResponse>("recycle_bin_response")
+        val item = resp.items.single()
+        assertEquals("3f9c2a7e5b1d4c8e9a0b6f2d1e4c7a95", item.sessionId)
+        assertEquals("a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d", item.localSessionId)
+        assertEquals("COMPLETED", item.status)
+        assertEquals(48215355L, item.totalBytes)
+        // The backend's microsecond, offset timestamp reads as epoch ms.
+        assertEquals(1_796_289_245_123L, item.purgeAtMs)
+        assertEquals("b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e", resp.erased.single().localSessionId)
+        assertEquals(30, resp.retentionDays)
         assertFalse(resp.page!!.hasMore)
     }
 

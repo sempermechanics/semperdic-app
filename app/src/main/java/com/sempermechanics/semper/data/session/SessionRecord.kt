@@ -141,6 +141,18 @@ data class SessionRecord(
      */
     val ownerUid: String = "",
 
+    /**
+     * The cloud id of this analysis's backup while it sits in the account's
+     * recycle bin (ADR-035), else "". Such a row is [SyncState.LOCAL_ONLY]
+     * with no [cloudSessionId], so the reconcile neither repairs nor requeues
+     * it, the storage budget never frees it, and no upload starts for it
+     * ([inRecycleBin]). Left out of `index.json` while blank.
+     */
+    val binnedCloudId: String = "",
+
+    /** When the bin erases [binnedCloudId] for good, epoch ms; 0 when unknown or not binned. */
+    val binPurgeAt: Long = 0L,
+
 ) {
 
     /**

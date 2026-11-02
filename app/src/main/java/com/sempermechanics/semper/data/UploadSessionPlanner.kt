@@ -41,6 +41,12 @@ internal sealed interface SessionStep {
     /** It is already complete: record the sync. */
     data object Synced : SessionStep
 
+    /**
+     * The row is no longer waiting to upload (deleted, or in the recycle bin,
+     * since the run started): end the run with nothing created ([mayUpload]).
+     */
+    data object Stopped : SessionStep
+
     /** End this run with [result], a retry. */
     data class Retry(val result: Result) : SessionStep
 
@@ -156,6 +162,8 @@ internal class UploadSessionPlanner(
         staging: StagingLayout,
     ): SessionStep {
         val cloudId = record.cloudSessionId.ifBlank {
+            // Read again: a delete may have stopped this backup while it staged (L5-3).
+            if (SessionStore.get(context, localId)?.mayUpload() != true) return SessionStep.Stopped
             Timber.w("Upload — creating a new cloud session")
             UploadLog.phase("create_session")
             createSession(record, files, staging)

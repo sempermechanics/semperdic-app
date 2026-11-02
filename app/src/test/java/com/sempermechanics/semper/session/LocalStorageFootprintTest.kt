@@ -11,6 +11,7 @@ import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionRepository
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.data.session.StorageBudget
+import com.sempermechanics.semper.data.session.markBinned
 import com.sempermechanics.semper.diagnostics.EngineDebug
 import com.sempermechanics.semper.fixtures.CleanAppState
 import com.sempermechanics.semper.fixtures.sessionRecord
@@ -251,6 +252,17 @@ class LocalStorageFootprintTest {
         assertTrue(File(pending, "frame_0000.dat").exists())
         // The reference survives so the Home row still renders as "only in cloud".
         assertTrue(File(synced, "reference.png").exists())
+    }
+
+    @Test
+    fun `a row whose backup is in the recycle bin is never freed`() {
+        val binned = seedSession("binned", SessionRecord.SyncState.SYNCED)
+        SessionStore.markBinned(ctx, "binned", "c-binned", purgeAt = 0L)
+
+        assertEquals(0L, StorageBudget.reclaimableBytes(ctx))
+        assertEquals(0, StorageBudget.freeAllBackedUp(ctx).sessionsDropped)
+        // The bin can erase its copy; this one may be the only one left.
+        assertTrue(File(binned, "frame_0000.dat").exists())
     }
 
     @Test

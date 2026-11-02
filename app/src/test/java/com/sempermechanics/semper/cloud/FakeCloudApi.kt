@@ -8,6 +8,7 @@ import com.sempermechanics.semper.data.net.FileCompleteRequest
 import com.sempermechanics.semper.data.net.MeResponse
 import com.sempermechanics.semper.data.net.SessionCreateRequest
 import com.sempermechanics.semper.data.net.SessionCreateResponse
+import com.sempermechanics.semper.data.net.SessionDeleteResponse
 import com.sempermechanics.semper.data.net.SessionFilesResponse
 import com.sempermechanics.semper.data.net.SessionUploadsResponse
 import com.sempermechanics.semper.data.net.SessionsResponse
@@ -43,6 +44,11 @@ class FakeCloudApi(override var enabled: Boolean = true) : CloudApi {
         { _, app -> unscripted("listSessions?app=$app") }
     var onDeleteAccount: suspend (String) -> Unit = { unscripted("deleteAccount") }
     var onDeleteSession: suspend (String, String) -> Unit = { _, _ -> unscripted("deleteSession") }
+
+    /** What `deleteSession` answers once [onDeleteSession] returns: by default a backend that bins (ADR-035). */
+    var deleteAnswer: (String) -> SessionDeleteResponse = { sid ->
+        SessionDeleteResponse(deleted = sid, filesRemoved = 3, binned = true, purgeAt = BIN_PURGE_AT)
+    }
     var onListSessionUploads: suspend (String, String) -> SessionUploadsResponse =
         { _, _ -> unscripted("listSessionUploads") }
     var onReplaceSessionMetadata: suspend (String, String, String) -> Unit =
@@ -77,8 +83,11 @@ class FakeCloudApi(override var enabled: Boolean = true) : CloudApi {
 
     override suspend fun deleteAccount(idToken: String) = record("deleteAccount") { onDeleteAccount(idToken) }
 
-    override suspend fun deleteSession(idToken: String, sessionId: String) =
-        record("deleteSession") { onDeleteSession(idToken, sessionId) }
+    override suspend fun deleteSession(idToken: String, sessionId: String): SessionDeleteResponse =
+        record("deleteSession") {
+            onDeleteSession(idToken, sessionId)
+            deleteAnswer(sessionId)
+        }
 
     override suspend fun replaceSessionMetadata(idToken: String, sessionId: String, metadataJson: String) =
         record("replaceSessionMetadata") { onReplaceSessionMetadata(idToken, sessionId, metadataJson) }
@@ -130,6 +139,11 @@ class FakeCloudApi(override var enabled: Boolean = true) : CloudApi {
     }
 
     private fun unscripted(name: String): Nothing = throw AssertionError("unexpected CloudApi.$name call")
+
+    companion object {
+        /** The purge time [deleteAnswer] names by default, as the backend writes it. */
+        const val BIN_PURGE_AT = "2026-12-03T09:14:05.123456+00:00"
+    }
 }
 
 /** A [TokenSource] that answers [token] (null = signed out) and counts the asks. */

@@ -99,7 +99,14 @@ class CloudSeamTest {
     // ------------------------------------------------------------ reconcile
 
     private fun reconcile() = runBlocking {
-        CloudSync.reconcile(context, reupload = false, deep = true, api = api, tokens = tokens)
+        CloudSync.reconcile(
+            context,
+            reupload = false,
+            deep = true,
+            api = api,
+            tokens = tokens,
+            bin = FakeRecycleBinApi.empty(),
+        )
     }
 
     private fun configDown() {
