@@ -116,8 +116,13 @@ emulator (`scripts/micro_ab.py`, [TESTING.md](docs/app/TESTING.md)); the phone-r
 [PERF_BASELINE_bd44af0.md](docs/engine/PERF_BASELINE_bd44af0.md)) is a manual reference.
 Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 
-## Current state (2026-10-30)
+## Current state (2026-11-02)
 
+- **Review fixes merged, not deployed** (2026-11-02): #521–#534, #536. Owed: backend deploy (#521
+  #523–#525 #527–#529 #532), Hosting (#527; #534 changed `/privacy`: `LEGAL_PAGES_FROM=b940cc29`, below),
+  app release. The recycle bin ([ADR-035](docs/adr/ADR-035-recycle-bin.md), #529 #533 #534) must not reach
+  production before counsel's Privacy text (TD-277): a prod backend deploy from `main` ships it; staging is
+  fine; its TTL and Scheduler are owner steps in [DEPLOY_CHECKLIST_2026-10.md](docs/ops/DEPLOY_CHECKLIST_2026-10.md).
 - **Deployed.** Backend from `main` at `12a89d31` (2026-10-30; everything through #515, ADR-033
   included): staging `semper-api-staging-41004261956-1`, production `semper-api-41007741365-1`;
   gateways `v202610300446-120` (staging), `v202610300526-121` (production). Both run

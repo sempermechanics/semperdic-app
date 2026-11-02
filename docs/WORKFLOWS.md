@@ -53,7 +53,7 @@ change them deliberately, and re-read
 
 ## A. App — user-facing workflows
 
-Twelve activities, no NavHost and no Fragments; sub-flows are wizard pages,
+Seventeen activities (2026-11-02; count `<activity ` elements, not `<activity-alias`, in `app/src/main/AndroidManifest.xml`), no NavHost and no Fragments; sub-flows are wizard pages,
 bottom sheets and dialogs inside one Activity. The tick-box walkthrough of each
 of these is [app/WORKFLOWS.md](app/WORKFLOWS.md).
 
