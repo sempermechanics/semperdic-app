@@ -53,7 +53,9 @@ read the same files:
 - `backend/tests/test_wire_contracts.py`: each request validates against the
   pydantic model its route takes, with no key the model would drop; each
   response is compared, keys and JSON types both ways, with what the real
-  routes return when driven from device registration to a finished backup.
+  routes return when driven from device registration to a finished backup,
+  and a licence's phones (ADR-033: Activate, the list, Deactivate) in a
+  second scenario of their own.
 
 A backend response that grows a field fails the backend test until the fixture
 has it. A field removed or renamed on either side fails one of the two suites;
