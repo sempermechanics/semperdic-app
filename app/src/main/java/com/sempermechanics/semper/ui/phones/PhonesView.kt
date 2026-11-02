@@ -1,6 +1,5 @@
 package com.sempermechanics.semper.ui.phones
 
-import android.content.Context
 import androidx.annotation.StringRes
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.account.phones.ActivateOutcome
@@ -8,6 +7,7 @@ import com.sempermechanics.semper.data.account.phones.DeactivateOutcome
 import com.sempermechanics.semper.data.net.AccountPhoneDto
 import com.sempermechanics.semper.data.net.AccountPhonesDto
 import com.sempermechanics.semper.data.net.ActivationDto
+import com.sempermechanics.semper.ui.common.Note
 
 /** Where this phone stands on the account's licence for this app. */
 enum class ThisPhone(@StringRes val statusRes: Int) {
@@ -20,20 +20,6 @@ enum class ThisPhone(@StringRes val statusRes: Int) {
 
     /** Activate is offered: a slot is free, or the holder may free one first. */
     val offersActivate: Boolean get() = this == AVAILABLE || this == FULL
-}
-
-/**
- * A line for the user: a string and its format arguments, or a plural when
- * [quantity] is set.
- */
-data class Note(val res: Int, val args: List<Any> = emptyList(), val quantity: Int? = null) {
-    /** The line in [context]'s language. */
-    @Suppress("SpreadOperator") // a line's two or three arguments, once per tap
-    fun text(context: Context): String = if (quantity != null) {
-        context.resources.getQuantityString(res, quantity, *args.toTypedArray())
-    } else {
-        context.getString(res, *args.toTypedArray())
-    }
 }
 
 /**

@@ -13,17 +13,20 @@ import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.prefs.AppSettings
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
+import com.sempermechanics.semper.data.session.inRecycleBin
 import com.sempermechanics.semper.ui.common.dialog.Dialogs
 import com.sempermechanics.semper.ui.common.dialog.Feedback
 import com.sempermechanics.semper.ui.common.dialog.ReopenAfterRecreate
+import com.sempermechanics.semper.ui.recyclebin.RecycleBinActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
  * A tap on a Home row's sync badge: retry a failed or pending backup, back
- * up a phone-only analysis when cloud backup is on, or else go to Settings
- * ([openSettings]), where backup is turned on.
+ * up a phone-only analysis when cloud backup is on, open the recycle bin
+ * ([openRecycleBin]) for a row whose backup is in it (ADR-035), or else go to
+ * Settings ([openSettings]), where backup is turned on.
  *
  * Built in `onCreate`, after `super.onCreate`: a failed backup's question that
  * the screen this one replaces had open is asked again, with its reason
@@ -32,6 +35,7 @@ import kotlinx.coroutines.withContext
 internal class BackupBadgeActions(
     private val activity: AppCompatActivity,
     private val adapter: SessionListAdapter,
+    private val openRecycleBin: () -> Unit = { RecycleBinActivity.open(activity) },
     private val openSettings: () -> Unit,
 ) {
     private val reopenFailed = ReopenAfterRecreate(activity, "home.failedBackup")
@@ -44,6 +48,12 @@ internal class BackupBadgeActions(
 
     /** Retry a failed/pending upload, or back up a local-only session when cloud is on. */
     fun retryOrBackup(record: SessionRecord) {
+        // Backing it up again would be refused (409 session_in_recycle_bin):
+        // the bin is where it comes back from.
+        if (record.inRecycleBin) {
+            openRecycleBin()
+            return
+        }
         when (record.syncState) {
             // A terminal failure: explain why (from the retained WorkInfo) before
             // offering a deliberate retry, instead of silently re-queuing a doomed

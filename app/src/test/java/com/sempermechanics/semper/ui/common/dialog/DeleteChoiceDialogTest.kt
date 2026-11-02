@@ -64,7 +64,7 @@ class DeleteChoiceDialogTest {
         DeleteChoiceDialog.show(
             activity,
             "Delete steel_00?",
-            "A deleted cloud copy can't be recovered.",
+            "A deleted cloud copy stays in the recycle bin for 30 days.",
             DeleteChoiceDialog.phoneCloudEverywhere(
                 activity,
                 onPhone = { ran += "phone" },

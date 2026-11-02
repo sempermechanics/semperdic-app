@@ -471,6 +471,16 @@
                     android:textColor="@color/text_secondary"
                     android:textSize="12sp" />
 
+                <!-- The account's recycle bin (ADR-035): not behind the licence lock,
+                     so a Demo account that deletes from Home can restore too. -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRecycleBin"
+                    style="@style/Widget.Semper.Button.Outlined"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/recycle_bin_title" />
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnExportData"
                     style="@style/Widget.Semper.Button.Outlined"

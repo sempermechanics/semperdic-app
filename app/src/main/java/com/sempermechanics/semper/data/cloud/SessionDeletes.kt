@@ -54,7 +54,11 @@ object SessionDeletes {
     data class Item(val localId: String, val cloudId: String, val mode: Mode)
 
     /** What happened, so the screen can say it plainly and retry exactly what is left. */
-    data class Report(val done: Int, val stillInCloud: List<Item>, val nothingSent: Boolean)
+    data class Report(val done: Int, val stillInCloud: List<Item>, val nothingSent: Boolean) {
+        /** How many of [items] (the run's input) were erased for good from the bin. */
+        fun purged(items: List<Item>): Int =
+            items.count { it.mode == Mode.PURGE } - stillInCloud.count { it.mode == Mode.PURGE }
+    }
 
     const val TAG = WorkTags.DELETE
     const val UNIQUE_WORK = WorkTags.DELETE_NAME
@@ -62,6 +66,9 @@ object SessionDeletes {
     const val KEY_DONE = "done"
     const val KEY_TOTAL = "total"
     const val KEY_STILL_IN_CLOUD = "still_in_cloud"
+
+    /** How many of [KEY_DONE] were [Mode.PURGE]: erased for good rather than moved to the bin. */
+    const val KEY_PURGED = "purged"
 
     /** How long a confirmed delete stays cancellable before anything is sent. */
     const val UNDO_WINDOW_SECONDS = 5L
@@ -85,11 +92,7 @@ object SessionDeletes {
     /** Rows a queued or running delete will remove: a list leaves them out meanwhile. */
     @WorkerThread
     fun pendingRowIds(context: Context): Set<String> =
-        runCatching { WorkManager.getInstance(context.applicationContext).getWorkInfosByTag(TAG).get() }
-            .onFailure { Timber.w(it, "Could not read queued deletes") }
-            .getOrDefault(emptyList())
-            .filterNot { it.state.isFinished }
-            .flatMapTo(mutableSetOf()) { rowIdsIn(it.tags) }
+        unfinishedDeleteTags(context).flatMapTo(mutableSetOf()) { rowIdsIn(it) }
 
     /**
      * Queue [items] behind any delete already running. Returns the work id,
@@ -97,7 +100,9 @@ object SessionDeletes {
      */
     fun enqueue(context: Context, items: List<Item>): UUID {
         val work = oneTimeWork<BackupDeleteWorker>(
-            tags = listOf(TAG) + items.filter { it.mode == Mode.EVERYWHERE }.map { rowTag(it.localId) },
+            tags = listOf(TAG) +
+                items.filter { it.mode == Mode.EVERYWHERE }.map { rowTag(it.localId) } +
+                items.filter { it.mode == Mode.PURGE }.map { WorkTags.deletePurgeTag(it.cloudId) },
             input = workDataOf(KEY_ITEMS to encode(items)),
             initialDelaySeconds = UNDO_WINDOW_SECONDS,
         )
@@ -246,6 +251,26 @@ object SessionDeletes {
         }
     }
 }
+
+/**
+ * Binned backups a queued or running [SessionDeletes.Mode.PURGE] will erase
+ * ([WorkTags.deletePurgeTag]): the recycle bin leaves them out meanwhile.
+ */
+@WorkerThread
+fun SessionDeletes.pendingPurgeIds(context: Context): Set<String> =
+    unfinishedDeleteTags(context).flatMapTo(mutableSetOf()) { tags ->
+        tags.filter { it.startsWith(WorkTags.DELETE_PURGE_PREFIX) }
+            .map { it.removePrefix(WorkTags.DELETE_PURGE_PREFIX) }
+    }
+
+/** The tags of every delete not yet finished. */
+@WorkerThread
+private fun unfinishedDeleteTags(context: Context): List<Set<String>> =
+    runCatching { WorkManager.getInstance(context.applicationContext).getWorkInfosByTag(SessionDeletes.TAG).get() }
+        .onFailure { Timber.w(it, "Could not read queued deletes") }
+        .getOrDefault(emptyList())
+        .filterNot { it.state.isFinished }
+        .map { it.tags }
 
 /** Erase [item]'s binned backup for good ([RecycleBin.purge]); one already gone counts as done. */
 private suspend fun purgeOne(

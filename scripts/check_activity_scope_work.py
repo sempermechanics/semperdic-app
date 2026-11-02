@@ -19,7 +19,7 @@ check; this is that check (TD-291), a source heuristic rather than a lint rule:
   the same file (followed transitively): the `data/net` and `data/cloud`
   clients (`api.<call>`, `SemperApi.get(…).<call>`, `authed { }`, `CloudSync`,
   `CloudErase`, `CloudReconcile`, `CloudRestore`, `CloudAccountExport`,
-  `RestoreStart`, `SessionDeletes`, `SessionMetadataSync`, `SeatLease`, less
+  `RecycleBin`, `RestoreStart`, `SessionDeletes`, `SessionMetadataSync`, `SeatLease`, less
   the members of each that only touch the phone), the `AuthRepository` calls
   that reach Firebase or the backend, and any `enqueue*( )` or `oneTimeWork`.
 * **Exceptions** are listed in `scripts/activity_scope_allowlist.txt` by file,
@@ -49,14 +49,17 @@ ALLOWLIST = Path("scripts/activity_scope_allowlist.txt")
 CLIENTS: dict[str, frozenset[str]] = {
     "CloudSync": frozenset({"eraseLocalOnly", "uploadsEnabled", "settleWithoutBackend"}),
     "CloudErase": frozenset({"forgetCloudCopy", "toProbe"}),
-    "CloudReconcile": frozenset({"reconcileFailure", "repairRows"}),
+    "CloudReconcile": frozenset({"reconcileDue", "reconcileFailure", "repairRows"}),
     "CloudRestore": frozenset({
         "bundleDownloadWorkName", "cancelBundleDownload", "clearPartialArtifacts",
         "suggestedBundleFileName", "targetLocalId", "workName",
     }),
     "CloudAccountExport": frozenset(),
     "RestoreStart": frozenset({"isRunning"}),
-    "SessionDeletes": frozenset({"cancel", "decode", "encode", "pendingRowIds", "rowIdsIn", "rowTag"}),
+    "SessionDeletes": frozenset({
+        "cancel", "decode", "encode", "pendingPurgeIds", "pendingRowIds", "rowIdsIn", "rowTag",
+    }),
+    "RecycleBin": frozenset({"erase", "eraseRows", "outcome"}),
     "SessionMetadataSync": frozenset(),
     "SeatLease": frozenset({"holdsFloatingSeat"}),
 }

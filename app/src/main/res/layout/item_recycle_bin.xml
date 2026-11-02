@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One deleted backup in the recycle bin (RecycleBinActivity): its name, size,
+     when it was deleted and is erased for good, the days left, and Restore and
+     Delete permanently. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingVertical="8dp">
+
+    <TextView
+        android:id="@+id/tvBinName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="@color/text_primary"
+        android:textSize="15sp"
+        tools:text="steel_00" />
+
+    <TextView
+        android:id="@+id/tvBinSize"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        tools:text="120 MB" />
+
+    <TextView
+        android:id="@+id/tvBinDates"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        tools:text="Deleted 3 Nov · erased for good on 3 Dec" />
+
+    <TextView
+        android:id="@+id/tvBinDaysLeft"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp"
+        tools:text="30 days left" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBinRestore"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/recycle_bin_restore"
+            android:textAllCaps="false"
+            android:textColor="@color/sky_primary" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBinDelete"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/recycle_bin_delete_forever"
+            android:textAllCaps="false"
+            android:textColor="@color/semantic_danger" />
+    </LinearLayout>
+</LinearLayout>

@@ -8,6 +8,7 @@ import com.sempermechanics.semper.data.net.AccountPhonesDto
 import com.sempermechanics.semper.data.net.ActivationDto
 import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.HttpFailure
+import com.sempermechanics.semper.ui.common.Note
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
