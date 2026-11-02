@@ -221,7 +221,8 @@ def _blank_seat_addresses(uid: str, license_id: str) -> tuple[int, bool]:
 def delete_all_user_data(uid: str) -> dict:
     """Erase every Firestore record belonging to a user (GDPR account deletion).
 
-    Sessions + their file docs, the device registrations, the sign-in links
+    Sessions + their file docs, the recycle bin's entries (`binnedSessions`,
+    ADR-035), the device registrations, the sign-in links
     (`auth_links`, one per Firebase sub that resolves to this account) and the
     user profile itself. Audit records are intentionally kept: they hold no
     analysis content and no address, only the fact that actions (including
@@ -241,6 +242,12 @@ def delete_all_user_data(uid: str) -> dict:
     sessions = _delete_query_until_empty(
         db().collection("sessions").where("uid", "==", uid)
     )
+    # The recycle bin (ADR-035): binned entries and erased markers alike. Their
+    # file docs went with the account's files above; their Drive folders went
+    # with the user folder, or one by one in the erasure's fallback.
+    binned = _delete_query_until_empty(
+        db().collection("deleted_sessions").where("uid", "==", uid)
+    )
     devices = _delete_query_until_empty(
         db().collection("devices").where("uid", "==", uid)
     )
@@ -253,6 +260,6 @@ def delete_all_user_data(uid: str) -> dict:
         db().collection("auth_links").where("uid", "==", uid)
     )
     _delete_doc(db().collection("users").document(uid))
-    return {"sessions": sessions, "files": files, "devices": devices,
+    return {"sessions": sessions, "binnedSessions": binned, "files": files, "devices": devices,
             "authLinks": auth_links, "seatsBlanked": seats,
             "seatScanComplete": seat_scan_complete}

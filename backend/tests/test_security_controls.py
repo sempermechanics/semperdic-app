@@ -108,6 +108,9 @@ def test_firestore_indexes_declare_ttl_policies():
         ("deleted_seats", "purgeAt"),
         # TD-237: rows are kept AUDIT_RETENTION_DAYS (one year), then deleted.
         ("audit_logs", "expireAt"),
+        # ADR-035: an erased recycle-bin marker is kept ERASED_MARKER_DAYS.
+        # Not `purgeAt`: the purge job deletes the Drive folder first.
+        ("deleted_sessions", "expireAt"),
     }
     defaults = [
         ("ASCENDING", "COLLECTION"),

@@ -31,7 +31,7 @@ fi
 PURGE_COLLECTIONS=(
   users devices sessions files audit_logs challenges _migrations
   licenses seats activations licenseInvites auth_links
-  deleted_licenses deleted_seats
+  deleted_licenses deleted_seats deleted_sessions
 )
 
 failed=()

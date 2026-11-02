@@ -64,6 +64,7 @@ def normalize_route_template(path: str) -> str:
             "v1", "healthz", "readyz", "me", "config", "devices", "register",
             "challenge", "sessions", "uploads", "files", "content", "complete",
             "admin", "users", "export", "tasks", "provision-session", "bundle",
+            "recycle-bin", "restore",
         }:
             out.append(part)
         elif _ID_SEGMENT.match(part):
@@ -178,6 +179,15 @@ def classify_route(method: str, path: str, template: str | None = None) -> tuple
     # Ending test accounts past their date (ADR-027): staff work, run daily.
     if template == "/v1/tasks/test-account-expiry":
         return "admin", template
+    # Purging the recycle bin's due entries (ADR-035): backup housekeeping.
+    if template == "/v1/tasks/recycle-bin-purge":
+        return "backup", template
+    # The recycle bin (ADR-035): listing it is sync, as the backup list is;
+    # restoring or erasing an entry is backup work, as deleting one is.
+    if template == "/v1/recycle-bin":
+        return "sync", template
+    if template.startswith("/v1/recycle-bin/"):
+        return "backup", template
     if template == "/v1/sessions" and method_u == "POST":
         return "backup", template
     if template.endswith("/uploads") and "/sessions/" in template:

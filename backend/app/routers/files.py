@@ -25,6 +25,21 @@ def _owned_file(file_id: str, user: dict) -> dict:
     return rec
 
 
+def _readable_file(file_id: str, user: dict) -> dict:
+    """The caller's file [file_id], if its bytes may be read back now."""
+    f = _owned_file(file_id, user)
+    # A binned session's files are not served (ADR-035): absent until restored.
+    if f.get("binnedAt"):
+        raise HTTPException(404, errors.FILE_NOT_FOUND)
+    # The licence of the app the file's analysis was backed up from (ADR-033),
+    # as the bundle route checks: a Semper licence does not read Semper
+    # Classroom's backups back. One session read per range window.
+    sid = f.get("sessionId")
+    if not repo.cloud_backup_enabled(user, repo.session_app(repo.get_session(sid) if sid else None)):
+        raise HTTPException(403, errors.feature_not_licensed_detail())
+    return f
+
+
 def _is_first_byte_request(byte_range: str | None) -> bool:
     """True for a whole-file GET (no Range) or a Range window starting at byte 0 —
     used to log exactly one FILE_DOWNLOAD audit entry per file, not one per
@@ -76,13 +91,7 @@ def download_file(file_id: DocumentId, request: Request, ctx=Depends(verified_de
     edge usually means that budget was exhausted mid-stream.
     """
     user = ctx.user
-    f = _owned_file(file_id, user)
-    # The licence of the app the file's analysis was backed up from (ADR-033),
-    # as the bundle route checks: a Semper licence does not read Semper
-    # Classroom's backups back. One session read per range window.
-    sid = f.get("sessionId")
-    if not repo.cloud_backup_enabled(user, repo.session_app(repo.get_session(sid) if sid else None)):
-        raise HTTPException(403, errors.feature_not_licensed_detail())
+    f = _readable_file(file_id, user)
     drive_file_id = f.get("driveFileId")
     if not drive_file_id:
         raise HTTPException(409, errors.FILE_NOT_UPLOADED)
@@ -154,6 +163,10 @@ def _require_landed(rec: dict, body: FileComplete) -> None:
 def complete_file(file_id: DocumentId, body: FileComplete, ctx=Depends(verified_device)):
     user = ctx.user
     rec = _owned_file(file_id, user)
+    # The session was binned mid-upload (ADR-035): the app stops, rather than
+    # completing into a session that is no longer listed.
+    if rec.get("binnedAt"):
+        raise errors.Refusal(errors.SESSION_IN_RECYCLE_BIN, rec.get("sessionId") or "")
     # Verify the upload actually landed intact before trusting this completion.
     # The client uploads straight to Drive, so ask Drive for the real size/md5
     # and reject a truncated or corrupted object. Skipped on an idempotent retry

@@ -285,7 +285,7 @@ def test_account_erasure_deletes_more_than_old_2000_record_cap(store):
 
     result = repo.delete_all_user_data("u1")
 
-    assert result == {"sessions": count, "files": count, "devices": count,
+    assert result == {"sessions": count, "binnedSessions": 0, "files": count, "devices": count,
                       "authLinks": 0, "seatsBlanked": 0, "seatScanComplete": True}
     assert store._data["sessions"] == {}
     assert store._data["files"] == {}

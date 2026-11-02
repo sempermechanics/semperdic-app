@@ -21,6 +21,7 @@ from google.cloud import firestore
 COLLECTIONS = (
     "users", "devices", "sessions", "files", "audit_logs",
     "licenses", "licenseInvites", "auth_links", "deleted_licenses",
+    "deleted_sessions",
 )
 # Subcollections, counted across every parent as a collection group. Seats live
 # under licenses/{id}/seats, so a top-level count would always read zero; a

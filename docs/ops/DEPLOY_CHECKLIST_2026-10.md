@@ -33,6 +33,74 @@ two Admin checks before its production deploy; neither changes anything.
       `semper security <security@…>` (an Admin variable change, applied by the
       next deploy).
 
+## Recycle bin (ADR-035)
+
+A deleted cloud backup goes to a 30-day recycle bin instead of being erased
+([ADR-035](../adr/ADR-035-recycle-bin.md); CLOUD_ARCHITECTURE_GCP.md §4.3).
+
+> **Production waits for counsel.** The bin keeps a deleted backup 30 days and an
+> erased marker 30 days more, which the Privacy Policy must say first. Counsel
+> holds that text (TD-277). Deploy to staging now; deploy the backend and gateway
+> to production only once counsel has released the Privacy Policy change and the
+> hosted page carries it. Steps 1 and 4 touch production's project, but on their
+> own they change nothing a user sees.
+
+In this order:
+
+- [ ] **1. Firestore TTL policy.** `backend/firestore.indexes.json` declares the
+      TTL override `deleted_sessions.expireAt` (the erased markers); the bin's
+      queries need no new composite index (the automatic single-field indexes
+      serve them). `PROJECT=indicvision-dic-app scripts/deploy-firestore.sh indexes`
+      creates the policy and should print no "not present" line. Never with
+      `--force`: it deletes every live TTL policy the file omits. Staging and
+      production share this database, so this one policy serves both, and enabling
+      it is an **owner step**. The same by hand:
+      `gcloud firestore fields ttls update expireAt --collection-group=deleted_sessions --enable-ttl --project=indicvision-dic-app`
+      ([BACKEND_SETUP_CONSOLE.md](../backend/BACKEND_SETUP_CONSOLE.md) §3a).
+      Check: `gcloud firestore fields ttls list --collection-group=deleted_sessions --project=indicvision-dic-app`
+      shows `expireAt` `ACTIVE`. Without it erased markers are never deleted;
+      nothing else changes.
+- [ ] **2. Backend.** `deploy-backend.yml`, staging first (`gateway_mode=dry-run`),
+      as in §2. No new environment variable: `RECYCLE_BIN_DAYS`,
+      `ERASED_MARKER_DAYS` and `RECYCLE_BIN_PURGE_BATCH` are constants in
+      `backend/app/config.py`. From this backend on, `DELETE /v1/sessions/{sid}`
+      bins instead of erasing, for every installed build.
+- [ ] **3. Gateway.** Read the dry-run diff: it adds the three public routes
+      `GET /v1/recycle-bin`, `POST /v1/recycle-bin/{sid}/restore` and
+      `DELETE /v1/recycle-bin/{sid}`, and must not add
+      `POST /v1/tasks/recycle-bin-purge`, which stays off the gateway
+      (`backend/tests/test_gateway_parity.py`). Then `gateway_mode=apply`. Check
+      through the gateway: an anonymous `GET /v1/recycle-bin` answers 401, and
+      `POST /v1/tasks/recycle-bin-purge` answers 404.
+- [ ] **4. Cloud Scheduler job, per environment.** Like the test-account expiry
+      job (§2), it calls Cloud Run straight with the invoker SA's OIDC token, with
+      the environment's `TASKS_TARGET_BASE_URL` (the Cloud Run URL) and
+      `TASKS_INVOKER_SA`. Whoever creates it needs `iam.serviceAccounts.actAs` on
+      the invoker SA. Production, once the backend is deployed there:
+      `gcloud scheduler jobs create http semper-recycle-bin-purge --project indicvision-dic-app --location asia-south1 --schedule "43 4 * * *" --time-zone Etc/UTC --http-method POST --uri "$TASKS_TARGET_BASE_URL/v1/tasks/recycle-bin-purge" --oidc-service-account-email "$TASKS_INVOKER_SA" --oidc-token-audience "$TASKS_TARGET_BASE_URL"`.
+      Staging: the same as `semper-recycle-bin-purge-staging`, with staging's
+      `TASKS_TARGET_BASE_URL` (the `semper-api-staging` URL) for `--uri` and
+      `--oidc-token-audience`. Daily at 04:43 UTC, apart from the test-account
+      job's 03:17. Without the job nothing is purged unless the holder opens the
+      bin past `purgeAt` (the listing purges up to three due entries on the way),
+      and a restore past `purgeAt` is still refused, so entries are only kept
+      longer than promised.
+- [ ] **5. Manual run.**
+      `gcloud scheduler jobs run semper-recycle-bin-purge-staging --project indicvision-dic-app --location asia-south1`
+      (and `semper-recycle-bin-purge` for production): the request log shows 200
+      and the answer `{"due": 0, "purged": [], "failed": []}` while nothing is
+      due. A non-empty `failed` lists entries whose Drive delete failed; they are
+      back in the bin and due again the next day (log event
+      `recycle_bin_purge_failed`).
+- [ ] **Staging check.** Delete a test backup from a phone: it leaves
+      `GET /v1/sessions`, appears in `GET /v1/recycle-bin` with a `purgeAt` 30 days
+      on, and the audit trail has `SESSION_BIN`; a new backup with the same
+      `localSessionId` is refused 409 `session_in_recycle_bin: <sid>`. Restore it
+      (`SESSION_BIN_RESTORE`), delete it again, then delete it permanently: its
+      Drive folder is gone, the bin lists it under `erased`, and the audit trail
+      has `SESSION_PURGE` with reason `user`. Until the app PRs ship, restore and
+      permanent delete are API calls only (device-signed).
+
 ## 0. Prerequisites (once)
 
 - [x] **Google credentials** for whoever runs steps 1, 4 and 5: Firestore index

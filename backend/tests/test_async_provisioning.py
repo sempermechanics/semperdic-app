@@ -588,7 +588,7 @@ def _task_routes() -> list[str]:
 
 def test_every_task_route_is_found():
     assert _task_routes() == ["/v1/tasks/license-fanout", "/v1/tasks/provision-session",
-                              "/v1/tasks/test-account-expiry"]
+                              "/v1/tasks/recycle-bin-purge", "/v1/tasks/test-account-expiry"]
 
 
 @pytest.mark.parametrize("path", _task_routes())
@@ -707,8 +707,10 @@ async def test_delete_during_provision_leaves_no_folder(store, queued, client, m
     r = await client.delete(f"/v1/sessions/{sid}")
 
     assert r.status_code == 200, r.text
-    assert deleted == ["sf"]
+    # Binned (ADR-035), with the folder it now records: the purge deletes it.
+    assert deleted == []
     assert sid not in store._data["sessions"]
+    assert store._data["deleted_sessions"][sid]["driveFolderId"] == "sf"
 
 
 async def test_a_session_stuck_provisioning_can_still_be_deleted(store, queued, client):

@@ -42,6 +42,19 @@ def test_classify_backup_sync_restore():
     assert obs.classify_route("POST", "/v1/tasks/provision-session")[0] == "backup"
 
 
+def test_classify_recycle_bin():
+    """ADR-035: listing the bin is sync, as the backup list; restoring,
+    erasing for good and the daily purge are backup work."""
+    list(_declared_routes())
+    assert obs.classify_route("GET", "/v1/recycle-bin") == ("sync", "/v1/recycle-bin")
+    assert obs.classify_route("POST", "/v1/recycle-bin/abcdef0123456789/restore") == (
+        "backup", "/v1/recycle-bin/{id}/restore")
+    assert obs.classify_route("DELETE", "/v1/recycle-bin/abcdef0123456789") == (
+        "backup", "/v1/recycle-bin/{id}")
+    assert obs.classify_route("POST", "/v1/tasks/recycle-bin-purge") == (
+        "backup", "/v1/tasks/recycle-bin-purge")
+
+
 def test_classify_admin_and_other():
     assert obs.classify_route("GET", "/v1/admin/users")[0] == "admin"
     assert obs.classify_route("GET", "/unknown")[0] == "other"

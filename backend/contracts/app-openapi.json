@@ -8640,6 +8640,337 @@
         "summary": "Accept Terms"
       }
     },
+    "/v1/recycle-bin": {
+      "get": {
+        "description": "The caller's recycle bin for one app (by `X-App-Id`, or `?app=` as\n`GET /v1/sessions` takes it, `all` for the whole account).\n\n`items` are the analyses held, each with its status as it was when\nbinned, `deletedAt` and `purgeAt`; `erased` are the markers of those\npurged in the last `ERASED_MARKER_DAYS` (ids alone), so a phone that\nstill holds one as backed up can tell it was deleted rather than lost.\nCursor-paginated (`page_size` 1..100, `page_token`); a page may hold\nfewer than `page_size` items because markers share it. Up to three of\nthe page's entries past their `purgeAt` are purged on the way.",
+        "operationId": "list_recycle_bin_v1_recycle_bin_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_token",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 512,
+              "title": "Page Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "app",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 32,
+              "title": "App",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-forwarded-authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Forwarded-Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-device-id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Device-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-firebase-appcheck",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Firebase-Appcheck",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-app-id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-App-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Recycle Bin"
+      }
+    },
+    "/v1/recycle-bin/{sid}": {
+      "delete": {
+        "description": "Delete a binned analysis for good, now: its Drive folder, then its\nfile docs, then the entry, which leaves an erased marker of ids alone\n(GDPR right to erasure; the audit row `SESSION_PURGE` records it).\n\n404 `session_not_found` for one that is not in the caller's bin for this\napp; a repeat after it went answers the same as the first. 502 when Drive\nrefuses or cannot be reached, with the entry left in the bin to try again.",
+        "operationId": "delete_from_recycle_bin_v1_recycle_bin__sid__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Sid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-forwarded-authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Forwarded-Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-device-id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Device-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-firebase-appcheck",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Firebase-Appcheck",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-app-id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-App-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-nonce",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Nonce",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-signature",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Signature",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete From Recycle Bin"
+      }
+    },
+    "/v1/recycle-bin/{sid}/restore": {
+      "post": {
+        "description": "Put a binned analysis back in the cloud backups, with the status it\nhad. Device-signed, like the delete that binned it.\n\n404 `session_not_found` for one that is not in the caller's bin for this\napp, is being purged, or is past its `purgeAt`. 409\n`session_quota_exceeded` / `device_quota_exceeded` when the caller has no\nroom for it: a binned analysis counts toward neither cap, so a restore\ntakes a place as a new backup does. A repeat of a restore that went\nthrough answers the same.",
+        "operationId": "restore_from_recycle_bin_v1_recycle_bin__sid__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "title": "Sid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-forwarded-authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Forwarded-Authorization",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-device-id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Device-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-firebase-appcheck",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Firebase-Appcheck",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-app-id",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-App-Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-nonce",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Nonce",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-signature",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "X-Signature",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore From Recycle Bin"
+      }
+    },
     "/v1/sessions": {
       "get": {
         "description": "The caller's cloud analyses. The app reconciles local sync state against\nthis, so a session deleted in the cloud stops showing as 'synced'.\n\nOne app's analyses (ADR-014): the asking app's, by `X-App-Id`, unless\n`?app=semper|semperclassroom` (or the old `materialtesting`) names one or\n`?app=all` asks for the whole account (the console). Each entry carries its\n`app`, by its name today. Semper and Semper Classroom share accounts, and each restoring the other's backups dropped\nwhat it did not understand.\n\nCursor-paginated (`page_size` 1..100, `page_token`, `nextPageToken`). Quota\n`used` is the asking app's count (ADR-033), whichever app is listed, not\nthe page length: each app's licence has its own cap.\n\nFirestore is only an index. `?verify=true` additionally confirms each\nsession on the *current page* still exists in Drive (bounded parallel\nprobes — not a full-account N+1). Orphaned metadata on that page is purged.",
@@ -8870,7 +9201,7 @@
     },
     "/v1/sessions/{sid}": {
       "delete": {
-        "description": "Erase one analysis from the cloud (GDPR right to erasure).\n\nPermanently deletes the Drive folder — every raw image, .dat, csv and report\ninside it — then hard-deletes the Firestore metadata (which carries the\nuser's email, device id and engine parameters). Nothing is soft-deleted; the\nonly trace kept is the audit record that the erasure happened.",
+        "description": "Delete one analysis from the cloud: into the account's recycle bin\n(ADR-035), where it is held `RECYCLE_BIN_DAYS` and then purged — its\nDrive folder and every Firestore record of it erased, an erased marker of\nids left for `ERASED_MARKER_DAYS`. `DELETE /v1/recycle-bin/{sid}` erases\nit sooner; `POST /v1/recycle-bin/{sid}/restore` puts it back.\n\nNo Drive call here: the files are flagged `binnedAt` and the session doc\nmoves to `deleted_sessions`. Answers `deleted` and `filesRemoved` (the\nfiles binned) as before, plus `binned: true` and `purgeAt`. A session\nalready in the caller's bin answers the same again (idempotent).",
         "operationId": "delete_session_v1_sessions__sid__delete",
         "parameters": [
           {
@@ -9548,6 +9879,45 @@
           }
         },
         "summary": "Provision Session Task"
+      }
+    },
+    "/v1/tasks/recycle-bin-purge": {
+      "post": {
+        "description": "Cloud Scheduler, daily: purge every recycle-bin entry past its\n`purgeAt` (ADR-035), up to `RECYCLE_BIN_PURGE_BATCH`, each audited\n`SESSION_PURGE` with reason `expired`. OIDC as the invoker, like the\ntest-account expiry job, and off the gateway. Answers\n`{due, purged, failed}`: how many were due, and the session ids purged\nand not; a failed one is back in the bin and due again tomorrow.",
+        "operationId": "purge_recycle_bin_task_v1_tasks_recycle_bin_purge_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Authorization",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Purge Recycle Bin Task"
       }
     },
     "/v1/tasks/test-account-expiry": {

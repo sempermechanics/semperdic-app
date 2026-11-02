@@ -209,6 +209,30 @@ from .sessions import (  # noqa: F401
     complete_file,
     bump_session_progress,
 )
+from .recycle_bin import (  # noqa: F401
+    DELETED_SESSIONS,
+    ERASED_BY_USER,
+    ERASED_EXPIRED,
+    PURGE_LEASE,
+    STATE_BINNED,
+    STATE_ERASED,
+    STATE_PURGING,
+    TOMBSTONE_FIELDS,
+    binned_files,
+    claim_purge,
+    due_for_purge,
+    erase_binned,
+    find_binned_session,
+    flag_session_files,
+    get_binned_session,
+    in_recycle_bin,
+    iter_recycle_bin,
+    list_recycle_bin,
+    move_to_bin,
+    purge_is_due,
+    release_purge,
+    restore_from_bin,
+)
 from .testaccounts import (  # noqa: F401
     PURPOSE_CI,
     PURPOSE_QC,
@@ -248,6 +272,7 @@ from . import (
     license_admin,
     mint,
     reconcile,
+    recycle_bin,
     seats,
     sessions,
     testaccounts,
@@ -257,4 +282,4 @@ from . import (
 )
 
 #: Every module of the package, each after everything it imports.
-PACKAGE = (_base, audit_log, user_config, activations, devlock, claims, invites, holders, mint, activation, entitlement, license_admin, upgrade, licence_upgrade, deletion, institution_admin, devices, users, leases, deactivations, seats, reconcile, account, sessions, testaccounts)
+PACKAGE = (_base, audit_log, user_config, activations, devlock, claims, invites, holders, mint, activation, entitlement, license_admin, upgrade, licence_upgrade, deletion, institution_admin, devices, users, leases, deactivations, seats, reconcile, account, sessions, recycle_bin, testaccounts)

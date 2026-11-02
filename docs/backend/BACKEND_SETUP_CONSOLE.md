@@ -51,13 +51,25 @@ deleted immediately; abandoned ones only disappear if Firestore is told to treat
    licence (and its seats) waits there 30 days for a possible restore; without
    these two policies it is never purged. Restore still refuses one past
    `purgeAt`, so a missing policy only keeps data longer than promised.
+5. And for the recycle bin ([ADR-035](../adr/ADR-035-recycle-bin.md)): collection
+   group `deleted_sessions`, field `expireAt`. A deleted cloud backup waits in
+   `deleted_sessions` 30 days for a possible restore, and a daily job then purges
+   it (its Drive folder and file records) and leaves an erased marker of ids
+   alone. `expireAt` is on the marker only; without this policy markers are never
+   deleted, and nothing else changes. Do not make `purgeAt` a TTL field here: TTL
+   would delete the entry and leave its Drive folder behind. Staging and
+   production share this database, so this is one policy for both, and it is an
+   owner step. From a terminal instead:
+   `gcloud firestore fields ttls update expireAt --collection-group=deleted_sessions --enable-ttl --project=<project-id>`;
+   `gcloud firestore fields ttls list --collection-group=deleted_sessions --project=<project-id>`
+   shows it `ACTIVE` a few minutes later.
 
-The fourth, `audit_logs.expireAt` (one-year audit retention, TD-237), was enabled
+The audit log's, `audit_logs.expireAt` (one-year audit retention, TD-237), was enabled
 on 2026-10-23, after the TD-246 backfill; the audit-trail log bucket was locked the same day
 ([FIRESTORE_DATA_PROTECTION.md](FIRESTORE_DATA_PROTECTION.md), "The audit trail is
 append-only").
 
-All four policies are also declared as `fieldOverrides` (`"ttl": true`) in
+All five policies are also declared as `fieldOverrides` (`"ttl": true`) in
 [`backend/firestore.indexes.json`](../../backend/firestore.indexes.json), so
 `scripts/deploy-firestore.sh indexes` creates any that are missing and leaves
 live ones alone. The Firebase CLI treats a live TTL policy the file omits as
@@ -68,8 +80,11 @@ database default), because an override with empty `indexes` turns single-field
 indexing off. Add a new TTL policy to the file as well as here.
 
 ### 3b. Create the composite indexes
-Four composite indexes back the duplicate-session lookup
-(`repo/sessions.py`) and the staff licence list (`repo/license_admin.list_licenses`).
+Six composite indexes back the duplicate-session lookup
+(`repo/sessions.py`), the export's walk of an account's files
+(`repo/sessions.iter_sessions_with_files`), the staff licence list
+(`repo/license_admin.list_licenses`) and a licence's audit history
+(`repo/audit_log.py`).
 A missing one is not caught at deploy time — it fails at runtime with
 `FAILED_PRECONDITION`, so create them before the first real client.
 
@@ -88,13 +103,16 @@ and reproduce each entry from
 | Collection | Fields |
 |---|---|
 | `sessions` | `uid` ↑, `localSessionId` ↑, `status` ↑ |
+| `files` | `uid` ↑, `sessionId` ↑ |
 | `licenses` | `mode` ↑, `createdAt` ↓ |
 | `licenses` | `mode` ↑, `status` ↑, `createdAt` ↓ |
 | `licenses` | `status` ↑, `createdAt` ↓ |
+| `audit_logs` | `licenseId` ↑, `ts` ↓ |
 
 ↑ ascending, ↓ descending; all collection scope. Equality filters ordered by
-`__name__` (`sessions(uid)`, `users(access_status)`, `files(sessionId)`) need no
-composite: the automatic single-field indexes serve them, and the index API
+`__name__` (`sessions(uid)`, `users(access_status)`, `files(sessionId)`,
+`deleted_sessions(uid)`), the recycle bin's equality-only re-upload check and its
+one-field purge query need no composite: the automatic single-field indexes serve them, and the index API
 refuses a `field + __name__` entry as unnecessary.
 
 ## 4. Create the runtime service account

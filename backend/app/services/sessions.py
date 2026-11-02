@@ -125,10 +125,17 @@ def resumed(existing: dict) -> dict:
 def require_room(user: dict, cfg: dict, body: SessionCreate, device_id: str | None,
                  app: str) -> None:
     """413 or 409 unless one more analysis of `body`'s size fits the caller's
-    quota: files per session, analyses per account and app (ADR-033), and for
-    a demo account analyses per device (`_device_cap_reached`)."""
+    quota: files per session, then `require_capacity`."""
     if len(body.files) > cfg["maxFilesPerSession"]:
         raise HTTPException(413, errors.TOO_MANY_FILES)
+    require_capacity(user, cfg, device_id, app)
+
+
+def require_capacity(user: dict, cfg: dict, device_id: str | None, app: str) -> None:
+    """409 unless one more stored analysis fits: analyses per account and app
+    (ADR-033), and for a demo account analyses per device
+    (`_device_cap_reached`). Shared by a new backup and a restore from the
+    recycle bin (ADR-035), which counts toward neither cap while binned."""
     used = repo.count_user_sessions(user["uid"], app)
     if used >= cfg["maxSessions"]:
         raise HTTPException(

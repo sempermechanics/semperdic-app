@@ -109,8 +109,11 @@ async def test_a_completion_drive_cannot_confirm_is_502(uploaded, client, monkey
 @pytest.mark.parametrize("failure", [
     PermissionError("organizer rights needed"), requests.ConnectionError("down"), "token",
 ])
-async def test_a_session_delete_drive_refuses_is_502_and_erases_nothing(
+async def test_a_session_purge_drive_refuses_is_502_and_erases_nothing(
         uploaded, client, monkeypatch, failure):
+    """A delete moves the analysis to the recycle bin with no Drive call
+    (ADR-035); the purge is where Drive's folder goes, and a refusal there
+    erases nothing."""
     if failure == "token":
         monkeypatch.setattr(drive, "access_token", _no_token)
     else:
@@ -119,10 +122,13 @@ async def test_a_session_delete_drive_refuses_is_502_and_erases_nothing(
 
         monkeypatch.setattr(drive, "delete_file", refuse)
 
-    r = await client.delete("/v1/sessions/s-mine")
+    binned = await client.delete("/v1/sessions/s-mine")
+    assert binned.status_code == 200
+
+    r = await client.delete("/v1/recycle-bin/s-mine")
 
     assert (r.status_code, r.json()) == (502, {"detail": "drive_write_failed"})
-    assert "s-mine" in uploaded._data["sessions"]
+    assert uploaded._data["deleted_sessions"]["s-mine"]["state"] == "binned"
     assert set(uploaded._data["files"]) == {"f-done", "f-pending"}
 
 
