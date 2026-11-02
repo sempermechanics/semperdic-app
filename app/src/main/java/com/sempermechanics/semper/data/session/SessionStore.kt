@@ -161,7 +161,8 @@ object SessionStore {
      * [save] of what [build] makes of row [id] as the index holds it now (null
      * when there is none), read and written under the one lock: a change made
      * to the row since the caller last read it (a rename, or a cloud delete,
-     * while a restore downloaded) is there for [build] to keep.
+     * while a restore downloaded) is there for [build] to keep. Throws
+     * [IllegalArgumentException] for an [id] that names no session dir, as [dirFor].
      */
     @WorkerThread
     fun saveOver(
@@ -170,6 +171,7 @@ object SessionStore {
         allowOverLimit: Boolean = false,
         build: (current: SessionRecord?) -> SessionRecord,
     ): UpsertOutcome = synchronized(lock) {
+        require(SessionPaths.isSafeId(id)) { "Session id does not name a directory under the sessions root" }
         val existing = readRows(context)
         if (existing == null) {
             Timber.e("Refusing upsert: session index is corrupt")
@@ -292,10 +294,8 @@ object SessionStore {
      */
     @WorkerThread
     fun deleteUnsavedDir(context: Context, id: String): Boolean = synchronized(lock) {
-        val root = root(context)
-        val dir = File(root, id)
-        // Never the sessions root itself, or anything outside it.
-        if (id in setOf("", ".", "..") || dir.parentFile != root || dir.name != id) return@synchronized false
+        // Never the sessions root itself, or anything outside it (L5-1).
+        val dir = childDir(root(context), id) ?: return@synchronized false
         val rows = readRows(context) ?: return@synchronized false
         if (rows.any { it.id == id }) return@synchronized false
         dir.deleteRecursively()
@@ -364,7 +364,7 @@ object SessionStore {
         val kept = rows?.filterNot { it.ownerUid == owner }.orEmpty()
         if (rows != null && kept.isNotEmpty()) {
             val root = root(context)
-            rows.filter { it.ownerUid == owner }.forEach { File(root, it.id).deleteRecursively() }
+            rows.filter { it.ownerUid == owner }.forEach { childDir(root, it.id)?.deleteRecursively() }
             write(context, kept)
         } else {
             root(context).deleteRecursively()
