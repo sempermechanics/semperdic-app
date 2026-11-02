@@ -175,6 +175,39 @@ test("the success line waits for the phones to be read again", async () => {
   assert.match(status()[0], /^ana@uni\.edu's phone is deactivated/);
 });
 
+test("Deactivate is held from the first click until the DELETE answers: a second click sends nothing", async () => {
+  let deletes = 0;
+  await open({ routes: { [`DELETE ${DEVICES}/dev-ana-1`]: () => (deletes++
+    ? json(404, { detail: "activation_not_found" })
+    : json(200, { devicesActive: 2 })) } });
+  net.routes[`GET ${DEVICES}`] = () => json(200, pool(PHONES.slice(1)));
+  confirms.answer(true, true);
+  const button = deactivate("dev-ana-1");
+  button.click();
+  assert.equal(button.disabled, true, "disabled while its card is open");
+  button.click();
+  await settle();
+  assert.equal(confirms.cards.length, 1, "one card");
+  assert.deepEqual(sent(/DELETE/), [`DELETE ${DEVICES}/dev-ana-1`]);
+  assert.deepEqual(status(),
+    ["ana@uni.edu's phone is deactivated and signed out. Its place in the count is free.", "muted"],
+    "no second answer overwrites the success");
+});
+
+test("a declined or refused Deactivate gives the button back", async () => {
+  await open({ routes: { [`DELETE ${DEVICES}/dev-ben-1`]: () => json(503, { detail: "unavailable" }) } });
+  confirms.answer(false);
+  deactivate("dev-ben-1").click();
+  await settle();
+  assert.equal(deactivate("dev-ben-1").disabled, false, "declined");
+  confirms.answer(true);
+  deactivate("dev-ben-1").click();
+  await settle();
+  assert.equal(status()[1], "muted err");
+  assert.equal(deactivate("dev-ben-1").disabled, false, "refused");
+  assert.equal(sent(/DELETE/).length, 1);
+});
+
 test("a refused Deactivate is worded", async () => {
   const cases = [
     ["activation_not_found", 404, "That phone is no longer activated on this licence. The list below is read again."],

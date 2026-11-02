@@ -133,9 +133,34 @@ def _settle_holder(license_id: str, lic: dict, ref, scope: str, uid: str,
     return {**none, **releasing}
 
 
+def _restamp_mode(license_id: str, lic: dict, ref, scope: str, uid: str) -> None:
+    """The mode half of `_settle_holder`, for a licence that runs activations.
+
+    A holder demoted by a device mismatch before 2026-09-28 still stores
+    `mode: demo` against a live licence, and so does the twin the split
+    copied it to (`split_licences_per_app.py`, `_mirror`). Activate then
+    refuses them (`activations._licence_for`: `no_license`) and the request
+    check returns early on demo, so nothing repaired them after the split
+    (review L2-4). A device clear is the remedy it was before: the licence's
+    mode is written to the slot that holds it, where `_live_holder` allows.
+    `effective_mode` still applies expiry, grace and the floating lease."""
+    live = _live_holder(license_id, lic, ref, scope, uid)
+    if live is None:
+        return
+    user_ref, user = live
+    slot = apps.slot_holding(user, license_id)
+    if slot is None or apps.read_field(user, "mode", slot) == _license_mode(lic):
+        return
+    _update_doc(user_ref, apps.licence_patch({
+        **_mode_patch(_license_mode(lic)),
+        "updatedAt": _base.firestore.SERVER_TIMESTAMP,
+    }, slot))
+
+
 def clear_device_lock(license_id: str, uid: str = "", *,
                       actor: str = ACTOR_STAFF,
-                      app: str = apps.SEMPER) -> dict:
+                      app: str = apps.SEMPER,
+                      caller: dict | None = None) -> dict:
     """Unbind a licence or a seat from the device it is on. Returns the audit
     detail, or raises `Refusal`.
 
@@ -171,7 +196,12 @@ def clear_device_lock(license_id: str, uid: str = "", *,
     phones are its activations. A clear there deactivates every phone the
     holder has active on it (`repo.activations.deactivate_holder`), with the
     same release a staff or IT deactivation does, and the lock mirror empties
-    with them.
+    with them. `caller`, when given, is held to the scope a deactivation of
+    that phone checks (`repo.deactivations`): IT reaches only members on the
+    licence's `domainLock`, as it does by the devices route, and a phone
+    outside it refuses the clear with `activation_not_found`. Each such
+    clear then re-stamps a live holder's stored mode, as the lock's does
+    (`_restamp_mode`).
 
     The answer is the audit detail, including the device
     that was given up — the other half of the record `revalidate_device_lock`
@@ -206,7 +236,8 @@ def clear_device_lock(license_id: str, uid: str = "", *,
         holder = uid if scope == "seat" else lic.get("redeemedByUid") or ""
         if scope == "seat" and not _get(ref).exists:
             raise Refusal(not_found)
-        gone = deactivate_holder(license_id, holder, actor=actor) if holder else []
+        gone = deactivate_holder(license_id, holder, actor=actor, caller=caller) if holder else []
+        _restamp_mode(license_id, lic, ref, scope, uid)
         first = gone[0] if gone else ""
         named = apps.canonical(lic.get("app"))
         return {**detail, **apps.spread("previousDeviceId", {named: first}),

@@ -29,14 +29,15 @@ def page_block(size: int, count: int, next_token: str | None) -> dict:
     }
 
 
-def drive_failure(e: requests.RequestException, what: str, drive_file_id: str, *,
+def drive_failure(e: Exception, what: str, drive_file_id: str, *,
                   gone: int, failed: str) -> HTTPException:
-    """The answer for a Drive call that raised.
+    """The answer for a Drive call that raised one of `drive.FAILURES`.
 
     Drive answering 404 for an object the index points at is `drive_file_gone`
     with the route's own `gone` status — it was deleted straight in Drive, or
     the upload never landed, and a 5xx would make the app retry forever.
-    Anything else is 502 with the route's `failed` code.
+    Anything else (a 5xx, a timeout, a refused delete, a token that could not
+    be minted) is 502 with the route's `failed` code.
     """
     if isinstance(e, requests.HTTPError) and e.response is not None \
             and e.response.status_code == 404:

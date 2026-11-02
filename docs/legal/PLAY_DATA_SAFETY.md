@@ -133,7 +133,7 @@ definition. **Processed ephemerally: No** for every type.
 | Type | Collected | Required or optional | Purposes |
 |---|---|---|---|
 | Approximate location | Yes | **Optional** (diagnostics opt-in, `AndroidManifest.xml:47-52`; Settings → Your data → Send crash reports and usage data) | Analytics |
-| Name | Yes | **Optional** (only from Google sign-in, `backend/app/repo/users.py:264`; password and email-link accounts have none) | Account management |
+| Name | Yes | **Optional** (only from Google sign-in, `backend/app/repo/users.py:288`; password and email-link accounts have none) | Account management |
 | Email address | Yes | **Required** (every account) | App functionality, Account management, Fraud prevention, security, and compliance |
 | User IDs | Yes (Firebase uid; it keys the terms-acceptance and consent records) | **Required** | App functionality, Account management, Fraud prevention, security, and compliance |
 | Photos | Yes (source frames and rendered images of each recorded analysis) | **Required**: demo analyses upload with no toggle (`data/cloud/CloudSync.kt:342-345`), so not every user can turn it off | App functionality; **Analytics** (product improvement, only for users who keep the improvement consent: Privacy Policy §2.8) |

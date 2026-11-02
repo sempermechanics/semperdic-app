@@ -183,18 +183,25 @@ export async function searchLicences() {
  * The next page of licences, appended. The desk used to stop at the first
  * page and say only "more exist", so any licence past it could not be
  * found, filtered for, or acted on from here.
+ *
+ * It holds the ticket of the table it extends: a Refresh or a flipped toggle
+ * while the page is in flight starts a new table, and the late page (or its
+ * failure) belongs to the old one, so it is dropped.
  */
 async function loadMoreLicences() {
   const token = desk.licencePage.nextPageToken;
   if (!token) return;
+  const ticket = licenceLoad;
   $("loadMore").disabled = true;
   try {
     const data = await api(listPath({ pageToken: token }));
+    if (ticket !== licenceLoad) return;
     const loaded = new Set(desk.licences.map((l) => l.id));
     desk.licences = desk.licences.concat((data.licenses || []).filter((l) => !loaded.has(l.id)));
     desk.licencePage = data.page || {};
     renderLicences();
   } catch (e) {
+    if (ticket !== licenceLoad) return;
     setStatus(`Could not load more licences: ${explain(e)}`, true);
   } finally {
     $("loadMore").disabled = false;

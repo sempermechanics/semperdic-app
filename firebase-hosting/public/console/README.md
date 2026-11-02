@@ -280,7 +280,8 @@ withdraws entitlement and leaves every saved analysis in place.
 **Delete** asks the same (it revokes first) and is offered on revoked rows
 too, but not on a system Demo key. The licence moves to **Recently deleted**,
 a card loaded only when opened (`GET /v1/admin/deleted-licenses`), which
-shows the days left and **Restore** until `purgeAt`.
+shows the days left and **Restore** until `purgeAt`, 50 at a time with
+**Load more** past them.
 
 ## Deploying
 
@@ -293,9 +294,15 @@ live hostname.
 API_BASE_URL="https://your-gateway-host" ./scripts/deploy-console.sh
 ```
 
-The script copies `config.js` / `firebase.json`, substitutes `__API_BASE_URL__`
-and `__API_ORIGIN__`, runs `firebase deploy --only hosting`, then a `trap` puts
-the templates back. Last it runs
+The script refuses a branch other than `main`, a dirty tree and an
+`API_BASE_URL` that is not an `https://` origin (a trailing `/` is stripped), runs
+`scripts/check_console.py` and `scripts/render_legal_pages.py --check`, copies
+`config.js` / `firebase.json` to a temporary directory, substitutes
+`__API_BASE_URL__` and `__API_ORIGIN__`, runs `firebase deploy --only hosting`,
+then a `trap` puts the templates back. `LEGAL_PAGES_FROM=<commit>` deploys the
+legal pages from that commit ([DEPLOY_CHECKLIST_2026-10.md](../../../docs/ops/DEPLOY_CHECKLIST_2026-10.md) §4),
+`DRY_RUN=1` stops before the deploy, and `DEPLOY_CONSOLE_ALLOW_UNCLEAN=1` allows
+another branch or a dirty tree. Last it runs
 [`scripts/check_live_console.py`](../../../scripts/check_live_console.py), which
 reads the live `/console/config.js` and the CSP on `/login`, `/account` and
 `/console/`, and fails the run if a placeholder is left or the gateway is not the

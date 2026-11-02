@@ -7,6 +7,7 @@ caller's scope answers `activation_not_found`, the same as one that is not
 there, so the answer says nothing about other members or other licences."""
 import pytest
 
+from app import apps
 import repo_view as repo
 from license_helpers import _mint_individual, _signed_in
 from refusals import attempt
@@ -141,3 +142,93 @@ def test_staff_deactivate_on_an_individual_licence(store):
     assert attempt(repo.activate_device, "solo-1", "solo-phone", "semper")[0] == ""
 
     assert _deactivate(license_id, "solo-phone", repo.ACTOR_STAFF, STAFF) == ""
+
+
+# --------------------------------------------- the roster's device clear (L2-6)
+
+
+def test_it_cannot_clear_a_member_off_the_domain_by_the_roster(store, pool):
+    """The roster's **New device** deactivates the member's phones. IT's
+    devices route refuses a member off the domain; the clear did not ask."""
+    err, _ = attempt(repo.clear_device_lock, pool, "ext", actor=repo.ACTOR_IT, caller=IT)
+
+    assert err == "activation_not_found"
+    assert store._data[f"licenses/{pool}/activations"]["ext-phone"]["status"] == "active"
+    assert store._data["devices"]["ext-phone"]["status"] == "ACTIVE"
+
+
+def test_it_clears_a_member_on_the_domain_by_the_roster(store, pool):
+    err, out = attempt(repo.clear_device_lock, pool, "m1", actor=repo.ACTOR_IT, caller=IT)
+
+    assert err == "" and out["deactivated"] == ["m1-phone"]
+    act = store._data[f"licenses/{pool}/activations"]["m1-phone"]
+    assert act["status"] == "deactivated" and act["deactivatedByUid"] == "it-1"
+
+
+def test_staff_clear_any_member_by_the_roster(store, pool):
+    err, out = attempt(repo.clear_device_lock, pool, "ext", actor=repo.ACTOR_STAFF, caller=STAFF)
+    assert err == "" and out["deactivated"] == ["ext-phone"]
+
+
+@pytest.mark.asyncio
+async def test_the_roster_route_holds_it_to_the_domain(store, pool, client, monkeypatch):
+    from app import deps
+
+    monkeypatch.setattr(deps, "_DEV_USER", {**deps._DEV_USER, "uid": "it-1",
+                                            "email": "it@university.edu", "role": "user"})
+    base = f"/v1/institutions/licenses/{pool}/seats"
+
+    off = await client.patch(f"{base}/ext", json={"clearDeviceLock": True})
+    on = await client.patch(f"{base}/m1", json={"clearDeviceLock": True})
+
+    assert (off.status_code, off.json()["detail"]) == (404, "activation_not_found")
+    assert on.status_code == 200, on.text
+    acts = store._data[f"licenses/{pool}/activations"]
+    assert (acts["ext-phone"]["status"], acts["m1-phone"]["status"]) == ("active", "deactivated")
+
+
+# ------------------------------------ a stale stored Demo, repaired by a clear (L2-4)
+
+
+def test_a_clear_restamps_a_stale_demo_on_a_live_seat(store, pool):
+    """Demoted by a device mismatch before 2026-09-28, the member stores Demo
+    against a live seat: Activate refuses them, and the clear was the repair
+    before the split."""
+    store._data["users"]["m2"].update(mode="demo", plan="demo")
+    assert attempt(repo.activate_device, "m2", "m2-phone", "semper")[0] == "no_license"
+
+    assert attempt(repo.clear_device_lock, pool, "m2", actor=repo.ACTOR_STAFF, caller=STAFF)[0] == ""
+
+    assert repo.effective_mode(_user(store, "m2"), "semper") == "licensed"
+    _phone(store, "m2", "m2-new")
+    assert attempt(repo.activate_device, "m2", "m2-new", "semper")[0] == ""
+
+
+def test_a_clear_leaves_a_held_seat_on_demo(store, pool):
+    """A seat on hold is Demo on purpose."""
+    repo.set_seat_enabled(pool, "m2", False)
+
+    assert attempt(repo.clear_device_lock, pool, "m2", actor=repo.ACTOR_STAFF, caller=STAFF)[0] == ""
+
+    assert repo.effective_mode(_user(store, "m2"), "semper") == "demo"
+
+
+def test_a_clear_restamps_a_classroom_twins_holder_in_its_own_slot(store):
+    """The split copied the stale Demo into Semper Classroom's mirror."""
+    store._data["users"] = {}
+    license_id = _mint_individual("solo@university.edu")["license"]["id"]
+    repo.ensure_entitlement(_signed_in(store, "solo-1", "solo@university.edu"), None)
+    store._data["licenses"][license_id].update(
+        app=apps.stored_name(apps.SEMPER_CLASSROOM), maxDevices=1)
+    user = store._data["users"]["solo-1"]
+    user.update(apps.licence_patch({k: user[k] for k in ("licenseId", "licenseKind")},
+                                   apps.SEMPER_CLASSROOM))
+    user.update(apps.written_fields("mode", apps.SEMPER_CLASSROOM, "demo"))
+    user.update(licenseApp=apps.stored_name(apps.SEMPER), licenseId="other-semper-licence")
+    assert repo.effective_mode(_user(store, "solo-1"), apps.SEMPER_CLASSROOM) == "demo"
+
+    assert attempt(repo.clear_device_lock, license_id, actor=repo.ACTOR_STAFF, caller=STAFF)[0] == ""
+
+    user = _user(store, "solo-1")
+    assert apps.read_field(user, "mode", apps.SEMPER_CLASSROOM) == "licensed"
+    assert user["mode"] == "licensed"  # Semper's own slot, untouched
