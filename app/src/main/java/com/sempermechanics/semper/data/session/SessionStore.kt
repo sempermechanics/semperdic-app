@@ -70,8 +70,26 @@ object SessionStore {
 
     private fun indexTmpFile(context: Context): File = File(root(context), SessionPaths.INDEX_JSON + ".tmp")
 
-    /** Directory holding a session's .dat frames and reference copy. */
-    fun dirFor(context: Context, id: String): File = File(root(context), id).apply { mkdirs() }
+    /**
+     * Directory holding a session's .dat frames and reference copy, created if absent.
+     * Throws [IllegalArgumentException] unless [id] is a session id
+     * ([SessionPaths.isSafeId]) naming a directory directly under the sessions root:
+     * `..`, `.`, `a/../b` or `index.json` never become a session dir, which a delete
+     * or a failed restore would wipe (L5-1).
+     */
+    fun dirFor(context: Context, id: String): File {
+        val dir = childDir(root(context), id)
+        requireNotNull(dir) { "Session id does not name a directory under the sessions root" }
+        return dir.apply { mkdirs() }
+    }
+
+    /** `root/id` when [id] is a session id and that is a direct child of [root] named exactly [id]; else null. */
+    private fun childDir(root: File, id: String): File? {
+        if (!SessionPaths.isSafeId(id)) return null
+        val dir = File(root, id)
+        val canonical = dir.canonicalFile
+        return dir.takeIf { canonical.parentFile == root.canonicalFile && canonical.name == id }
+    }
 
     /** Subfolder under [sessionDir] for persisted raw deformed originals. */
     fun rawDeformedDir(sessionDir: File): File =
@@ -82,7 +100,7 @@ object SessionStore {
 
     /** Bytes one session occupies on disk, 0 once its artifacts have been dropped. */
     @WorkerThread
-    fun sizeOf(context: Context, id: String): Long = CacheJanitor.sizeOf(File(root(context), id))
+    fun sizeOf(context: Context, id: String): Long = childDir(root(context), id)?.let(CacheJanitor::sizeOf) ?: 0L
 
     /** Bytes every local analysis occupies, including the index itself. */
     @WorkerThread
@@ -257,7 +275,8 @@ object SessionStore {
     /** Removes the index row AND the local files. Cloud copies are untouched. */
     @WorkerThread
     fun delete(context: Context, id: String): Unit = synchronized(lock) {
-        if (removeRow(context, id)) dirFor(context, id).deleteRecursively()
+        // A row whose id names no session dir (L5-1) loses its row, never a directory.
+        if (removeRow(context, id)) childDir(root(context), id)?.deleteRecursively()
     }
 
     /**

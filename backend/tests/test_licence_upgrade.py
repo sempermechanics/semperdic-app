@@ -133,6 +133,61 @@ def test_a_holder_who_never_signed_in_has_the_invite_moved(store):
     assert out["pending"] is False
     assert _lic(store, old)["status"] == "revoked" and _lic(store, old)["supersededBy"] == new
     assert store._data["licenseInvites"][invite_id("later@lab.org")]["licenseId"] == new
+    # The old licence's revoke names its successor first, so it leaves it live.
+    assert _lic(store, new)["status"] != "revoked"
+
+
+def _successors(store, old):
+    return sorted(i for i, lic in store._data["licenses"].items() if lic.get("supersedes") == old)
+
+
+def test_two_issues_at_once_mint_one_successor(store, monkeypatch):
+    """Two staff issues racing: the second commits while the first is still
+    minting. The first's pointer write re-reads the old licence, finds the
+    second's upgrade waiting, refuses, and its own licence is gone."""
+    old = _held(store)
+    real_mint = repo.licence_upgrade._mint_successor
+    minted, rival = [], []
+
+    def _mint_while_another_issues(*args, **kwargs):
+        if not rival:
+            rival.append(None)
+            rival[0] = repo.issue_upgrade(old, admin_uid="admin-2")["license"]["id"]
+        out = real_mint(*args, **kwargs)
+        minted.append(out["id"])
+        return out
+
+    monkeypatch.setattr(repo.licence_upgrade, "_mint_successor", _mint_while_another_issues)
+    with pytest.raises(errors.Refusal) as refused:
+        repo.issue_upgrade(old, admin_uid="admin-1")
+
+    won = rival[0]
+    lost = next(i for i in minted if i != won)
+    assert refused.value.detail == f"{errors.UPGRADE_PENDING}: {won}"
+    assert _successors(store, old) == [won]
+    assert lost not in store._data["licenses"]
+    assert _lic(store, old)["upgradePendingId"] == won
+    assert _user(store)["pendingLicenseId"] == won
+
+
+def test_an_issue_refused_at_the_pointer_write_leaves_nothing(store, monkeypatch):
+    """The old licence revoked between the first check and the pointer write."""
+    old = _held(store)
+    real_mint = repo.licence_upgrade._mint_successor
+    minted = []
+
+    def _mint_then_revoke(*args, **kwargs):
+        out = real_mint(*args, **kwargs)
+        minted.append(out["id"])
+        _lic(store, old)["status"] = "revoked"
+        return out
+
+    monkeypatch.setattr(repo.licence_upgrade, "_mint_successor", _mint_then_revoke)
+    err, _ = attempt(repo.issue_upgrade, old, admin_uid="admin")
+
+    assert err == errors.LICENSE_REVOKED
+    assert minted[0] not in store._data["licenses"]
+    assert "pendingLicenseId" not in _user(store)
 
 
 # ------------------------------------------------------------------ apply
@@ -191,6 +246,106 @@ def test_applying_again_after_a_partial_apply_finishes_it(store):
 def test_apply_with_nothing_waiting_is_refused(store):
     old = _held(store)
     err, _ = attempt(repo.apply_upgrade, old, "solo-1", apps.SEMPER)
+    assert err == errors.NO_PENDING_UPGRADE
+
+
+@pytest.mark.parametrize("set_up, code", [
+    # Issued with no phones: every Activate on it is over the count.
+    (lambda store, new: store._data["licenses"][new].update(maxDevices=0),
+     errors.DEVICE_LIMIT_REACHED),
+    # Issued long enough ago that it ended, grace included.
+    (lambda store, new: store._data["licenses"][new].update(
+        expiresAt=datetime.now(timezone.utc) - timedelta(days=2), graceDays=0),
+     errors.LICENSE_EXPIRED),
+    # The phone was released from the account since it registered.
+    (lambda store, new: store._data["devices"][PHONE].update(status="REVOKED"),
+     errors.DEVICE_NOT_FOUND),
+    # Staff turned the new licence floating: its lease is its activation.
+    (lambda store, new: store._data["licenses"][new].update(seating="floating"),
+     errors.SEATING_FLOATING),
+    # The phone is active for another account on the new licence.
+    (lambda store, new: store._data.setdefault(f"licenses/{new}/activations", {}).update(
+        {PHONE: {"uid": "someone-else", "status": "active"}}),
+     errors.DEVICE_IN_USE),
+])
+def test_a_refused_activation_is_found_before_anything_moves(store, set_up, code):
+    old = _held(store)
+    new = repo.issue_upgrade(old, admin_uid="admin")["license"]["id"]
+    set_up(store, new)
+
+    err, _ = attempt(repo.apply_upgrade, new, "solo-1", apps.SEMPER, device_id=PHONE)
+
+    assert err == code
+    user = _user(store)
+    assert user["licenseId"] == old and user["pendingLicenseId"] == new
+    assert _lic(store, old)["status"] != "revoked"
+    assert _lic(store, new).get("redeemedByUid") in (None, "")
+
+
+def test_a_phone_already_active_on_the_new_licence_applies_again(store):
+    """An apply that died after the activation: the phone's own activation
+    is not a slot it has to find free."""
+    old = _held(store)
+    new = repo.issue_upgrade(old, admin_uid="admin", terms={"maxDevices": 1})["license"]["id"]
+    store._data.setdefault(f"licenses/{new}/activations", {})[PHONE] = {
+        "uid": "solo-1", "status": "active"}
+    _lic(store, new)["devicesActive"] = 1
+
+    out = repo.apply_upgrade(new, "solo-1", apps.SEMPER, device_id=PHONE)
+
+    assert out["activation"]["already"] is True
+    assert _user(store)["licenseId"] == new
+
+
+def test_revoking_the_old_licence_withdraws_its_waiting_upgrade(store):
+    """Staff revoke a licence whose upgrade waits: the holder is Demo, is
+    offered nothing, and Activate cannot license them on the successor."""
+    old = _held(store)
+    new = repo.issue_upgrade(old, admin_uid="admin")["license"]["id"]
+
+    repo.revoke_license(old, "admin")
+    repo.finish_license_fanout(old)
+    repo.finish_license_fanout(new)
+
+    user = _user(store)
+    assert repo.pending_upgrade(user, apps.SEMPER) is None
+    assert "pendingLicenseId" not in user and "upgradePendingId" not in _lic(store, old)
+    # Minted for this holder only, as the old licence's replacement.
+    assert _lic(store, new)["status"] == "revoked"
+    err, _ = attempt(repo.apply_upgrade, new, "solo-1", apps.SEMPER, device_id=PHONE)
+    assert err == errors.NO_PENDING_UPGRADE
+    user = _user(store)
+    assert user["licenseId"] == old and repo.effective_mode(user, apps.SEMPER) == "demo"
+
+
+def test_apply_refuses_while_the_old_licence_revoke_is_still_fanning_out(store):
+    """The revoke is written but its fan-out has not run yet (ADR-026): the
+    pointer is still there, and apply refuses on the old licence alone."""
+    old = _held(store)
+    new = repo.issue_upgrade(old, admin_uid="admin")["license"]["id"]
+    _lic(store, old).update(status="revoked")
+
+    err, _ = attempt(repo.apply_upgrade, new, "solo-1", apps.SEMPER, device_id=PHONE)
+
+    assert err == errors.NO_PENDING_UPGRADE
+    assert _user(store)["licenseId"] == old
+    assert _lic(store, new).get("redeemedByUid") in (None, "")
+
+
+def test_revoking_the_old_licence_withdraws_but_keeps_an_institution_upgrade(store):
+    """An institution successor has its own administrators: it stops being
+    offered, and stays live for staff to revoke if that is meant."""
+    old = _held(store)
+    new = repo.issue_upgrade(old, admin_uid="admin", institution={
+        "domainLock": "university.edu", "adminEmails": ["it@university.edu"],
+        "maxSeats": 5})["license"]["id"]
+
+    repo.revoke_license(old, "admin")
+
+    assert repo.pending_upgrade(_user(store), apps.SEMPER) is None
+    assert "upgradePendingId" not in _lic(store, old)
+    assert _lic(store, new)["status"] != "revoked"
+    err, _ = attempt(repo.apply_upgrade, new, "solo-1", apps.SEMPER)
     assert err == errors.NO_PENDING_UPGRADE
 
 
@@ -254,6 +409,23 @@ async def test_the_holder_activates_the_upgrade_and_config_shows_it_first(
     assert done.json()["activation"]["licenseId"] == new
     assert done.json()["config"]["pendingLicence"] is None
     assert _lic(store, old)["status"] == "revoked"
+
+
+@pytest.mark.asyncio
+async def test_activate_upgrade_after_the_old_licence_is_revoked_is_404(
+        store, client, monkeypatch):
+    old = _held(store, uid="dev-user", email="dev@university.edu")
+    issued = await client.post(f"/v1/admin/licenses/{old}/upgrade", json={})
+    assert issued.status_code == 200, issued.text
+    revoked = await client.post(f"/v1/admin/licenses/{old}/revoke")
+    assert revoked.status_code == 200, revoked.text
+    _as_dev_user(store, monkeypatch)
+
+    assert (await client.get("/v1/config", headers=EXPLICIT)).json()["pendingLicence"] is None
+    resp = await client.post("/v1/me/devices/activate", headers=EXPLICIT, json={"upgrade": True})
+
+    assert (resp.status_code, resp.json()["detail"]) == (404, errors.NO_PENDING_UPGRADE)
+    assert _user(store, "dev-user")["licenseId"] == old
 
 
 @pytest.mark.asyncio
