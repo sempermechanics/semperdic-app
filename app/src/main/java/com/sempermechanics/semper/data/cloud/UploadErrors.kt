@@ -26,6 +26,13 @@ internal object UploadErrors {
         TOO_LARGE,
 
         /**
+         * The analysis is in the account's recycle bin (409
+         * `session_in_recycle_bin: <sid>`, ADR-035): deleted on this or another
+         * phone. Terminal, and not a failure: the row is marked binned.
+         */
+        IN_RECYCLE_BIN,
+
+        /**
          * The cloud session can no longer be finished: Drive refused the
          * resumable PUT (400), `:complete` found Drive's object gone (400
          * `drive_file_gone`), the file record no longer matches (409
@@ -63,10 +70,16 @@ internal object UploadErrors {
      */
     fun classify(code: Int, body: String): Kind {
         val detail = ApiErrors.detailOf(body)
-        return if (ApiErrors.isCode(detail, ApiErrors.FEATURE_PAUSED)) Kind.PAUSED else refusal(code, detail)
+        return when {
+            ApiErrors.isCode(detail, ApiErrors.FEATURE_PAUSED) -> Kind.PAUSED
+            // Before any other 409: an older build read it as REJECTED (ADR-035).
+            code == HttpStatus.CONFLICT && ApiErrors.isCode(detail, ApiErrors.SESSION_IN_RECYCLE_BIN) ->
+                Kind.IN_RECYCLE_BIN
+            else -> refusal(code, detail)
+        }
     }
 
-    /** [classify] for anything but a pause. */
+    /** [classify] for anything but a pause or the recycle bin. */
     private fun refusal(code: Int, detail: String): Kind {
         fun detailIs(vararg codes: String) = codes.any { ApiErrors.isCode(detail, it) }
         return when {
@@ -104,6 +117,18 @@ internal object UploadErrors {
 
     /** [UPLOAD_FAIL_KIND] for an account whose analysis quota is full. */
     const val FAIL_KIND_QUOTA = "quota"
+
+    /** [UPLOAD_FAIL_KIND] for an analysis in the recycle bin ([Kind.IN_RECYCLE_BIN]). */
+    const val FAIL_KIND_IN_RECYCLE_BIN = "in_recycle_bin"
+
+    /**
+     * The binned session's id a `session_in_recycle_bin: <sid>` refusal in
+     * [body] names, or "" when it names none.
+     */
+    fun binnedSessionId(body: String): String {
+        val detail = ApiErrors.detailOf(body)
+        return if (detail.contains(':')) detail.substringAfter(':').trim() else ""
+    }
 }
 
 /** Integrity rebuilds allowed before the backup fails instead. */

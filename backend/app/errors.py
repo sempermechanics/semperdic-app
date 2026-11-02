@@ -353,6 +353,9 @@ CLIENT_BRANCHED = frozenset(
         # A kill switch is on: the upload or restore worker waits (Retry-After)
         # and keeps its work, instead of retrying at once or giving up.
         FEATURE_PAUSED,
+        # The upload worker marks the row binned from the sid after the colon
+        # and stops, rather than failing the backup (ADR-035, UploadErrors.kt).
+        SESSION_IN_RECYCLE_BIN,
     }
 )
 

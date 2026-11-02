@@ -42,7 +42,8 @@ class SemperApi @VisibleForTesting internal constructor(
     /** How calls are sent, from [endpoint]; null for the shared clients and this device's key. */
     newCalls: ((endpoint: (path: String) -> String) -> SemperApiCalls)?,
 ) : CloudApi,
-    PhonesApi {
+    PhonesApi,
+    RecycleBinApi {
 
     private constructor(context: Context) : this(context, BuildConfig.SEMPER_API_BASE_URL, null)
 
@@ -409,24 +410,52 @@ class SemperApi @VisibleForTesting internal constructor(
     override suspend fun deleteAccount(idToken: String) = calls.signed(idToken, SignedCall("DELETE", "/v1/me")) {}
 
     /**
-     * DELETE /v1/sessions/{id} — erase an analysis from the cloud: the Drive
-     * folder (raw images, .dat, csv, report) and all Firestore metadata.
-     * Permanent; there is no undo.
+     * DELETE /v1/sessions/{id} — move an analysis to the account's recycle bin
+     * (ADR-035), where it is kept [SessionDeleteResponse.purgeAt] long and then
+     * erased: the Drive folder and all Firestore metadata.
      *
-     * A 404 is only "already erased" when OUR backend says so
-     * (`session_not_found`). A bare 404 means the route isn't reachable —
-     * accepting that as success would delete the local copy and orphan the
-     * cloud data forever.
+     * A 404 is only "already gone" when OUR backend says so
+     * (`session_not_found`), answered as the defaults. A bare 404 means the
+     * route isn't reachable — accepting that as success would delete the local
+     * copy and orphan the cloud data forever.
      */
-    override suspend fun deleteSession(idToken: String, sessionId: String) = calls.signed(
+    override suspend fun deleteSession(idToken: String, sessionId: String): SessionDeleteResponse = calls.signed(
         idToken,
         SignedCall("DELETE", "/v1/sessions/$sessionId"),
         orElse = { answer ->
             if (answer.code != HttpStatus.NOT_FOUND || !answer.hasCode(ApiErrors.SESSION_NOT_FOUND)) {
                 answer.failSigned()
             }
+            SessionDeleteResponse()
         },
-    ) {}
+    ) { resp ->
+        val body = resp.body.string()
+        if (body.isBlank()) SessionDeleteResponse() else json.decodeFromString(body)
+    }
+
+    // ------------------------------------------------------------ recycle bin
+
+    /** GET /v1/recycle-bin — this app's bin, every page of it. */
+    override suspend fun listRecycleBin(idToken: String): RecycleBinResponse {
+        val pages = fetchAllPages(
+            fetch = { token ->
+                val path = "/v1/recycle-bin" + pageTokenQuery(token)
+                calls.bearer(idToken, { url(endpoint(path)) }, ApiAnswer::failApprovedOnly) {
+                    decode<RecycleBinResponse>(it)
+                }
+            },
+            pageOf = { it.page },
+        )
+        return pages.first().copy(items = pages.flatMap { it.items }, erased = pages.flatMap { it.erased }, page = null)
+    }
+
+    /** POST /v1/recycle-bin/{sid}/restore (device-signed). */
+    override suspend fun restoreFromRecycleBin(idToken: String, sessionId: String): RecycleBinRestoreResponse =
+        calls.signed(idToken, SignedCall("POST", "/v1/recycle-bin/$sessionId/restore")) { decode(it) }
+
+    /** DELETE /v1/recycle-bin/{sid} (device-signed): erase it for good. */
+    override suspend fun purgeFromRecycleBin(idToken: String, sessionId: String): RecycleBinPurgeResponse =
+        calls.signed(idToken, SignedCall("DELETE", "/v1/recycle-bin/$sessionId")) { decode(it) }
 
     // ------------------------------------------------- direct-to-Drive uploads
 

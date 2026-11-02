@@ -222,9 +222,10 @@ No build in the field knows the bin, and none needs to:
 
 - [x] Backend: collection, states, routes, purge job, quota split, erasure,
       export, audit, gateway, contract (this PR).
-- [ ] App data layer: index field for a binned row, reconcile against the bin and
+- [x] App data layer: index field for a binned row, reconcile against the bin and
       the erased markers, the delete that cancels the upload work, and the upload
-      guard (second PR).
+      guard (second PR; `session_in_recycle_bin` is in `errors.CLIENT_BRANCHED`
+      with it).
 - [ ] App UI: the recycle bin screen, its entry points and the dialog copy (third
       PR).
 - [ ] Privacy Policy: the bin and the erased marker in the retention table, held

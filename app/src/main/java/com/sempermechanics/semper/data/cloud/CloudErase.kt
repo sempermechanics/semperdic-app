@@ -9,10 +9,12 @@ import com.sempermechanics.semper.data.net.Authed
 import com.sempermechanics.semper.data.net.CloudApi
 import com.sempermechanics.semper.data.net.ErasureStatus
 import com.sempermechanics.semper.data.net.HttpFailure
+import com.sempermechanics.semper.data.net.SessionDeleteResponse
 import com.sempermechanics.semper.data.net.TokenSource
 import com.sempermechanics.semper.data.net.authed
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
+import com.sempermechanics.semper.data.session.markBinned
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -141,6 +143,22 @@ internal object CloudErase {
 
     /** The account's cloud data is gone: erased, or there was never a backend. */
     val Authed<Unit>.accountGone: Boolean get() = this is Authed.Ok || this == Authed.Disabled
+
+    /**
+     * The local row's backup [cloudId] is in the recycle bin now ([answer], the
+     * delete's): the row is LOCAL_ONLY with no live link and remembers the
+     * binned id and its purge time ([markBinned]). A backend from before the
+     * bin erased it instead (`binned` false), which leaves the row only
+     * unlinked ([forgetCloudCopy]).
+     */
+    fun binCloudCopy(appContext: Context, localSessionId: String, cloudId: String, answer: SessionDeleteResponse) {
+        if (SessionStore.get(appContext, localSessionId) == null) return
+        if (answer.binned) {
+            SessionStore.markBinned(appContext, localSessionId, cloudId, answer.purgeAtMs)
+        } else {
+            forgetCloudCopy(appContext, localSessionId)
+        }
+    }
 
     /** The local row no longer has a cloud copy: LOCAL_ONLY, and no link to follow. */
     fun forgetCloudCopy(appContext: Context, localSessionId: String) {

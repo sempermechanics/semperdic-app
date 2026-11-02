@@ -46,7 +46,14 @@ class CloudSyncFailureMappingTest {
     fun tearDown() = AppRemoteConfig.clear(context)
 
     private fun reconcile(deep: Boolean = true) = runBlocking {
-        CloudSync.reconcile(context, reupload = false, deep = deep, api = api, tokens = tokens)
+        CloudSync.reconcile(
+            context,
+            reupload = false,
+            deep = deep,
+            api = api,
+            tokens = tokens,
+            bin = FakeRecycleBinApi.empty(),
+        )
     }
 
     private fun configDown() {
@@ -175,7 +182,21 @@ class CloudSyncFailureMappingTest {
         val report = SessionDeletes.run(context, items, api, tokens, pause = {})
 
         assertEquals(items, report.stillInCloud)
-        assertEquals(listOf("listSessions", "listSessions"), api.calls)
+        // The batch lookup's failure is the answer: no second lookup for the row alone.
+        assertEquals(listOf("listSessions"), api.calls)
+        assertEquals(SessionRecord.SyncState.SYNCED, SessionStore.get(context, "s1")!!.syncState)
+    }
+
+    @Test
+    fun `a cloud-only delete whose link lookup fails offline is not reported done`() = runBlocking {
+        store(sessionRecord(id = "s1", syncState = SessionRecord.SyncState.SYNCED))
+        api.onListSessions = { _, _ -> throw IOException("offline") }
+        val items = listOf(SessionDeletes.Item("s1", "", SessionDeletes.Mode.CLOUD))
+
+        val report = SessionDeletes.run(context, items, api, tokens, pause = {})
+
+        // It used to drop the row's backup badge and count it deleted, with the backup untouched.
+        assertEquals(items, report.stillInCloud)
         assertEquals(SessionRecord.SyncState.SYNCED, SessionStore.get(context, "s1")!!.syncState)
     }
 

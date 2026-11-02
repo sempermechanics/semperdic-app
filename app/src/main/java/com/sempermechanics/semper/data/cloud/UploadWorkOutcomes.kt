@@ -26,7 +26,9 @@ internal object UploadWorkOutcomes {
     /** Map a backend [SemperApi]-style HTTP status to a WorkManager result ([UploadErrors]). */
     fun fromHttpCode(code: Int, body: String = ""): Result = when (UploadErrors.classify(code, body)) {
         // Quota full / payload too large / refused — retrying will not help.
-        UploadErrors.Kind.QUOTA, UploadErrors.Kind.TOO_LARGE, UploadErrors.Kind.REJECTED -> Result.failure()
+        UploadErrors.Kind.QUOTA, UploadErrors.Kind.TOO_LARGE, UploadErrors.Kind.REJECTED,
+        UploadErrors.Kind.IN_RECYCLE_BIN,
+        -> Result.failure()
         // Stale session or bad bytes — rebuild on the next attempt.
         UploadErrors.Kind.STALE_SESSION, UploadErrors.Kind.INTEGRITY -> Result.retry()
         // Paused by a kill switch, transient or unknown — keep staging and retry.

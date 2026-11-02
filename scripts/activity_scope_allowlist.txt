@@ -20,7 +20,7 @@ ui/settings/SettingsAnalysesSection.kt | analysesRefresh | CloudRestore.listComp
 
 # ── Enqueues that cannot be lost by a cancel ─────────────────────────────────
 
-ui/settings/SettingsCloudSection.kt | maybeOfferBackfill | CloudSync.enqueueUpload | The enqueue runs in the confirm dialog's click handler, not in the coroutine that showed the dialog; nothing on the scope enqueues (TD-291 heuristic: lambdas are not told apart)
+ui/settings/SettingsCloudSection.kt | backUp | CloudSync.enqueueUpload | Same as Home's Back up: PENDING stamped first (CloudBackfill.stamp), re-queued by the next reconcile (CloudReconcile.repairRows); ADR-016 rule 3 holds for the upload itself
 ui/home/BackupBadgeActions.kt | enqueueBackup | CloudSync.enqueueUpload | The PENDING stamp is on disk before the enqueue, and the next reconcile re-queues a PENDING row (data/cloud/CloudReconcile.kt repairRows, requeue); ADR-016 rule 3 holds for the upload itself
 ui/settings/SettingsAnalysesSection.kt | startBackup | CloudSync.enqueueUpload | Same as Home's Back up: PENDING stamped first, re-queued by the next reconcile (CloudReconcile.repairRows); ADR-016 rule 3 holds for the upload itself
 ui/settings/SettingsYourDataSection.kt | observeConsent | setImprovementConsent | A false positive: the match is SettingsViewModel.setImprovementConsent in the switch listener that showConsent installs; the send itself runs on viewModelScope (ADR-016 rule 1, TD-291 heuristic: lambdas are not told apart)

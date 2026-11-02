@@ -71,7 +71,10 @@ object CloudBackupListing {
      */
     fun notOnPhone(backups: List<Backup>, records: List<SessionRecord>): List<Backup> {
         val localIds = records.mapTo(mutableSetOf()) { it.id }
-        val cloudIds = records.mapNotNullTo(mutableSetOf()) { it.cloudSessionId.takeIf(String::isNotBlank) }
+        // A row in the recycle bin claims its binned backup too, so one restored
+        // from the bin is not restored again beside it (ADR-035).
+        val cloudIds = records.flatMap { listOf(it.cloudSessionId, it.binnedCloudId) }
+            .filterTo(mutableSetOf()) { it.isNotBlank() }
         return backups.filterNot { (it.localId.isNotBlank() && it.localId in localIds) || it.cloudId in cloudIds }
     }
 

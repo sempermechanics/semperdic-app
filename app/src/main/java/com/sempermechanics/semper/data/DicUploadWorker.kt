@@ -22,10 +22,13 @@ import com.sempermechanics.semper.data.net.SemperApi
 import com.sempermechanics.semper.data.net.TokenProvider
 import com.sempermechanics.semper.data.net.TokenSource
 import com.sempermechanics.semper.data.net.UploadLinkExpiredException
+import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.data.session.SessionZip
 import com.sempermechanics.semper.data.session.StagingLayout
 import com.sempermechanics.semper.data.session.StorageBudget
+import com.sempermechanics.semper.data.session.inRecycleBin
+import com.sempermechanics.semper.data.session.markSyncedIfPending
 import com.sempermechanics.semper.diagnostics.SemperAnalytics
 import com.sempermechanics.semper.navigation.IntentKeys
 import kotlinx.coroutines.CancellationException
@@ -108,10 +111,21 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
             CloudSync.settleWithoutBackend(applicationContext)
             return@withContext Result.success()
         }
-        val idToken = tokens.usableIdToken() ?: return@withContext UploadLog.retry("no usable Firebase ID token")
         val localId = inputData.getString(IntentKeys.SESSION_LOCAL_ID) ?: return@withContext Result.failure()
         val record = SessionStore.get(applicationContext, localId) ?: return@withContext Result.failure()
+        if (!record.mayUpload()) {
+            // Deleted or binned since it was queued (L5-3, ADR-035): nothing to back up, nothing to tell.
+            Timber.i("Upload of %s skipped: the row is %s%s", localId, record.syncState, binNote(record))
+            // A Back up tapped on a row in the bin stamped it PENDING: it would read "upload pending" for good.
+            if (record.inRecycleBin && record.syncState == SessionRecord.SyncState.PENDING) {
+                SessionStore.setSyncState(applicationContext, localId, SessionRecord.SyncState.LOCAL_ONLY)
+            }
+            return@withContext Result.success()
+        }
+        val idToken = tokens.usableIdToken() ?: return@withContext UploadLog.retry("no usable Firebase ID token")
         backUp(UploadRun(applicationContext, api, tokens, idToken, record)).also { result ->
+            // A backup a delete stopped has nothing to announce.
+            if (result.outputData.getBoolean(UPLOAD_STOPPED, false)) return@also
             TransferResultNotifications.afterWork(
                 applicationContext,
                 TransferResultNotifications.Subject(TransferNotifications.Kind.UPLOAD, localId, record.name),
@@ -233,10 +247,16 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         }
         SessionStep.Synced -> {
             Timber.w("Cloud session already complete")
-            SessionStore.markSynced(applicationContext, run.localId)
+            SessionStore.markSyncedIfPending(applicationContext, run.localId)
             stagingDir.deleteRecursively()
             RebuildBudget.clear(run.sessionDir)
             Result.success()
+        }
+        SessionStep.Stopped -> {
+            Timber.i("Upload of %s stopped before creating a session: the row left PENDING", run.localId)
+            stagingDir.deleteRecursively()
+            RebuildBudget.clear(run.sessionDir)
+            stoppedResult()
         }
         is SessionStep.Retry -> step.result
         // Provisioning failed: ended for good, through the one abandon (ADR-018).
@@ -290,7 +310,8 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
 
     /** Every file landed: record the sync, drop the staging, and give storage back. */
     private fun complete(run: UploadRun, plan: UploadPlan, stagingDir: File): Result {
-        SessionStore.markSynced(applicationContext, run.localId)
+        // Not over a delete that stamped the row LOCAL_ONLY meanwhile (L5-3).
+        val marked = SessionStore.markSyncedIfPending(applicationContext, run.localId)
         Timber.i("Upload complete for %s (%d files, session %s)", run.localId, plan.work.size, plan.sessionId)
         UploadLog.phase("complete", count = plan.work.size)
         stagingDir.deleteRecursively() // done — staged files no longer needed
@@ -299,6 +320,6 @@ class DicUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         // the moment an over-budget phone can actually get space back.
         StorageBudget.enforce(applicationContext)
         SemperAnalytics.event(applicationContext, SemperAnalytics.CLOUD_UPLOAD_SUCCEEDED)
-        return Result.success()
+        return if (marked) Result.success() else stoppedResult()
     }
 }

@@ -125,7 +125,14 @@ class CrossAppReconcileTest {
             awaitCancellation()
         }
         val call = async(Dispatchers.Default) {
-            CloudSync.reconcile(context, reupload = true, deep = true, api = api, tokens = tokens)
+            CloudSync.reconcile(
+                context,
+                reupload = true,
+                deep = true,
+                api = api,
+                tokens = tokens,
+                bin = FakeRecycleBinApi.empty(),
+            )
         }
         inFlight.await()
         call.cancel()
@@ -149,7 +156,14 @@ class CrossAppReconcileTest {
     }
 
     private fun reconcile() = runBlocking {
-        CloudSync.reconcile(context, reupload = true, deep = true, api = api, tokens = tokens)
+        CloudSync.reconcile(
+            context,
+            reupload = true,
+            deep = true,
+            api = api,
+            tokens = tokens,
+            bin = FakeRecycleBinApi.empty(),
+        )
     }
 
     private fun completed(cloudId: String, localId: String) =

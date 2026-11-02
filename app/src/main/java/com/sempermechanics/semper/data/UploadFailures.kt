@@ -13,6 +13,8 @@ import com.sempermechanics.semper.data.net.ApiException
 import com.sempermechanics.semper.data.net.DeviceConflictException
 import com.sempermechanics.semper.data.net.DeviceNotActiveException
 import com.sempermechanics.semper.data.net.UploadLinkExpiredException
+import com.sempermechanics.semper.data.session.SessionStore
+import com.sempermechanics.semper.data.session.markBinned
 import com.sempermechanics.semper.navigation.AppIntents
 import com.sempermechanics.semper.navigation.IntentKeys
 import com.sempermechanics.semper.util.suspendRunCatching
@@ -32,6 +34,29 @@ internal fun UploadRun.abandon(stagingDir: File, analyticsReason: String?) {
     markBackupFailed(context, localId, analyticsReason)
     stagingDir.deleteRecursively()
     RebuildBudget.clear(sessionDir)
+}
+
+/**
+ * [UploadFailures]' answer to an analysis in the account's recycle bin
+ * (ADR-035, [UploadErrors.Kind.IN_RECYCLE_BIN]): it was deleted, here or on
+ * another phone, so it must not be backed up again. The row is marked binned
+ * with the refusal's session id (the binned backup's), the staging and
+ * rebuild counts go, and the run ends with its own kind and no reason text,
+ * so no "not backed up" notification offers a retry.
+ */
+internal fun UploadRun.inRecycleBin(stagingDir: File, e: ApiException): ListenableWorker.Result {
+    val binned = UploadErrors.binnedSessionId(e.body).ifBlank { currentCloudId() }
+    Timber.i("Upload of %s refused: the analysis is in the recycle bin", localId)
+    UploadLog.phase("in_recycle_bin", httpStatus = e.code, requestId = e.requestId)
+    SessionStore.markBinned(context, localId, binned, purgeAt = 0L)
+    stagingDir.deleteRecursively()
+    RebuildBudget.clear(sessionDir)
+    return ListenableWorker.Result.failure(
+        workDataOf(
+            UploadErrors.UPLOAD_FAIL_KIND to UploadErrors.FAIL_KIND_IN_RECYCLE_BIN,
+            IntentKeys.SESSION_LOCAL_ID to localId,
+        ),
+    )
 }
 
 /**
@@ -72,6 +97,7 @@ internal class UploadFailures(private val run: UploadRun, private val stagingDir
     suspend fun refused(e: ApiException): ListenableWorker.Result =
         when (UploadErrors.classify(e.code, e.body)) {
             UploadErrors.Kind.QUOTA -> quotaFull(e)
+            UploadErrors.Kind.IN_RECYCLE_BIN -> run.inRecycleBin(stagingDir, e)
             // Too many files for one analysis — retrying won't help; tell the user.
             UploadErrors.Kind.TOO_LARGE -> giveUp(e, "payload", R.string.cloud_backup_failed_too_large)
             // A 409 we have no handling for. It is not "too large" — say only

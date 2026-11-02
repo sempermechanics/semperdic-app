@@ -63,6 +63,15 @@ object ApiErrors {
      */
     const val SESSION_NOT_COMPLETE = "session_not_complete"
 
+    /**
+     * The analysis is in the account's recycle bin (409, ADR-035), with the
+     * binned session's id after the colon (`session_in_recycle_bin: <sid>`):
+     * `POST /v1/sessions` refuses to back it up again, and `:complete` to
+     * finish one of its files. The upload gives up and marks the row binned
+     * (`UploadFailures.inRecycleBin`) rather than failing it.
+     */
+    const val SESSION_IN_RECYCLE_BIN = "session_in_recycle_bin"
+
     /** No such cloud file for this account (404). */
     const val FILE_NOT_FOUND = "file_not_found"
 

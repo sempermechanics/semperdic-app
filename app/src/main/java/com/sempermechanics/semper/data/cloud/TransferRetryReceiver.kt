@@ -7,6 +7,7 @@ import androidx.annotation.WorkerThread
 import com.sempermechanics.semper.data.cloud.restore.RestoreStart
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
+import com.sempermechanics.semper.data.session.inRecycleBin
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -86,10 +87,14 @@ class TransferRetryReceiver : BroadcastReceiver() {
             }
         }
 
-        /** A backed-up or deleted row is left alone: the retry is for a backup that failed. */
+        /**
+         * A backed-up or deleted row is left alone: the retry is for a backup
+         * that failed. So is one in the recycle bin (ADR-035): its upload would
+         * be refused.
+         */
         private fun retryUpload(context: Context, localId: String, name: String) {
             val record = SessionStore.get(context, localId)
-            if (record != null && record.syncState != SessionRecord.SyncState.SYNCED) {
+            if (record != null && record.syncState != SessionRecord.SyncState.SYNCED && !record.inRecycleBin) {
                 SessionStore.setSyncState(context, localId, SessionRecord.SyncState.PENDING)
                 CloudSync.enqueueUpload(context, localId)
             }

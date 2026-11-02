@@ -255,9 +255,6 @@ object SessionStore {
         applied.takeIf { written }
     }
 
-    @WorkerThread
-    fun markSynced(context: Context, id: String) = setSyncState(context, id, SessionRecord.SyncState.SYNCED)
-
     /** Remember which cloud session backs this analysis (so it can be erased). */
     @WorkerThread
     fun setCloudSessionId(context: Context, id: String, cloudSessionId: String) =

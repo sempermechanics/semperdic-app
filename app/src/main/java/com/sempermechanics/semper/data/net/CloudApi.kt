@@ -76,7 +76,11 @@ interface CloudApi {
 
     suspend fun deleteAccount(idToken: String)
 
-    suspend fun deleteSession(idToken: String, sessionId: String)
+    /**
+     * Delete one backup. A backend with the recycle bin (ADR-035) bins it for
+     * [SessionDeleteResponse.purgeAt]; an already-gone session answers the defaults.
+     */
+    suspend fun deleteSession(idToken: String, sessionId: String): SessionDeleteResponse
 
     suspend fun uploadResumable(
         uploadUrl: String,

@@ -4,13 +4,19 @@ import android.content.Context
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.LicenseConfigWorker
 import com.sempermechanics.semper.data.cloud.CloudSync.Outcome
+import com.sempermechanics.semper.data.cloud.bin.BinReconcile
+import com.sempermechanics.semper.data.cloud.bin.RecycleBin
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.net.CloudApi
 import com.sempermechanics.semper.data.net.CloudSessionDto
 import com.sempermechanics.semper.data.net.HttpFailure
+import com.sempermechanics.semper.data.net.RecycleBinApi
 import com.sempermechanics.semper.data.net.SessionsResponse
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
+import com.sempermechanics.semper.data.session.clearBinned
+import com.sempermechanics.semper.data.session.inRecycleBin
+import com.sempermechanics.semper.data.session.markBinned
 import com.sempermechanics.semper.util.suspendRunCatching
 import timber.log.Timber
 
@@ -54,8 +60,19 @@ internal object CloudReconcile {
         }
     }
 
-    /** This app's [cloud] sessions, the local ids they back up, and the rows another app backs up. */
-    class Listing(val cloud: SessionsResponse, val backedUp: Set<String>, val keep: Set<String>)
+    /**
+     * This app's [cloud] sessions, the local ids ([backedUp]) and cloud ids
+     * ([listedCloudIds]) of its COMPLETED ones, the rows another app backs up
+     * ([keep]), and the recycle bin ([bin], ADR-035): null when it was not
+     * needed or could not be read.
+     */
+    class Listing(
+        val cloud: SessionsResponse,
+        val backedUp: Set<String>,
+        val keep: Set<String>,
+        val listedCloudIds: Set<String> = emptySet(),
+        val bin: BinReconcile.Bin? = null,
+    )
 
     /**
      * This app's listing, plus the rows [repairRows] must [Listing.keep] SYNCED
@@ -63,15 +80,35 @@ internal object CloudReconcile {
      * backup (ADR-014, TD-153) is backed up there, and repairing it would
      * upload it again as a second session. Only when some SYNCED row is missing
      * is the whole account listed, once, to tell the two apart.
+     *
+     * Then the recycle bin, once, when a SYNCED row is still missing or a row
+     * in the bin is not listed again ([BinReconcile.needsBin]): a backup
+     * another phone deleted is binned or erased there, and must not be
+     * uploaded again. The rows are the current account's only ([SessionStore.list]).
      */
-    suspend fun list(appContext: Context, api: CloudApi, token: String, verify: Boolean): Listing {
+    suspend fun list(
+        appContext: Context,
+        api: CloudApi,
+        bin: RecycleBinApi,
+        token: String,
+        verify: Boolean,
+    ): Listing {
         val cloud = api.listSessions(token, verify = verify)
         // Only COMPLETED cloud sessions count as a real backup.
-        val backedUp = cloud.sessions.completed().map { it.localSessionId }.filter { it.isNotBlank() }.toSet()
-        val missing = SessionStore.list(appContext)
-            .filter { it.syncState == SessionRecord.SyncState.SYNCED && it.id !in backedUp }
+        val completed = cloud.sessions.completed()
+        val backedUp = completed.map { it.localSessionId }.filter { it.isNotBlank() }.toSet()
+        val listedCloudIds = completed.mapTo(HashSet()) { it.sessionId }
+        val rows = SessionStore.list(appContext)
+        val missing = rows.filter { it.syncState == SessionRecord.SyncState.SYNCED && it.id !in backedUp }
         val keep = if (missing.isEmpty()) emptySet() else otherAppBackups(api, token, missing)
-        return Listing(cloud, backedUp, keep)
+        val stillMissing = missing.mapTo(HashSet()) { it.id } - keep
+        if (!BinReconcile.needsBin(rows, stillMissing, listedCloudIds)) {
+            return Listing(cloud, backedUp, keep, listedCloudIds)
+        }
+        val read = suspendRunCatching { bin.listRecycleBin(token) }
+            .onFailure { Timber.w(it, "Could not read the recycle bin — repairing no missing row this pass") }
+            .getOrNull()
+        return Listing(cloud, backedUp, keep, listedCloudIds, read?.let(BinReconcile::Bin))
     }
 
     /**
@@ -96,36 +133,75 @@ internal object CloudReconcile {
 
     private fun List<CloudSessionDto>.completed() = filter { it.status == UploadWorkOutcomes.STATUS_COMPLETED }
 
+    /** What [repairRows] did: rows [repaired] (marked PENDING again) and rows newly [binned]. */
+    data class Repairs(val repaired: Int, val binned: Int)
+
     /**
-     * Mark SYNCED rows whose backup is not in [backedUp] PENDING, and queue them
-     * when [reupload]; a row in [keep] stays SYNCED ([list]). With [requeue],
-     * queue the rows already PENDING too. Returns how many rows were repaired.
+     * Put the current account's rows right against [listing], in this order
+     * (ADR-035):
+     *  1. a row in [Listing.keep] (another app's backup) stays as it is;
+     *  2. a SYNCED row whose backup is missing and in the bin is marked binned
+     *     and not queued;
+     *  3. one whose backup was erased from the bin goes LOCAL_ONLY, unlinked,
+     *     and a stub with no frames on the phone is deleted;
+     *  4. a row in the bin whose backup is listed COMPLETED again is SYNCED
+     *     and linked to it;
+     *  5. a row in the bin whose backup is neither listed nor binned is erased, as 3;
+     *  6. otherwise a SYNCED row whose backup is missing is marked PENDING, and
+     *     queued when [reupload]. With [requeue], rows already PENDING are
+     *     queued too.
+     * While the bin could not be read, no missing row is repaired or binned.
      */
-    fun repairRows(
-        appContext: Context,
-        backedUp: Set<String>,
-        keep: Set<String>,
-        reupload: Boolean,
-        requeue: Boolean,
-    ): Int {
+    fun repairRows(appContext: Context, listing: Listing, reupload: Boolean, requeue: Boolean): Repairs {
         var repaired = 0
+        var binned = 0
         SessionStore.list(appContext).forEach { record ->
-            val claimsSynced = record.syncState == SessionRecord.SyncState.SYNCED
-            if (claimsSynced && record.id !in backedUp && record.id !in keep) {
-                // The cloud copy is gone (deleted) or never completed.
-                Timber.i("Session %s claims SYNCED but is not in the cloud — repairing", record.id)
-                SessionStore.setSyncState(appContext, record.id, SessionRecord.SyncState.PENDING)
-                repaired++
-                if (reupload) CloudSync.queueUpload(appContext, record.id)
-            } else if (requeue && record.syncState == SessionRecord.SyncState.PENDING) {
-                // KEEP leaves an upload already queued or running alone.
-                CloudSync.queueUpload(appContext, record.id)
-            } else if (claimsSynced && record.metadataStale) {
-                // Backed up, but changed since: a send that gave up (ADR-013).
-                CloudSync.queueMetadata(appContext, record.id)
+            val decision = BinReconcile.decide(
+                record,
+                listing.backedUp,
+                listing.listedCloudIds,
+                listing.keep,
+                listing.bin,
+                hasLocalData = record::hasLocalData,
+            )
+            when (decision) {
+                is BinReconcile.Decision.ToBin -> {
+                    if (!record.inRecycleBin) {
+                        Timber.i("Backup of %s is in the recycle bin — not uploading it again", record.id)
+                        binned++
+                    }
+                    SessionStore.markBinned(appContext, record.id, decision.cloudId, decision.purgeAt)
+                }
+                is BinReconcile.Decision.Erased -> {
+                    Timber.i("Backup of %s was erased from the recycle bin", record.id)
+                    RecycleBin.erase(appContext, record, decision.dropStub)
+                }
+                is BinReconcile.Decision.BackFromBin -> {
+                    Timber.i("Backup of %s is back from the recycle bin", record.id)
+                    SessionStore.clearBinned(appContext, record.id, restoredAs = decision.cloudId)
+                }
+                BinReconcile.Decision.Repair -> {
+                    // The cloud copy is gone (lost) or never completed.
+                    Timber.i("Session %s claims SYNCED but is not in the cloud — repairing", record.id)
+                    SessionStore.setSyncState(appContext, record.id, SessionRecord.SyncState.PENDING)
+                    repaired++
+                    if (reupload) CloudSync.queueUpload(appContext, record.id)
+                }
+                null -> queueWaiting(appContext, record, requeue)
             }
         }
-        return repaired
+        return Repairs(repaired, binned)
+    }
+
+    /** A row the bin decides nothing for: queue it if it waits to upload, or its metadata if that is stale. */
+    private fun queueWaiting(appContext: Context, record: SessionRecord, requeue: Boolean) {
+        if (requeue && record.syncState == SessionRecord.SyncState.PENDING) {
+            // KEEP leaves an upload already queued or running alone.
+            CloudSync.queueUpload(appContext, record.id)
+        } else if (record.syncState == SessionRecord.SyncState.SYNCED && record.metadataStale) {
+            // Backed up, but changed since: a send that gave up (ADR-013).
+            CloudSync.queueMetadata(appContext, record.id)
+        }
     }
 
     /**
