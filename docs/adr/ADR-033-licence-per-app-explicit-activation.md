@@ -114,10 +114,19 @@ The product owner's decisions (2026-10-29):
   not activated makes room.
 - **Floating:** the lease is the activation. `maxSeats` is the pool, and only the phone
   that checked the lease out is licensed.
-- **Upgrade:** `issue_upgrade` mints the new licence with `supersedes`.
-  `activate(upgrade=True)` revokes the old licence, moves the app's mirror, seats the
-  holder (institution), activates the phone and clears the pointer, all in one
-  transaction.
+- **Upgrade:** `issue_upgrade` mints the new licence with `supersedes`, then points the
+  old licence and the holder at it in one transaction that refuses `409 upgrade_pending`
+  when another upgrade already waits.
+  - `activate(upgrade=True)` first checks everything the activation would refuse: the
+    phone, the new licence live, not floating, within its grace, a slot free.
+  - It then moves the app's mirror and seats the holder (institution), revokes the old
+    licence with `supersededBy`, clears the pointer and activates the phone.
+  - These are separate writes, not one transaction. Each is safe to run again, and the
+    pointer stays until the old licence is revoked, so the next Activate finishes an
+    apply that died part-way.
+  - Revoking the old licence while its upgrade waits withdraws the upgrade. An individual
+    successor nobody has claimed is revoked with it; an institution one is only
+    withdrawn.
 - **Quota per app:** `count_user_sessions(uid, app)`; the Demo per-device cap stays.
 - **Compatibility:** installed builds (Semper 1036, Classroom v1.4-beta.2) never tap
   Activate.

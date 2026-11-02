@@ -12,6 +12,7 @@ from app.config import settings
 def store(store, monkeypatch):
     s = store
     monkeypatch.setattr(settings, "DEV_INSECURE_AUTH", False)
+    monkeypatch.setattr(settings, "ADMIN_EMAILS", {"admin@sempermechanics.com"})
     monkeypatch.setattr(
         deps, "verify_id_token",
         lambda _t: {"sub": "admin-1", "email": "admin@sempermechanics.com",

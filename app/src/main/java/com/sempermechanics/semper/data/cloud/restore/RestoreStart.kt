@@ -8,6 +8,7 @@ import com.sempermechanics.semper.data.cloud.FailureLedger
 import com.sempermechanics.semper.data.net.CloudSessionDto
 import com.sempermechanics.semper.data.policy.AppPolicy
 import com.sempermechanics.semper.data.prefs.PrefFiles
+import com.sempermechanics.semper.data.session.SessionPaths
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import timber.log.Timber
@@ -84,6 +85,8 @@ object RestoreStart {
     @WorkerThread
     fun start(context: Context, cloudSessionId: String, targetLocalId: String, name: String): Outcome = when {
         cloudSessionId.isBlank() -> Outcome.FAILED
+        // A row id that cannot name a session dir (L5-1); targetFor never makes one.
+        !SessionPaths.isSafeId(targetLocalId) -> Outcome.FAILED
         // Kill switch, device policy or a required update: the screens say so first.
         !AppPolicy.restoreAllowed(context) -> Outcome.FAILED
         isRunning(context, cloudSessionId) -> Outcome.ALREADY_RUNNING

@@ -27,7 +27,7 @@ def _mint(max_seats=4):
 def _roster(store, *uids):
     """Two-plus members, each activated onto a fresh seat of one licence."""
     store._data["users"] = {
-        uid: {"email": f"{uid}@university.edu", "access_status": "APPROVED",
+        uid: {"email": f"{uid}@university.edu", "emailVerified": True, "access_status": "APPROVED",
               "plan": "demo"}
         for uid in uids
     }
@@ -287,7 +287,7 @@ def test_a_floating_member_between_leases_is_not_mistaken_for_a_failed_revoke(
     perfectly healthy pool as a licence entitling nobody.
     """
     store._data["users"] = {
-        "u1": {"email": "u1@university.edu", "access_status": "APPROVED",
+        "u1": {"email": "u1@university.edu", "emailVerified": True, "access_status": "APPROVED",
                "plan": "demo"},
     }
     minted = repo.create_institution_license(
