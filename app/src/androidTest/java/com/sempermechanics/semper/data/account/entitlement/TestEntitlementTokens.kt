@@ -3,6 +3,7 @@ package com.sempermechanics.semper.data.account.entitlement
 import android.content.Context
 import com.sempermechanics.semper.BuildConfig
 import com.sempermechanics.semper.data.account.DeviceKeys
+import com.sempermechanics.semper.data.net.AccountCache
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.Signature
@@ -40,7 +41,9 @@ internal class TestEntitlementTokens(private val context: Context) {
         dkt: String = thisDevice(),
     ): String {
         val header = """{"alg":"ES256","kid":"$KID","typ":"semper-ent+jws"}"""
-        val claims = """{"iss":"semper-api","sub":"uid-device-test",""" +
+        // The account signed in on this phone, if one is, which `sub` must name.
+        val sub = AccountCache.cachedUid(context)?.takeIf { it.isNotBlank() } ?: "uid-device-test"
+        val claims = """{"iss":"semper-api","sub":"$sub",""" +
             """"app":"${EntitlementApp.shortId(BuildConfig.APPLICATION_ID)}",""" +
             """"dev":"${DeviceKeys.deviceId(context)}","dkt":"$dkt","mode":"$mode",""" +
             """"features":{"share":$share,"backup":$backup,"maxAnalyses":$maxAnalyses},""" +

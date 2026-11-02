@@ -1385,12 +1385,19 @@ paths:
       operationId: adminListDeletedLicenses
       description: >
         Semper staff. Licences deleted within the 30-day hold, most recently
-        deleted first, each with priorStatus, deletedAt and purgeAt.
+        deleted first, each with priorStatus, deletedAt and purgeAt; a page
+        at a time, with page.nextPageToken / page.hasMore.
       parameters:
         - name: limit
           in: query
           required: false
           type: integer
+          description: 1..200 (default 50); clamped server-side.
+        - name: page_token
+          in: query
+          required: false
+          type: string
+          description: Opaque cursor from a previous nextPageToken.
       responses:
         '200': { description: OK }
         '429': { description: Rate limited }

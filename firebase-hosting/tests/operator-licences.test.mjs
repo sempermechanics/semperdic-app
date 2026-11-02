@@ -102,6 +102,36 @@ test("Load more that fails says so, and the button can be pressed again", async 
   assert.deepEqual(labels(), ["SEMP-IND1", "SEMP-UNI1"]);
 });
 
+test("a Load more page that answers after Refresh is dropped, not appended to the new table", async () => {
+  const late = deferred();
+  const lateFail = deferred();
+  let n = 0;
+  let more = 0;
+  await openDesk({
+    page: { hasMore: true, nextPageToken: "tok" },
+    routes: {
+      [LIST]: () => json(200, n++ ? { licenses: [UNI], page: { hasMore: true, nextPageToken: "tok" } }
+        : { licenses: [IND], page: { hasMore: true, nextPageToken: "tok" } }),
+      "GET /v1/admin/licenses?limit=50&include_revoked=false&page_token=tok": () => (more++ ? lateFail : late).promise,
+    },
+  });
+  await click($("loadMore"));
+  await click($("reload"));
+  assert.deepEqual(labels(), ["SEMP-UNI1"]);
+  late.resolve(json(200, { licenses: [DEMO, IND], page: {} }));
+  await settle();
+  assert.deepEqual(labels(), ["SEMP-UNI1"], "the old table's page is not drawn on the new one");
+  assert.equal($("loadMore").hidden, false, "the new table still has its own next page");
+  assert.equal($("loadMore").disabled, false);
+  // A failure that lands late is the old table's too: it says nothing.
+  await click($("loadMore"));
+  await click($("reload"));
+  lateFail.resolve(json(503, { detail: "unavailable" }));
+  await settle();
+  assert.deepEqual(status(), ["", "muted"]);
+  assert.deepEqual(labels(), ["SEMP-UNI1"]);
+});
+
 const SEARCH = "POST /v1/admin/licenses/search";
 
 test("a failed backend search says so; the loaded rows still filter", async () => {

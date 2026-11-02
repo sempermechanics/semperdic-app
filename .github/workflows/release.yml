@@ -352,17 +352,19 @@ jobs:
       # R8 obfuscates release builds, so a field stack trace is unreadable without
       # the mapping for the exact build that produced it. It cannot be regenerated
       # afterwards — if this file is lost, those crashes stay unreadable forever.
-      # Deliberately NOT attached to the GitHub release: it is the deobfuscation
-      # key, and publishing it would undo the obfuscation for everyone. The
+      # Not attached to the GitHub release: it is the deobfuscation key. It is
+      # not private either: this repository is public, so any signed-in GitHub
+      # user can download a workflow artifact while it is kept (L9-8). The
       # durable copy is Crashlytics (-PuploadCrashlyticsMapping=true above,
-      # TD-40); this artifact is the 90-day fallback for a manual retrace.
+      # TD-40); this artifact is only a short fallback for a manual retrace,
+      # long enough to check Crashlytics has the mapping (RELEASING.md).
       - name: Upload R8 mapping
         uses: actions/upload-artifact@v7
         with:
           name: release-mapping-${{ github.event.inputs.version }}
           path: app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 14
 
       - name: ccache statistics
         if: always()

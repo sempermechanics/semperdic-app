@@ -210,14 +210,24 @@ Actions → `deploy-backend.yml` (`.github/workflows/deploy-backend.yml`).
 ## 4. Hosting: consoles, account page, aligned Terms
 
 - [x] From a **clean `main` checkout**:
-      `API_BASE_URL=<INDIC_API_BASE_URL repo variable> ./scripts/deploy-console.sh`.
-      Never a bare `firebase deploy`. From Windows PowerShell, set the variable there
-      (`$env:API_BASE_URL = gh variable get INDIC_API_BASE_URL`) and run the script
-      through Git Bash; PowerShell 5.1 drops quotes nested inside `bash -c "…"`.
+      `API_BASE_URL=<INDIC_API_BASE_URL repo variable> LEGAL_PAGES_FROM=b940cc29 ./scripts/deploy-console.sh`.
+      Never a bare `firebase deploy`. From Windows PowerShell, set the variables there
+      (`$env:API_BASE_URL = gh variable get INDIC_API_BASE_URL`;
+      `$env:LEGAL_PAGES_FROM = 'b940cc29'`) and run the script through Git Bash;
+      PowerShell 5.1 drops quotes nested inside `bash -c "…"`.
       The deploy publishes the **legal pages** too (`/privacy`, `/terms`). While
       `main` holds legal text counsel has not cleared (TD-277; #474 since 2026-10-22),
-      deploy from a worktree with those two `index.html` files checked out from the
-      last cleared commit (`b940cc29`), then compare the live pages with it.
+      `LEGAL_PAGES_FROM=b940cc29` (the last cleared commit) ships those two
+      `index.html` files as that commit holds them and restores main's copies after;
+      it skips `render_legal_pages.py --check`, which runs in every other deploy.
+      Compare the live pages with `b940cc29` afterwards. Since 2026-11-01 the script
+      refuses a branch other than `main`, a changed tracked file, or an untracked or
+      ignored file under `firebase-hosting/public` (`DEPLOY_CONSOLE_ALLOW_UNCLEAN=1`
+      overrides, with a warning), refuses an `API_BASE_URL` that is not an `https://`
+      origin (a trailing `/` is stripped), and runs `scripts/check_console.py` first.
+      `DRY_RUN=1` runs all of that and stops before `firebase deploy`. Before, the pin
+      meant a worktree with hand-placed files, which no check could tell from a stray
+      edit.
 - [x] The script runs `scripts/check_live_console.py`; it must pass (no `__`
       placeholder left live).
 - [ ] By hand: `/account` shows the licence facts and, for a demo account, the

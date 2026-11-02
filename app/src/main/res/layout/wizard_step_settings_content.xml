@@ -837,6 +837,15 @@
             android:layout_marginTop="12dp"
             android:visibility="gone" />
 
+        <!-- The run's grid would not fit this phone's memory (AnalysisReadyGate). -->
+        <include
+            android:id="@+id/gridSizeWarnRow"
+            layout="@layout/view_warn_chip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:visibility="gone" />
+
         <!-- Status after Compute; ⓘ stays after an engine-failure dialog so FAQ
              is still reachable once Why? is gone. -->
         <LinearLayout

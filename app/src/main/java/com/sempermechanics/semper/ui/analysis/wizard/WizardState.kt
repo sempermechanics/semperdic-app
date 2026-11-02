@@ -14,7 +14,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.io.File
+import java.lang.ref.WeakReference
 import java.security.MessageDigest
+import java.util.zip.CRC32
 
 /**
  * The wizard's editing state across a process death (ADR-005).
@@ -51,6 +53,14 @@ internal object WizardState {
      * to [FRAME_COUNT] alone.
      */
     private const val FRAMES_FINGERPRINT = "framesFingerprint"
+
+    /**
+     * [draftDigest] of the reference and of the mask [save] was handed, null when
+     * the wizard held none. Absent in a Bundle an older app saved;
+     * [readInputs] then checks only that each part is there.
+     */
+    private const val REFERENCE_DIGEST = "referenceDigest"
+    private const val MASK_DIGEST = "maskDigest"
     private const val ORDER_MODE = "orderMode"
     private const val ORDER_DIRECTION = "orderDirection"
     private const val FRAME_SIZE_ERROR = "frameSizeError"
@@ -113,6 +123,8 @@ internal object WizardState {
         putString(WORKING_LOCAL_ID, inputs.working?.id)
         putBoolean(WORKING_IS_SWEEP, inputs.working?.kind == RunKind.SWEEP)
         putString(FRAMES_FINGERPRINT, fingerprint(framesJson))
+        putString(REFERENCE_DIGEST, referenceDigest.of(inputs.refBytes))
+        putString(MASK_DIGEST, maskDigest.of(inputs.roiMaskBytes))
     }
 
     /**
@@ -161,7 +173,10 @@ internal object WizardState {
      * `cacheDir` under storage pressure), or the frame list itself. The list
      * must be the very one [save] fingerprinted, not merely as long: a kill
      * before its write landed leaves the previous list, which may hold the
-     * same number of frames in another order. A partial restore would be a
+     * same number of frames in another order. The reference and mask must be
+     * the very bytes [save] digested too, for the same reason: a kill before
+     * a new reference's write landed leaves the old one, which the restored
+     * size, ROI and mask would be applied to. A partial restore would be a
      * wizard that looks ready but solves something else, so it is all or none.
      */
     @WorkerThread
@@ -176,11 +191,16 @@ internal object WizardState {
         val sameList = expected == null || expected == fingerprint(framesText ?: encodeFrames(Frames()))
         val complete = (reference != null) == wantReference &&
             (mask != null) == wantMask &&
+            draftDigestMatches(b.getString(REFERENCE_DIGEST), reference) &&
+            draftDigestMatches(b.getString(MASK_DIGEST), mask) &&
             sameList &&
             frames.paths.size == b.getInt(FRAME_COUNT) &&
             frames.paths.all { File(it).isFile }
         return if (complete) Inputs(reference, mask, frames) else null
     }
+
+    private val referenceDigest = LastDigest()
+    private val maskDigest = LastDigest()
 
     /** Hex SHA-256 of [framesJson]'s UTF-8 bytes. */
     fun fingerprint(framesJson: String): String =
@@ -193,5 +213,37 @@ internal object WizardState {
     } catch (e: IllegalArgumentException) { // SerializationException included
         Timber.w(e, "Unreadable wizard draft frame list")
         null
+    }
+}
+
+/** True unless [expected] is a [draftDigest] that [bytes] does not have; no digest saved checks nothing. */
+private fun draftDigestMatches(expected: String?, bytes: ByteArray?): Boolean =
+    expected == null || bytes == null || expected == draftDigest(bytes)
+
+/**
+ * "size:crc32" of [bytes], as `WizardState` saves it for the draft's reference
+ * and mask: enough to tell one image from another, and cheap enough for the
+ * main thread's state save on tens of megabytes.
+ */
+internal fun draftDigest(bytes: ByteArray): String =
+    "${bytes.size}:" + java.lang.Long.toHexString(CRC32().apply { update(bytes) }.value)
+
+/**
+ * [draftDigest] of the last array it was handed, kept: the reference is the
+ * same array save after save. Held weakly, so a closed wizard's reference is
+ * not kept alive here.
+ */
+private class LastDigest {
+    private var bytes = WeakReference<ByteArray>(null)
+    private var value: String? = null
+
+    @Synchronized
+    fun of(current: ByteArray?): String? {
+        if (current == null) return null
+        if (current !== bytes.get()) {
+            value = draftDigest(current)
+            bytes = WeakReference(current)
+        }
+        return value
     }
 }

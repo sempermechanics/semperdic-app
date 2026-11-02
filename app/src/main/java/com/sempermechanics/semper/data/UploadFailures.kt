@@ -30,7 +30,7 @@ import java.io.File
  * still there, which a retry from the row handles; the other order left it
  * PENDING with no staging, rebuilt under a pointer that may still be live.
  */
-private fun UploadRun.abandon(stagingDir: File, analyticsReason: String?) {
+internal fun UploadRun.abandon(stagingDir: File, analyticsReason: String?) {
     markBackupFailed(context, localId, analyticsReason)
     stagingDir.deleteRecursively()
     RebuildBudget.clear(sessionDir)

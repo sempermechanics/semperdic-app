@@ -33,6 +33,7 @@ from pydantic import BaseModel
 
 import fake_firestore
 import repo_view as repo
+from license_helpers import _mint_individual, _signed_in
 from app import audit, deps, drive, models, tasks
 from app.config import settings
 from app.routers import account
@@ -51,6 +52,7 @@ REQUESTS: dict[str, type[BaseModel]] = {
     "license_activate_request": models.LicenseActivate,  # POST /v1/licenses/activate
     "terms_accept_request": account.TermsAcceptance,  # POST /v1/me/terms
     "consent_update_request": account.ConsentUpdate,  # PUT /v1/me/consents
+    "device_activate_request": models.DeviceActivate,  # POST /v1/me/devices/activate
 }
 
 #: Response fixtures, each produced by the route the scenario names.
@@ -67,6 +69,13 @@ RESPONSES = (
     "recycle_bin_response",  # GET /v1/recycle-bin (ADR-035)
 )
 
+#: A licence's phones (ADR-033), each produced by the phones scenario.
+PHONE_RESPONSES = (
+    "device_activate_response",  # POST /v1/me/devices/activate
+    "devices_response",  # GET /v1/me/devices
+    "device_deactivate_response",  # DELETE /v1/me/devices/{id}
+)
+
 
 def _test_signing_pem() -> str:
     return seeded_p256_key("wire-contract signer TEST ONLY").private_bytes(
@@ -81,7 +90,7 @@ def _fixture(name: str):
 
 def test_every_fixture_is_held_by_this_test():
     on_disk = {p.stem for p in _CONTRACTS.glob("*.json")}
-    held = set(REQUESTS) | set(RESPONSES)
+    held = set(REQUESTS) | set(RESPONSES) | set(PHONE_RESPONSES)
     assert on_disk - held == set(), f"contracts/ files no test checks: {sorted(on_disk - held)}"
     assert held - on_disk == set(), f"contracts/ files missing: {sorted(held - on_disk)}"
 
@@ -226,7 +235,7 @@ async def live(client, monkeypatch, scenario_user):
     )
     monkeypatch.setattr(drive, "init_resumable", lambda *a, **k: "https://drive/resumable")
     monkeypatch.setattr(tasks, "enqueue_provision", lambda sid: True)
-    store._data["users"] = {"dev-user": {"email": "dev@local", "access_status": "APPROVED", "plan": "demo"}}
+    store._data["users"] = {"dev-user": {"email": "dev@local", "emailVerified": True, "access_status": "APPROVED", "plan": "demo"}}
     out: dict = {}
 
     async def call(name, method, path, status=200, **kw):
@@ -322,3 +331,57 @@ def test_recycle_bin_timestamps_are_written_as_the_backend_writes_them(live):
         for key in ("deletedAt", "purgeAt", "erasedAt"):
             if key in want:
                 assert shape.match(want[key]) and shape.match(got[key]), (key, want[key], got[key])
+
+
+# ---------------- a licence's phones (ADR-033) ----------------
+PHONE = DEVICE
+OTHER_PHONE = "and-0b1c2d3e4f5a6b7c"
+
+
+@pytest.fixture
+async def live_phones(client, monkeypatch, store):
+    """The holder of an individual licence that runs activations, for two
+    phones, with two registered (each with its key, so the config carries an
+    `entitlement`): Activate this one, list both, Deactivate it."""
+    monkeypatch.setattr(audit, "record", lambda *a, **k: None)
+    store._data["users"] = {}
+    license_id = _mint_individual("dev@local")["license"]["id"]
+    repo.ensure_entitlement(_signed_in(store, "dev-user", "dev@local"), None)
+    store._data["licenses"][license_id].update(app="semper", maxDevices=2)
+    registered = _NOW - timedelta(days=3)
+    for device_id, model in ((PHONE, "Pixel 5"), (OTHER_PHONE, "Galaxy S22+")):
+        store._data.setdefault("devices", {})[device_id] = {
+            "uid": "dev-user", "status": "ACTIVE", "app": "semper", "model": model,
+            "registeredAt": registered,
+            "publicKeyPem": _fixture("device_register_request")["publicKeyPem"]}
+    monkeypatch.setattr(deps, "_DEV_USER", {**store._data["users"]["dev-user"], "role": "user"})
+    monkeypatch.setattr(settings, "ENTITLEMENT_SIGNING_KEY", _test_signing_pem())
+    this_phone = {"X-Device-Id": PHONE, "X-Activation": "explicit"}
+    out: dict = {}
+
+    async def call(name, method, path, **kw):
+        resp = await client.request(method, path, **kw)
+        assert resp.status_code == 200, f"{name}: {method} {path} -> {resp.status_code} {resp.text}"
+        out[name] = resp.json()
+
+    await call("device_activate_response", "POST", "/v1/me/devices/activate",
+               json=_fixture("device_activate_request"), headers=this_phone)
+    await call("devices_response", "GET", "/v1/me/devices", headers=this_phone)
+    await call("device_deactivate_response", "DELETE", f"/v1/me/devices/{PHONE}")
+    return out
+
+
+@pytest.mark.parametrize("name", PHONE_RESPONSES)
+def test_phone_response_fixture_has_the_shape_the_route_returns(live_phones, name):
+    diff = shape_diff(_fixture(name), live_phones[name])
+    assert not diff, f"contracts/{name}.json and the live response differ:\n  " + "\n  ".join(diff)
+
+
+def test_the_phones_scenario_lists_an_activated_phone_and_one_not(live_phones):
+    """The fixture shows both kinds of row; each must carry every key, or the
+    app's DTO decodes the missing one to its default."""
+    listed = live_phones["devices_response"]
+    assert (listed["model"], listed["devicesActive"], listed["maxDevices"]) == ("activation", 1, 2)
+    assert [(d["thisDevice"], d["activated"]) for d in listed["devices"]] == [(True, True), (False, False)]
+    assert live_phones["device_activate_response"]["config"]["activation"]["state"] == "active"
+    assert live_phones["device_deactivate_response"]["devicesActive"] == 0

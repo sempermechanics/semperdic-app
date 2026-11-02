@@ -239,7 +239,7 @@ object NoiseFloorProbe {
         // own, and reading past the buffer would crash a test shot.
         val gridW = region.width() / step + 1
         val gridH = region.height() / step + 1
-        return DicFieldIo.allocateDirect(gridW * gridH)
+        return DicFieldIo.allocateDirect(gridW.toLong() * gridH)
     }
 
     /** Enough points that σ is well determined; far fewer than a real field. */

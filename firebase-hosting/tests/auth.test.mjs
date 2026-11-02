@@ -187,6 +187,10 @@ test("a Google redirect started under 120 s ago is not repeated by an api retry"
   assert.equal(e.message, auth.ERR_REAUTH_INCOMPLETE);
   assert.equal(fake.callsTo("reauthenticateWithRedirect").length, 0);
   assert.equal(storage.getItem(REAUTH_STARTED), null, "the guard is spent once read");
+  // What the page that made the call says: sign in afresh, not a server refusal.
+  const { explain } = await import("../public/console/messages.js");
+  assert.equal(explain(e, {}, (text) => `Could not revoke: ${text}`),
+    "Re-authentication with Google did not complete. Sign out, then sign in again.");
 });
 
 /* --------------------------------------------------------------- apiBlob */
@@ -464,6 +468,33 @@ test("an account with no factor must enrol TOTP in the page before anything else
   assert.ok(await stillPending(done));
   assert.equal($("status").textContent, "Confirming your second factor with Google…");
   assert.equal(fake.callsTo("reauthenticateWithRedirect").length, 1);
+});
+
+test("Enter while an enrolment code is being checked sends nothing more", async () => {
+  const finishes = [];
+  const finish = (code) => new Promise((resolve, reject) => finishes.push({ code, resolve, reject }));
+  const enrolled = auth.enrolInPage({ qrUrl: "otpauth://x", secret: "S", finish }, "a@b.test", null);
+  const card = page.inserted.find((e) => e.className === "card enrol");
+  const input = card.querySelector("input");
+  input.value = "123456";
+  input.dispatch("keydown", { key: "Enter" });
+  input.dispatch("keydown", { key: "Enter" });
+  card.querySelector(".confirm").click();
+  await settle();
+  assert.deepEqual(finishes.map((f) => f.code), ["123456"], "one finish() while it runs");
+  assert.equal(input.disabled, true);
+  // Refused: the box is given back, and Enter sends the next code.
+  finishes[0].reject(Object.assign(new Error("bad"), { code: "auth/invalid-verification-code" }));
+  await settle();
+  assert.equal(input.disabled, false);
+  assert.equal(card.querySelector(".confirm").disabled, false);
+  input.value = "654321";
+  input.dispatch("keydown", { key: "Enter" });
+  await settle();
+  assert.deepEqual(finishes.map((f) => f.code), ["123456", "654321"]);
+  finishes[1].resolve();
+  await enrolled;
+  assert.ok(card.removed);
 });
 
 test("cancelling enrolment rejects ERR_CANCELLED and enrols nothing", async () => {

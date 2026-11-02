@@ -19,3 +19,8 @@ c748630e2c3f2fb7899b19d11b2e221cb6c0feef:app/src/test/java/com/sempermechanics/s
 # commit replaced with the low-entropy "SEMP-SHOWN-ONCE". Only that commit
 # carries it. Listed by fingerprint, as above.
 0d546e3006ae74977c3667dedea3e373aa721e14:firebase-hosting/tests/operator-mint.test.mjs:generic-api-key:232
+
+# A made-up claim code in the console test for closing the convert dialog
+# (review fix L8-4): "SEMP-LAB1-KEY-ONCE" in a json(200, { key: … }) answer.
+# Not a real key; listed by fingerprint, as above.
+b71c0ec6920308ccb5dc831629e60052e5cf35b7:firebase-hosting/tests/operator-edit.test.mjs:generic-api-key:235

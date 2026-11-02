@@ -51,10 +51,11 @@ class PhonesActivityTest {
         var state = ActivationDto.STATE_AVAILABLE
         var pending: String? = null
         var fetch = ConfigFetch.ANSWERED
+        var model = "activation"
 
         override suspend fun list(): PhonesOutcome {
             calls += "list"
-            return PhonesOutcome.Listed(AccountPhonesDto("lic-1", active, max, model = "activation", devices = phones))
+            return PhonesOutcome.Listed(AccountPhonesDto("lic-1", active, max, model = model, devices = phones))
         }
 
         override suspend fun activate(upgrade: Boolean): ActivateOutcome {
@@ -130,6 +131,21 @@ class PhonesActivityTest {
         assertEquals("Pixel 5", first.findViewById<TextView>(R.id.tvPhoneModel).text.toString())
         assertFalse(first.findViewById<View>(R.id.btnPhoneDeactivate).isShown)
         assertTrue(activity.row(1).findViewById<View>(R.id.btnPhoneDeactivate).isShown)
+    }
+
+    @Test
+    fun `a lock licence's phone offers no Deactivate, and no limit is said as such`() {
+        fake.model = "lock"
+        fake.phones = listOf(here(activated = true))
+        fake.max = 1
+        val lock = screen().get()
+        assertFalse(lock.row(0).findViewById<View>(R.id.btnPhoneDeactivate).isShown)
+
+        fake.model = "activation"
+        fake.active = 3
+        fake.max = PhonesView.UNCOUNTED
+        val open = screen().get()
+        assertEquals("Licensed on 3 phones, with no limit", open.text(R.id.tvPhonesCount))
     }
 
     @Test

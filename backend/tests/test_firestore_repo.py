@@ -55,6 +55,17 @@ def test_nonce_unknown_rejected(store):
     assert repo.consume_nonce("never-issued", "u1", "d1") is False
 
 
+def test_a_used_client_nonce_is_not_a_server_challenge(store):
+    """With client nonces off (`CLIENT_NONCE_WINDOW_SECONDS <= 0`) every nonce
+    is looked up as a challenge, and a claimed client nonce shares the
+    collection: it was accepted once more, and deleted (L1-7)."""
+    nonce = "t1.1790000000." + "A" * 30
+    expire = datetime.now(timezone.utc) + timedelta(minutes=5)
+    assert repo.claim_client_nonce(nonce, "u1", "d1", expire) is True
+    assert repo.consume_nonce(nonce, "u1", "d1") is False
+    assert nonce in store._data["challenges"]
+
+
 # ---------------- admin / approval ----------------
 def test_admin_email_requires_verified(monkeypatch, store):
     monkeypatch.setattr(repo.settings, "ADMIN_EMAILS", {"boss@corp.com"})
@@ -87,6 +98,22 @@ def test_new_admin_user_approved(monkeypatch, store):
     u = repo.get_or_create_user(_claims(sub="admin1", email="boss@corp.com"))
     assert u["access_status"] == "APPROVED"
     assert u["role"] == "admin"
+
+
+def test_admin_taken_out_of_admin_emails_is_demoted_on_next_sign_in(monkeypatch, store):
+    """`role` was only ever promoted, so off-boarded staff stayed `admin` in
+    the record the consoles and the app read (L1-1)."""
+    monkeypatch.setattr(repo.settings, "ADMIN_EMAILS", {"boss@corp.com"})
+    assert repo.get_or_create_user(_claims(sub="admin1", email="boss@corp.com"))["role"] == "admin"
+    monkeypatch.setattr(repo.settings, "ADMIN_EMAILS", set())
+    u = repo.get_or_create_user(_claims(sub="admin1", email="boss@corp.com"))
+    assert u["role"] == "user"
+    assert store._data["users"]["admin1"]["role"] == "user"
+    # Nor does an unverified token keep the role.
+    monkeypatch.setattr(repo.settings, "ADMIN_EMAILS", {"boss@corp.com"})
+    repo.get_or_create_user(_claims(sub="admin1", email="boss@corp.com"))
+    repo.get_or_create_user(_claims(sub="admin1", email="boss@corp.com", verified=False))
+    assert store._data["users"]["admin1"]["role"] == "user"
 
 
 def test_pending_user_promoted_on_qualifying_signin(monkeypatch, store):
@@ -346,6 +373,39 @@ def test_same_device_unverified_email_does_not_adopt(monkeypatch, store):
             _claims(sub="sub-y", email="a@b.com", verified=False), device_id="dev-1",
         )
     assert "sub-y" not in store._data.get("users", {})
+
+
+@pytest.mark.parametrize("status", ["SUPERSEDED", "REVOKED"])
+def test_a_retired_phone_is_not_held_by_the_account_that_first_claimed_it(monkeypatch, store, status):
+    """`claimedDeviceId` is never cleared, and the device-id lookup fell back
+    to it whatever the phone's record said, so a phone released from one
+    account was `device_in_use` to every other account for good (L1-4)."""
+    monkeypatch.setattr(repo.settings, "ADMIN_EMAILS", set())
+    monkeypatch.setattr(repo.settings, "AUTO_APPROVE", False)
+    monkeypatch.setattr(repo.settings, "AUTO_APPROVE_HD", "")
+    repo.get_or_create_user(_claims(sub="sub-a", email="a@b.com"), device_id="dev-1")
+    store._data.setdefault("devices", {})["dev-1"] = {"uid": "sub-a", "status": status}
+
+    other = repo.get_or_create_user(_claims(sub="sub-c", email="other@b.com"), device_id="dev-1")
+
+    assert other["uid"] == "sub-c"
+    assert "sub-c" not in store._data["users"]["sub-a"].get("linkedAuthUids", [])
+
+
+def test_an_unproven_bound_account_is_not_handed_to_a_verified_caller(monkeypatch, store):
+    """The caller's address was asked to be proven, the bound account's was
+    not: an account that typed someone's address unverified was adopted by
+    its owner on a shared phone, its own password sign-in still reaching it
+    (L1-3)."""
+    monkeypatch.setattr(repo.settings, "ADMIN_EMAILS", set())
+    monkeypatch.setattr(repo.settings, "AUTO_APPROVE", False)
+    monkeypatch.setattr(repo.settings, "AUTO_APPROVE_HD", "")
+    repo.get_or_create_user(_claims(sub="squat", email="a@b.com", verified=False,
+                                    provider="password"), device_id="dev-1")
+    with pytest.raises(repo.DeviceInUseError):
+        repo.get_or_create_user(_claims(sub="owner", email="a@b.com"), device_id="dev-1")
+    assert "owner" not in store._data.get("auth_links", {})
+    assert store._data["users"]["squat"]["linkedAuthUids"] == []
 
 
 def test_first_sign_in_race_keeps_the_winner(monkeypatch, store):

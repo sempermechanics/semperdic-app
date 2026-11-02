@@ -74,8 +74,26 @@ object SessionStore {
 
     private fun indexTmpFile(context: Context): File = File(root(context), SessionPaths.INDEX_JSON + ".tmp")
 
-    /** Directory holding a session's .dat frames and reference copy. */
-    fun dirFor(context: Context, id: String): File = File(root(context), id).apply { mkdirs() }
+    /**
+     * Directory holding a session's .dat frames and reference copy, created if absent.
+     * Throws [IllegalArgumentException] unless [id] is a session id
+     * ([SessionPaths.isSafeId]) naming a directory directly under the sessions root:
+     * `..`, `.`, `a/../b` or `index.json` never become a session dir, which a delete
+     * or a failed restore would wipe (L5-1).
+     */
+    fun dirFor(context: Context, id: String): File {
+        val dir = childDir(root(context), id)
+        requireNotNull(dir) { "Session id does not name a directory under the sessions root" }
+        return dir.apply { mkdirs() }
+    }
+
+    /** `root/id` when [id] is a session id and that is a direct child of [root] named exactly [id]; else null. */
+    private fun childDir(root: File, id: String): File? {
+        if (!SessionPaths.isSafeId(id)) return null
+        val dir = File(root, id)
+        val canonical = dir.canonicalFile
+        return dir.takeIf { canonical.parentFile == root.canonicalFile && canonical.name == id }
+    }
 
     /** Subfolder under [sessionDir] for persisted raw deformed originals. */
     fun rawDeformedDir(sessionDir: File): File =
@@ -86,7 +104,7 @@ object SessionStore {
 
     /** Bytes one session occupies on disk, 0 once its artifacts have been dropped. */
     @WorkerThread
-    fun sizeOf(context: Context, id: String): Long = CacheJanitor.sizeOf(File(root(context), id))
+    fun sizeOf(context: Context, id: String): Long = childDir(root(context), id)?.let(CacheJanitor::sizeOf) ?: 0L
 
     /** Bytes every local analysis occupies, including the index itself. */
     @WorkerThread
@@ -137,13 +155,31 @@ object SessionStore {
         context: Context,
         record: SessionRecord,
         allowOverLimit: Boolean = false,
+    ): UpsertOutcome = saveOver(context, record.id, allowOverLimit) { record }
+
+    /**
+     * [save] of what [build] makes of row [id] as the index holds it now (null
+     * when there is none), read and written under the one lock: a change made
+     * to the row since the caller last read it (a rename, or a cloud delete,
+     * while a restore downloaded) is there for [build] to keep. Throws
+     * [IllegalArgumentException] for an [id] that names no session dir, as [dirFor].
+     */
+    @WorkerThread
+    fun saveOver(
+        context: Context,
+        id: String,
+        allowOverLimit: Boolean = false,
+        build: (current: SessionRecord?) -> SessionRecord,
     ): UpsertOutcome = synchronized(lock) {
+        require(SessionPaths.isSafeId(id)) { "Session id does not name a directory under the sessions root" }
         val existing = readRows(context)
         if (existing == null) {
             Timber.e("Refusing upsert: session index is corrupt")
             return@synchronized UpsertOutcome.INDEX_UNAVAILABLE
         }
-        val previous = existing.firstOrNull { it.id == record.id }
+        val previous = existing.firstOrNull { it.id == id }
+        val record = build(previous)
+        require(record.id == id) { "saveOver built row ${record.id} for $id" }
         val owner = SessionOwner.current(context)
         val owned = SessionOwner.visible(existing, owner).size
         if (previous == null && !allowOverLimit && SessionQuota.blocked(context, owned)) {
@@ -219,34 +255,6 @@ object SessionStore {
         applied.takeIf { written }
     }
 
-    /**
-     * The backend now holds metadata built from [sent]. Clears
-     * [SessionRecord.metadataStale] only if what the metadata carries and can
-     * change after a backup ([haveSameMetadataInputs]) is still [sent]'s, so a
-     * change made while the send was in flight is sent again. Returns whether
-     * it cleared.
-     */
-    @WorkerThread
-    fun clearMetadataStale(context: Context, id: String, sent: SessionRecord): Boolean {
-        var cleared = false
-        val written = update(context, id) {
-            if (haveSameMetadataInputs(it, sent)) {
-                cleared = true
-                it.copy(metadataStale = false)
-            } else {
-                it
-            }
-        }
-        return written && cleared
-    }
-
-    /**
-     * The fields a change after the backup can alter in metadata.json, the ones
-     * that mark [SessionRecord.metadataStale]. One place, so a field added to
-     * that list is compared here too.
-     */
-    private fun haveSameMetadataInputs(a: SessionRecord, b: SessionRecord): Boolean = a.name == b.name
-
     /** Remember which cloud session backs this analysis (so it can be erased). */
     @WorkerThread
     fun setCloudSessionId(context: Context, id: String, cloudSessionId: String) =
@@ -263,7 +271,8 @@ object SessionStore {
     /** Removes the index row AND the local files. Cloud copies are untouched. */
     @WorkerThread
     fun delete(context: Context, id: String): Unit = synchronized(lock) {
-        if (removeRow(context, id)) dirFor(context, id).deleteRecursively()
+        // A row whose id names no session dir (L5-1) loses its row, never a directory.
+        if (removeRow(context, id)) childDir(root(context), id)?.deleteRecursively()
     }
 
     /**
@@ -282,10 +291,8 @@ object SessionStore {
      */
     @WorkerThread
     fun deleteUnsavedDir(context: Context, id: String): Boolean = synchronized(lock) {
-        val root = root(context)
-        val dir = File(root, id)
-        // Never the sessions root itself, or anything outside it.
-        if (id in setOf("", ".", "..") || dir.parentFile != root || dir.name != id) return@synchronized false
+        // Never the sessions root itself, or anything outside it (L5-1).
+        val dir = childDir(root(context), id) ?: return@synchronized false
         val rows = readRows(context) ?: return@synchronized false
         if (rows.any { it.id == id }) return@synchronized false
         dir.deleteRecursively()
@@ -318,34 +325,27 @@ object SessionStore {
     }
 
     /**
-     * Deletes the folders runs the process died in left behind (readiness
-     * TE1-101): a folder under the sessions root that no index row names,
-     * that holds a `run_staging/` and no record manifest, and that nothing has
-     * written since [startedAtMs] (a run started in this process is live).
-     * Nothing is deleted while the index does not parse. Returns the bytes freed.
+     * Deletes each folder under the root that no row names and [reclaimable]
+     * accepts, under the index lock; the bytes freed. Nothing goes while the
+     * index does not parse. The policies are in `RunFolderReclaim.kt`.
      */
     @WorkerThread
-    fun reclaimDeadRuns(context: Context, startedAtMs: Long): Long = synchronized(lock) {
-        val rows = readRows(context) ?: return@synchronized 0L
-        val named = rows.flatMap { listOf(it.id, File(it.sessionDir).name) }.toSet()
-        root(context).listFiles().orEmpty()
-            .filter { dir ->
-                dir.isDirectory &&
-                    dir.name !in named &&
-                    SessionPaths.runStaging(dir).isDirectory &&
-                    !SessionLayout(dir).recordManifest.exists() &&
-                    dir.walkTopDown().all { it.lastModified() < startedAtMs }
-            }
-            .sumOf { dir ->
-                val bytes = CacheJanitor.sizeOf(dir)
-                if (dir.deleteRecursively()) {
-                    Timber.i("Reclaimed %d bytes a killed run left in %s", bytes, dir.name)
-                    bytes
-                } else {
-                    0L
+    internal fun reclaimUnindexed(context: Context, what: String, reclaimable: (File) -> Boolean): Long =
+        synchronized(lock) {
+            val rows = readRows(context) ?: return@synchronized 0L
+            val named = rows.flatMap { listOf(it.id, File(it.sessionDir).name) }.toSet()
+            root(context).listFiles().orEmpty()
+                .filter { dir -> dir.isDirectory && dir.name !in named && reclaimable(dir) }
+                .sumOf { dir ->
+                    val bytes = CacheJanitor.sizeOf(dir)
+                    if (dir.deleteRecursively()) {
+                        Timber.i("Reclaimed %d bytes %s left in %s", bytes, what, dir.name)
+                        bytes
+                    } else {
+                        0L
+                    }
                 }
-            }
-    }
+        }
 
     /**
      * Wipes the current account's local analyses: used by account deletion
@@ -361,7 +361,7 @@ object SessionStore {
         val kept = rows?.filterNot { it.ownerUid == owner }.orEmpty()
         if (rows != null && kept.isNotEmpty()) {
             val root = root(context)
-            rows.filter { it.ownerUid == owner }.forEach { File(root, it.id).deleteRecursively() }
+            rows.filter { it.ownerUid == owner }.forEach { childDir(root, it.id)?.deleteRecursively() }
             write(context, kept)
         } else {
             root(context).deleteRecursively()

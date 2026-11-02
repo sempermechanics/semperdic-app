@@ -298,6 +298,12 @@ def consume_nonce(nonce: str, uid: str, device_id: str) -> bool:
         d = snap.to_dict()
         if d.get("uid") != uid or d.get("deviceId") != device_id:
             return False
+        # A used client nonce (`claim_client_nonce`) shares this collection.
+        # It is a record of a spent nonce, not a challenge: with client
+        # nonces switched off (`parse_client_nonce`) it would otherwise be
+        # accepted once more as one, and deleted.
+        if d.get("kind") == "client":
+            return False
         exp = d.get("expireAt")
         if not (exp and exp > _now()):
             return False

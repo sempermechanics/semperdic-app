@@ -64,7 +64,10 @@ def activate_this_phone(
 
     `{"upgrade": true}` activates it on the new licence issued to the
     account instead, which moves the account there and revokes the old one
-    (`repo.apply_upgrade`); `404 no_pending_upgrade` with none waiting.
+    (`repo.apply_upgrade`); `404 no_pending_upgrade` with none waiting, or
+    when the old licence was revoked rather than replaced. Any refusal the
+    activation would give is found before the account moves, with the same
+    code, so the holder stays on the old licence.
 
     The answer carries the config the phone holds from now on, so the app
     unlocks without a restart or a second call.

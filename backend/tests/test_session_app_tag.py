@@ -276,6 +276,34 @@ async def test_the_bundle_metadata_and_delete_stay_account_wide(uploaded, client
     assert "a-semper" not in uploaded._data["sessions"]
 
 
+async def test_a_files_content_needs_the_licence_of_its_sessions_app(uploaded, client, monkeypatch):
+    """Semper licensed, Semper Classroom on Demo (ADR-033): a Semper phone
+    reads a Semper backup's file back and is refused a Classroom one's, as
+    the bundle is. It checked the asking app's licence instead (review L3-4)."""
+    uploaded._data["files"]["b-mt_bundle_Session.zip"] = {
+        "sessionId": "b-mt", "uid": DEV_UID, "role": "bundle", "name": "Session.zip",
+        "sizeBytes": 4, "status": statuses.FILE_COMPLETED, "driveFileId": "drive-mt",
+    }
+    class _Download:
+        status_code, headers = 200, {}
+
+        def iter_chunks(self, chunk_size=0):
+            yield b"data"
+
+    monkeypatch.setattr(drive, "open_download", lambda *a, **k: _Download())
+    asked = []
+    repo.patch(monkeypatch, "cloud_backup_enabled",
+               lambda user, app=apps.SEMPER: asked.append(app) or app == apps.SEMPER)
+
+    mine = await client.get("/v1/files/a-semper_bundle_Session.zip/content", headers=SEMPER_HEADER)
+    theirs = await client.get("/v1/files/b-mt_bundle_Session.zip/content", headers=SEMPER_HEADER)
+
+    assert mine.status_code == 200 and mine.content == b"data"
+    assert theirs.status_code == 403
+    assert theirs.json()["detail"].startswith("feature_not_licensed: ")
+    assert asked == [apps.SEMPER, MT]
+
+
 # ------------------------------------------------------------------ backfill
 
 

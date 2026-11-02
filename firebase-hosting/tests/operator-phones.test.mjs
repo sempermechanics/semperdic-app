@@ -135,6 +135,43 @@ test("a phone already gone is said, and the list is read again", async () => {
   assert.equal(sent(/devices$/).length, 2, "read on open, and again after the refusal");
 });
 
+test("Deactivate is held from the first click until the DELETE answers: a second click sends nothing", async () => {
+  let deletes = 0;
+  await openPhones(APP_IND, {
+    [DEVICES]: () => listing(deletes ? [] : [phone(PIXEL)]),
+    [`DELETE /v1/admin/licenses/${APP_IND.id}/devices/${PIXEL}`]: () => (deletes++
+      ? json(404, { detail: "activation_not_found" })
+      : json(200, { devicesActive: 0, maxDevices: 2, released: true })),
+  });
+  confirms.answer(true, true);
+  const button = deactivateButton(PIXEL);
+  button.click();
+  assert.equal(button.disabled, true, "disabled while its card is open");
+  button.click();
+  await settle();
+  assert.equal(confirms.cards.length, 1, "one card");
+  assert.deepEqual(sent(/DELETE/), [`DELETE /v1/admin/licenses/${APP_IND.id}/devices/${PIXEL}`]);
+  assert.deepEqual(hint(), [`Pixel 6 (${PIXEL}) deactivated and signed out: its place is free. 0 of 2 active.`, "muted"],
+    "no second answer overwrites the success");
+});
+
+test("a declined or refused Deactivate gives the button back", async () => {
+  await openPhones(APP_IND, {
+    [DEVICES]: () => listing([phone(PIXEL)]),
+    [`DELETE /v1/admin/licenses/${APP_IND.id}/devices/${PIXEL}`]: () => json(503, { detail: "unavailable" }),
+  });
+  confirms.answer(false);
+  deactivateButton(PIXEL).click();
+  await settle();
+  assert.equal(deactivateButton(PIXEL).disabled, false, "declined");
+  confirms.answer(true);
+  deactivateButton(PIXEL).click();
+  await settle();
+  assert.equal(hint()[1], "err");
+  assert.equal(deactivateButton(PIXEL).disabled, false, "refused");
+  assert.equal(sent(/DELETE/).length, 1);
+});
+
 /* ----------------------------------------------------------------- add */
 
 const ADD = `POST /v1/admin/licenses/${APP_IND.id}/devices/${GALAXY}`;

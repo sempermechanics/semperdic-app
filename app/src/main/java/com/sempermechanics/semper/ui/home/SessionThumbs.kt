@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import androidx.annotation.ColorInt
+import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import androidx.core.graphics.createBitmap
 import com.sempermechanics.semper.data.session.SessionPaths
@@ -110,9 +111,36 @@ internal class SessionThumbs(
          * cached for next time. No frames: [ThumbnailLoader.Decoded.Missing]
          * (a restore may bring them). A frame with no accepted point renders
          * nothing: [ThumbnailLoader.Decoded.Undecodable], so the reference stays.
+         *
+         * Never throws: it runs on a bare executor, where a throw kills the app
+         * ([ThumbnailLoader]: "a decode that can throw catches for itself"). A
+         * read that throws, or running out of memory, is
+         * [ThumbnailLoader.Decoded.Missing] (tried again on the next bind); a
+         * render that throws is [ThumbnailLoader.Decoded.Undecodable].
          */
         @WorkerThread
-        fun decodeResult(key: ResultKey, edgePx: Int, @ColorInt holeColor: Int): ThumbnailLoader.Decoded {
+        fun decodeResult(key: ResultKey, edgePx: Int, @ColorInt holeColor: Int): ThumbnailLoader.Decoded =
+            decodeResult(key) { dat, step -> ResultThumbnail.render(dat, step, edgePx, holeColor) }
+
+        /** [decodeResult] with its [render] of a frame at a grid step; a test makes it throw. */
+        @VisibleForTesting
+        @WorkerThread
+        internal fun decodeResult(key: ResultKey, render: (dat: File, step: Int) -> Bitmap?): ThumbnailLoader.Decoded =
+            try {
+                renderResult(key, render)
+            } catch (e: IOException) {
+                Timber.w(e, "Home result thumbnail: frames unreadable")
+                ThumbnailLoader.Decoded.Missing
+            } catch (e: OutOfMemoryError) {
+                Timber.w(e, "Home result thumbnail: out of memory")
+                ThumbnailLoader.Decoded.Missing
+            } catch (@Suppress("TooGenericExceptionCaught") e: RuntimeException) {
+                Timber.w(e, "Home result thumbnail: frame not drawable")
+                ThumbnailLoader.Decoded.Undecodable
+            }
+
+        @WorkerThread
+        private fun renderResult(key: ResultKey, render: (dat: File, step: Int) -> Bitmap?): ThumbnailLoader.Decoded {
             val dir = File(key.sessionDir)
             val frames = dir.listFiles { f -> f.extension == "dat" }?.sortedBy { it.name }.orEmpty()
             val last = frames.lastOrNull() ?: return ThumbnailLoader.Decoded.Missing
@@ -121,7 +149,7 @@ internal class SessionThumbs(
             // Sweep steps are aligned with the solved frames, as the viewer reads them.
             val step = key.sweepSteps.getOrElse(frames.lastIndex) { key.step }
             val bitmap = cached
-                ?: ResultThumbnail.render(last, step, edgePx, holeColor)?.also { ResultThumbnail.write(it, cache) }
+                ?: render(last, step)?.also { ResultThumbnail.write(it, cache) }
             return if (bitmap != null) ThumbnailLoader.Decoded.Loaded(bitmap) else ThumbnailLoader.Decoded.Undecodable
         }
     }

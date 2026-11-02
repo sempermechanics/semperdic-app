@@ -12,6 +12,15 @@
         <item quantity="one">Your institution\'s licence: %1$d of %2$d phone in use</item>
         <item quantity="other">Your institution\'s licence: %1$d of %2$d phones in use</item>
     </plurals>
+    <!-- A licence with no limit on its phones (PhonesView.UNCOUNTED). -->
+    <plurals name="phones_count_unlimited_fmt">
+        <item quantity="one">Licensed on %1$d phone, with no limit</item>
+        <item quantity="other">Licensed on %1$d phones, with no limit</item>
+    </plurals>
+    <plurals name="phones_pool_unlimited_fmt">
+        <item quantity="one">Your institution\'s licence: %1$d phone in use, with no limit</item>
+        <item quantity="other">Your institution\'s licence: %1$d phones in use, with no limit</item>
+    </plurals>
     <string name="phones_this_active">This phone is activated.</string>
     <string name="phones_this_available">This phone isn\'t activated. Activate it to use your licence here.</string>
     <string name="phones_this_full">Every phone your licence covers is in use. Deactivate one to activate this phone.</string>

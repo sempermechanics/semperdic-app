@@ -186,7 +186,10 @@ first page. Anything that lists cloud sessions should go through it rather than
 issuing a single request. It lists this app's sessions (`X-App-Id`, ADR-014);
 `app = CloudApi.ALL_APPS` lists the whole account, which the reconcile asks
 only when a SYNCED row is missing from its own list, so a row restored from the
-other app's backup is not uploaded again (`CloudReconcile.list`).
+other app's backup is not uploaded again (`CloudReconcile.list`). Those rows
+are remembered (`OtherAppBackups`): this app's restore of one is `404
+session_not_found`, so the storage budget never drops its phone copy and Home
+warns before "From this phone" deletes it.
 
 ### The interceptors on the shared client
 
@@ -207,8 +210,14 @@ nonce: the bucket is a route dependency (`deps.rate_limited`) resolved ahead of
 it before *and* after handing a request on, so it is retried only for GET and
 for the POSTs whose handlers are idempotent by contract. Session create and the
 upload broker are deliberately absent — a duplicate there costs a Drive object.
-Three attempts with a ceiling, honouring `Retry-After`; where a call is
-worker-mediated, WorkManager's own backoff owns the long game.
+A device-signed request's 503 is not retried by the interceptor: it may have
+been delivered after `verified_device` claimed its single-use nonce, so the
+same request again is `401 nonce_invalid_or_replayed`. `SemperApiSigning`
+retries it instead, on the same rule, signed under a fresh nonce each time; a
+nonce refusal that follows such a retry falls back to a server challenge for
+that call without turning client nonces off for the process. Three attempts
+with a ceiling, honouring `Retry-After`; where a call is worker-mediated,
+WorkManager's own backoff owns the long game.
 
 `AppCheckHeader` attaches `X-Firebase-AppCheck` to the configured API host
 only — Drive shares this client and has no use for it — and **fails open**: a
@@ -357,6 +366,13 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
   It must stay serialized: an earlier version launched a coroutine per neighbour on
   every frame load, so peak memory scaled with *how fast the user scrubbed* rather than
   with any bound.
+  Out of memory, the loader drops the decoded frames only (`ScrubFrameCache.clearData`):
+  the cached heatmaps include the one on screen, so they are recycled only by `clear`
+  in the viewer's `onDestroy`, which spares that one. The caches key a render and its
+  stats by the frame whose data was drawn (`ResultViewerActivity.rawFrameIndex`), not
+  by `currentFrameIndex`, which Prev / Next move before the debounced decode lands;
+  the photo under the map (`ViewerImageLoader.onFramePhoto`, and which decoded photo
+  is kept) follows the same frame.
 - **Whole-batch passes are started on demand, never on open.** The summary's colour-scale
   scan (`ViewerSummaryController.start`) decodes **every frame in the batch**, so it runs from
   `show()` rather than from viewer startup — opening straight onto a frame must not pay

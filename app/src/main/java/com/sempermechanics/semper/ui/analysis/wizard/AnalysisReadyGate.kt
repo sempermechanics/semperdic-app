@@ -7,18 +7,24 @@ import com.sempermechanics.semper.databinding.WizardStepSettingsContentBinding
 import com.sempermechanics.semper.field.Roi
 import com.sempermechanics.semper.ui.analysis.StaticAnalysisActivity
 import com.sempermechanics.semper.ui.analysis.recommend.RunEstimate
+import com.sempermechanics.semper.ui.analysis.run.DicFieldIo
 import com.sempermechanics.semper.ui.analysis.sweep.SweepSetupController
 import com.sempermechanics.semper.ui.common.dialog.WarnChip
+import java.util.Locale
 
 /**
  * Wizard readiness / Compute / Sweep enablement extracted from
- * [StaticAnalysisActivity.checkReady].
+ * [StaticAnalysisActivity.checkReady]. [gridSizeChip] says when the run's
+ * grid would not fit a heap of [maxHeapBytes] ([DicFieldIo.fits]), which
+ * blocks Compute and Run sweep as `admitRun` would at the start.
  */
 class AnalysisReadyGate(
     private val viewModel: AnalysisViewModel,
     private val binding: ActivityStaticAnalysisBinding,
     private val settings: WizardStepSettingsContentBinding,
     private val frameSizeChip: WarnChip,
+    private val gridSizeChip: WarnChip,
+    private val maxHeapBytes: Long = Runtime.getRuntime().maxMemory(),
 ) {
 
     /** The wizard's inputs as the view model holds them now. */
@@ -41,18 +47,50 @@ class AnalysisReadyGate(
 
         val sizeError = inputs.frameSizeError
         frameSizeChip.showOrHide(sizeError)
+        val gridError = gridSizeError(sweepController)
+        gridSizeChip.showOrHide(gridError)
 
         // Compute and Run sweep share every condition but the mode.
         val canRun = ready &&
             inputs.settingsReviewed &&
             !isProcessing &&
-            sizeError == null
+            sizeError == null &&
+            gridError == null
         binding.btnCalculateFullField.isEnabled = canRun && !inputs.sweepMode
         sweepController.setRunSweepEnabled(canRun && inputs.sweepMode && sweepController.currentPlan().isNotEmpty())
 
         settings.btnDefineRoi.isEnabled = (inputs.refBytes != null) && !isProcessing
         binding.btnBack.isEnabled = !isProcessing
         showEstimate()
+    }
+
+    /**
+     * Why the run's grid would not fit this phone's memory, or null when it
+     * does. A single run's is its region at the step slider's step; a sweep's
+     * is the one buffer its runner sizes: the region the largest subset
+     * leaves, at the plan's finest step (`WizardRunLauncher`, `SweepStudyRunner`).
+     */
+    private fun gridSizeError(sweepController: SweepSetupController): String? {
+        val format = { n: Long -> String.format(Locale.getDefault(), "%,d", n) }
+        return runGridPoints(sweepController)?.takeUnless { DicFieldIo.fits(it, maxHeapBytes) }?.let {
+            binding.root.context.getString(
+                R.string.grid_too_large_fmt,
+                format(it),
+                format(DicFieldIo.pointCap(maxHeapBytes)),
+            )
+        }
+    }
+
+    /** The grid [gridSizeError] checks, or null with no region or no sweep plan yet. */
+    private fun runGridPoints(sweepController: SweepSetupController): Long? = if (inputs.sweepMode) {
+        sweepController.currentPlan().takeIf { it.isNotEmpty() }?.let { plan ->
+            Roi.forSolve(plan.maxOf { it.subset }, inputs.hasCustomRoi, inputs.roi, inputs.refSize)
+                ?.let { DicFieldIo.gridPoints(it.w, it.h, plan.minOf { point -> point.step }) }
+        }
+    } else {
+        val subset = settings.sliderSubsetSize.value.toInt()
+        Roi.forSolve(subset, inputs.hasCustomRoi, inputs.roi, inputs.refSize)
+            ?.let { DicFieldIo.gridPoints(it.w, it.h, settings.sliderStepSize.value.toInt()) }
     }
 
     /**

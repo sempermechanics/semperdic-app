@@ -28,6 +28,9 @@ enum class RejectReason {
     WRONG_APP,
     WRONG_DEVICE,
     WRONG_DEVICE_KEY,
+
+    /** `sub` is not the account signed in on this phone. */
+    WRONG_ACCOUNT,
 }
 
 /** The outcome of [EntitlementVerifier.verify]. */
@@ -59,6 +62,11 @@ class EntitlementVerifier(private val pins: EntitlementPins) {
         val deviceId: String,
         /** [DeviceKeyThumbprint.of] this device's Keystore public key. */
         val deviceKeyThumbprint: String,
+        /**
+         * The account signed in here (its Firebase uid), which `sub` must
+         * name; null when none is known, which checks nothing.
+         */
+        val accountUid: String? = null,
     )
 
     fun verify(token: String, expected: Expected): Verification {
@@ -88,6 +96,7 @@ class EntitlementVerifier(private val pins: EntitlementPins) {
             claims.app != expected.appId -> RejectReason.WRONG_APP
             claims.dev != expected.deviceId -> RejectReason.WRONG_DEVICE
             claims.dkt != expected.deviceKeyThumbprint -> RejectReason.WRONG_DEVICE_KEY
+            expected.accountUid != null && claims.sub != expected.accountUid -> RejectReason.WRONG_ACCOUNT
             else -> null
         }
         return if (mismatch != null) Verification.Rejected(mismatch) else Verification.Verified(kid, claims)

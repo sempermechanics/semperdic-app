@@ -212,6 +212,12 @@ object PrefFiles {
 
         /** Backups the sync from other phones has already started a restore of, once each (`PhoneSync`). */
         val SYNC_TRIED = PrefKey.stringSet("sync_tried")
+
+        /**
+         * Local ids of SYNCED rows whose backup another app holds (ADR-014,
+         * `CloudReconcile.list`'s keep): this app cannot restore them.
+         */
+        val OTHER_APP = PrefKey.stringSet("other_app")
     }
 
     /** `CloudSync.reconcile`'s throttle. */

@@ -96,17 +96,21 @@ internal object SemperEngine {
      * Solves [params]' region of [defBytes] against [refBytes] into [buffer],
      * which is cleared first. [metrics] receives the telemetry slots
      * ([EngineStats.fromArray]); the sweep passes [EngineStats.newMetrics],
-     * the probe a plain zeroed array. Progress goes to [SILENT]: both
-     * callers ignored it, and the batch, which reports it, is not a caller.
+     * the probe a plain zeroed array. Progress goes to [callback], [SILENT]
+     * unless given: neither caller shows it, and the batch, which does, is
+     * not a caller. The sweep passes one that puts back a cancel the
+     * engine's solve start cleared (`AnalysisCancel.reassertIfRequested`).
      *
      * @return the engine's result: points written, or a negative engine code.
      */
+    @Suppress("LongParameterList") // the solve's inputs, its two outputs and its progress
     fun solve(
         refBytes: ByteArray,
         defBytes: ByteArray,
         params: Params,
         buffer: ByteBuffer,
         metrics: FloatArray = EngineStats.newMetrics(),
+        callback: ProgressCallback = SILENT,
     ): Int {
         buffer.clear()
         return solver.solve(
@@ -114,7 +118,7 @@ internal object SemperEngine {
             params.roiX, params.roiY, params.roiW, params.roiH,
             params.step, params.subset, params.strainWindow,
             params.use6x6,
-            buffer, SILENT, metrics,
+            buffer, callback, metrics,
         )
     }
 }

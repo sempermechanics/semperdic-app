@@ -259,6 +259,32 @@ def test_base_uri_none_with_a_base_element_fails(checker, tree):
     _one_failure(checker, tree, "base-uri", "rely on <base>")
 
 
+# ---------------- 14: repository documents are not published ----------------
+def test_a_readme_under_public_that_hosting_would_serve_fails(checker, tree):
+    _write(_console(tree, "README.md"), "# How the console deploys\n")
+    _one_failure(checker, tree, "public/console/README.md would be published")
+
+
+def test_a_readme_under_public_that_hosting_ignores_passes(checker, tree):
+    _write(_console(tree, "README.md"), "# How the console deploys\n")
+    _write(tree / "firebase-hosting/public/NOTES.md", "notes\n")
+    path = tree / "firebase-hosting/firebase.json"
+    config = json.loads(path.read_bytes())
+    config["hosting"]["ignore"] = ["firebase.json", "**/.*", "**/*.md"]
+    _write(path, json.dumps(config))
+    assert checker.run(str(tree)) == []
+
+
+def test_the_ignore_glob_matches_as_hosting_does(checker):
+    md = checker._glob_regex("**/*.md")
+    assert md.fullmatch("README.md") and md.fullmatch("console/README.md") and md.fullmatch("a/b/c.md")
+    assert not md.fullmatch("console/README.mdx")
+    dot = checker._glob_regex("**/.*")
+    assert dot.fullmatch(".env") and dot.fullmatch("console/.DS_Store") and not dot.fullmatch("console/a.js")
+    assert checker._glob_regex("firebase.json").fullmatch("firebase.json")
+    assert not checker._glob_regex("*.md").fullmatch("console/README.md"), "* stays within one directory"
+
+
 # ---------------- 7: gateway paths ----------------
 def test_a_path_the_gateway_does_not_declare_fails(checker, tree):
     _edit(_console(tree, "account", "page.js"), "api(`/v1/me`)", "api(`/v1/me/${answer}/export`)")

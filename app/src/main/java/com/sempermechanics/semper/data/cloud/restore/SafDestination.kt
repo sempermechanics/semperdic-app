@@ -3,7 +3,7 @@ package com.sempermechanics.semper.data.cloud.restore
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.provider.DocumentsContract
+import com.sempermechanics.semper.util.SafCopy
 import timber.log.Timber
 import java.io.File
 
@@ -25,10 +25,7 @@ internal class SafDestination(private val context: Context, val uri: Uri) {
             .getOrDefault(false)
 
     /** Removes the document, so a failed download leaves no empty file behind. */
-    fun delete() {
-        runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }
-            .onFailure { Timber.w(it, "Could not delete empty destination document") }
-    }
+    fun delete() = SafCopy.discard(context.contentResolver, uri)
 
     /** Gives up the persistable grant once no attempt will write here again. */
     fun releaseGrant() {

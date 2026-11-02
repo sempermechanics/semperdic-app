@@ -133,6 +133,27 @@ class ViewerControllersTest {
 
     // ── ViewerScaleController ────────────────────────────────────────────
 
+    @Test
+    fun `a field switched while Next's frame is pending is cached under the frame it drew`() {
+        val activity = viewer()
+        idleUntil("the first heatmap") { activity.scale.cachedHeatmap != null }
+        val first = activity.scale.cachedHeatmap
+
+        // Next moves the index at once; frame 2's decode waits out the debounce.
+        activity.findViewById<View>(R.id.btnNextFrame).performClick()
+        // The field popup's path, drawn from frame 1's data still on screen.
+        activity.viewModel.field = FieldKind.EXX
+        activity.scale.updateVisualization(DicResult.IDX_EXX)
+        idleUntil("frame 1's EXX map") { activity.scale.cachedHeatmap !== first }
+        assertEquals("the data on screen is still frame 1's", 0, activity.rawFrameIndex)
+
+        shadowOf(activity.mainLooper).idleFor(Duration.ofMillis(100))
+        idleUntil("frame 2") { activity.rawFrameIndex == 1 }
+        // exx = frame × 0.001, stated in millistrain: frame 2's 1, not frame 1's 0 cached under its index.
+        val metrics = activity.viewModel.fieldMetricsFor(1, DicResult.IDX_EXX, activity.rawData!!)
+        assertEquals(1f, metrics.stats!!.max, 1e-5f)
+    }
+
     private fun ResultViewerActivity.openScaleDialog(): AlertDialog {
         scale.showCustomScaleDialog()
         idle()
@@ -212,6 +233,19 @@ class ViewerControllersTest {
         assertEquals(FRAMES, snapshot.batchFiles.size)
         assertEquals(activity.viewModel.currentFrameIndex, snapshot.frameIndex)
         assertNotNull("a single run carries its summary", snapshot.summary)
+    }
+
+    @Test
+    fun `a share taken while Next's frame is pending exports that frame's own data`() {
+        val activity = viewer()
+
+        activity.findViewById<View>(R.id.btnNextFrame).performClick()
+        assertEquals("frame 1's data is still on screen", 0, activity.rawFrameIndex)
+        val snapshot = activity.share.buildShareSnapshot()!!
+
+        assertEquals(1, snapshot.frameIndex)
+        // u = frame index: frame 2's field, under frame 2's name and photo.
+        assertEquals(1f, snapshot.frameData()[DicResult.IDX_U])
     }
 
     // ── ShareExportBuilder ───────────────────────────────────────────────
