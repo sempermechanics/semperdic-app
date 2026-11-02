@@ -116,8 +116,12 @@ emulator (`scripts/micro_ab.py`, [TESTING.md](docs/app/TESTING.md)); the phone-r
 [PERF_BASELINE_bd44af0.md](docs/engine/PERF_BASELINE_bd44af0.md)) is a manual reference.
 Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 
-## Current state (2026-10-30)
+## Current state (2026-11-01)
 
+- **Review fixes open** (2026-11-01): #521–#534. Merge #522, #524, the backend PRs (#521 #525 #523 #528
+  #527; re-run `UPDATE_OPENAPI_SNAPSHOT=1` on conflicts), then #526 #531 #532 #530. Hold the recycle bin
+  (ADR-035: #529 → #533 → #534) for counsel's Privacy text (TD-277): on `main`, any prod backend deploy
+  ships it. Owner steps are in each PR body.
 - **Deployed.** Backend from `main` at `12a89d31` (2026-10-30; everything through #515, ADR-033
   included): staging `semper-api-staging-41004261956-1`, production `semper-api-41007741365-1`;
   gateways `v202610300446-120` (staging), `v202610300526-121` (production). Both run
