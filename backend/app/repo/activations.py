@@ -448,7 +448,9 @@ def account_devices(user: dict, app: str, device_id: str = "") -> dict:
     """The holder's phones for `app`: every phone registered to the account
     for it, each marked whether the licence licenses it, and the licence's
     count. What the app's phones screen and the web account page show; a
-    holder sees only their own phones, never another member's."""
+    holder sees only their own phones, never another member's. Every row
+    carries every key (`activatedAt` null and `activatedBy` "" on a phone the
+    licence does not cover), as `contracts/devices_response.json` pins."""
     uid = user.get("uid") or ""
     phones = {}
     for snap in _stream(db().collection("devices").where("uid", "==", uid)):
@@ -456,7 +458,8 @@ def account_devices(user: dict, app: str, device_id: str = "") -> dict:
         if dev.get("status") == statuses.DEVICE_ACTIVE and apps.same_app(dev.get("app"), app):
             phones[snap.id] = {"deviceId": snap.id, "model": dev.get("model") or "",
                                "registeredAt": dev.get("registeredAt") or dev.get("createdAt"),
-                               "activated": False, "thisDevice": snap.id == device_id}
+                               "activated": False, "thisDevice": snap.id == device_id,
+                               "activatedAt": None, "activatedBy": ""}
     view = apps.licence_view(user, app)
     license_id = view.get("licenseId") or ""
     lic = (get_license(license_id) or {}) if license_id else {}
@@ -468,7 +471,8 @@ def account_devices(user: dict, app: str, device_id: str = "") -> dict:
                 row = phones.setdefault(act["deviceId"], {
                     "deviceId": act["deviceId"], "model": act["deviceModel"],
                     "registeredAt": None, "activated": False,
-                    "thisDevice": act["deviceId"] == device_id})
+                    "thisDevice": act["deviceId"] == device_id,
+                    "activatedAt": None, "activatedBy": ""})
                 row.update(activated=True, activatedAt=act["activatedAt"],
                            activatedBy=act["activatedBy"])
             answer.update(devicesActive=_count(lic), maxDevices=max_devices(lic),

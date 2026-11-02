@@ -158,7 +158,10 @@ first page. Anything that lists cloud sessions should go through it rather than
 issuing a single request. It lists this app's sessions (`X-App-Id`, ADR-014);
 `app = CloudApi.ALL_APPS` lists the whole account, which the reconcile asks
 only when a SYNCED row is missing from its own list, so a row restored from the
-other app's backup is not uploaded again (`CloudReconcile.list`).
+other app's backup is not uploaded again (`CloudReconcile.list`). Those rows
+are remembered (`OtherAppBackups`): this app's restore of one is `404
+session_not_found`, so the storage budget never drops its phone copy and Home
+warns before "From this phone" deletes it.
 
 ### The interceptors on the shared client
 
@@ -179,8 +182,14 @@ nonce: the bucket is a route dependency (`deps.rate_limited`) resolved ahead of
 it before *and* after handing a request on, so it is retried only for GET and
 for the POSTs whose handlers are idempotent by contract. Session create and the
 upload broker are deliberately absent — a duplicate there costs a Drive object.
-Three attempts with a ceiling, honouring `Retry-After`; where a call is
-worker-mediated, WorkManager's own backoff owns the long game.
+A device-signed request's 503 is not retried by the interceptor: it may have
+been delivered after `verified_device` claimed its single-use nonce, so the
+same request again is `401 nonce_invalid_or_replayed`. `SemperApiSigning`
+retries it instead, on the same rule, signed under a fresh nonce each time; a
+nonce refusal that follows such a retry falls back to a server challenge for
+that call without turning client nonces off for the process. Three attempts
+with a ceiling, honouring `Retry-After`; where a call is worker-mediated,
+WorkManager's own backoff owns the long game.
 
 `AppCheckHeader` attaches `X-Firebase-AppCheck` to the configured API host
 only — Drive shares this client and has no use for it — and **fails open**: a

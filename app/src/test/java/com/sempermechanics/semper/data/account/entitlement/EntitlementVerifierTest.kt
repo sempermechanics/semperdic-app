@@ -106,6 +106,14 @@ class EntitlementVerifierTest {
     }
 
     @Test
+    fun `a token for another account is refused, and none is checked with no account known`() {
+        val other = tokens.expected.copy(accountUid = "uid-2")
+        assertEquals(rejected(RejectReason.WRONG_ACCOUNT), verify(tokens.token(), other))
+        assertTrue(verify(tokens.token(), tokens.expected.copy(accountUid = "uid-1")) is Verification.Verified)
+        assertTrue(verify(tokens.token(), tokens.expected.copy(accountUid = null)) is Verification.Verified)
+    }
+
+    @Test
     fun `the same token on another device is refused`() {
         val elsewhere = tokens.expected.copy(deviceId = "and-second-phone")
         assertEquals(rejected(RejectReason.WRONG_DEVICE), verify(tokens.token(), elsewhere))

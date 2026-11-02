@@ -130,6 +130,7 @@ class PhonesActivity : AppCompatActivity() {
                 }
             }
         }
+        adapter.canDeactivate = PhonesView.canDeactivate(phones)
         adapter.submitList(phones.devices)
     }
 
@@ -163,6 +164,15 @@ class PhonesActivity : AppCompatActivity() {
                 notifyDataSetChanged()
             }
 
+        /** The licence deactivates one phone (not a lock licence): Deactivate shows. */
+        var canDeactivate = false
+            set(value) {
+                if (field == value) return
+                field = value
+                @Suppress("NotifyDataSetChanged") // a handful of rows, each with the one button
+                notifyDataSetChanged()
+            }
+
         inner class Holder(val row: ItemPhoneBinding) : RecyclerView.ViewHolder(row.root)
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder =
@@ -174,7 +184,7 @@ class PhonesActivity : AppCompatActivity() {
             holder.row.tvPhoneModel.text = model
             holder.row.tvPhoneStatus.setText(PhonesView.rowStatus(phone))
             holder.row.btnPhoneDeactivate.apply {
-                isVisible = phone.activated
+                isVisible = canDeactivate && phone.activated
                 isEnabled = !busy
                 contentDescription = getString(R.string.phones_deactivate_title_fmt, model)
                 setOnClickListener { askDeactivate(phone.deviceId, model, phone.thisDevice) }

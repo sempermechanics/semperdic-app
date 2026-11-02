@@ -7,12 +7,13 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import timber.log.Timber
+import java.io.InterruptedIOException
 
 /** Enough of a 401 body to read its `detail` code. */
 private const val REFUSAL_PEEK_BYTES = 4096L
 
-/** The nonce the signature covers (`backend/app/deps.py`). */
-private const val NONCE_HEADER = "X-Nonce"
+/** The nonce the signature covers (`backend/app/deps.py`); single use. */
+internal const val NONCE_HEADER = "X-Nonce"
 
 /** The device's ECDSA signature over nonce, method, path and body hash. */
 private const val SIGNATURE_HEADER = "X-Signature"
@@ -70,20 +71,58 @@ internal class SemperApiSigning(
      * window, or a backend that predates client nonces) the call is re-sent
      * once with a server challenge; the refusal happens before the route runs,
      * so the re-send is safe.
+     *
+     * A 503 that may be retried ([RetryOnTransient.waitBeforeResigning]) is
+     * sent again here, not by the interceptor, under a fresh nonce each time:
+     * the one already sent may have been claimed. A refusal that follows such a retry
+     * still re-sends with a server challenge, but does not turn client
+     * nonces off for the process ([ClientNonce.markRefused]): the first
+     * nonce was accepted.
      */
     fun execute(idToken: String, call: SignedCall): Response {
         if (ClientNonce.isUsable()) {
-            val resp = send(idToken, call, ClientNonce.mint())
-            if (!isClientNonceRefusal(resp)) return resp
-            resp.close()
-            ClientNonce.markRefused()
-            Timber.i("Client nonce refused; using server challenges for this process")
+            val sent = sendRetrying(idToken, call) { ClientNonce.mint() }
+            if (!isClientNonceRefusal(sent.response)) return sent.response
+            sent.response.close()
+            if (sent.retried) {
+                Timber.i("Client nonce refused after a retry; a server challenge for this call")
+            } else {
+                ClientNonce.markRefused()
+                Timber.i("Client nonce refused; using server challenges for this process")
+            }
         }
-        return send(idToken, call, fetchChallenge(idToken))
+        return sendRetrying(idToken, call) { fetchChallenge(idToken) }.response
+    }
+
+    /** A signed call's last answer, and whether it came after a retry. */
+    private class Sent(val response: Response, val retried: Boolean)
+
+    /** Sends [call] under [nonce]'s, again under a new one after each 503 worth a retry. */
+    private fun sendRetrying(idToken: String, call: SignedCall, nonce: () -> String): Sent {
+        var response = send(idToken, call, nonce())
+        var attempt = 0
+        while (true) {
+            val wait = RetryOnTransient.waitBeforeResigning(response, attempt) ?: return Sent(response, attempt > 0)
+            Timber.d("HTTP %d from %s — signing again in %dms", response.code, call.path, wait)
+            response.close()
+            pause(wait)
+            attempt++
+            response = send(idToken, call, nonce())
+        }
     }
 
     /** The signed headers for [call] under a fresh nonce, for a caller that sends it itself. */
     fun headersFor(idToken: String, call: SignedCall): Headers = signedHeaders(idToken, call, nonceFor(idToken))
+
+    /** The wait before a retry; an interrupt ends it as an [InterruptedIOException]. */
+    private fun pause(millis: Long) {
+        try {
+            Thread.sleep(millis)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw InterruptedIOException("retry wait interrupted").apply { initCause(e) }
+        }
+    }
 
     private fun send(idToken: String, call: SignedCall, nonce: String): Response {
         val builder = Request.Builder().url(endpoint(call.path)).headers(signedHeaders(idToken, call, nonce))

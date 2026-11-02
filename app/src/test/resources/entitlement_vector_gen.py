@@ -81,6 +81,7 @@ def main() -> None:
         "WRONG_APP": sign(signer, header, dict(payload, app="materialtesting")),
         "WRONG_DEVICE": sign(signer, header, dict(payload, dev="and-ffffffffffffffff")),
         "WRONG_DEVICE_KEY": sign(signer, header, dict(payload, dkt=b64url(b"\0" * 32))),
+        "WRONG_ACCOUNT": sign(signer, header, dict(payload, sub="uid-someone-else")),
         "BAD_CLAIMS": sign(signer, header, {k: v for k, v in payload.items() if k != "graceUntil"}),
         "MALFORMED": h + "." + p,
     }
@@ -94,7 +95,7 @@ def main() -> None:
         "payload": payload,
         "rejects": rejects,
     }
-    with open(os.path.join(HERE, "entitlement_vector.json"), "w", encoding="utf-8") as out:
+    with open(os.path.join(HERE, "entitlement_vector.json"), "w", encoding="utf-8", newline="\n") as out:
         json.dump(vector, out, indent=2)
         out.write("\n")
 

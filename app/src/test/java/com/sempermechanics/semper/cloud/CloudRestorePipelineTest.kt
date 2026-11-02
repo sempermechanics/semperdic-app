@@ -3,10 +3,13 @@ package com.sempermechanics.semper.cloud
 import android.content.Context
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
+import com.sempermechanics.semper.data.cloud.CloudErase
 import com.sempermechanics.semper.data.cloud.CorruptTransferException
 import com.sempermechanics.semper.data.cloud.restore.CloudRestore
+import com.sempermechanics.semper.data.cloud.restore.RestoreStart
 import com.sempermechanics.semper.data.session.CacheJanitor
 import com.sempermechanics.semper.data.session.SessionPaths
+import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.util.AtomicFiles
 import kotlinx.coroutines.CancellationException
@@ -88,6 +91,57 @@ class CloudRestorePipelineTest {
         assertTrue(File(dir, "frame_0001.dat").exists())
         assertTrue(File(dir, "metadata.json").exists())
         assertEquals(CLOUD_ID, SessionStore.get(context, LOCAL_ID)?.cloudSessionId)
+    }
+
+    private fun splitBackup() = listOf(
+        metadata(),
+        bundle(
+            "raw/Reference.png" to byteArrayOf(1, 2, 3),
+            "raw/def.png" to byteArrayOf(4, 5),
+            "dat/frame_0001.dat" to FakeRestoreApi.onePointDat(),
+        ),
+    )
+
+    /** The row the restore screen writes before it queues the restore ([RestoreStart]). */
+    private fun placeholder() = assertTrue(
+        SessionStore.upsert(
+            context,
+            RestoreStart.newRow(context, CLOUD_ID, LOCAL_ID, "Specimen.png", now = 1L),
+            allowOverLimit = true,
+        ),
+    )
+
+    @Test
+    fun `a rename made while the backup downloads survives the restore`() {
+        placeholder()
+        api.files = splitBackup()
+        api.beforeDownload = { fileId, _ ->
+            if (fileId == "bundle-1") SessionStore.rename(context, LOCAL_ID, "Bracket test")
+        }
+
+        restore()
+
+        val row = SessionStore.get(context, LOCAL_ID)!!
+        assertEquals("Bracket test", row.name)
+        assertTrue(row.renamedByUser)
+        assertTrue("the rename is sent with the metadata", row.metadataStale)
+        assertEquals(SessionRecord.SyncState.SYNCED, row.syncState)
+    }
+
+    @Test
+    fun `a cloud copy deleted while the backup downloads is not linked back`() {
+        placeholder()
+        api.files = splitBackup()
+        api.beforeDownload = { fileId, _ ->
+            if (fileId == "bundle-1") CloudErase.forgetCloudCopy(context, LOCAL_ID)
+        }
+
+        restore()
+
+        val row = SessionStore.get(context, LOCAL_ID)!!
+        assertEquals("", row.cloudSessionId)
+        assertEquals(SessionRecord.SyncState.LOCAL_ONLY, row.syncState)
+        assertEquals("the files still land", 1, row.frameCount)
     }
 
     @Test
