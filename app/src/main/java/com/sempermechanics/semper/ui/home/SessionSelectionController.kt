@@ -18,6 +18,7 @@ import androidx.lifecycle.LifecycleOwner
 import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.sempermechanics.semper.R
+import com.sempermechanics.semper.data.cloud.OtherAppBackups
 import com.sempermechanics.semper.data.cloud.SessionDeletes
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.isKnownInCloud
@@ -303,7 +304,7 @@ class SessionSelectionController(
         when {
             allHaveLocal && allHaveCloud -> showChoices(
                 title,
-                activity.resources.getQuantityString(
+                otherAppWarning(records) ?: activity.resources.getQuantityString(
                     R.plurals.delete_confirm_body_choice_multi,
                     records.size,
                     records.size,
@@ -381,7 +382,11 @@ class SessionSelectionController(
 
         when {
             hasLocal && hasCloud ->
-                showChoices(title, activity.getString(R.string.delete_confirm_body_cloud), listOf(record))
+                showChoices(
+                    title,
+                    otherAppWarning(listOf(record)) ?: activity.getString(R.string.delete_confirm_body_cloud),
+                    listOf(record),
+                )
             !hasLocal && hasCloud -> confirm(
                 activity.getString(R.string.delete_cloud_title_fmt, record.name),
                 cantUndo,
@@ -392,6 +397,16 @@ class SessionSelectionController(
                 eraseLocally(listOf(record), deviceOnly = false)
             }
         }
+    }
+
+    /**
+     * The warning for [records] when one was backed up by the other app
+     * (ADR-014, [OtherAppBackups]): this app cannot restore it,
+     * so "From this phone" is not the safe choice it is for the rest.
+     */
+    private fun otherAppWarning(records: List<SessionRecord>): String? {
+        val otherApp = OtherAppBackups.ids(activity)
+        return activity.getString(R.string.delete_confirm_body_other_app).takeIf { records.any { it.id in otherApp } }
     }
 
     private fun showChoices(title: String, message: String, records: List<SessionRecord>) {

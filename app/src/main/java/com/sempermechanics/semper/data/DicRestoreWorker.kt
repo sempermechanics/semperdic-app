@@ -15,6 +15,7 @@ import com.sempermechanics.semper.data.cloud.restore.CloudRestore
 import com.sempermechanics.semper.data.cloud.restore.DownloadFailure
 import com.sempermechanics.semper.data.cloud.restore.DownloadProgress
 import com.sempermechanics.semper.data.cloud.restore.RestoreDownloadOutcomes
+import com.sempermechanics.semper.data.session.SessionPaths
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.diagnostics.SemperAnalytics
 import com.sempermechanics.semper.navigation.IntentKeys
@@ -67,6 +68,8 @@ class DicRestoreWorker internal constructor(
         val cloudSessionId = inputData.getString(CloudRestore.KEY_CLOUD_SESSION_ID)
             ?: return@withContext Result.failure()
         val targetLocalId = inputData.getString(CloudRestore.KEY_TARGET_LOCAL_ID)
+            ?.takeIf { SessionPaths.isSafeId(it) }
+            // An id that cannot name a session dir: nothing is cleared or written (L5-1).
             ?: return@withContext Result.failure()
         // Read before the restore: a failed one clears what it wrote.
         val name = SessionStore.get(applicationContext, targetLocalId)?.name.orEmpty()

@@ -19,6 +19,7 @@ import com.sempermechanics.semper.field.RunStop
 import com.sempermechanics.semper.report.EngineStats
 import com.sempermechanics.semper.ui.analysis.rerun.keepSweepRerun
 import com.sempermechanics.semper.ui.analysis.run.AfterSave
+import com.sempermechanics.semper.ui.analysis.run.DicFieldIo
 import com.sempermechanics.semper.ui.analysis.run.RunInputs
 import com.sempermechanics.semper.ui.analysis.run.RunSpec
 import com.sempermechanics.semper.ui.analysis.run.afterSave
@@ -64,9 +65,13 @@ private fun AnalysisViewModel.runSweepBody(
     if (inputs.reference.bytes == null) error("Reference missing")
 
     // Admitted here, the sweep saves its session even if the cap fills meanwhile.
-    val admission = admitRun(appContext, plan.size)
+    // The runner sizes one buffer for the finest step in the plan (SweepStudyRunner.allocateFor).
+    val finestStep = plan.minOfOrNull { it.step } ?: 1
+    val gridPoints = DicFieldIo.gridPoints(spec.roi.w, spec.roi.h, finestStep)
+    val admission = admitRun(appContext, plan.size, gridPoints)
     if (admission is RunAdmission.Blocked) {
-        sweepEvent(appContext, SemperAnalytics.ANALYSIS_FAILED, "reason" to "session_limit")
+        val reason = if (admission.outcome.stop == RunStop.TooLarge) "too_large" else "session_limit"
+        sweepEvent(appContext, SemperAnalytics.ANALYSIS_FAILED, "reason" to reason)
         return admission.outcome
     }
     return solveSweep(appContext, spec, inputs, admission.admitted, onProgress)

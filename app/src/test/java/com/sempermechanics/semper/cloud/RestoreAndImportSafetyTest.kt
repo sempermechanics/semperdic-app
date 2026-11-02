@@ -34,6 +34,30 @@ class RestoreAndImportSafetyTest {
     }
 
     @Test
+    fun `a backup local id that could leave the sessions root restores into a row of its own`() {
+        // The local id is the server's word: `..` once made filesDir the session dir (L5-1).
+        for (unsafe in listOf("..", ".", "a/../b", "a\\b", "a/b", "../../x", "index.json", "é", "x".repeat(129))) {
+            val cloud = CloudSessionDto(sessionId = "abcdefghijklmnop", localSessionId = unsafe)
+
+            assertEquals(unsafe, "restored-abcdefghijkl", CloudRestore.targetLocalId(cloud))
+        }
+    }
+
+    @Test
+    fun `the fallback row id keeps only the safe characters of the cloud id`() {
+        val cloud = CloudSessionDto(sessionId = "../ab/cd", localSessionId = "")
+
+        assertEquals("restored-abcd", CloudRestore.targetLocalId(cloud))
+    }
+
+    @Test
+    fun `ids the app mints are kept as the restore target`() {
+        for (own in listOf("f0f0406f-8c2", "restored-abcdefghijkl", "local_1")) {
+            assertEquals(own, CloudRestore.targetLocalId(CloudSessionDto(sessionId = "c", localSessionId = own)))
+        }
+    }
+
+    @Test
     fun `bundle download work name is stable per cloud session`() {
         assertEquals("download-bundle-cloud-123", CloudRestore.bundleDownloadWorkName("cloud-123"))
         assertEquals("download-bundle", CloudRestore.TAG_BUNDLE_DOWNLOAD)

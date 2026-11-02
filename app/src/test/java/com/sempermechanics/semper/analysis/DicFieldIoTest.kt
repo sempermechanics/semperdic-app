@@ -1,11 +1,13 @@
 package com.sempermechanics.semper.analysis
 
 import com.sempermechanics.semper.field.DicResult
+import com.sempermechanics.semper.ui.analysis.recommend.RunEstimate
 import com.sempermechanics.semper.ui.analysis.run.DicFieldIo
 import com.sempermechanics.semper.ui.analysis.run.baseName
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -70,6 +72,34 @@ class DicFieldIoTest {
         target.writeBytes(byteArrayOf(1, 2, 3))
         DicFieldIo.write(DicFieldIo.allocateDirect(4), 0, target)
         assertEquals(0L, target.length())
+    }
+
+    @Test
+    fun `the grid is counted in a Long, past where an Int wraps`() {
+        assertEquals(12_000_000L, DicFieldIo.gridPoints(4000, 3000, 1))
+        assertEquals(3_000_000L, DicFieldIo.gridPoints(4000, 3000, 2))
+        // 50,000 x 50,000 = 2.5 billion: an Int product wraps to a negative count.
+        assertEquals(2_500_000_000L, DicFieldIo.gridPoints(50_000, 50_000, 1))
+        assertEquals(0L, DicFieldIo.gridPoints(4000, 3000, 0))
+        assertEquals(Int.MAX_VALUE, RunEstimate.gridPoints(50_000, 50_000, 1))
+    }
+
+    @Test
+    fun `a 4000 x 3000 ROI at step 1 is over the cap on a 512 MB heap`() {
+        val heap = 512L * 1024 * 1024
+        // Four copies of 32 bytes a point: the buffer, the write, the summary's floats and the rest.
+        assertEquals(heap / (4 * DicResult.BYTES_PER_POINT), DicFieldIo.pointCap(heap))
+        assertFalse(DicFieldIo.fits(DicFieldIo.gridPoints(4000, 3000, 1), heap))
+        assertTrue(DicFieldIo.fits(DicFieldIo.gridPoints(4000, 3000, 2), heap))
+        // However large the heap, one buffer holds no more than an Int of bytes.
+        assertEquals(DicFieldIo.MAX_POINTS, DicFieldIo.pointCap(Long.MAX_VALUE))
+    }
+
+    @Test
+    fun `a count whose bytes overflow an Int is refused, not wrapped to a small buffer`() {
+        // 70 million x 32 bytes is 2.24 GB: as an Int it wrapped negative.
+        assertThrows(IllegalArgumentException::class.java) { DicFieldIo.allocateDirect(70_000_000L) }
+        assertThrows(IllegalArgumentException::class.java) { DicFieldIo.allocateDirect(DicFieldIo.MAX_POINTS + 1) }
     }
 
     @Test

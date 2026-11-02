@@ -92,7 +92,7 @@ class ConfigSingleFlightTest {
             throw IOException("offline")
         }
         val callers = (1..3).map {
-            async(start = CoroutineStart.UNDISPATCHED) { runCatching { flight.run(failing) } }
+            async(start = CoroutineStart.UNDISPATCHED) { runCatching { flight.run(block = failing) } }
         }
         release.complete(Unit)
         val results = callers.awaitAll()
@@ -102,12 +102,31 @@ class ConfigSingleFlightTest {
     }
 
     @Test
+    fun `a caller with another key does not join, and callers with its key join it`() = runBlocking {
+        val flight = SingleFlight<String>()
+        val release = CompletableDeferred<Unit>()
+        val answer = { who: String ->
+            suspend {
+                fetched.incrementAndGet()
+                release.await()
+                who
+            }
+        }
+        val first = async(start = CoroutineStart.UNDISPATCHED) { flight.run("token-a", answer("a")) }
+        val other = async(start = CoroutineStart.UNDISPATCHED) { flight.run("token-b", answer("b")) }
+        val again = async(start = CoroutineStart.UNDISPATCHED) { flight.run("token-b", answer("b2")) }
+        release.complete(Unit)
+        assertEquals(listOf("a", "b", "b"), listOf(first.await(), other.await(), again.await()))
+        assertEquals(2, fetched.get())
+    }
+
+    @Test
     fun `a caller that gives up does not cancel the others`() = runBlocking {
         val flight = SingleFlight<Int>()
         val release = CompletableDeferred<Unit>()
         val gated = suspend { fetched.incrementAndGet().also { release.await() } }
-        val first = async(start = CoroutineStart.UNDISPATCHED) { flight.run(gated) }
-        val second = async(start = CoroutineStart.UNDISPATCHED) { flight.run(gated) }
+        val first = async(start = CoroutineStart.UNDISPATCHED) { flight.run(block = gated) }
+        val second = async(start = CoroutineStart.UNDISPATCHED) { flight.run(block = gated) }
         first.cancel()
         release.complete(Unit)
         assertEquals(1, second.await())

@@ -14,6 +14,10 @@ Environment *shells* exist and workflows can still select them
 - **Required reviewers** work on a public repository: `production` requires the
   product owner's approval for every deploy (set 2026-10-22, owner decision;
   admins may still bypass). No other environment has protection rules.
+- **Public artifacts.** On a public repository any signed-in GitHub user can
+  download a workflow artifact while it is kept. So nothing secret goes in one;
+  the R8 mappings (`release-mapping*`) are kept 14 days (release) and 3 days (CI
+  Tier 5), [RELEASING.md](RELEASING.md).
 - Prefer storing **secrets and variables at the repository level** when
   Environment-scoped secrets are empty or cannot be set. Workflows read
   `secrets.*` / `vars.*` the same way either way.
@@ -114,6 +118,22 @@ Admin budget, defaults 10 and 20) are **not** passed by `deploy-backend.yml`: th
 service runs on the defaults unless set on it by hand
 ([BACKEND_SETUP_GCP.md](../backend/BACKEND_SETUP_GCP.md), optional variables).
 
+**The `service` input belongs to the `environment` (since 2026-11-01).** Both
+environments authenticate with the same repo-level `GCP_WIF_PROVIDER` /
+`GCP_DEPLOY_SA`, and only `production` is gated (main only, the owner's review).
+So `environment=staging` with `service=semper-api` used to deploy any branch to
+production, unreviewed and with staging's environment variables. Both jobs now run
+`scripts/check_deploy_target.sh` before any credential is minted: with `staging`
+only a `*-staging` name (empty = `semper-api-staging`), with `production` never
+one (empty = `semper-api`). The gateway job checks the service, `GATEWAY_ID` and
+`GATEWAY_API` the same way, so a variable cannot point a staging run at
+`semper-gw`. This is a workflow rule; GCP itself would still accept a staging
+run's identity on the production service (a workflow edited on a branch could
+skip the check). Owner-side hardening that would make it a GCP rule: a WIF
+attribute condition per environment (`assertion.environment`), or a separate
+production deploy SA held as a `production` environment secret, with the
+staging SA granted on `semper-api-staging` only (TD-366).
+
 **Workflow inputs.** Besides `environment`, `project`, `region`, `service` and
 `gateway_mode`, `release_train` (since 2026-10-18, TD-262) names the app release
 train the deploy ships with. It is set as the Cloud Run label `release-train` on the
@@ -127,7 +147,8 @@ release was tested against with
 **Deploy order** when a release adds a Firestore index, a gateway path or a console
 change: indexes (`scripts/deploy-firestore.sh indexes`, wait for the build), then
 the backend (this workflow, `gateway_mode: dry-run`), then the gateway (`apply`),
-then Hosting (`scripts/deploy-console.sh` from a clean `main`), then monitoring
+then Hosting (`scripts/deploy-console.sh` from a clean `main`; it refuses another
+branch or a dirty tree and runs the console and legal checks first), then monitoring
 (`scripts/apply-monitoring.sh`). A backend ahead of its index fails the query at
 runtime (`FAILED_PRECONDITION`); a console ahead of its gateway path gets 404s.
 

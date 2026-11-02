@@ -2,6 +2,7 @@ package com.sempermechanics.semper.session
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.sempermechanics.semper.data.cloud.OtherAppBackups
 import com.sempermechanics.semper.data.net.AppConfigDto
 import com.sempermechanics.semper.data.net.AppRemoteConfig
 import com.sempermechanics.semper.data.prefs.AppSettings
@@ -251,6 +252,20 @@ class LocalStorageFootprintTest {
         assertTrue(File(pending, "frame_0000.dat").exists())
         // The reference survives so the Home row still renders as "only in cloud".
         assertTrue(File(synced, "reference.png").exists())
+    }
+
+    @Test
+    fun `a row backed up only by the other app is not dropped, since this app cannot restore it`() {
+        val mine = seedSession("synced", SessionRecord.SyncState.SYNCED)
+        val theirs = seedSession("theirs", SessionRecord.SyncState.SYNCED)
+        OtherAppBackups.record(ctx, setOf("theirs"))
+
+        assertEquals(512L + 2048L, StorageBudget.reclaimableBytes(ctx))
+        val outcome = StorageBudget.freeAllBackedUp(ctx)
+
+        assertEquals(1, outcome.sessionsDropped)
+        assertFalse(File(mine, "frame_0000.dat").exists())
+        assertTrue(File(theirs, "frame_0000.dat").exists())
     }
 
     @Test

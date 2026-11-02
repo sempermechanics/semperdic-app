@@ -112,24 +112,13 @@ jobs:
 
       # The drill project now holds a full copy of production data. Leaving it
       # populated between monthly runs would be a second copy of everything, in
-      # a project with weaker access controls than production.
+      # a project with weaker access controls than production. The script
+      # refuses the production project, tries every collection id (users …
+      # seats, activations, deleted_seats) and fails the step naming any whose
+      # bulk-delete failed, instead of logging it and passing (L9-5).
       - name: Purge the drill database
         if: always() && steps.configured.outcome == 'success'
         env:
           RESTORE_DRILL_PROJECT: ${{ vars.FIRESTORE_RESTORE_DRILL_PROJECT }}
           PRODUCTION_PROJECT: ${{ vars.GCP_PROJECT }}
-        run: |
-          set -euo pipefail
-          if [ "${RESTORE_DRILL_PROJECT}" = "${PRODUCTION_PROJECT}" ]; then
-            echo "::error::Drill project equals production; refusing to purge."
-            exit 2
-          fi
-          # Every collection the backend writes (grep `collection(` in
-          # backend/app), plus the seats subcollection: bulk-delete takes
-          # collection-group ids, so "seats" reaches licenses/*/seats.
-          for c in users devices sessions files audit_logs challenges _migrations                    licenses seats licenseInvites auth_links                    deleted_licenses deleted_seats deleted_sessions; do
-            gcloud firestore bulk-delete \
-              --collection-ids="$c" \
-              --project="${RESTORE_DRILL_PROJECT}" \
-              --quiet || echo "bulk-delete of $c reported a problem"
-          done
+        run: bash scripts/firestore-drill-purge.sh

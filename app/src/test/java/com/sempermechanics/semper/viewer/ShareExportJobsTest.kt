@@ -3,6 +3,7 @@ package com.sempermechanics.semper.viewer
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.ui.viewer.share.ShareExportJobs
+import com.sempermechanics.semper.util.SafCopy
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -177,6 +178,82 @@ class ShareExportJobsTest {
             ShareExportJobs.Outcome.Saved(unwritable, ok = false),
             withTimeout(TIMEOUT_MS) { jobs.outcomes.first() },
         )
+    }
+
+    private val resolver = ApplicationProvider.getApplicationContext<android.app.Application>().contentResolver
+
+    /** Jobs that record each save-as document they delete, copying through [copy]. */
+    private fun discardingJobs(
+        discarded: MutableList<Uri>,
+        copy: (Uri, File) -> Boolean = { uri, file -> SafCopy.copy(resolver, uri, file) },
+    ) = ShareExportJobs(
+        scope,
+        resolver,
+        copyDocument = copy,
+        discardDocument = { synchronized(discarded) { discarded += it } },
+    )
+
+    @Test
+    fun `a save-as that fails, lands no bytes or is cancelled deletes the picked document`() = runBlocking {
+        val discarded = mutableListOf<Uri>()
+        val saving = discardingJobs(discarded)
+
+        val failedUri = Uri.fromFile(File(temp.root, "failed.pdf"))
+        val failed = saving.newId("pdf")
+        saving.start(failed, "PDF", failedUri, direct = false) { error("no usable frames") }
+        assertEquals(ShareExportJobs.Outcome.Failed(failed), withTimeout(TIMEOUT_MS) { saving.outcomes.first() })
+
+        val emptyUri = Uri.fromFile(File(temp.root, "empty.csv"))
+        val empty = saving.newId("csv")
+        saving.start(empty, "CSV", emptyUri, direct = false) { file("") to "text/csv" }
+        assertEquals(
+            ShareExportJobs.Outcome.Saved(empty, ok = false),
+            withTimeout(TIMEOUT_MS) { saving.outcomes.first() },
+        )
+
+        val cancelledUri = Uri.fromFile(File(temp.root, "cancelled.zip"))
+        val cancelled = saving.newId("zip")
+        val never = CompletableDeferred<Unit>()
+        saving.start(cancelled, "ZIP", cancelledUri, direct = false) {
+            never.await()
+            file("x") to "application/zip"
+        }
+        saving.cancel(cancelled)
+        assertEquals(ShareExportJobs.Outcome.Cancelled(cancelled), withTimeout(TIMEOUT_MS) { saving.outcomes.first() })
+
+        assertEquals(listOf(failedUri, emptyUri, cancelledUri), synchronized(discarded) { discarded.toList() })
+    }
+
+    @Test
+    fun `a cancel that arrives once the copy has landed keeps the document`() = runBlocking {
+        val discarded = mutableListOf<Uri>()
+        val ids = mutableListOf<String>()
+        lateinit var saving: ShareExportJobs
+        // The user cancels while the copy is finishing: the bytes are in, and
+        // the cancel throws out of the copy's withContext as it returns.
+        saving = discardingJobs(discarded) { uri, file ->
+            SafCopy.copy(resolver, uri, file).also { saving.cancel(ids.single()) }
+        }
+        val dest = File(temp.root, "landed.csv")
+        val id = saving.newId("csv").also { ids += it }
+
+        saving.start(id, "CSV", Uri.fromFile(dest), direct = false) { file("a,b\n") to "text/csv" }
+
+        assertEquals(ShareExportJobs.Outcome.Cancelled(id), withTimeout(TIMEOUT_MS) { saving.outcomes.first() })
+        assertTrue("a written document is the user's file", synchronized(discarded) { discarded.isEmpty() })
+        assertEquals("a,b\n", dest.readText())
+    }
+
+    @Test
+    fun `a save-as that lands its bytes keeps the document`() = runBlocking {
+        val discarded = mutableListOf<Uri>()
+        val saving = discardingJobs(discarded)
+        val id = saving.newId("csv")
+
+        saving.start(id, "CSV", Uri.fromFile(File(temp.root, "kept.csv")), direct = false) { file("a") to "text/csv" }
+
+        assertEquals(ShareExportJobs.Outcome.Saved(id, ok = true), withTimeout(TIMEOUT_MS) { saving.outcomes.first() })
+        assertTrue(synchronized(discarded) { discarded.isEmpty() })
     }
 
     @Test

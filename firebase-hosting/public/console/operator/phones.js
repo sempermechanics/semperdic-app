@@ -8,7 +8,7 @@
  * Edit's typed key is.
  */
 import { api } from "../api.js";
-import { confirmInPage } from "../dialogs.js";
+import { confirmInPage, holdFocus } from "../dialogs.js";
 import { setStatus } from "../status.js";
 import { esc, when } from "../util.js";
 import { explain } from "../messages.js";
@@ -123,11 +123,33 @@ function phoneLine(d) {
 
 $("phonesList").addEventListener("click", (ev) => {
   const btn = ev.target.closest("button[data-deactivate]");
-  if (btn) deactivate(btn.dataset.deactivate);
+  if (btn) deactivate(btn);
 });
 
-async function deactivate(deviceId) {
+// The phones whose Deactivate is under way, from the first click until the
+// DELETE has answered. A second click, or a redrawn list's fresh button,
+// opens no second card and sends no second DELETE, whose "no longer
+// activated" would land on the first one's success line.
+const busy = new Set();
+
+async function deactivate(button) {
   const id = open;
+  const deviceId = button.dataset.deactivate;
+  const key = `${id}/${deviceId}`;
+  if (busy.has(key)) return;
+  busy.add(key);
+  const refocus = holdFocus(button);
+  button.disabled = true;
+  try {
+    await deactivatePhone(id, deviceId);
+  } finally {
+    busy.delete(key);
+    button.disabled = false;
+    refocus();
+  }
+}
+
+async function deactivatePhone(id, deviceId) {
   const phone = phones.find((d) => d.deviceId === deviceId) || { deviceId };
   const name = phoneName(phone);
   if (!(await confirmInPage({

@@ -142,6 +142,32 @@ class RetryOnTransientTest {
     }
 
     @Test
+    fun `a device-signed call's 503 is left to the signing layer, which signs a new nonce`() {
+        // The same X-Nonce again would be refused as replayed if the first
+        // attempt reached verified_device (SemperApiSigning retries instead).
+        server.enqueue(unavailable())
+        server.enqueue(ok())
+
+        signedGet().use { assertEquals(HttpStatus.SERVICE_UNAVAILABLE, it.code) }
+
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun `a device-signed call's 429 is retried as it is - the nonce was never claimed`() {
+        server.enqueue(throttled())
+        server.enqueue(ok())
+
+        signedGet().use { assertEquals(HttpStatus.OK, it.code) }
+
+        assertEquals(2, server.requestCount)
+    }
+
+    private fun signedGet() =
+        client.newCall(Request.Builder().url(server.url("/v1/config")).header("X-Nonce", "t1.1.abc").get().build())
+            .execute()
+
+    @Test
     fun `an unavailable POST that is not idempotent is left alone`() {
         server.enqueue(unavailable())
         server.enqueue(ok())

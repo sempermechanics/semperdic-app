@@ -41,6 +41,13 @@ sealed class RunStop(val wireCode: Int) {
     /** Engine `-3`: an image failed to decode, an argument was bad, or the output buffer would overrun. */
     data object InitFailed : RunStop(INIT_FAILED)
 
+    /**
+     * App `-95`: the region's grid at its step needs more memory than this
+     * phone gives the app. Refused at the start (`admitRun`), or met as an
+     * `OutOfMemoryError` mid-run, which keeps nothing.
+     */
+    data object TooLarge : RunStop(TOO_LARGE)
+
     /** App `-96`: two consecutive frames converged below the gate. */
     data object LowConvergence : RunStop(LOW_CONVERGENCE)
 
@@ -69,6 +76,7 @@ sealed class RunStop(val wireCode: Int) {
         private const val INVALID_ROI = -2
         private const val INIT_FAILED = -3
         private const val SEED_FAILED = -5
+        private const val TOO_LARGE = -95
         private const val LOW_CONVERGENCE = -96
         private const val SWEEP_ENGINE_FAILED = -97
         private const val SESSION_LIMIT = -98
@@ -80,6 +88,7 @@ sealed class RunStop(val wireCode: Int) {
             INVALID_ROI,
             INIT_FAILED,
             SEED_FAILED,
+            TOO_LARGE,
             LOW_CONVERGENCE,
             SWEEP_ENGINE_FAILED,
             SESSION_LIMIT,
@@ -93,6 +102,7 @@ sealed class RunStop(val wireCode: Int) {
             INVALID_ROI -> InvalidRoi
             INIT_FAILED -> InitFailed
             SEED_FAILED -> SeedFailed
+            TOO_LARGE -> TooLarge
             LOW_CONVERGENCE -> LowConvergence
             SWEEP_ENGINE_FAILED -> SweepEngineFailed
             SESSION_LIMIT -> SessionLimit

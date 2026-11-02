@@ -5,6 +5,8 @@ import android.content.Intent
 import com.sempermechanics.semper.data.account.AccessStatus
 import com.sempermechanics.semper.data.account.AuthRepository
 import com.sempermechanics.semper.ui.common.auth.AuthRoute
+import com.sempermechanics.semper.util.suspendRunCatching
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,17 +25,38 @@ import timber.log.Timber
  */
 object StatusRecheck {
 
-    /** Outlives the splash, which finishes as soon as Home starts. */
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    /**
+     * Outlives the splash, which finishes as soon as Home starts. Nothing
+     * thrown in it may crash the app the user is already using: [check]
+     * catches the status check itself, and the handler logs anything after it.
+     */
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, e ->
+            Timber.e(e, "Background status check failed; staying put")
+        },
+    )
 
     fun launch(context: Context, authRepo: AuthRepository) {
         val app = context.applicationContext
         scope.launch {
-            val result = authRepo.refreshStatus()
-            val reroute = decide(result) ?: return@launch
+            val reroute = check(authRepo::refreshStatus) ?: return@launch
             authRepo.forgetCachedApproval()
             withContext(Dispatchers.Main) { app.startActivity(reroute.intent(app)) }
         }
+    }
+
+    /**
+     * [decide] on what [refreshStatus] answers. A throw that is not
+     * cancellation (a Keystore or serialization error, anything the resolver
+     * does not turn into a result) is no answer: logged, and the user stays
+     * put (ADR-018). Cancellation is rethrown.
+     */
+    internal suspend fun check(refreshStatus: suspend () -> Result<String>): Reroute? {
+        val result = suspendRunCatching { refreshStatus() }.getOrElse { e ->
+            Timber.w(e, "Background status check threw; treating it as no answer")
+            return null
+        }
+        return decide(result)
     }
 
     /** Where to send the user instead of Home, or null to leave them there. */

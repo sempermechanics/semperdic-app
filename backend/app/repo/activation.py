@@ -6,6 +6,7 @@ from ..licenses import (
     key_hash,
     key_prefix,
     email_domain,
+    normalize_email,
 )
 
 from ._base import (
@@ -26,6 +27,7 @@ from .user_config import (
 )
 from .holders import (
     licence_held_by,
+    verified_address,
 )
 from .claims import (
     claim_individual_license,
@@ -108,6 +110,17 @@ def activate_license(uid: str, email: str, device_id: str, key: str,
     user = _load_user(uid)
     if not user:
         raise Refusal(errors.USER_NOT_FOUND)
+    # The email and domain locks are asked of a proven address, whichever
+    # route redeems the key: the stored `email` follows the sign-in token
+    # whether or not it was verified, so an account that typed an address it
+    # does not own would pass an institution's domain lock with it. The
+    # `email` a caller passes has to be that proven address.
+    address = verified_address(user)
+    if not address:
+        raise Refusal(errors.EMAIL_NOT_VERIFIED)
+    if normalize_email(email) != address:
+        raise Refusal(errors.LICENSE_EMAIL_MISMATCH)
+    email = address
     license_id = key_hash(key)
     ref = db().collection("licenses").document(license_id)
     snap = _get(ref)

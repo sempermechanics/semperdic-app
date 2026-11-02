@@ -89,41 +89,42 @@ def _recycle_bin_stream(uid: str):
 
 
 # ---------------- DELETE /v1/me ----------------
-def _purge_drive(token: str, user: dict) -> tuple[str | None, int]:
-    """Delete the account's Drive subtree; `(user folder, session folders
-    deleted one by one)`. Raises on a Drive failure, so the erasure stops
-    before Firestore.
+def _purge_drive(token: str, user: dict) -> tuple[list[str], int]:
+    """Delete the account's Drive subtree; `(user folders deleted, session
+    folders deleted one by one)`. Raises on a Drive failure, so the erasure
+    stops before Firestore.
 
-    The session folders live inside the user folder, so deleting that one
-    removes the whole subtree in a single call. The per-session loop below
-    is the fallback for accounts predating the stored pointer; it deletes
-    the session folders with a bounded fan-out (`drive.delete_files`),
-    where one round trip per session made a busy account take the best
-    part of a minute.
+    Every folder named {uid}, not only the stored pointer: two first uploads
+    at once, or a folder create Drive made but answered 5xx, can leave two,
+    and the user doc points at one. Each goes in one call with its whole
+    subtree. Then each session's own stored `driveFolderId`: any still there
+    (a tree the name walk did not reach, or one that predates the pointer) is
+    deleted with a bounded fan-out (`drive.delete_files`). They are probed
+    first, since after the user folders nearly all are gone, and a probe is
+    one round trip where a delete of a missing folder is three.
     """
     uid = user["uid"]
-    user_folder = user.get("driveFolderId")
-    if user_folder:
-        drive.delete_file(token, user_folder)  # raises → we abort before Firestore
-        return user_folder, 0
-    # No stored pointer: delete each session's folder via its OWN stored id
-    # rather than trusting a lookup by name. If a name lookup missed we would
-    # silently skip Drive and still wipe the metadata, stranding the blobs
-    # with nothing left pointing at them.
-    # The recycle bin's entries too (ADR-035): binning leaves the folder in
-    # Drive until the purge.
-    folders_deleted = drive.delete_files(
-        token, [s.get("driveFolderId") for s in repo.iter_user_sessions(uid)]
-        + [b.get("driveFolderId") for b in repo.iter_recycle_bin(uid)],
-    )
-    # Then the scaffolding itself, and anything a failed sync orphaned.
     test = {"test": True} if repo.test_account_of(user) else {}
-    user_folder = drive.find_user_folder(token, uid, **test)
-    if user_folder:
-        drive.delete_file(token, user_folder)
-    else:
-        log.warning("No Drive folder found for uid %s — nothing to purge there", uid)
-    return user_folder, folders_deleted
+    user_folders = list(dict.fromkeys(
+        f for f in (user.get("driveFolderId"), *drive.find_user_folders(token, uid, **test)) if f
+    ))
+    for folder in user_folders:
+        drive.delete_file(token, folder)  # raises → we abort before Firestore
+    if not user_folders:
+        log.warning("No Drive user folder for uid %s; deleting its sessions' folders alone", uid)
+    # Each session's folder by its OWN stored id rather than trusting a lookup
+    # by name: if a name lookup missed we would silently skip Drive and still
+    # wipe the metadata, stranding the blobs with nothing left pointing at
+    # them. A probe that cannot tell (UNKNOWN) is deleted too, so its failure
+    # stops the erasure. The recycle bin's entries too (ADR-035): binning
+    # leaves the folder in Drive until the purge.
+    stored = [s.get("driveFolderId") for s in repo.iter_user_sessions(uid)]
+    stored += [b.get("driveFolderId") for b in repo.iter_recycle_bin(uid)]
+    states = drive.probe_files(token, stored)
+    folders_deleted = drive.delete_files(
+        token, [fid for fid, state in states.items() if state != drive.MISSING],
+    )
+    return user_folders, folders_deleted
 
 
 def erase_account(user: dict, device_id: str | None) -> dict:
@@ -148,7 +149,7 @@ def erase_data(user: dict) -> dict:
     token = drive.access_token()
 
     # 1. The blobs first, so a failure leaves the metadata pointing at them.
-    user_folder, folders_deleted = _purge_drive(token, user)
+    user_folders, folders_deleted = _purge_drive(token, user)
     drive_ms = int((time.monotonic() - started) * 1000)
 
     # 2. Only once the blobs are gone: erase the metadata. The sign-ins are
@@ -167,7 +168,8 @@ def erase_data(user: dict) -> dict:
     detail = {
         **counts,
         "driveFolders": folders_deleted,
-        "userFolderFound": bool(user_folder),
+        "userFolderFound": bool(user_folders),
+        "userFolders": len(user_folders),
         "authUserDeleted": auth_deleted == len(auth_uids),
         "authUsers": len(auth_uids),
         "authUsersDeleted": auth_deleted,

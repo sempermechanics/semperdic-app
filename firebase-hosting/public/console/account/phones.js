@@ -15,7 +15,7 @@
  */
 import { api } from "../api.js";
 import { sessionOver } from "../auth.js";
-import { confirmInPage } from "../dialogs.js";
+import { confirmInPage, holdFocus } from "../dialogs.js";
 import { setStatus, whileWaiting } from "../status.js";
 import { esc, when, day, holdsLicence, APP_NAMES } from "../util.js";
 import { explain as refusalText, ACCOUNT } from "../messages.js";
@@ -95,31 +95,50 @@ export function mountPhones({ onModel = () => {} } = {}) {
     }
   }
 
+  // The phones whose Deactivate is under way, from the first click until the
+  // DELETE has answered. A second click opens no second card and sends no
+  // second DELETE, whose "no longer activated" would land on the first one's
+  // success line.
+  const busy = new Set();
+
   async function deactivate(app, button) {
     const name = APP_NAMES[app];
     const model = button.dataset.model || SAID.unnamed;
-    if (!(await confirmInPage({
-      title: SAID.deactivateLabel(model),
-      message: SAID.confirm(name, model),
-      confirm: SAID.deactivate,
-    }))) return;
+    const key = `${app}/${button.dataset.phone}`;
+    if (busy.has(key)) return;
+    busy.add(key);
+    const refocus = holdFocus(button);
     button.disabled = true;
-    const phone = encodeURIComponent(button.dataset.phone);
     try {
-      await whileWaiting(
-        api(`/v1/me/devices/${phone}?app=${app}`, { method: "DELETE" }),
-        SAID.working(model),
-      );
-      setStatus(SAID.done(name, model));
-    } catch (e) {
-      setStatus(refusalText(e, { activation_not_found: SAID.gone }, SAID.refused), true);
-      // Anything but a phone already gone leaves the list as it was.
-      if (e?.code !== "activation_not_found") {
+      if (!(await confirmInPage({
+        title: SAID.deactivateLabel(model),
+        message: SAID.confirm(name, model),
+        confirm: SAID.deactivate,
+      }))) {
         button.disabled = false;
+        refocus();
         return;
       }
+      const phone = encodeURIComponent(button.dataset.phone);
+      try {
+        await whileWaiting(
+          api(`/v1/me/devices/${phone}?app=${app}`, { method: "DELETE" }),
+          SAID.working(model),
+        );
+        setStatus(SAID.done(name, model));
+      } catch (e) {
+        setStatus(refusalText(e, { activation_not_found: SAID.gone }, SAID.refused), true);
+        // Anything but a phone already gone leaves the list as it was.
+        if (e?.code !== "activation_not_found") {
+          button.disabled = false;
+          refocus();
+          return;
+        }
+      }
+      load(app);
+    } finally {
+      busy.delete(key);
     }
-    load(app);
   }
 
   return { show, hide, reload: load };

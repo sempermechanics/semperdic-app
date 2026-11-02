@@ -99,10 +99,27 @@ class ScrubFrameCache(
         heatByKey[key] = entry
     }
 
+    /**
+     * Drops every decoded frame, keeping the heatmaps: what an out-of-memory
+     * handler frees. The frames' FloatArrays are what fill the heap; the
+     * heatmaps are few, and one of them is on screen, so recycling them from a
+     * decode thread made the next draw of the overlay throw "trying to use a
+     * recycled bitmap". Any thread.
+     */
     @Synchronized
-    fun clear(except: Bitmap? = null) {
+    fun clearData() {
         dataByFrame.clear()
         dataBytes = 0L
+    }
+
+    /**
+     * Drops everything and recycles every heatmap but [except], the one on
+     * screen. Main thread, once nothing else can show them: the viewer's
+     * `onDestroy`.
+     */
+    @Synchronized
+    fun clear(except: Bitmap? = null) {
+        clearData()
         for (entry in heatByKey.values) {
             val bmp = entry.bitmap
             if (bmp !== except && !bmp.isRecycled) bmp.recycle()

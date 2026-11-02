@@ -251,6 +251,37 @@ def _licence_for(user: dict, app: str) -> tuple[str, dict]:
     return license_id, lic
 
 
+def check_activation(uid: str, device_id: str, app: str, license_id: str, lic: dict) -> None:
+    """Raise the refusal `activate_device` would answer for `device_id` on
+    `lic`, before the account holds it: for `apply_upgrade`, which checks
+    the phone before it moves the holder. A plain read, so a slot taken
+    between this and the activation is still refused by `activate_device`'s
+    own transaction. The seat is not checked: an upgrade's does not exist
+    yet."""
+    if lic.get("app") and not apps.same_app(lic.get("app"), app):
+        raise Refusal(errors.NO_LICENSE)
+    if _is_revoked(lic):
+        raise Refusal(errors.LICENSE_REVOKED)
+    if _floating(lic):
+        raise Refusal(errors.SEATING_FLOATING)
+    if _license_past_grace(lic):
+        raise Refusal(errors.LICENSE_EXPIRED)
+    dev = _get(db().collection("devices").document(device_id)).to_dict() or {}
+    if not (dev.get("uid") == uid and dev.get("status") == statuses.DEVICE_ACTIVE
+            and apps.same_app(dev.get("app"), app)):
+        raise Refusal(errors.DEVICE_NOT_FOUND)
+    if not runs_activations(lic):
+        return
+    act = _get(_ref(license_id, device_id)).to_dict() or {}
+    if act.get("status") == ACTIVE:
+        if act.get("uid") == uid:
+            return
+        raise Refusal(errors.DEVICE_IN_USE)
+    n, m = _count(lic), max_devices(lic)
+    if n >= m:
+        raise Refusal(errors.DEVICE_LIMIT_REACHED, f"{n}/{m}")
+
+
 def activate_device(uid: str, device_id: str, app: str, *, actor: str = ACTOR_SELF,
              by_uid: str = "", override: bool = False, implicit: bool = False,
              license_id: str = "", user: dict | None = None) -> dict:
@@ -417,7 +448,9 @@ def account_devices(user: dict, app: str, device_id: str = "") -> dict:
     """The holder's phones for `app`: every phone registered to the account
     for it, each marked whether the licence licenses it, and the licence's
     count. What the app's phones screen and the web account page show; a
-    holder sees only their own phones, never another member's."""
+    holder sees only their own phones, never another member's. Every row
+    carries every key (`activatedAt` null and `activatedBy` "" on a phone the
+    licence does not cover), as `contracts/devices_response.json` pins."""
     uid = user.get("uid") or ""
     phones = {}
     for snap in _stream(db().collection("devices").where("uid", "==", uid)):
@@ -425,7 +458,8 @@ def account_devices(user: dict, app: str, device_id: str = "") -> dict:
         if dev.get("status") == statuses.DEVICE_ACTIVE and apps.same_app(dev.get("app"), app):
             phones[snap.id] = {"deviceId": snap.id, "model": dev.get("model") or "",
                                "registeredAt": dev.get("registeredAt") or dev.get("createdAt"),
-                               "activated": False, "thisDevice": snap.id == device_id}
+                               "activated": False, "thisDevice": snap.id == device_id,
+                               "activatedAt": None, "activatedBy": ""}
     view = apps.licence_view(user, app)
     license_id = view.get("licenseId") or ""
     lic = (get_license(license_id) or {}) if license_id else {}
@@ -437,7 +471,8 @@ def account_devices(user: dict, app: str, device_id: str = "") -> dict:
                 row = phones.setdefault(act["deviceId"], {
                     "deviceId": act["deviceId"], "model": act["deviceModel"],
                     "registeredAt": None, "activated": False,
-                    "thisDevice": act["deviceId"] == device_id})
+                    "thisDevice": act["deviceId"] == device_id,
+                    "activatedAt": None, "activatedBy": ""})
                 row.update(activated=True, activatedAt=act["activatedAt"],
                            activatedBy=act["activatedBy"])
             answer.update(devicesActive=_count(lic), maxDevices=max_devices(lic),

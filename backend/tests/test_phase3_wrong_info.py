@@ -26,7 +26,7 @@ _SHA = "a" * 64
 
 def _university(store, *uids):
     store._data["users"] = {
-        uid: {"email": f"{uid}@university.edu", "access_status": "APPROVED", "mode": "demo"}
+        uid: {"email": f"{uid}@university.edu", "emailVerified": True, "access_status": "APPROVED", "mode": "demo"}
         for uid in uids
     }
 
@@ -191,7 +191,7 @@ def _file(name: str) -> dict:
 
 @pytest.fixture
 def uploads(store, monkeypatch):
-    store._data["users"] = {DEV_UID: {"email": "dev@test", "access_status": "APPROVED"}}
+    store._data["users"] = {DEV_UID: {"email": "dev@test", "emailVerified": True, "access_status": "APPROVED"}}
     monkeypatch.setattr(audit, "record", lambda *a, **k: None)
     monkeypatch.setattr(drive, "access_token", lambda: "tok")
     monkeypatch.setattr(

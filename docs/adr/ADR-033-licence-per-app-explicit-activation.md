@@ -100,17 +100,33 @@ The product owner's decisions (2026-10-29):
   - Staff: any; staff also add.
 
   An IT or staff deactivation also releases the phone's registration (with the 24 h
-  hold); a holder's does not.
+  hold); a holder's does not. The roster's **New device** deactivates with its
+  caller's scope too (`deactivate_holder(caller=…)`, 2026-11-01).
+- **Suspension keeps the activations** (owner decision, 2026-11-01). Suspending an
+  account revokes its registrations, not its activations, so a reinstated holder's
+  phone is licensed again once it registers, and the slots stay counted meanwhile.
+  IT or staff deactivate the phones to free them (CLOUD_ARCHITECTURE_GCP §20.16).
+- **Delete and restore** (`repo/deletion.py`): a restore keeps the phones of the
+  holders it puts back and deactivates the rest, then counts `devicesActive` again.
 - **No cooldown.** The count is the limit.
 - **Several phones per account per app may register.** Real accounts, as ADR-027
   already allows test accounts. Up to `MAX_PHONES_PER_APP`; the oldest phone that is
   not activated makes room.
 - **Floating:** the lease is the activation. `maxSeats` is the pool, and only the phone
   that checked the lease out is licensed.
-- **Upgrade:** `issue_upgrade` mints the new licence with `supersedes`.
-  `activate(upgrade=True)` revokes the old licence, moves the app's mirror, seats the
-  holder (institution), activates the phone and clears the pointer, all in one
-  transaction.
+- **Upgrade:** `issue_upgrade` mints the new licence with `supersedes`, then points the
+  old licence and the holder at it in one transaction that refuses `409 upgrade_pending`
+  when another upgrade already waits.
+  - `activate(upgrade=True)` first checks everything the activation would refuse: the
+    phone, the new licence live, not floating, within its grace, a slot free.
+  - It then moves the app's mirror and seats the holder (institution), revokes the old
+    licence with `supersededBy`, clears the pointer and activates the phone.
+  - These are separate writes, not one transaction. Each is safe to run again, and the
+    pointer stays until the old licence is revoked, so the next Activate finishes an
+    apply that died part-way.
+  - Revoking the old licence while its upgrade waits withdraws the upgrade. An individual
+    successor nobody has claimed is revoked with it; an institution one is only
+    withdrawn.
 - **Quota per app:** `count_user_sessions(uid, app)`; the Demo per-device cap stays.
 - **Compatibility:** installed builds (Semper 1036, Classroom v1.4-beta.2) never tap
   Activate.

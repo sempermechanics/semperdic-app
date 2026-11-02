@@ -160,6 +160,8 @@ def _authenticate(
     lets through that `current_user` does not is PENDING, for the one thing a
     not-yet-approved user must be able to do — accept the Terms.
     """
+    if x_device_id:  # first: it is a Firestore document path below ("a/b", "..")
+        x_device_id = require_header_identifier(x_device_id, name="device_id", maximum=128)
     claims: dict = _DEV_CLAIMS if settings.DEV_INSECURE_AUTH else {}
     app = _resolve_app(x_app_id)
     request.state.app, request.state.app_id = app, x_app_id  # as sent: `apps.token_claim`
@@ -340,18 +342,16 @@ def unless_paused(*switches: str):
 
 
 def admin_user(request: Request, user: dict = Depends(current_user)) -> dict:
-    """Authenticated caller that is an admin: `role=admin`, or a token that
-    proves an address in ADMIN_EMAILS (`repo.is_admin_email`). Not the stored
-    address: an account that typed a staff address and never verified it is
-    not staff.
-
-    ID-token based (no device signature) so list/read admin screens and curl in
-    dev mode work without a registered device. **Mutating** admin routes
-    (approve / revoke / config-patch) additionally require `verified_device` so
-    a stolen ID token alone cannot change access — see those handlers.
+    """Caller whose token proves an ADMIN_EMAILS address (`repo.is_admin_email`),
+    asked per request: not the stored address or `role` (a display copy), so
+    removing an address revokes it. The dev bypass has no token: its role.
+    ID-token based, so read screens work without a registered device;
+    **mutating** admin routes also require a step-up (`step_up`), so a stolen
+    ID token alone cannot change access.
     """
     claims = getattr(request.state, "claims", None) or {}
-    if user.get("role") != "admin" and not repo.is_admin_email(claims):
+    if not (user.get("role") == "admin" if settings.DEV_INSECURE_AUTH
+            else repo.is_admin_email(claims)):
         raise HTTPException(403, errors.NOT_ADMIN)
     return user
 

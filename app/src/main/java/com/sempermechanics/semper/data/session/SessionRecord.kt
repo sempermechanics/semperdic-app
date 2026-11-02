@@ -132,6 +132,15 @@ data class SessionRecord(
      */
     val extras: JsonObject = NO_EXTRAS,
 
+    /**
+     * The Firebase uid of the account that ran or restored this analysis, set
+     * by [SessionStore.save]. On a phone two accounts share, only the current
+     * account's rows are listed, counted, reconciled or uploaded ([SessionOwner]).
+     * Blank for a row an older build wrote until an account adopts it, and
+     * left out of `index.json` while blank, so such rows write as they did.
+     */
+    val ownerUid: String = "",
+
 ) {
 
     /**

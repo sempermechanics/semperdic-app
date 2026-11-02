@@ -23,7 +23,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 import fake_firestore
 import repo_view as repo
-from app import deps, entitlement_token as ent
+from app import apps, deps, entitlement_token as ent
 from app.config import settings
 from key_helpers import public_pem, seeded_p256_key
 
@@ -479,3 +479,26 @@ async def test_a_failed_device_lookup_omits_the_token_and_logs(issuing, client, 
     events = [json.loads(rec.message) for rec in caplog.records
               if rec.message.startswith("{") and '"entitlement_not_issued"' in rec.message]
     assert events and events[0]["errorCode"] == "RuntimeError"
+
+
+def test_the_lic_claim_is_the_calling_apps_own_licence(monkeypatch):
+    """`lic` used to be the unsuffixed (Semper) `licenseId` whichever app
+    asked, so a Classroom token named Semper's licence (L1-6 / L10-3)."""
+    monkeypatch.setattr(settings, "ENTITLEMENT_SIGNING_KEY", _p256_pem())
+    user = {"uid": "uid-1", "licenseId": "lic-semper", "licenseApp": "semper",
+            **apps.written_fields("licenseId", apps.SEMPER_CLASSROOM, "lic-classroom")}
+    device = {"uid": "uid-1", "status": "ACTIVE", "publicKeyPem": DEVICE_PEM}
+
+    def lic(app: str):
+        token = ent.issue(user, _licensed_config(), app=app, device_id="and-1", device=device, now=IAT)
+        payload = _parts(token)[1]
+        return json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))["lic"]
+
+    assert lic("semper") == "lic-semper"
+    assert lic("semperclassroom") == "lic-classroom"
+    # A build from before the rename names the app by its old id (ADR-030).
+    assert lic("materialtesting") == "lic-classroom"
+    # A Classroom caller with no licence of its own, on a split account, names none.
+    for name in apps.written_fields("licenseId", apps.SEMPER_CLASSROOM, None):
+        del user[name]
+    assert lic("semperclassroom") is None

@@ -45,6 +45,15 @@ object PhonesView {
     /** The [AccountPhonesDto.model] of an account with no live licence (or a floating one). */
     private const val MODEL_NONE = "none"
 
+    /** The [AccountPhonesDto.model] of a licence that activates and deactivates phones one by one. */
+    private const val MODEL_ACTIVATION = "activation"
+
+    /**
+     * The count the backend answers for an institution licence with neither a
+     * device count nor a seat cap (`repo/activations._UNCOUNTED`): no limit.
+     */
+    const val UNCOUNTED = 1_000_000
+
     /**
      * This phone's place on the licence, from the [list] the backend just
      * answered, with the cached `activation.state` [cachedState] to tell a
@@ -67,9 +76,22 @@ object PhonesView {
         else -> ThisPhone.NONE
     }
 
-    /** The count line: the licence's own, or an institution's pool; null with no count. */
+    /**
+     * Whether the licence in [list] deactivates one phone: only one that runs
+     * activations. A lock licence (from before the split) moves its phone
+     * with Move instead, and its Deactivate would 404, as on the console
+     * (`account/phones.js`).
+     */
+    fun canDeactivate(list: AccountPhonesDto): Boolean = list.model == MODEL_ACTIVATION
+
+    /**
+     * The count line: the licence's own, or an institution's pool; null with
+     * no count. A [max] at [UNCOUNTED] says there is no limit, not the number.
+     */
     fun count(active: Int, max: Int, pool: Boolean): Note? = when {
         max <= 0 -> null
+        max >= UNCOUNTED && pool -> Note(R.plurals.phones_pool_unlimited_fmt, listOf(active), quantity = active)
+        max >= UNCOUNTED -> Note(R.plurals.phones_count_unlimited_fmt, listOf(active), quantity = active)
         pool -> Note(R.plurals.phones_pool_fmt, listOf(active, max), quantity = max)
         else -> Note(R.plurals.phones_count_fmt, listOf(active, max), quantity = max)
     }

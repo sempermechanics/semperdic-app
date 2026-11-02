@@ -78,6 +78,32 @@ class PhonesViewTest {
     }
 
     @Test
+    fun `a licence with no limit says so, not the backend's sentinel count`() {
+        val uncounted = PhonesView.UNCOUNTED
+        assertEquals(
+            Note(R.plurals.phones_pool_unlimited_fmt, listOf(3), quantity = 3),
+            PhonesView.count(3, uncounted, pool = true),
+        )
+        assertEquals(
+            Note(R.plurals.phones_count_unlimited_fmt, listOf(1), quantity = 1),
+            PhonesView.count(1, uncounted, pool = false),
+        )
+        // One below the sentinel is a real count.
+        assertEquals(
+            Note(R.plurals.phones_pool_fmt, listOf(3, uncounted - 1), quantity = uncounted - 1),
+            PhonesView.count(3, uncounted - 1, pool = true),
+        )
+    }
+
+    @Test
+    fun `only a licence that runs activations deactivates a phone`() {
+        assertTrue(PhonesView.canDeactivate(list(1, 2, model = "activation")))
+        assertFalse(PhonesView.canDeactivate(list(1, 1, model = "lock")))
+        assertFalse(PhonesView.canDeactivate(list(0, 0, model = "none")))
+        assertFalse(PhonesView.canDeactivate(list(0, 0, model = "")))
+    }
+
+    @Test
     fun `each row says whether the licence covers it and which is this phone`() {
         assertEquals(R.string.phones_row_this_activated, PhonesView.rowStatus(phone("a", true, here = true)))
         assertEquals(R.string.phones_row_this_not_activated, PhonesView.rowStatus(phone("a", here = true)))
