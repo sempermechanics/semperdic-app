@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The account's recycle bin (ADR-035): a deleted cloud backup waits there for
+     30 days, then it is erased for good. RecycleBinActivity, and where Home and
+     Settings say a row's backup is in it. -->
+<resources>
+    <string name="recycle_bin_title">Recycle bin</string>
+    <string name="recycle_bin_intro">A deleted backup stays here for 30 days, then it\'s erased for good. Restore it before then to get it back.</string>
+    <string name="recycle_bin_empty_action">Empty recycle bin</string>
+    <string name="recycle_bin_empty_state">The recycle bin is empty.</string>
+    <string name="recycle_bin_restore">Restore</string>
+    <string name="recycle_bin_delete_forever">Delete permanently</string>
+    <string name="recycle_bin_retry">Try again</string>
+
+    <!-- A row's dates: %1$s when it was deleted, %2$s when it is erased ("3 Nov"). -->
+    <string name="recycle_bin_dates_fmt">Deleted %1$s · erased for good on %2$s</string>
+    <!-- The same line when the backend did not say when it was deleted. -->
+    <string name="recycle_bin_purge_date_fmt">Erased for good on %1$s</string>
+    <plurals name="recycle_bin_days_left_fmt">
+        <item quantity="one">%1$d day left</item>
+        <item quantity="other">%1$d days left</item>
+    </plurals>
+    <!-- Past its time: the daily job has not erased it yet, and it can no longer be restored. -->
+    <string name="recycle_bin_last_day">Being erased for good</string>
+    <!-- %1$s is the analysis's name, for TalkBack on a row's buttons. -->
+    <string name="recycle_bin_restore_desc_fmt">Restore %1$s</string>
+    <string name="recycle_bin_delete_desc_fmt">Delete %1$s permanently</string>
+
+    <!-- Delete permanently and Empty recycle bin ask first. -->
+    <string name="recycle_bin_delete_title_fmt">Delete %1$s permanently?</string>
+    <string name="recycle_bin_delete_body">Its raw images, results and report are erased from the cloud for good. This can\'t be undone.</string>
+    <plurals name="recycle_bin_empty_title_fmt">
+        <item quantity="one">Erase %1$d backup for good?</item>
+        <item quantity="other">Erase %1$d backups for good?</item>
+    </plurals>
+    <string name="recycle_bin_empty_body">Everything in the recycle bin is erased from the cloud for good. This can\'t be undone.</string>
+
+    <!-- What a Restore tap did (RecycleBin.restore). -->
+    <string name="recycle_bin_restored">Backup restored</string>
+    <string name="recycle_bin_restored_fmt">%1$s is backed up again</string>
+    <string name="recycle_bin_no_room">There\'s no room to restore it: your account or this phone is at its analysis limit. Delete an analysis first.</string>
+    <string name="recycle_bin_gone">That backup was already erased for good.</string>
+    <string name="recycle_bin_restore_failed">Couldn\'t restore that backup.</string>
+    <string name="recycle_bin_offline">Couldn\'t reach semper. Check your connection and try again.</string>
+    <string name="recycle_bin_load_failed">Couldn\'t load the recycle bin.</string>
+
+    <!-- What a finished permanent delete says (DeleteFeedback). -->
+    <plurals name="recycle_bin_erased_done">
+        <item quantity="one">%1$d backup erased for good</item>
+        <item quantity="other">%1$d backups erased for good</item>
+    </plurals>
+
+    <!-- Home's row icon and Settings' analysis rows for a row whose backup is in the bin. -->
+    <string name="sync_state_in_recycle_bin">Backup in the recycle bin</string>
+    <!-- %1$s is the day it is erased for good ("3 Dec"). -->
+    <string name="analysis_state_in_recycle_bin_fmt">In the recycle bin until %1$s</string>
+    <string name="analysis_state_in_recycle_bin">In the recycle bin</string>
+    <string name="recycle_bin_restore_backup">Restore backup</string>
+
+    <!-- Deleting a row whose backup is in the bin removes the phone copy only. -->
+    <string name="delete_binned_body_fmt">It\'s deleted from this phone. Its backup stays in the recycle bin until %1$s.</string>
+    <string name="delete_binned_body">It\'s deleted from this phone. Its backup stays in the recycle bin.</string>
+    <plurals name="delete_binned_body_multi">
+        <item quantity="one">They\'re deleted from this phone. %1$d has a backup in the recycle bin; it stays there.</item>
+        <item quantity="other">They\'re deleted from this phone. %1$d have a backup in the recycle bin; they stay there.</item>
+    </plurals>
+
+    <!-- A finished delete that moved backups to the bin (DeleteFeedback). -->
+    <plurals name="delete_multi_done_binned">
+        <item quantity="one">%1$d deleted · in the recycle bin for 30 days</item>
+        <item quantity="other">%1$d deleted · in the recycle bin for 30 days</item>
+    </plurals>
+</resources>

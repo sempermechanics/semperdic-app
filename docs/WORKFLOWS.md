@@ -170,6 +170,15 @@ Tests: `settings/AnalysisEntriesTest`, `settings/HelpSupportSectionTest`,
 `ui/admin/AdminActivity` → `SemperApi.listUsers` / `setUserStatus` → `C14`.
 Visible only when `AccountCache.isAdmin` (backend-reported role).
 
+### A4.2 Recycle bin 🔒
+
+`ui/recyclebin/RecycleBinActivity` + `RecycleBinViewModel` → `data/cloud/bin/RecycleBin`
+(list, restore) → `data/net/RecycleBinApi` → `GET /v1/recycle-bin`,
+`POST /v1/recycle-bin/{sid}/restore` ([ADR-035](adr/ADR-035-recycle-bin.md)).
+Delete permanently and Empty recycle bin queue `SessionDeletes` with `Mode.PURGE`
+(B4) → `DELETE /v1/recycle-bin/{sid}`. Opened from Settings → Your data, a Home
+row's bin icon and a Settings row's **Restore backup**.
+
 ### A5 Analysis wizard
 
 One Activity, three pages (`WizardStep`); pages 2 and 3 inflate from ViewStubs.
@@ -317,8 +326,12 @@ failed download deletes the empty destination rather than leaving a 0-byte file.
 5-second undo → `data/BackupDeleteWorker` → one analysis at a time through
 `CloudSync.eraseCloudBackup` / `eraseEverywhere` → `SemperApi.deleteSession` (C11).
 A 429 waits 5 s and retries that analysis (up to six tries) instead of reporting it
-as still in the cloud; a cloud delete clears the row's `cloudSessionId`, so a later
-delete of the phone copy sends nothing. `ui/common/transfer/DeleteFeedback` shows Undo,
+as still in the cloud. The backend moves a deleted backup to the recycle bin for
+30 days ([ADR-035](adr/ADR-035-recycle-bin.md)); a cloud delete clears the row's
+`cloudSessionId` and marks the row binned (`CloudErase.binCloudCopy`), so a later
+delete of the phone copy sends nothing and no reconcile uploads it again. Before
+it erases, the job cancels the row's upload work (L5-3). `Mode.PURGE` erases a
+binned backup for good (A4.2). `ui/common/transfer/DeleteFeedback` shows Undo,
 "Deleting x of y…" and the outcome, with **Try again** for what is left. Settings
 re-lists with `CloudRestore.listCompleted`, which is uncached, so the list stops
 offering what no longer exists.

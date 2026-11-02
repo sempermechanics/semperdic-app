@@ -15,6 +15,7 @@ import com.sempermechanics.semper.data.account.phones.DeviceActivation
 import com.sempermechanics.semper.data.account.phones.PhonesOutcome
 import com.sempermechanics.semper.data.net.AccountPhonesDto
 import com.sempermechanics.semper.data.net.AppRemoteConfig
+import com.sempermechanics.semper.ui.common.Note
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow

@@ -132,12 +132,13 @@ class SessionSelectionControllerTest : SessionSelectionFixture() {
     }
 
     @Test
-    fun `a cloud-only stub is named with where it is deleted from`() {
+    fun `a cloud-only stub is named with where it is deleted from, and its backup goes to the recycle bin`() {
         val stub = record("s", local = false, cloud = true)
         list(stub)
         controller.confirmDelete(stub)
         assertEquals("Delete Specimen s from the cloud?", dialogTitle())
-        assertEquals(activity.getString(R.string.delete_body_cant_undo), dialogMessage())
+        // It used to say "This can't be undone." (ADR-035: the backup waits 30 days in the bin).
+        assertEquals(activity.getString(R.string.cloud_delete_body), dialogMessage())
     }
 
     @Test
@@ -277,7 +278,7 @@ class SessionSelectionControllerTest : SessionSelectionFixture() {
         val message = dialogMessage().orEmpty()
         assertFalse(message.contains("Delete cloud"))
         assertFalse(message.contains("Delete device"))
-        assertTrue(message.contains("every copy"))
+        assertTrue(message.contains("removes it from this phone, and its backup stays in the recycle bin"))
     }
 
     @Test

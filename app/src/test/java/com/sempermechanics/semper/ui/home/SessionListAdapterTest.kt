@@ -298,6 +298,18 @@ class SessionListAdapterTest {
     }
 
     @Test
+    fun `a row whose backup is in the recycle bin says so to TalkBack, with or without frames`() {
+        // ADR-035: such a row is LOCAL_ONLY, and read "Not backed up" before the UI PR.
+        submit(
+            record("b").copy(binnedCloudId = "S1"),
+            record("s").copy(binnedCloudId = "S2"),
+            withoutLocalData = setOf("s"),
+        )
+        assertEquals("Backup in the recycle bin", bind(0).stateWords)
+        assertEquals("Backup in the recycle bin", bind(1).stateWords)
+    }
+
+    @Test
     fun `a row without frames that is not backed up keeps its own state`() {
         submit(
             record("p", sync = SessionRecord.SyncState.PENDING),

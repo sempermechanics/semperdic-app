@@ -163,6 +163,34 @@ class AnalysisEntriesTest {
         assertEquals(AnalysisLocation.PHONE_ONLY, entries[0].location)
     }
 
+    @Test
+    fun `a row whose backup is in the recycle bin says so, with or without frames, and offers no cloud action`() {
+        // Until the UI PR (ADR-035) these read "phone only" and offered Back up, which the backend refuses.
+        val binned = record("local-1", syncState = SessionRecord.SyncState.LOCAL_ONLY)
+            .copy(binnedCloudId = "S1", binPurgeAt = 1_000L)
+        val stub = record("local-2", syncState = SessionRecord.SyncState.LOCAL_ONLY, withLocalData = false)
+            .copy(binnedCloudId = "S2")
+        val entries = AnalysisEntries.merge(records = listOf(binned, stub), cloud = emptyList())
+
+        assertEquals(
+            listOf(AnalysisLocation.IN_RECYCLE_BIN, AnalysisLocation.IN_RECYCLE_BIN),
+            entries.map { it.location },
+        )
+        assertEquals(listOf(false, false), entries.map { it.offersCloudActions() })
+        assertEquals(listOf(false, false), entries.map { it.offersRestore() })
+    }
+
+    @Test
+    fun `a backup restored from the bin and listed again is on both, not in the bin`() {
+        val restored = record("local-1", syncState = SessionRecord.SyncState.SYNCED, cloudSessionId = "S1")
+        val entries = AnalysisEntries.merge(
+            records = listOf(restored),
+            cloud = listOf(CloudSessionDto(sessionId = "S1", localSessionId = "local-1")),
+        )
+
+        assertEquals(AnalysisLocation.PHONE_AND_CLOUD, entries.single().location)
+    }
+
     /**
      * The regression that matters: an unreachable backend yields an empty cloud
      * list, and a backed-up analysis must NOT then read as "on phone only" —

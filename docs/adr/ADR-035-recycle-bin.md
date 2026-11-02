@@ -1,8 +1,8 @@
 # ADR-035: A deleted cloud backup goes to a 30-day recycle bin, held in its own collection
 
-**Status:** Accepted 2026-11-01, in progress (backend built). The app's data layer
-and the bin's screens follow in two later PRs; production waits for counsel's
-Privacy Policy release (TD-277).
+**Status:** Accepted 2026-11-01, in progress (backend, the app's data layer and the
+bin's screens built; deploy owed). Production waits for counsel's Privacy Policy
+release (TD-277).
 **Date:** 2026-11-01
 **Deciders:** product owner
 **Register:** TD-384 (a phone that never sees the bin re-uploads after the purge)
@@ -226,10 +226,11 @@ No build in the field knows the bin, and none needs to:
       the erased markers, the delete that cancels the upload work, and the upload
       guard (second PR; `session_in_recycle_bin` is in `errors.CLIENT_BRANCHED`
       with it).
-- [ ] App UI: the recycle bin screen, its entry points and the dialog copy (third
+- [x] App UI: the recycle bin screen, its entry points and the dialog copy (third
       PR).
-- [ ] Privacy Policy: the bin and the erased marker in the retention table, held
-      with counsel (TD-277).
+- [ ] Privacy Policy: the bin and the erased marker in the retention table, the
+      Drive row and §5.1. The text is written (third PR) and held with counsel
+      (TD-277); the hosted page stays at `b940cc29` until counsel releases it.
 - [ ] Deploy, staging first: TTL policy, backend, gateway, the Scheduler job
       ([DEPLOY_CHECKLIST_2026-10.md](../ops/DEPLOY_CHECKLIST_2026-10.md),
       "Recycle bin"). Production only after counsel releases the Privacy Policy

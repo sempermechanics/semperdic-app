@@ -1,6 +1,6 @@
 # Semper — Privacy Policy
 
-**Last updated:** 2026-10-22  
+**Last updated:** 2026-11-02  
 **Product:** Semper DIC Android app, optional cloud sync backend, and web console  
 **Data controller (data fiduciary):** [OPERATOR LEGAL NAME], [REGISTERED ADDRESS], Chennai, Tamil Nadu, India  
 **Privacy contact:** the support mailbox configured as `SUPPORT_EMAIL` for the deployment  
@@ -170,8 +170,10 @@ by the Government of India.
 | Data | Retention |
 |------|-----------|
 | Firebase Auth account | Until you delete the account or an admin removes it |
-| Firestore profile, devices, sessions, file docs | Until account/session erasure via the app/API |
-| Drive artifacts | Deleted with session or account erasure (Shared Drive trash may retain per Workspace policy) |
+| Firestore profile, devices, sessions, file docs | Until account erasure via the app/API; a deleted session and its file docs go to the recycle bin first (next row) |
+| Recycle bin (a deleted cloud backup) | 30 days from the delete, unless you restore it or delete it permanently sooner (**Settings → Your data → Recycle bin**). The backup's metadata, file records and Drive files are kept as they were. A daily job then erases it, so it can be held up to a day past the 30 days (longer only while an erasure that failed is retried). Account erasure removes the recycle bin at once |
+| Erased-backup marker | 30 days from the erasure of a backup (by you, or when its 30 days in the recycle bin run out). Ids only: the backup's session id, its local session id, your account id, the app, when it was erased and why (by you or expired). It lets your other phones tell a deleted backup from a lost one, so they do not upload it again on their own. Account erasure removes it at once |
+| Drive artifacts | Deleted when the backup's recycle bin entry is erased (after its 30 days, or at once when you delete it permanently), or with account erasure (Shared Drive trash may retain per Workspace policy) |
 | Crashlytics | 90 days for crash stack traces, minidump data, and the identifiers attached to them (Crashlytics installation UUIDs, Firebase installation IDs) — Firebase's published default ([Firebase privacy and security](https://firebase.google.com/support/privacy), read 2026-10-22); to be confirmed in the Firebase console |
 | Cloud Logging | 30 days for request and application logs (`_Default` log bucket); 400 days for Google Cloud administrative audit logs (`_Required` bucket, set by Google). Both GCP projects, read with `gcloud logging buckets list` on 2026-10-22 |
 | Resend message content | 30 days — Resend's published retention for every plan except Enterprise ([Resend pricing](https://resend.com/pricing), read 2026-10-22); to be confirmed in the Resend dashboard |
@@ -218,13 +220,24 @@ do not share it for cross-context behavioural advertising.
 
 - **Export:** In the app, **Settings → Your data → Download my cloud account
   data**. (Directly: authenticated, device-attested `GET /v1/me/export`, which
-  returns profile, devices, and complete session manifests — `complete: true` is
-  written last, so a truncated download is detectable.) Binary artifacts are
-  downloaded via `GET /v1/files/{id}/content` (or the app Restore flow).
-- **Delete session:** Device-attested `DELETE /v1/sessions/{id}` removes Drive
-  folder + Firestore metadata for that analysis.
+  returns profile, devices, complete session manifests, the recycle bin
+  (`recycleBin`: each deleted backup still held, with when it was deleted, when
+  it will be erased and its file manifest) and the erased-backup markers
+  (`erasedBackups`: session id, local session id and erasure time) —
+  `complete: true` is written last, so a truncated download is detectable.)
+  Binary artifacts are downloaded via `GET /v1/files/{id}/content` (or the app
+  Restore flow); a backup in the recycle bin cannot be downloaded until it is
+  restored.
+- **Delete session:** Deleting an analysis's cloud backup in the app
+  (device-attested `DELETE /v1/sessions/{id}`) moves it to your recycle bin.
+  Its Drive folder and Firestore metadata are kept 30 days, then erased (section
+  4). Until then, **Settings → Your data → Recycle bin** lists it: **Restore**
+  puts it back in your backups, and **Delete permanently** (device-attested
+  `DELETE /v1/recycle-bin/{id}`) erases its Drive folder and metadata at once,
+  leaving only the erased-backup marker (section 4).
 - **Delete account:** Device-attested `DELETE /v1/me` removes the Drive user
-  subtree and Firestore user/session/device/file docs. **Audit logs remain.**
+  subtree and Firestore user/session/device/file docs, including the recycle
+  bin and its erased-backup markers. **Audit logs remain.**
 - **Limits:** Third-party processor retention (Crashlytics, Logging, Resend,
   Workspace trash) may outlive application erasure until those systems’ own
   retention/TTL elapse. Export does not include other users’ data or raw

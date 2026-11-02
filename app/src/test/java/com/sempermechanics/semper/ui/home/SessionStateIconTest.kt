@@ -34,6 +34,15 @@ class SessionStateIconTest {
     }
 
     @Test
+    fun `a backup in the recycle bin reads as such in every state, on the phone or off`() {
+        val inBin = SessionStateIcon(R.drawable.ic_delete, R.string.sync_state_in_recycle_bin, R.color.text_secondary)
+        for (state in SyncState.entries) {
+            assertEquals(state.name, inBin, SessionStateIcon.forState(state, binned = true))
+            assertEquals(state.name, inBin, SessionStateIcon.forState(state, framesOnPhone = false, binned = true))
+        }
+    }
+
+    @Test
     fun `only a synced backup reads differently off the phone`() {
         for (state in SyncState.entries - SyncState.SYNCED) {
             val offPhone = SessionStateIcon.forState(state, framesOnPhone = false)

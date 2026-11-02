@@ -283,9 +283,10 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="delete_cloud_title_fmt">Delete %1$s from the cloud?</string>
     <string name="delete_body_cant_undo">This can\'t be undone.</string>
 
-    <string name="delete_confirm_body_cloud">A deleted cloud copy can\'t be recovered.</string>
-    <!-- A row whose backup the other app made (ADR-014): this app cannot restore it. -->
-    <string name="delete_confirm_body_other_app">Its backup was made by another semper app, so this app can\'t bring it back once it\'s off this phone. A deleted cloud copy can\'t be recovered.</string>
+    <!-- A deleted backup goes to the recycle bin for 30 days (ADR-035). -->
+    <string name="delete_confirm_body_cloud">A deleted cloud copy stays in the recycle bin for 30 days.</string>
+    <!-- A row whose backup the other app made (ADR-014): this app cannot restore it, and its bin entry is that app's (ADR-035). -->
+    <string name="delete_confirm_body_other_app">Its backup was made by another semper app, so this app can\'t bring it back once it\'s off this phone. A deleted cloud copy stays in that app\'s recycle bin for 30 days.</string>
     <string name="restore_analysis_title_fmt">Restore %1$s?</string>
     <string name="restore_analysis_body">It\'s only in the cloud.</string>
     <string name="delete_device_only_done">Freed from this phone · in the cloud</string>
@@ -429,7 +430,7 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
     <string name="cloud_backup_failed_missing_files">This analysis\'s results are no longer on this phone, so it can\'t be backed up.</string>
     <string name="cloud_delete_backup">Delete from backup</string>
     <!-- A backup with no copy on this phone; delete_cloud_title_fmt names it. -->
-    <string name="cloud_delete_body">Raw images, results and report. This can\'t be undone.</string>
+    <string name="cloud_delete_body">Raw images, results and report. They stay in the recycle bin for 30 days, then they\'re erased for good.</string>
     
     <string name="cloud_backfill_title">Back up local analyses?</string>
     
@@ -1192,15 +1193,16 @@ A large region at a small step can exhaust memory — try a coarser step or a sm
         <item quantity="one">Delete 1 analysis?</item>
         <item quantity="other">Delete %1$d analyses?</item>
     </plurals>
-    <!-- A mixed selection gets one Delete button, which erases every copy; it
-         used to describe "Delete cloud" / "Delete device" buttons it did not have. -->
+    <!-- A mixed selection gets one Delete button, which removes every phone copy
+         and moves the backups to the recycle bin; it used to describe
+         "Delete cloud" / "Delete device" buttons it did not have. -->
     <plurals name="delete_confirm_body_everywhere_multi">
-        <item quantity="one">%1$d is in the cloud. Delete removes every copy. This can\'t be undone.</item>
-        <item quantity="other">%1$d are in the cloud. Delete removes every copy. This can\'t be undone.</item>
+        <item quantity="one">%1$d is in the cloud. Delete removes it from this phone, and its backup stays in the recycle bin for 30 days.</item>
+        <item quantity="other">%1$d are in the cloud. Delete removes them from this phone, and their backups stay in the recycle bin for 30 days.</item>
     </plurals>
     <plurals name="delete_confirm_body_choice_multi">
-        <item quantity="one">%1$d is in the cloud. A deleted cloud copy can\'t be recovered.</item>
-        <item quantity="other">%1$d are in the cloud. A deleted cloud copy can\'t be recovered.</item>
+        <item quantity="one">%1$d is in the cloud. A deleted cloud copy stays in the recycle bin for 30 days.</item>
+        <item quantity="other">%1$d are in the cloud. Deleted cloud copies stay in the recycle bin for 30 days.</item>
     </plurals>
     <plurals name="delete_multi_working">
         <item quantity="one">Deleting 1 analysis…</item>

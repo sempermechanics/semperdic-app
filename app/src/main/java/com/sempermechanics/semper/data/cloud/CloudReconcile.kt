@@ -1,6 +1,8 @@
 package com.sempermechanics.semper.data.cloud
 
 import android.content.Context
+import androidx.annotation.WorkerThread
+import androidx.core.content.edit
 import com.sempermechanics.semper.R
 import com.sempermechanics.semper.data.LicenseConfigWorker
 import com.sempermechanics.semper.data.cloud.CloudSync.Outcome
@@ -12,6 +14,9 @@ import com.sempermechanics.semper.data.net.CloudSessionDto
 import com.sempermechanics.semper.data.net.HttpFailure
 import com.sempermechanics.semper.data.net.RecycleBinApi
 import com.sempermechanics.semper.data.net.SessionsResponse
+import com.sempermechanics.semper.data.prefs.PrefFiles
+import com.sempermechanics.semper.data.prefs.privatePrefs
+import com.sempermechanics.semper.data.prefs.put
 import com.sempermechanics.semper.data.session.SessionRecord
 import com.sempermechanics.semper.data.session.SessionStore
 import com.sempermechanics.semper.data.session.clearBinned
@@ -26,6 +31,17 @@ import timber.log.Timber
  * of rows after it.
  */
 internal object CloudReconcile {
+
+    /**
+     * The next [CloudSync.reconcile] runs in full rather than skipping as
+     * recent: the account's backups just changed (one came back from the
+     * recycle bin), so Home's next check lists it, not one minutes later.
+     */
+    @WorkerThread
+    fun reconcileDue(context: Context) {
+        privatePrefs(context.applicationContext, PrefFiles.CloudSyncPrefs.NAME)
+            .edit { put(PrefFiles.CloudSyncPrefs.LAST_RECONCILE_AT, 0L) }
+    }
 
     /**
      * What a listing that failed means for the reconcile. Anything the server

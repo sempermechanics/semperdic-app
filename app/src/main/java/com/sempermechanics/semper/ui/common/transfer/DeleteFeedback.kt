@@ -1,6 +1,7 @@
 package com.sempermechanics.semper.ui.common.transfer
 
 import android.content.Context
+import android.content.res.Resources
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
@@ -86,8 +87,8 @@ class DeleteFeedback(
         val left = SessionDeletes.decode(info.outputData.getString(SessionDeletes.KEY_STILL_IN_CLOUD))
         val res = activity.resources
         if (left.isEmpty()) {
-            val text = res.getQuantityString(R.plurals.delete_multi_done, done, done)
-            Snackbar.make(root, text, Snackbar.LENGTH_LONG).show()
+            val purged = info.outputData.getInt(SessionDeletes.KEY_PURGED, 0)
+            Snackbar.make(root, deleteDoneText(activity.resources, done, purged), Snackbar.LENGTH_LONG).show()
             return
         }
         val text = res.getQuantityString(R.plurals.delete_multi_partial, done, done, left.size)
@@ -111,3 +112,15 @@ class DeleteFeedback(
         }
     }
 }
+
+/**
+ * The done pill for [done] analyses, [purged] of them erased for good from
+ * the recycle bin: those say so; any other cloud delete moved its backups to
+ * the bin for 30 days (ADR-035).
+ */
+internal fun deleteDoneText(res: Resources, done: Int, purged: Int): String =
+    if (done > 0 && purged >= done) {
+        res.getQuantityString(R.plurals.recycle_bin_erased_done, done, done)
+    } else {
+        res.getQuantityString(R.plurals.delete_multi_done_binned, done, done)
+    }

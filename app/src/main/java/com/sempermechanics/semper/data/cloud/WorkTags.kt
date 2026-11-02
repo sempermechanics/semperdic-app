@@ -55,6 +55,14 @@ object WorkTags {
 
     fun deleteRowTag(localSessionId: String): String = DELETE_ROW_PREFIX + localSessionId
 
+    /**
+     * Prefix of the tag a delete carries for each binned backup it erases for
+     * good (`SessionDeletes.Mode.PURGE`), so the recycle bin can hide it meanwhile.
+     */
+    const val DELETE_PURGE_PREFIX = "delete-purge:"
+
+    fun deletePurgeTag(cloudSessionId: String): String = DELETE_PURGE_PREFIX + cloudSessionId
+
     /** Every metadata send. Unique per analysis: [metadataName]. */
     const val METADATA = "metadata"
 
