@@ -830,7 +830,8 @@ def _session_under(fake, user_folder, sid):
 
 def test_erasure_deletes_every_user_folder_and_every_sessions_folder(fake, monkeypatch):
     """Two `user/u1` trees with an analysis in each, the user doc pointing at
-    one, and a session folder moved out of both: all of it goes."""
+    one, a session folder moved out of both, and a recycle-bin entry's folder
+    outside them too (ADR-035): all of it goes."""
     from app.services import account as account_service
     import repo_view as repo
 
@@ -843,14 +844,17 @@ def test_erasure_deletes_every_user_folder_and_every_sessions_folder(fake, monke
     stored = [{"sessionId": sid, "driveFolderId": f}
               for sid, f in (("s1", s1), ("s2", s2), ("s3", moved), ("s4", None))]
     repo.patch(monkeypatch, "iter_user_sessions", lambda uid: iter(stored))
+    binned = fake.add("s5", fake.root)
+    repo.patch(monkeypatch, "iter_recycle_bin",
+               lambda uid: iter([{"sessionId": "s5", "driveFolderId": binned}]))
     other = fake.add("u2", users)
 
     folders, deleted_one_by_one = account_service._purge_drive(
         TOKEN, {"uid": "u1", "driveFolderId": tree_b})
 
     assert folders == [tree_b, tree_a]
-    assert deleted_one_by_one == 1  # s3; s1 and s2 went with their trees
-    for gone in (tree_a, tree_b, s1, s2, moved):
+    assert deleted_one_by_one == 2  # s3 and the binned s5; s1 and s2 went with their trees
+    for gone in (tree_a, tree_b, s1, s2, moved, binned):
         assert gone not in fake.items
     assert fake.folders_named("u1", users) == []
     assert other in fake.items
