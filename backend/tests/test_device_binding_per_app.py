@@ -100,7 +100,7 @@ def test_one_apps_device_is_a_mismatch_in_the_other(store):
 
 def test_a_seat_binds_one_device_per_app(store):
     store._data["users"] = {
-        "u1": {"uid": "u1", "email": "a@university.edu",
+        "u1": {"uid": "u1", "email": "a@university.edu", "emailVerified": True,
                "access_status": "APPROVED", "plan": "demo"},
     }
     minted = _mint_institution()

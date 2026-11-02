@@ -109,7 +109,11 @@ class SessionCreate(BaseModel):
     metrics: dict = {}
     # The app's local analysis id. Lets the client reconcile its local sync
     # state against what actually exists in the cloud (and restore later).
-    localSessionId: str = Field(default="", max_length=128)
+    # Every phone of the account restores it as a directory name, so only the
+    # characters the app's ids use (a UUID prefix, `restored-…`): never `.`,
+    # `/` or `\`, which once let `..` make filesDir the session dir (L5-1).
+    # Empty stays allowed (an older app's backups carry none).
+    localSessionId: str = Field(default="", max_length=128, pattern=r"^[A-Za-z0-9_-]*$")
 
     @field_validator("metrics")
     @classmethod

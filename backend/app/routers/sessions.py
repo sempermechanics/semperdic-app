@@ -126,7 +126,12 @@ def delete_session(sid: SessionId, ctx=Depends(verified_device)):
 
     folder = session.get("driveFolderId")
     if folder:
-        drive.delete_file(drive.access_token(), folder)
+        try:
+            drive.delete_file(drive.access_token(), folder)
+        except drive.FAILURES as e:
+            # Nothing erased yet: a 502 the app retries, not an unhandled 500.
+            log.error("drive delete %s for session %s failed: %s", folder, sid, e)
+            raise HTTPException(502, errors.DRIVE_WRITE_FAILED) from e
     removed = repo.delete_session(sid)
 
     audit.record(user["uid"], ctx.device_id, action="SESSION_DELETE",

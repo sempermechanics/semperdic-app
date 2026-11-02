@@ -238,6 +238,9 @@ def test_a_typed_key_replaces_the_demo_key_it_supersedes(store):
     minted = _mint_individual()
     license_id = minted["license"]["id"]
     assert store._data["users"]["solo-1"]["licenseId"] == demo_id
+    # Verified by the time the key is typed: an unproven address redeems
+    # nothing (`email_not_verified`).
+    store._data["users"]["solo-1"]["emailVerified"] = True
 
     err, cfg = attempt(repo.activate_license, "solo-1", "solo@lab.org", "and-first", minted["key"])
 

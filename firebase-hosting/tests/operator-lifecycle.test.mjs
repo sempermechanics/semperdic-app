@@ -223,6 +223,47 @@ test("an empty or unreadable deleted list says so", async () => {
   assert.equal($("deletedRows").querySelector("td").className, "err");
 });
 
+test("a deleted list past one page offers Load more, which appends the next page", async () => {
+  const more = (token) => `GET /v1/admin/deleted-licenses?limit=50&page_token=${token}`;
+  await openDesk({ routes: {
+    [DELETED]: () => json(200, { licenses: [GONE[0]], page: { hasMore: true, nextPageToken: "lic-del-1" } }),
+    [more("lic-del-1")]: () => json(200, { licenses: [GONE[1]], page: { hasMore: true, nextPageToken: "lic-deleted-two" } }),
+    [more("lic-deleted-two")]: () => json(503, { detail: "unavailable" }),
+  } });
+  assert.equal($("deletedMore").hidden, true);
+  await click($("loadDeleted"));
+  assert.deepEqual(deletedRows().map((r) => r[0]), ["SEMP-DEL1"]);
+  assert.equal($("deletedMore").hidden, false, "the first page says there is more");
+  await click($("deletedMore"));
+  assert.deepEqual(deletedRows().map((r) => r[0]), ["SEMP-DEL1", "lic-delete"]);
+  assert.equal($("deletedMore").hidden, false);
+  await click($("deletedMore"));
+  assert.deepEqual(status(), ["Could not load more deleted licences: unavailable", "muted err"]);
+  assert.deepEqual(deletedRows().map((r) => r[0]), ["SEMP-DEL1", "lic-delete"], "the rows shown stay");
+  assert.equal($("deletedMore").disabled, false, "and it can be pressed again");
+  assert.deepEqual(sent(/deleted-licenses/), [DELETED, more("lic-del-1"), more("lic-deleted-two")]);
+});
+
+test("a Load more page of the deleted list that lands after a fresh Show is dropped", async () => {
+  const late = deferred();
+  let n = 0;
+  await openDesk({ routes: {
+    [DELETED]: () => json(200, n++
+      ? { licenses: [GONE[2]], page: {} }
+      : { licenses: [GONE[0]], page: { hasMore: true, nextPageToken: "lic-del-1" } }),
+    "GET /v1/admin/deleted-licenses?limit=50&page_token=lic-del-1": () => late.promise,
+  } });
+  await click($("loadDeleted"));
+  await click($("deletedMore"));
+  await click($("loadDeleted")); // Hide
+  await click($("loadDeleted")); // Show: read afresh
+  assert.deepEqual(deletedRows().map((r) => r[0]), ["SEMP-DEL3"]);
+  late.resolve(json(200, { licenses: [GONE[1]], page: {} }));
+  await settle();
+  assert.deepEqual(deletedRows().map((r) => r[0]), ["SEMP-DEL3"], "not appended to the new list");
+  assert.equal($("deletedMore").hidden, true);
+});
+
 test("a delete with Recently deleted open lists it there at once", async () => {
   const gone = { id: IND.id, keyPrefix: "SEMP-IND1", kind: "individual", deletedAt: iso(0), purgeAt: at(30) };
   await openDesk({ routes: {

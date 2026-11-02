@@ -9,7 +9,7 @@
  */
 import { sessionOver } from "../auth.js";
 import { api } from "../api.js";
-import { confirmInPage } from "../dialogs.js";
+import { confirmInPage, holdFocus } from "../dialogs.js";
 import { explain } from "../messages.js";
 import { esc, when, APP_NAMES, placeholderRows, retryRow, sessionEnded } from "../util.js";
 
@@ -118,9 +118,29 @@ export function wirePhones({ card, pool, help, rows, licenseId, report, reload, 
     }
   }
 
-  async function deactivate(deviceId, who, model) {
+  // The phones whose Deactivate is under way, from the first click until the
+  // DELETE has answered. A second click, or a redrawn row's fresh button,
+  // opens no second card and sends no second DELETE, whose "no longer
+  // activated" would land on the first one's success line.
+  const busy = new Set();
+
+  async function deactivate(button) {
     const id = licenseId();
-    if (!id) return;
+    const deviceId = button.dataset.phone;
+    if (!id || busy.has(deviceId)) return;
+    busy.add(deviceId);
+    const refocus = holdFocus(button);
+    button.disabled = true;
+    try {
+      await deactivatePhone(id, deviceId, button.dataset.email, button.dataset.model);
+    } finally {
+      busy.delete(deviceId);
+      button.disabled = false;
+      refocus();
+    }
+  }
+
+  async function deactivatePhone(id, deviceId, who, model) {
     const phone = model || "this phone";
     if (!(await confirmInPage({
       title: `Deactivate ${who}'s phone`,
@@ -152,7 +172,7 @@ export function wirePhones({ card, pool, help, rows, licenseId, report, reload, 
   rows.addEventListener("click", (ev) => {
     const btn = ev.target.closest("button");
     if (!btn) return;
-    if (btn.dataset.phone) deactivate(btn.dataset.phone, btn.dataset.email, btn.dataset.model);
+    if (btn.dataset.phone) deactivate(btn);
     else if ("retry" in btn.dataset && showing) show(showing.lic, showing.current);
   });
 

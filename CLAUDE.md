@@ -55,8 +55,10 @@ Engine tests are **not** this CI. From the submodule: see [docs/engine/TESTING.m
 - Never bump `backend/requirements.txt` without `pip-compile --generate-hashes` on Python **3.12**.
 - Never commit `local.properties` (API URL) or keystores.
 - Deploy Hosting (app.sempermechanics.com: `/login`, `/account`, `/console/*`) only with
-  `API_BASE_URL=<INDIC_API_BASE_URL repo variable> ./scripts/deploy-console.sh` from a clean `main`,
-  never a bare `firebase deploy`: that ships `__API_BASE_URL__` / `__API_ORIGIN__` unfilled and every
+  `API_BASE_URL=<INDIC_API_BASE_URL repo variable> LEGAL_PAGES_FROM=b940cc29 ./scripts/deploy-console.sh`
+  from a clean `main` (it refuses another branch or a dirty tree, and runs `check_console.py`;
+  `LEGAL_PAGES_FROM` ships the counsel-cleared `/privacy` `/terms` while TD-277 is open; `DRY_RUN=1` stops before
+  the deploy), never a bare `firebase deploy`: that ships `__API_BASE_URL__` / `__API_ORIGIN__` unfilled and every
   console API call fails (2026-10-07). Any Hosting deploy replaces the whole site, assetlinks-only too.
   The script then runs `scripts/check_live_console.py`, which fails if the live site still holds a
   `__` placeholder; run it by hand after any other Hosting deploy.

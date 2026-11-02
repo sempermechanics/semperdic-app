@@ -61,6 +61,11 @@ runtime, and a person only discovers in production:
    calls, matched to the calls by method and path. Codes raised further down
    (a repository's `Refusal`) are not followed, and `ROW_CODES` lists the
    codes a route answers inside a row of a 200, not as a refusal.
+14. No repository document under `public/` is published: every `*.md` there
+   (the console README, notes beside a page) matches a Hosting `ignore`
+   glob. Hosting serves every file under `public/` it is not told to skip,
+   and the console README described the deploy to anyone who asked for
+   `/console/README.md`.
 
 Checks 2, 3, 7, 8 and 13 read every module a page runs: its `<script src>` and,
 transitively, what those import by relative path, including on demand.
@@ -502,11 +507,42 @@ def check_hosting() -> dict[str, str]:
                        "blocks the element, every relative asset 404s and the "
                        "sign-in button is dead")
 
+    ignored = [_glob_regex(g) for g in hosting.get("ignore", [])]
+    for doc in sorted(glob.glob(os.path.join(PUBLIC, "**", "*.md"), recursive=True)):
+        rel = os.path.relpath(doc, PUBLIC).replace(os.sep, "/")
+        if not any(r.fullmatch(rel) for r in ignored):
+            fail(path, f"public/{rel} would be published: no Hosting `ignore` glob "
+                       f"matches it (add \"**/*.md\")")
+
     return {
         source: value
         for source, value in policies.items()
         if source in ("/console/**", "{/login,/account}")
     }
+
+
+def _glob_regex(pattern: str) -> re.Pattern[str]:
+    """A Hosting `ignore` glob as a regex over a path relative to `public/`:
+    `**/` is any number of directories (none too), `*` and `?` stay within one."""
+    out = ""
+    i = 0
+    while i < len(pattern):
+        if pattern.startswith("**/", i):
+            out += "(?:.*/)?"
+            i += 3
+        elif pattern.startswith("**", i):
+            out += ".*"
+            i += 2
+        elif pattern[i] == "*":
+            out += "[^/]*"
+            i += 1
+        elif pattern[i] == "?":
+            out += "[^/]"
+            i += 1
+        else:
+            out += re.escape(pattern[i])
+            i += 1
+    return re.compile(out)
 
 
 # ---------------- 7: every path a console calls is on the gateway ---------

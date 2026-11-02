@@ -49,6 +49,7 @@ from .activations import (  # noqa: F401
     activated_devices,
     activation_block,
     activation_summary,
+    check_activation,
     licence_devices,
     max_devices,
     revalidate_activation,

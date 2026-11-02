@@ -18,6 +18,12 @@ across a restore too.
 Nothing is removed until the copy is written. System Demo keys are not
 deleted here: there is one per account, and the account would only be
 issued another.
+
+A licence's phones (`licenses/{id}/activations`, ADR-033) stay where they
+are through the hold, as a revoke leaves them: nothing reads them while the
+licence is gone. A restore keeps the phones of the holders it puts back and
+deactivates the rest, so a seat or a licence that comes back without its
+holder frees its phone slots (`_settle_activations`).
 """
 from datetime import timedelta
 
@@ -32,6 +38,7 @@ from ..licenses import (
 
 from . import _base
 from ._base import (
+    ACTOR_STAFF,
     SCHEMA_VERSION,
     _is_institution,
     _is_revoked,
@@ -45,8 +52,15 @@ from ._base import (
     _get,
     _stream,
     _commit,
+    _cursor_page,
     _set_doc,
     _delete_doc,
+)
+from .activations import (
+    ACTIVATIONS,
+    ACTIVE,
+    DEACTIVATED,
+    runs_activations,
 )
 from .claims import (
     _drop_superseded_demos,
@@ -92,6 +106,31 @@ def _set_refs(writes: list) -> None:
         for ref, data in writes[start:start + _BATCH_LIMIT]:
             batch.set(ref, data)
         _commit(batch)
+
+
+def _settle_activations(ref, kept: set[str], admin_uid: str) -> dict[str, int]:
+    """Deactivate the active phones on the licence at `ref` whose holder is
+    not in `kept`, and answer `{uid: phones still active}` for the rest.
+
+    For a restore: a seat that comes back revoked, or an individual licence
+    that comes back unused, has no holder for its phones, and they held the
+    pool's or the licence's slots against `maxDevices` (review L2-2). Only
+    the activation is marked, as staff (`ACTOR_STAFF`, the admin who
+    restored): the phone's registration is not released, because its owner
+    has moved on to another licence and may use it there."""
+    phones: dict[str, int] = {}
+    gone = []
+    now = _now()
+    for snap in _stream(ref.collection(ACTIVATIONS).where("status", "==", ACTIVE)):
+        uid = (snap.to_dict() or {}).get("uid") or ""
+        if uid and uid in kept:
+            phones[uid] = phones.get(uid, 0) + 1
+        else:
+            gone.append((snap.reference, {"status": DEACTIVATED, "deactivatedAt": now,
+                                          "deactivatedBy": ACTOR_STAFF,
+                                          "deactivatedByUid": admin_uid}))
+    _update_refs(gone)
+    return phones
 
 
 def _deleted_public(license_id: str, tomb: dict) -> dict:
@@ -143,12 +182,14 @@ def delete_license(license_id: str, admin_uid: str) -> dict:
     return _deleted_public(license_id, {**tomb, "deletedAt": _now()})
 
 
-def list_deleted_licenses(limit: int = 50) -> list[dict]:
-    """Licences deleted and still held, most recently deleted first."""
-    query = (db().collection(DELETED)
-             .order_by("deletedAt", direction=_base.firestore.Query.DESCENDING)
-             .limit(limit))
-    return [_deleted_public(d.id, d.to_dict() or {}) for d in _stream(query)]
+def list_deleted_licenses(limit: int = 50,
+                          page_token: str | None = None) -> tuple[list[dict], str | None]:
+    """Licences deleted and still held, most recently deleted first, a page at
+    a time. Returns (page, next_page_token_or_None)."""
+    col = db().collection(DELETED)
+    docs, next_token = _cursor_page(col, col, limit, page_token,
+                                    order_field="deletedAt", descending=True)
+    return [_deleted_public(d.id, d.to_dict() or {}) for d in docs], next_token
 
 
 def restore_license(license_id: str, admin_uid: str) -> dict:
@@ -159,6 +200,11 @@ def restore_license(license_id: str, admin_uid: str) -> dict:
     on comes back revoked, and an individual licence whose holder has moved
     on comes back unused. Leases do not come back: a floating member checks
     out again. A licence that was already revoked comes back revoked.
+
+    Phones (ADR-033): a holder put back keeps the phones they had active, a
+    seat on hold keeps its member's as a hold does, and every other phone is
+    deactivated; `devicesActive` is then counted from what is left, on the
+    licence and on each seat (`_settle_activations`).
     """
     tomb_ref = db().collection(DELETED).document(license_id)
     snap = _get(tomb_ref)
@@ -181,6 +227,8 @@ def restore_license(license_id: str, admin_uid: str) -> dict:
     seat_docs = _stream(tomb_ref.collection(DELETED_SEATS))
 
     back: list[str] = []
+    #: Holders whose phones stay activated: everyone the licence keeps.
+    kept: set[str] = set()
     seat_writes = []
 
     def _free(uid: str) -> bool:
@@ -197,6 +245,7 @@ def restore_license(license_id: str, admin_uid: str) -> dict:
             if live and not _is_revoked(seat):
                 if _free(uid):
                     on_roster += 1
+                    kept.add(uid)
                     if seat.get("status") != "disabled":
                         back.append(uid)
                 else:
@@ -209,10 +258,23 @@ def restore_license(license_id: str, admin_uid: str) -> dict:
         redeemer = lic.get("redeemedByUid") or ""
         if redeemer and _free(redeemer):
             back.append(redeemer)
+            kept.add(redeemer)
         elif redeemer:
             lic["status"] = "unused"
             lic.pop("redeemedByUid", None)
             lic.pop("redeemedAt", None)
+            # The lock (or, on a licence that runs activations, its mirror)
+            # named the phone of a holder who has gone.
+            lic.update(apps.spread("deviceIdLock", {}))
+
+    if live and runs_activations(lic):
+        phones = _settle_activations(ref, kept, admin_uid)
+        lic["devicesActive"] = sum(phones.values())
+        for seat_ref, seat in seat_writes:
+            uid = seat.get("uid") or seat_ref.id
+            seat["devicesActive"] = phones.get(uid, 0)
+            if uid not in kept:
+                seat.update(apps.spread("deviceIdLock", {}))
 
     _set_doc(ref, lic)
     _set_refs(seat_writes)
