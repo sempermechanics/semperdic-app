@@ -199,7 +199,10 @@ internal class ViewerImageLoader(
                 if (host.rawFrameIndex == index && data != null) host.applyLoadedFrame(index, data)
                 return@launch
             }
-            if (framePhotoPathFor(host.viewModel.currentFrameIndex) != path) {
+            // Still the photo of the frame whose data is drawn? Not the frame
+            // Prev / Next has asked for: its decode is pending, and until it
+            // lands the map on screen is this frame's, drawn for this photo.
+            if (framePhotoPathFor(host.rawFrameIndex) != path) {
                 bmp.recycle()
                 return@launch
             }

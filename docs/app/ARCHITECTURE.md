@@ -333,7 +333,9 @@ show up as an OOM, a mid-run crash, or a "nothing happened" report:
   the cached heatmaps include the one on screen, so they are recycled only by `clear`
   in the viewer's `onDestroy`, which spares that one. The caches key a render and its
   stats by the frame whose data was drawn (`ResultViewerActivity.rawFrameIndex`), not
-  by `currentFrameIndex`, which Prev / Next move before the debounced decode lands.
+  by `currentFrameIndex`, which Prev / Next move before the debounced decode lands;
+  the photo under the map (`ViewerImageLoader.onFramePhoto`, and which decoded photo
+  is kept) follows the same frame.
 - **Whole-batch passes are started on demand, never on open.** The summary's colour-scale
   scan (`ViewerSummaryController.start`) decodes **every frame in the batch**, so it runs from
   `show()` rather than from viewer startup — opening straight onto a frame must not pay

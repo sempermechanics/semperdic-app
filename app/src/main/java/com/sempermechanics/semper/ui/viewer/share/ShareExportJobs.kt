@@ -22,6 +22,7 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -50,6 +51,8 @@ import java.util.concurrent.atomic.AtomicInteger
 internal class ShareExportJobs(
     private val scope: CoroutineScope,
     private val resolver: ContentResolver,
+    /** Copies a finished export into its save-as document; true when bytes landed. Blocking; a test swaps it. */
+    private val copyDocument: (Uri, File) -> Boolean = { uri, file -> SafCopy.copy(resolver, uri, file) },
     /** Deletes a save-as document the export did not fill; blocking. A test swaps it to see the call. */
     private val discardDocument: (Uri) -> Unit = { SafCopy.discard(resolver, it) },
 ) {
@@ -103,9 +106,11 @@ internal class ShareExportJobs(
      * its file to [destUri] or hands it to the share sheet. [produce] reports
      * progress through its argument and throws when it has nothing usable.
      *
-     * The picker created [destUri] before the export started, so a job that is
-     * cancelled, fails or lands no bytes deletes it: no empty file is left in
-     * the folder the user picked.
+     * The picker created [destUri] for this export before it started, so a job
+     * that is cancelled, fails or lands no bytes before its copy completes
+     * deletes it: no empty file is left in the folder the user picked. Once the
+     * copy has landed its bytes the document is kept, even when a cancel
+     * arrives as the copy returns.
      */
     fun start(
         id: String,
@@ -119,19 +124,23 @@ internal class ShareExportJobs(
         // returns: a job cancelled before its first dispatch would otherwise never
         // run at all, and its Cancelled outcome would never be sent.
         val job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            // Set on the copy's thread once its bytes have landed. A cancel that
+            // arrives as the copy returns still throws out of its withContext,
+            // so the catch below cannot tell from the outcome alone.
+            val landed = AtomicBoolean(false)
             val outcome = try {
                 val (file, mime) = withContext(Dispatchers.Default) {
                     produce { percent, status -> progress(id, percent, status) }
                 }
                 if (destUri != null) {
-                    val ok = writeTo(destUri, file)
+                    val ok = writeTo(destUri, file, landed)
                     if (!ok) discard(destUri)
                     Outcome.Saved(id, ok)
                 } else {
                     Outcome.Ready(id, file, mime, direct)
                 }
             } catch (e: CancellationException) {
-                destUri?.let { discard(it) }
+                if (destUri != null && !landed.get()) discard(destUri)
                 finish(Outcome.Cancelled(id))
                 throw e
             } catch (@Suppress("TooGenericExceptionCaught") e: Throwable) {
@@ -139,7 +148,7 @@ internal class ShareExportJobs(
                 // can hit OutOfMemoryError (an Error), which we'd rather surface as
                 // "share failed" than let crash the app.
                 Timber.e(e, "Share generation failed")
-                destUri?.let { discard(it) }
+                if (destUri != null && !landed.get()) discard(destUri)
                 Outcome.Failed(id)
             }
             finish(outcome)
@@ -171,9 +180,9 @@ internal class ShareExportJobs(
         outcomeChannel.trySend(outcome)
     }
 
-    /** Copies [file] into the picked document; true when any bytes landed. */
-    private suspend fun writeTo(uri: Uri, file: File): Boolean =
-        withContext(Dispatchers.IO) { SafCopy.copy(resolver, uri, file) }
+    /** Copies [file] into the picked document; true, and [landed] set, when any bytes landed. */
+    private suspend fun writeTo(uri: Uri, file: File, landed: AtomicBoolean): Boolean =
+        withContext(Dispatchers.IO) { copyDocument(uri, file).also { if (it) landed.set(true) } }
 
     /** Deletes the picked document [uri]; NonCancellable, so a cancelled job still removes it. */
     private suspend fun discard(uri: Uri) =

@@ -3,6 +3,7 @@ package com.sempermechanics.semper.viewer
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.sempermechanics.semper.ui.viewer.share.ShareExportJobs
+import com.sempermechanics.semper.util.SafCopy
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -179,10 +180,16 @@ class ShareExportJobsTest {
         )
     }
 
-    /** Jobs that record each save-as document they delete. */
-    private fun discardingJobs(discarded: MutableList<Uri>) = ShareExportJobs(
+    private val resolver = ApplicationProvider.getApplicationContext<android.app.Application>().contentResolver
+
+    /** Jobs that record each save-as document they delete, copying through [copy]. */
+    private fun discardingJobs(
+        discarded: MutableList<Uri>,
+        copy: (Uri, File) -> Boolean = { uri, file -> SafCopy.copy(resolver, uri, file) },
+    ) = ShareExportJobs(
         scope,
-        ApplicationProvider.getApplicationContext<android.app.Application>().contentResolver,
+        resolver,
+        copyDocument = copy,
         discardDocument = { synchronized(discarded) { discarded += it } },
     )
 
@@ -215,6 +222,26 @@ class ShareExportJobsTest {
         assertEquals(ShareExportJobs.Outcome.Cancelled(cancelled), withTimeout(TIMEOUT_MS) { saving.outcomes.first() })
 
         assertEquals(listOf(failedUri, emptyUri, cancelledUri), synchronized(discarded) { discarded.toList() })
+    }
+
+    @Test
+    fun `a cancel that arrives once the copy has landed keeps the document`() = runBlocking {
+        val discarded = mutableListOf<Uri>()
+        val ids = mutableListOf<String>()
+        lateinit var saving: ShareExportJobs
+        // The user cancels while the copy is finishing: the bytes are in, and
+        // the cancel throws out of the copy's withContext as it returns.
+        saving = discardingJobs(discarded) { uri, file ->
+            SafCopy.copy(resolver, uri, file).also { saving.cancel(ids.single()) }
+        }
+        val dest = File(temp.root, "landed.csv")
+        val id = saving.newId("csv").also { ids += it }
+
+        saving.start(id, "CSV", Uri.fromFile(dest), direct = false) { file("a,b\n") to "text/csv" }
+
+        assertEquals(ShareExportJobs.Outcome.Cancelled(id), withTimeout(TIMEOUT_MS) { saving.outcomes.first() })
+        assertTrue("a written document is the user's file", synchronized(discarded) { discarded.isEmpty() })
+        assertEquals("a,b\n", dest.readText())
     }
 
     @Test
