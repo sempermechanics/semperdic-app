@@ -46,7 +46,7 @@ steps = [
   "Phone 2: sign in as qc-ind1",
   "Phone 3: sign in as qc-ind1 (a clean reinstall registers a new phone; confirm it in Your phones)",
 ]
-expected = "Phones 2 and 3 sign in without a device_conflict; Home shows Demo and 'Licensed on 1 of 1 phones'"
+expected = "Phones 2 and 3 sign in without a device_conflict; Home offers no licensed feature and says the licence is in use on all its phones; Settings says 'Licensed on 1 of 1 phone'"
 automation = "planned:androidTest:StagingActivationDeviceTest#secondPhoneIsDemo"
 status = "active"
 since = "ADR-033"
@@ -112,13 +112,14 @@ accounts = ["qc-ind1"]
 needs = ["emulator", "web"]
 human_gate = ["staff-step-up"]
 steps = [
-  "Staff: Sign a lost phone out for qc-ind1's activated phone",
+  "Staff: Phones on the licence, Deactivate the account's activated phone",
   "On that phone, sign in again within 24 h",
 ]
 expected = "The sign-in is refused with the hold message and the time it ends; a holder's own deactivate (L3.1) sets no hold"
 automation = "manual"
 status = "active"
 since = "ADR-033"
+note = "Needs a real account: a QC test account takes no release hold (backend/app/routers/devices.py:30). See TD-409 for what the phone does meanwhile."
 
 [[scenario]]
 id = "L1.6"
@@ -150,7 +151,7 @@ accounts = ["qc-ind1"]
 needs = ["emulator"]
 human_gate = []
 steps = ["Fresh sign-in as qc-ind1 with no active phone", "Home: tap 'Activate this phone'"]
-expected = "Activated; the card becomes 'Licensed on 1 of 1 phones'"
+expected = "Activated; Your phones says 'Licensed on 1 of 1 phone' and 'This phone · Activated'; Home's card goes away"
 automation = "planned:androidTest:HomeActivationCardTest"
 status = "active"
 since = "ADR-033"
@@ -163,7 +164,7 @@ tags = ["holder", "semper", "settings"]
 accounts = ["qc-ind1"]
 needs = ["emulator"]
 human_gate = []
-steps = ["With no active phone, open Settings → account", "Tap Activate"]
+steps = ["With no active phone, open Settings → Account", "Your phones → Activate this phone"]
 expected = "Activated; Settings shows the n-of-m line and 'Your phones'"
 automation = "manual"
 status = "active"
@@ -194,7 +195,7 @@ human_gate = ["staff-step-up"]
 steps = [
   "As Demo, note share, backup and restore are locked",
   "Staff give qc-demo an individual Semper licence",
-  "Tap Activate; do not restart or Refresh",
+  "Refresh licence once if Home offers no Activate yet, then tap Activate; do not restart",
 ]
 expected = "Share, backup, restore and the higher analysis cap are enabled at once"
 automation = "planned:androidTest:ActivateUnlocksFeaturesTest"
@@ -210,7 +211,7 @@ accounts = ["qc-ind1"]
 needs = ["emulator"]
 human_gate = []
 steps = ["Activate", "Look at Home and Settings"]
-expected = "Both say 1 of 1"
+expected = "Settings and Your phones say 1 of 1; Home shows no count"
 automation = "planned:androidTest:HomeActivationCardTest"
 status = "active"
 since = "ADR-033"
@@ -307,7 +308,7 @@ tags = ["floating", "semper"]
 accounts = ["qc-fl1"]
 needs = ["emulator"]
 human_gate = []
-steps = ["Sign in as qc-fl1", "Tap Activate"]
+steps = ["Sign in as qc-fl1; no Activate is offered, on Home or in Settings", "Start analysis"]
 expected = "SeatRequiredActivity (checkout) opens instead of an activation"
 automation = "manual"
 status = "active"
@@ -340,7 +341,7 @@ accounts = ["qc-ind2"]
 needs = ["emulator"]
 human_gate = []
 steps = ["Two phones activated", "On phone 1: Your phones → Deactivate on phone 2"]
-expected = "Phone 2 drops from the list; phone 2 is Demo at its next refresh (L3.4)"
+expected = "Phone 2 stays listed as 'Not activated' and the count drops; phone 2 is Demo at its next refresh (L3.4)"
 automation = "planned:androidTest:PhonesActivityTest#deactivateOtherPhone"
 status = "active"
 since = "ADR-033"
@@ -613,11 +614,12 @@ tags = ["staff", "web", "hold"]
 accounts = ["qc-ind1"]
 needs = ["web", "emulator"]
 human_gate = ["staff-step-up"]
-steps = ["Operator → Sign a lost phone out (POST /v1/admin/device-releases) for qc-ind1's phone"]
+steps = ["Operator → Phones on the licence → Deactivate the phone (for a Demo account, Release a Demo account's phone; it refuses a licensed one)"]
 expected = "The phone is signed out at its next request and held off for 24 h"
 automation = "manual"
 status = "active"
 since = "ADR-033"
+note = "Failed on 2026-11-02: the phone stays signed in (TD-409). A QC test account takes no hold, and an individual QC licence is hidden from the operator list; run it on an institution licence."
 
 # ===========================================================================
 # L6 Per app
@@ -782,7 +784,7 @@ accounts = ["qc-upg"]
 needs = ["web", "emulator"]
 human_gate = ["staff-step-up"]
 steps = ["Issue an upgrade", "Operator → Apply now"]
-expected = "Old licence revoked, the new one bound to the holder's phone; the card clears"
+expected = "Old licence revoked; the card clears; the holder taps Activate on a current build (only an old build activates itself)"
 automation = "manual"
 status = "active"
 since = "ADR-033"
@@ -828,6 +830,7 @@ expected = "The invite points at the new licence; first sign-in offers Activate 
 automation = "manual"
 status = "active"
 since = "ADR-033"
+note = "A QC account has an account record, so its licence attaches at issue and the invite half cannot be seen on one."
 
 # ===========================================================================
 # L8 Floating
@@ -974,7 +977,7 @@ tags = ["files", "staff"]
 accounts = ["qc-ind1"]
 needs = ["emulator"]
 human_gate = ["staff-step-up"]
-steps = ["Hash", "Staff move the expiry into the past; Refresh", "Hash again"]
+steps = ["Hash", "Staff shorten the expiry with 0 grace days and let it lapse (the console refuses a past date); Refresh", "Hash again"]
 expected = "Identical hashes"
 automation = "planned:androidTest:LocalFilesSurviveLicenceChangeTest"
 status = "active"
@@ -1020,8 +1023,8 @@ tags = ["sync", "holder", "semper"]
 accounts = ["qc-ind2"]
 needs = ["emulator"]
 human_gate = []
-steps = ["A and B activated; Sync from my other phones off on B", "A: create and back up an analysis", "B: Refresh Home"]
-expected = "B lists it as Only in cloud, with the Home card offering Restore"
+steps = ["A and B activated; Download from my other phones off on B", "A: create and back up an analysis", "B: Refresh Home"]
+expected = "B has no row for it; Home's card says it isn't on this phone and offers Hide and Restore"
 automation = "manual"
 status = "active"
 since = "ADR-033"
@@ -1034,7 +1037,7 @@ tags = ["sync", "holder", "semper"]
 accounts = ["qc-ind2"]
 needs = ["emulator"]
 human_gate = []
-steps = ["B: Sync from my other phones on (default), unmetered network", "A: back up a new analysis", "Wait for B's periodic job"]
+steps = ["B: Download from my other phones on (default), unmetered network", "A: back up a new analysis", "Wait for B's periodic job"]
 expected = "B restores it without a tap"
 automation = "planned:unitTest:CrossPhoneSyncWorkerTest"
 status = "active"
@@ -1412,7 +1415,7 @@ accounts = ["qc-ind2"]
 needs = ["emulator"]
 human_gate = ["staff-step-up"]
 steps = ["Staff pause upload", "Back up on A; wait for B's sync", "Staff resume"]
-expected = "Uploads wait with feature_paused and retry; nothing is lost; sync resumes"
+expected = "The app holds uploads ('Upload pending'): it reads kill_switches from its config and makes no call, so no 503 shows. Nothing is lost; uploads and sync resume at the next config refresh"
 automation = "manual"
 status = "active"
 since = "ADR-033"

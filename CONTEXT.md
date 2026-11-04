@@ -116,7 +116,7 @@ emulator (`scripts/micro_ab.py`, [TESTING.md](docs/app/TESTING.md)); the phone-r
 [PERF_BASELINE_bd44af0.md](docs/engine/PERF_BASELINE_bd44af0.md)) is a manual reference.
 Keep `-O3 -ffast-math` / OpenMP / LTO on release.
 
-## Current state (2026-11-02)
+## Current state (2026-11-04)
 
 - **Review fixes merged, not deployed** (2026-11-02): #521–#534, #536. Owed: backend deploy (#521
   #523–#525 #527–#529 #532), Hosting (#527; #534 changed `/privacy`: `LEGAL_PAGES_FROM=b940cc29`, below),
@@ -137,6 +137,7 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   the same day; live matches `b940cc29` since.
 - **Readiness runs** 2026-10-24 (#489) and 2026-10-28 (#503, verdict **No-go** on six P1s that need
   the Admin or counsel, [report](docs/ops/readiness/20261028/REPORT.md) §4) are merged and now deployed.
+- **Licence QC run** (2026-10-31 to 2026-11-04, emulators and the S22, staging only): 63 scenarios pass, 7 fail, 18 blocked; findings are TD-407–TD-421. The IT rows (L4) and the 1036 rows (L12) have not passed on any phone (TD-421); recheck L10.7 once staging has ADR-035 (TD-414).
 - **Licensing rework** ([ADR-033](docs/adr/ADR-033-licence-per-app-explicit-activation.md)): merged
   #506–#515 and deployed (above); `retire_stale_devices.py` found nothing to retire. Left: the
   Semper release with Activate; the Semper Classroom release (its sync merged); then 30 days of
