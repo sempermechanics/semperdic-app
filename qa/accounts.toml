@@ -8,6 +8,22 @@
 # lower case (qc-ind1-a@ for lane A). `qa.py plan` writes each lane's
 # addresses into its brief; only the accounts a lane's scenarios name are
 # created for it. An institution is likewise one per lane that uses it.
+#
+# What a QC account can and cannot do (2026-10-31 run, ADR-027):
+# - It signs in with email and password. The institution console and the account
+#   page sign in with Google only (firebase-hosting/public/console/auth.js:87), so
+#   a QC IT account or holder cannot reach them; those rows need a staff-owned
+#   Google account as the IT contact or holder.
+# - The operator list hides test-account licences (repo/license_admin.py:79), so
+#   staff actions on an individual QC licence cannot run from the console; use an
+#   institution licence, or a licence staff issued to a Demo test account.
+# - It is made with an account record, so a licence attaches at issue: the invite
+#   path for someone who never signed in cannot happen on one.
+# - It is capped at its own maxDevices, refused past that (device_conflict), and
+#   takes no release hold (routers/devices.py:30).
+# - A phone stays bound to the last account signed in, even after sign-out, so
+#   each new account on it needs a new device id (a fresh AVD, or on a real phone
+#   an uninstall and a build signed with another key).
 
 schema = 1
 

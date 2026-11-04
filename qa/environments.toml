@@ -100,8 +100,8 @@ variant = "debug"
 abi = "x86_64"
 source = "this repository, a worktree per lane"
 recipe = "gradlew.bat :app:assembleDebug -PabiFilters=x86_64, then adb install -r app/build/outputs/apk/debug/app-debug.apk"
-env = { SEMPER_API_BASE_URL = "<the semper-gw-staging gateway URL; see docs/ops/ENVIRONMENTS.md>", SEMPER_DEV_AUTH_BYPASS = "false" }
-note = "SEMPER_DEV_AUTH_BYPASS=false, or the debug build signs in to a local-only account and never reaches staging."
+env = { SEMPER_API_BASE_URL = "<the semper-gw-staging gateway URL; see docs/ops/ENVIRONMENTS.md>" }
+note = "Put SEMPER_DEV_AUTH_BYPASS=false in the worktree's local.properties, or the debug build signs in to a local-only account and never reaches staging. The build reads it from there, not from the shell (app/build.gradle.kts:51)."
 
 [[build]]
 id = "classroom-debug-staging"
@@ -110,7 +110,8 @@ variant = "debug"
 abi = "x86_64"
 source = "a worktree of ..\\material_testing (the Semper Classroom fork), after the fork sync"
 recipe = "gradlew.bat :app:assembleDebug -PabiFilters=x86_64 in the fork's worktree, then adb install -r"
-env = { SEMPER_API_BASE_URL = "<the semper-gw-staging gateway URL>", SEMPER_DEV_AUTH_BYPASS = "false" }
+env = { SEMPER_API_BASE_URL = "<the semper-gw-staging gateway URL>" }
+note = "Put SEMPER_DEV_AUTH_BYPASS=false in the worktree's local.properties, as for semper-debug-staging."
 
 [[build]]
 id = "semper-release-arm64"
@@ -120,7 +121,7 @@ abi = "arm64-v8a"
 source = "this repository"
 recipe = "gradlew.bat :app:assembleRelease -PabiFilters=arm64-v8a (R8 on), then adb install -r the signed APK"
 env = { SEMPER_API_BASE_URL = "<the semper-gw-staging gateway URL>" }
-note = "Release builds need an https SEMPER_API_BASE_URL and the release keystore; for the device pass only."
+note = "Release builds need an https SEMPER_API_BASE_URL and a keystore; for the device pass only. Without the release keystore, sign with a throwaway key (apksigner): a different key gives the phone a new device id, so one phone can stand in for several after an uninstall, and it then proves real hardware, not a production-signed build."
 
 [[build]]
 id = "semper-1036"
