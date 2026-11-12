@@ -2,6 +2,7 @@ package com.sempermechanics.semper.data.session
 
 import android.annotation.SuppressLint
 import android.content.Context
+import androidx.core.content.edit
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.impl.WorkManagerImpl
 import androidx.work.testing.WorkManagerTestInitHelper
@@ -14,6 +15,8 @@ import com.sempermechanics.semper.data.net.AccountCache
 import com.sempermechanics.semper.data.net.RecycleBinItemDto
 import com.sempermechanics.semper.data.net.RecycleBinResponse
 import com.sempermechanics.semper.data.net.SessionsResponse
+import com.sempermechanics.semper.data.prefs.PrefFiles
+import com.sempermechanics.semper.data.prefs.privatePrefs
 import com.sempermechanics.semper.data.session.SessionRecord.SyncState
 import com.sempermechanics.semper.fixtures.CleanAppState
 import com.sempermechanics.semper.fixtures.sessionRecord
@@ -157,6 +160,25 @@ class SessionOwnerTest {
         // A run that finishes after the sign-out still lands with A.
         save("a2")
 
+        assertEquals(listOf("a1", "a2"), ids())
+        signIn(UID_B)
+        assertEquals(emptyList<String>(), ids())
+    }
+
+    @Test
+    fun `an account signed in before the update keeps its analyses after signing out`() {
+        // Signed in on a build before owners: the identity is cached, the
+        // last-signed-in uid was never written.
+        AccountCache.saveIdentity(context, UID_A, "$UID_A@example.com")
+        privatePrefs(context, PrefFiles.Onboarding.NAME).edit {
+            remove(PrefFiles.Onboarding.LAST_SIGNED_IN_UID.name)
+        }
+        save("a1")
+
+        AccountSwitch.clearLocalState(context)
+        save("a2")
+
+        assertEquals(UID_A, SessionOwner.current(context))
         assertEquals(listOf("a1", "a2"), ids())
         signIn(UID_B)
         assertEquals(emptyList<String>(), ids())
