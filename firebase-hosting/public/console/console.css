@@ -492,7 +492,7 @@ button.chip {
 }
 button.chip:hover { color: var(--ink); background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.35); }
 button.chip[aria-pressed="true"] { color: var(--accent); background: var(--accent-dim); border-color: var(--accent); }
-.chip-count { font-weight: 500; opacity: .8; margin-left: .15rem; }
+.chip-count { font-weight: 500; margin-left: .15rem; }
 
 /* Test accounts: the address on one line where it fits, and each phone on
    a line of its own with its Release at the end of that line. */
