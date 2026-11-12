@@ -8,7 +8,7 @@
 import { test as nodeTest, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { test, reset, settle, json, net, confirms, sent, $, loadAuth, deferred } from "./harness.mjs";
-import { IND, UNI, DEMO, LIST, openDesk, status, rows, labels, rowButton, tableRows } from "./operator-desk.mjs";
+import { IND, UNI, DEMO, LIST, openDesk, status, rows, labels, rowButton, tableRows, detailsOf } from "./operator-desk.mjs";
 
 await loadAuth();
 const { day } = await import("../public/console/util.js");
@@ -39,12 +39,15 @@ test("a row with less filled in still reads sensibly", async () => {
   const kind = $("licenceRows").querySelector("tr").cells[1].childNodes[0]; // its one wrapping line
   assert.equal(kind.childNodes[0], "individual");
   assert.equal(kind.querySelector("span").textContent, "replaced by an institution licence", "on a line of its own");
-  assert.deepEqual(rows().map((r) => r.slice(0, 8)), [
-    ["lic-no-pre", "individualreplaced by an institution licence", "Licensed", "—",
-      `until ${day("2027-06-30T23:59:59Z")}`, "default", "redeemed", "—"],
-    ["SEMP-ASG1", "institution", "Licensed", "2/∞", "perpetual", "default", "redeemed", "—"],
-    ["SEMP-FLT1", "institution · shared", "Licensed", "0/5 in use · 0 on roster", "perpetual", "default", "redeemed", "—"],
+  assert.deepEqual(rows().map((r) => r.slice(0, 4)), [
+    ["lic-no-pre", "individualreplaced by an institution licence", "—", "redeemed"],
+    ["SEMP-ASG1", "institution", "2/∞", "redeemed"],
+    ["SEMP-FLT1", "institution · shared", "0/5 in use · 0 on roster", "redeemed"],
   ]);
+  const first = detailsOf("lic-no-prefix-123");
+  assert.equal(first.Term, `until ${day("2027-06-30T23:59:59Z")}`);
+  assert.equal(first["Locked to"], "nobody yet");
+  assert.equal(detailsOf("lic-assigned").Term, "perpetual");
 });
 
 test("a list answer with nothing in it, and no demo allowance, still renders", async () => {
@@ -57,7 +60,8 @@ test("a list answer with nothing in it, and no demo allowance, still renders", a
   $("showDemo").checked = true;
   $("showDemo").dispatch("change");
   await settle();
-  assert.equal(rows()[0][5], "Demo limit", "no number when the backend does not send the allowance");
+  assert.equal(detailsOf(DEMO.id)["Cloud analyses per person"], "Demo limit",
+    "no number when the backend does not send the allowance");
   await click(rowButton("edit", DEMO.id));
   assert.equal($("editCap").title, "Demo keys use the Demo limit; issue a Licensed key to raise it.");
 });
@@ -273,7 +277,7 @@ test("adding a member on the desk goes to the open licence's staff route and re-
   await click($("addMember"));
   assert.deepEqual(sent(/POST/), [`POST ${seatsOf(UNI2)}`]);
   assert.deepEqual([$("rosterHint").textContent, $("rosterHint").className], ["new@uni.edu is on the licence now.", "muted"]);
-  assert.equal(rows().find((r) => r[0] === "SEMP-UNI2")[3], "1/5 in use · 5 on roster", "the row re-read after the change");
+  assert.equal(rows().find((r) => r[0] === "SEMP-UNI2")[2], "1/5 in use · 5 on roster", "the row re-read after the change");
 });
 
 test("a roster change that finishes after the card closed reads nothing more", async () => {

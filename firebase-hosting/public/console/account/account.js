@@ -17,6 +17,7 @@ import {
 import { explain as refusalText, ACCOUNT } from "../messages.js";
 import { mountSwitcher } from "../switcher.js";
 import { licencesAdministered } from "../roles.js";
+import { wireSort, sortList, byText, byNumber, matchesText, countLine } from "../list-tools.js";
 import { showClaim, onClaimed } from "./claim.js";
 import { mountPhones } from "./phones.js";
 
@@ -373,9 +374,35 @@ function renderQuota() {
       : `${used} of ${quota.max} analyses stored.`;
 }
 
+/* The list's search, app filter and sort, over the analyses loaded so far. */
+const STATE_WORDS = { COMPLETED: "saved", UPLOADING: "uploading", PROVISIONING: "starting", PROVISION_FAILED: "failed" };
+const stateWord = (s) => STATE_WORDS[s.status] || String(s.status || "");
+const nameOf = (s) => s.name || s.specimen || s.localSessionId || s.sessionId;
+const SESSION_SORTS = {
+  name: (a, b) => byText(nameOf(a), nameOf(b)),
+  app: (a, b) => byText(appName(a.app), appName(b.app)),
+  state: (a, b) => byText(stateWord(a), stateWord(b)),
+  files: (a, b) => byNumber(Number(a.completedCount) || 0, Number(b.completedCount) || 0),
+  size: (a, b) => byNumber(Number(a.totalBytes) || 0, Number(b.totalBytes) || 0),
+};
+const sessionSort = wireSort($("analysisHead"), renderSessions);
+$("analysisFilter").addEventListener("input", renderSessions);
+$("analysisApp").addEventListener("change", renderSessions);
+
 function renderSessions() {
-  $("rows").innerHTML = sessions.map(sessionRow).join("") ||
-    '<tr><td colspan="6" class="muted">Nothing backed up yet.</td></tr>';
+  const q = $("analysisFilter").value.trim().toLowerCase();
+  const app = $("analysisApp").value;
+  // The id is searched but not shown: support may quote one, and nobody
+  // else reads it.
+  const shown = sortList(sessions.filter((s) =>
+    (!app || appName(s.app) === APP_NAMES[app]) &&
+    matchesText([nameOf(s), s.specimen, s.localSessionId, s.sessionId, appName(s.app), stateWord(s)], q)),
+  sessionSort.order(), SESSION_SORTS);
+  $("rows").innerHTML = shown.map(sessionRow).join("") || `<tr><td colspan="6" class="muted">${sessions.length
+    ? "No analysis matches. Clear the search, or choose Any app." : "Nothing backed up yet."}</td></tr>`;
+  $("analysisCount").textContent = countLine({
+    shown: shown.length, total: sessions.length, filtered: Boolean(q || app), more: Boolean(nextToken),
+  });
 }
 
 // The app that backed an analysis up (ADR-014). A backend without the tag
@@ -387,19 +414,14 @@ function appName(app) {
 
 function sessionRow(s) {
   const done = s.status === "COMPLETED";
-  const state = {
-    COMPLETED: '<span class="pill ok">saved</span>',
-    UPLOADING: '<span class="pill warn">uploading</span>',
-    PROVISIONING: '<span class="pill warn">starting</span>',
-    PROVISION_FAILED: '<span class="pill off">failed</span>',
-  }[s.status] || `<span class="pill off">${esc(s.status || "")}</span>`;
+  const tone = { COMPLETED: "ok", UPLOADING: "warn", PROVISIONING: "warn" }[s.status] || "off";
+  const state = `<span class="pill ${tone}">${esc(stateWord(s))}</span>`;
   // An analysis with nothing stored yet has no bundle to build, and the
   // backend answers 409 rather than sending an empty zip.
   const canDownload = (s.completedCount || 0) > 0;
   return `
     <tr>
-      <td>${esc(s.name || s.specimen || s.localSessionId || s.sessionId)}
-          <div class="muted mono">${esc(s.sessionId)}</div></td>
+      <td>${esc(nameOf(s))}</td>
       <td>${esc(appName(s.app))}</td>
       <td>${state}</td>
       <td>${done ? s.completedCount : `${s.completedCount || 0} of ${s.fileCount || 0}`}</td>

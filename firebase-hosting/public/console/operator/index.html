@@ -34,6 +34,7 @@
   <link rel="modulepreload" href="../roster.js" />
   <link rel="modulepreload" href="../roster-tools.js" />
   <link rel="modulepreload" href="../audit-log.js" />
+  <link rel="modulepreload" href="../list-tools.js" />
   <link rel="modulepreload" href="state.js" />
   <link rel="modulepreload" href="licences.js" />
   <link rel="modulepreload" href="mint.js" />
@@ -214,18 +215,57 @@
           <button id="reload" class="secondary">Refresh</button>
           <button id="openIssue">Issue a licence</button>
         </div>
+        <!-- The first row narrows the rows already read (licences.js), the
+             text box also looking an address, domain or key up on the server;
+             the second asks the server for what the list leaves out. Press /
+             anywhere on the desk to jump to the box. -->
+        <div class="row toolbar filters">
+          <input id="filter" type="search" placeholder="Filter, or search by email, domain or key" aria-label="Filter licences" aria-keyshortcuts="/" />
+          <label>Kind
+            <select id="kindFilter">
+              <option value="">Any</option>
+              <option value="individual">Individual</option>
+              <option value="institution">Institution</option>
+            </select>
+          </label>
+          <label>App
+            <select id="appFilter">
+              <option value="">Any</option>
+              <option value="semper">semper</option>
+              <option value="semperclassroom">semper Classroom</option>
+              <option value="none">From before the split</option>
+            </select>
+          </label>
+          <label>State
+            <select id="stateFilter">
+              <option value="">Any</option>
+              <option value="active">In force</option>
+              <option value="ending">Ends within 30 days</option>
+              <option value="grace">In grace</option>
+              <option value="expired">Expired</option>
+              <option value="upgrade">Upgrade waiting</option>
+            </select>
+          </label>
+          <button id="clearFilters" type="button" class="secondary" hidden>Clear filters</button>
+        </div>
         <div class="row toolbar">
-          <input id="filter" type="search" placeholder="Filter, or search by email, domain or key" aria-label="Filter licences" />
           <label class="muted"><input type="checkbox" id="showRevoked" /> Show revoked</label>
           <label class="muted"><input type="checkbox" id="showDemo" /> Show Demo keys</label>
+          <label class="muted"><input type="checkbox" id="showTest" /> Show test accounts</label>
         </div>
+        <!-- A row is what is read most: key, kind, seats, status. Term, Locked
+             to, Mode and Analyses / person were columns; they open under the
+             row from its key. A Demo or test key says so in its Kind cell, as
+             does a limit set at issue. -->
         <div class="wrap">
           <table class="licences">
-            <thead>
+            <thead id="licenceHead">
               <tr>
-                <th>Key</th><th>Kind</th><th>Mode</th><th>Seats</th><th>Term</th>
-                <th>Analyses / person</th>
-                <th>Status</th><th>Locked to</th><th class="actions"><span class="visually-hidden">Actions</span></th>
+                <th aria-sort="none"><button type="button" class="sort" data-sort="key">Key</button></th>
+                <th aria-sort="none"><button type="button" class="sort" data-sort="kind">Kind</button></th>
+                <th aria-sort="none"><button type="button" class="sort" data-sort="seats">Seats</button></th>
+                <th aria-sort="none"><button type="button" class="sort" data-sort="state">Status</button></th>
+                <th class="actions"><span class="visually-hidden">Actions</span></th>
               </tr>
             </thead>
             <tbody id="licenceRows"></tbody>
@@ -234,6 +274,9 @@
         <p id="demoNote" class="hint" hidden></p>
         <div class="row table-foot">
           <button id="loadMore" class="secondary" hidden>Load more</button>
+          <!-- Every page at once: a sort or filter then covers every licence,
+               not only the newest pages read. -->
+          <button id="loadAll" class="secondary" hidden>Load all</button>
         </div>
       </section>
 
@@ -462,13 +505,15 @@
                  aria-label="Filter the roster" autocomplete="off" />
           <span id="rosterCount" class="muted" aria-live="polite"></span>
         </div>
+        <div class="chips" id="rosterChips" role="group" aria-label="Show members"></div>
         <div class="wrap">
           <table>
             <thead id="rosterHead">
               <tr>
                 <th aria-sort="none"><button type="button" class="sort" data-sort="member">Member</button></th>
                 <th aria-sort="none"><button type="button" class="sort" data-sort="status">Status</button></th>
-                <th>Seat</th><th>Phone</th><th class="actions"><span class="visually-hidden">Actions</span></th>
+                <th aria-sort="none"><button type="button" class="sort" data-sort="seat">Seat</button></th>
+                <th aria-sort="none"><button type="button" class="sort" data-sort="phone">Phone</button></th><th class="actions"><span class="visually-hidden">Actions</span></th>
               </tr>
             </thead>
             <tbody id="rosterRows"></tbody>
@@ -618,14 +663,29 @@
           once, may be signed in on several phones, and is ended — suspended and
           its data erased — when its days run out. Its audit rows are kept.
         </p>
-        <div class="wrap" id="testAccountsWrap" hidden>
-          <table class="test-accounts">
-            <thead>
-              <tr><th>Account</th><th>Purpose</th><th>Ends</th><th>Phones</th>
-                <th>Status</th><th>Note</th><th class="actions"><span class="visually-hidden">Actions</span></th></tr>
-            </thead>
-            <tbody id="testAccountRows"></tbody>
-          </table>
+        <!-- Live accounts first: an ended one is erased and kept only for its
+             audit rows, so it is under Ended (test-accounts.js). -->
+        <div id="testAccountsWrap" hidden>
+          <div class="row toolbar">
+            <input id="taFilter" type="search" placeholder="Filter by address, purpose or note"
+                   aria-label="Filter test accounts" autocomplete="off" />
+            <span id="taCount" class="muted" aria-live="polite"></span>
+          </div>
+          <div class="chips" id="taChips" role="group" aria-label="Show test accounts"></div>
+          <div class="wrap">
+            <table class="test-accounts">
+              <thead id="taHead">
+                <tr>
+                  <th aria-sort="none"><button type="button" class="sort" data-sort="account">Account</button></th>
+                  <th aria-sort="none"><button type="button" class="sort" data-sort="ends">Ends</button></th>
+                  <th>Phones</th>
+                  <th aria-sort="none"><button type="button" class="sort" data-sort="status">Status</button></th>
+                  <th class="actions"><span class="visually-hidden">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody id="testAccountRows"></tbody>
+            </table>
+          </div>
         </div>
         <details class="fold" id="taCreateBox">
           <summary>Create a test account</summary>

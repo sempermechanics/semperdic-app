@@ -11,7 +11,8 @@
 import { api } from "./api.js";
 import { confirmInPage } from "./dialogs.js";
 import { explain } from "./messages.js";
-import { esc, seatCells, inviteCells, classroomField } from "./util.js";
+import { esc, seatCells, inviteCells, classroomField, seatDevices } from "./util.js";
+import { byText, byNumber, drawChips, onChip } from "./list-tools.js";
 
 /**
  * The roster of the licence at `base`: its summary, every seat and the
@@ -107,19 +108,38 @@ export const PAGE_ROWS = 100;
 /** A seat's status as the Status cell words it, for the filter and the sort. */
 const STATUS_WORDS = { active: "active", disabled: "paused", revoked: "removed" };
 
-/** One roster line, seat or invite, with what the filter and sort read. */
+/** One roster line, seat or invite, with what the filter, the chips and the sort read. */
 function entry(kind, item) {
   const email = String((kind === "seat" ? item.email || item.uid : item.email) || "");
   const status = kind === "seat" ? STATUS_WORDS[item.status] || String(item.status || "") : "invited";
   const text = [email, status, item.deviceIdLock, classroomField(item, "deviceIdLock")]
     .filter(Boolean).join(" ").toLowerCase();
-  return { kind, item, email: email.toLowerCase(), status, text };
+  const phone = kind === "seat" ? seatDevices(item) || "" : "";
+  const lease = kind === "seat" ? Date.parse(item.leaseExpiresAt || "") : NaN;
+  return { kind, item, email: email.toLowerCase(), status, text, phone, lease };
 }
 
 const BY = {
   member: (a, b) => a.email.localeCompare(b.email),
   status: (a, b) => a.status.localeCompare(b.status) || a.email.localeCompare(b.email),
+  // A floating seat by when its lease runs out, soonest first; nobody holding one, last.
+  seat: (a, b) => byNumber(a.lease, b.lease) || a.email.localeCompare(b.email),
+  // By the phone's id; nobody's phone yet, last.
+  phone: (a, b) => (!a.phone - !b.phone) || byText(a.phone, b.phone) || a.email.localeCompare(b.email),
 };
+
+/**
+ * The roster's views, as chips over the table: everyone but the removed (the
+ * one shown first: a removed member holds nothing, and a long roster's
+ * removals buried the people on it), or one status.
+ */
+const VIEWS = [
+  { value: "current", label: "Current", test: (e) => e.status !== "removed", always: true },
+  { value: "active", label: "Active", test: (e) => e.status === "active" },
+  { value: "paused", label: "Paused", test: (e) => e.status === "paused" },
+  { value: "invited", label: "Invited", test: (e) => e.status === "invited" },
+  { value: "removed", label: "Removed", test: (e) => e.status === "removed" },
+];
 
 const ACT_ERRORS = {
   seat_revoked: "That member was removed. Add their address again to restore them.",
@@ -144,10 +164,12 @@ const ACT_ERRORS = {
  */
 export function wireRoster({
   rows, email, add, base, report, reload, retry = reload, filter = null, count = null, head = null,
-  domain = () => "",
+  chips = null, domain = () => "",
 }) {
   let all = [];
   let shown = PAGE_ROWS;
+  // The chip pressed; without chips every line is shown, removed ones too.
+  let view = chips ? "current" : "";
   let order = { key: "", dir: 1 };
   let drawnFor = null; // the licence the rows are for
   const sorters = head ? Array.from(head.querySelectorAll("button[data-sort]")) : [];
@@ -232,26 +254,50 @@ Nobody has claimed it yet.`,
     }
   }
 
-  /** Draw the rows the filter, the sort and Show more leave. */
+  /** Draw the rows the chips, the filter, the sort and Show more leave. */
   function draw() {
     const q = filter ? filter.value.trim().toLowerCase() : "";
-    const matching = q ? all.filter((e) => e.text.includes(q)) : all.slice();
+    const pick = VIEWS.find((v) => v.value === view);
+    const inView = pick ? all.filter(pick.test) : all;
+    if (chips) {
+      drawChips(chips, VIEWS.map((v) => ({ ...v, count: all.filter(v.test).length })), view);
+    }
+    const matching = q ? inView.filter((e) => e.text.includes(q)) : inView.slice();
     if (order.key) matching.sort((a, b) => BY[order.key](a, b) * order.dir);
     const visible = matching.slice(0, shown);
     const more = matching.length - visible.length;
     rows.innerHTML = visible.map((e) => (e.kind === "seat" ? seatRow(e.item) : inviteRow(e.item))).join("") +
       (more ? `<tr><td colspan="5"><button class="secondary" data-more>Show ${Math.min(more, PAGE_ROWS)} more</button></td></tr>` : "") ||
-      `<tr><td colspan="5" class="muted">${all.length ? "Nobody on the roster matches that filter." : "Nobody on this licence yet."}</td></tr>`;
+      `<tr><td colspan="5" class="muted">${emptyText(q)}</td></tr>`;
     if (count) {
       count.textContent = !all.length ? ""
         : q ? `Showing ${visible.length} of ${matching.length} matching, ${all.length} on the roster`
-          : `Showing ${visible.length} of ${all.length}`;
+          : `Showing ${visible.length} of ${inView.length}${inView.length < all.length ? `, ${all.length} on the roster` : ""}`;
     }
     for (const button of sorters) {
       const key = button.dataset.sort;
       const way = order.key !== key ? "none" : order.dir > 0 ? "ascending" : "descending";
       button.closest("th").setAttribute("aria-sort", way);
     }
+  }
+
+  /** What an empty table says: the roster is empty, or this view or filter is. */
+  function emptyText(q) {
+    if (!all.length) return "Nobody on this licence yet.";
+    if (q) return "Nobody on the roster matches that filter.";
+    if (view === "current") return "Everyone on this licence has been removed. Press Removed to see them.";
+    return "Nobody here. Press Current to see the roster.";
+  }
+
+  if (chips) {
+    onChip(chips, (value) => {
+      view = value;
+      shown = PAGE_ROWS;
+      draw();
+      // The chips are drawn again with their counts: focus stays on the one pressed.
+      const pressed = chips.querySelector(`button[data-chip="${value}"]`);
+      if (pressed) pressed.focus();
+    });
   }
 
   // One listener on the table body: its rows are rebuilt on every load.
@@ -294,6 +340,7 @@ Nobody has claimed it yet.`,
       drawnFor = root;
       shown = PAGE_ROWS;
       order = { key: "", dir: 1 };
+      if (chips) view = "current";
       if (filter) filter.value = "";
     }
     all = seats.map((s) => entry("seat", s)).concat(invites.map((i) => entry("invite", i)));

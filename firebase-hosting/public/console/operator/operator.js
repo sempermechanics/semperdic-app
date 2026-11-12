@@ -8,9 +8,10 @@ import { setStatus, whileWaiting } from "../status.js";
 import { unfinishedStepUpText } from "../util.js";
 import { explain } from "../messages.js";
 import { mountSwitcher } from "../switcher.js";
+import { floatMenus } from "../list-tools.js";
 import { licencesAdministered } from "../roles.js";
 import { $, labelOf } from "./state.js";
-import { loadLicences, startLicenceLoad } from "./licences.js";
+import { loadLicences, startLicenceLoad, markCurrent } from "./licences.js";
 import "./mint.js";
 import { openEdit, openConvert } from "./edit.js";
 import {
@@ -22,6 +23,9 @@ import { openRoster } from "./roster-card.js";
 import { openPhones } from "./phones.js";
 import { openUpgrade, applyFromRow } from "./upgrade.js";
 import { isTestAccountResume, resumeTestAccount } from "./test-accounts.js";
+
+// Every row's More menu (licences, test accounts) floats over the rows.
+floatMenus(document);
 
 requireSignIn(async (user, resume) => {
   $("signedOut").hidden = true;
@@ -112,10 +116,17 @@ $("licenceRows").addEventListener("click", (ev) => {
   if (btn.dataset.delete) deleteLicence(btn.dataset.delete);
   if (btn.dataset.convert) openConvert(btn.dataset.convert);
   if (btn.dataset.revoke) revokeLicence(btn.dataset.revoke);
-  if (btn.dataset.roster) openRoster(btn.dataset.roster);
+  // The two cards that open under the table keep their row marked.
+  if (btn.dataset.roster) {
+    markCurrent(btn.dataset.roster);
+    openRoster(btn.dataset.roster);
+  }
   if (btn.dataset.device) clearLicenceDevice(btn.dataset.device);
   if (btn.dataset.history) showDeviceHistory(btn.dataset.history);
-  if (btn.dataset.verify) openVerified(btn.dataset.verify);
+  if (btn.dataset.verify) {
+    markCurrent(btn.dataset.verify);
+    openVerified(btn.dataset.verify);
+  }
   if (btn.dataset.phones) openPhones(btn.dataset.phones);
   if (btn.dataset.upgrade) openUpgrade(btn.dataset.upgrade);
   if (btn.dataset.apply) applyFromRow(btn.dataset.apply);

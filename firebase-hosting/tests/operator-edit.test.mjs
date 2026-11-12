@@ -8,7 +8,7 @@
 import { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { test, reset, settle, json, net, prompts, sent, $, loadAuth, deferred } from "./harness.mjs";
-import { IND, UNI, at, openDesk, status, rows, labels, rowButton, offline, bodyOf } from "./operator-desk.mjs";
+import { detailsOf, IND, UNI, at, openDesk, status, rows, labels, rowButton, offline, bodyOf } from "./operator-desk.mjs";
 
 await loadAuth();
 const { day, isoDay } = await import("../public/console/util.js");
@@ -75,7 +75,7 @@ test("making a timed licence perpetual is saved as such, and the status says per
   assert.equal(prompts.asked.length, 0, "a longer term needs no typed key");
   assert.deepEqual(editBody(IND), { perpetual: true });
   assert.deepEqual(status(), ["SEMP-IND1 saved — perpetual. Everyone on it has the change.", "muted"]);
-  assert.equal(rows()[0][4], "perpetual");
+  assert.equal(detailsOf(IND.id).Term, "perpetual", "the term is in the licence's details");
 });
 
 test("putting an end on a perpetual licence is a shortening: the key is typed first", async () => {
@@ -109,7 +109,7 @@ test("an institution's seats, seating and IT contacts are sent as changed, while
   await settle();
   assert.equal($("editSave").disabled, false);
   assert.equal($("editDialog").open, false);
-  assert.equal(rows().find((r) => r[0] === "SEMP-UNI1")[3], "4/8", "an assigned licence's seats read used/cap");
+  assert.equal(rows().find((r) => r[0] === "SEMP-UNI1")[2], "4/8", "an assigned licence's seats read used/cap");
 });
 
 test("a change the dialog can tell is wrong is said there, before anything is sent", async () => {

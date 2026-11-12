@@ -167,10 +167,11 @@ test("each member row offers only what applies to that seat", async () => {
   assert.deepEqual(rows(), [
     ["ana@uni.edu", "active", "—", "device-abc…", "New phone Pause Remove"],
     ["ben@uni.edu", "paused", "—", "not yet", "Resume Remove"],
-    ["cy@uni.edu", "removed", "—", "not yet", "add again to restore"],
     ["dee@uni.edu", "invited", "—", "joins at first sign-in", "Withdraw"],
     ["eve@uni.edu", "invited", "—", "joins at first sign-in", "Withdraw"],
-  ]);
+  ], "a removed member is under Removed, not among the people on the licence");
+  $("rowChips").querySelector('button[data-chip="removed"]').click();
+  assert.deepEqual(rows(), [["cy@uni.edu", "removed", "—", "not yet", "add again to restore"]]);
   assert.equal($("rows").querySelectorAll('[data-uid="u3"]').length, 0, "nothing to act on for a removed member");
 });
 
@@ -233,8 +234,8 @@ test("the filter narrows the roster by address, status or phone", async () => {
   filter("nobody-here");
   assert.deepEqual(rows(), [["Nobody on the roster matches that filter."]]);
   filter("");
-  assert.equal(rows().length, 5);
-  assert.equal($("rowCount").textContent, "Showing 5 of 5");
+  assert.equal(rows().length, 4, "the removed member is under Removed");
+  assert.equal($("rowCount").textContent, "Showing 4 of 4, 5 on the roster");
 });
 
 test("Member and Status sort the roster, and say which way", async () => {
@@ -242,14 +243,53 @@ test("Member and Status sort the roster, and say which way", async () => {
   assert.equal(ariaSort("member"), "none");
   sortHead("member").click();
   assert.equal(ariaSort("member"), "ascending");
-  assert.deepEqual(cellsOf(0), ["abe@uni.edu", "ana@uni.edu", "ben@uni.edu", "cy@uni.edu"]);
+  assert.deepEqual(cellsOf(0), ["abe@uni.edu", "ana@uni.edu", "ben@uni.edu"]);
   sortHead("member").click();
   assert.equal(ariaSort("member"), "descending");
-  assert.deepEqual(cellsOf(0), ["cy@uni.edu", "ben@uni.edu", "ana@uni.edu", "abe@uni.edu"]);
+  assert.deepEqual(cellsOf(0), ["ben@uni.edu", "ana@uni.edu", "abe@uni.edu"]);
   sortHead("status").click();
   assert.equal(ariaSort("status"), "ascending");
   assert.equal(ariaSort("member"), "none");
-  assert.deepEqual(cellsOf(1), ["active", "invited", "paused", "removed"]);
+  assert.deepEqual(cellsOf(1), ["active", "invited", "paused"]);
+});
+
+test("the chips show each status with its count, and keep focus on the one pressed", async () => {
+  await open();
+  const chips = () => $("rowChips").querySelectorAll("button").map((b) =>
+    [b.textContent.replace(/\s+/g, " ").trim(), b.getAttribute("aria-pressed")]);
+  assert.deepEqual(chips(), [
+    ["Current 4", "true"], ["Active 1", "false"], ["Paused 1", "false"], ["Invited 2", "false"], ["Removed 1", "false"],
+  ]);
+  $("rowChips").querySelector('button[data-chip="invited"]').click();
+  assert.deepEqual(cellsOf(0), ["dee@uni.edu", "eve@uni.edu"]);
+  assert.equal($("rowCount").textContent, "Showing 2 of 2, 5 on the roster");
+  assert.equal(document.activeElement.dataset.chip, "invited");
+  $("rowFilter").value = "eve";
+  $("rowFilter").dispatch("input");
+  assert.deepEqual(cellsOf(0), ["eve@uni.edu"], "the filter works within the chip");
+});
+
+test("a status with nobody in it has no chip; a roster of removals says where they are", async () => {
+  await open({ roster: { ...assigned, invites: [], seats: [{ uid: "u3", email: "cy@uni.edu", status: "revoked" }] } });
+  assert.deepEqual($("rowChips").querySelectorAll("button").map((b) => b.dataset.chip), ["current", "removed"]);
+  assert.deepEqual(rows(), [["Everyone on this licence has been removed. Press Removed to see them."]]);
+});
+
+test("Seat sorts by when a lease runs out, Phone by the phone; nobody's goes last", async () => {
+  const soon = new Date(Date.now() + 3600e3).toISOString();
+  const later = new Date(Date.now() + 7200e3).toISOString();
+  await open({ roster: { ...assigned, invites: [], seats: [
+    { uid: "u1", email: "ana@uni.edu", status: "active" },
+    { uid: "u2", email: "ben@uni.edu", status: "active", leaseExpiresAt: later, deviceIdLock: "zz-phone-0001" },
+    { uid: "u3", email: "cy@uni.edu", status: "active", leaseExpiresAt: soon, deviceIdLock: "aa-phone-0001" },
+  ] } });
+  sortHead("seat").click();
+  assert.equal(ariaSort("seat"), "ascending");
+  assert.deepEqual(cellsOf(0), ["cy@uni.edu", "ben@uni.edu", "ana@uni.edu"]);
+  sortHead("phone").click();
+  assert.deepEqual(cellsOf(0), ["cy@uni.edu", "ben@uni.edu", "ana@uni.edu"]);
+  sortHead("phone").click();
+  assert.deepEqual(cellsOf(0), ["ana@uni.edu", "ben@uni.edu", "cy@uni.edu"]);
 });
 
 test("the seat manager stays hidden until the licence list names this address", async () => {
@@ -487,7 +527,8 @@ test("a roster longer than one page is read to the end", async () => {
     }) } });
   assert.deepEqual(sent(/seats/), [`GET ${SEATS}`, `GET ${SEATS}?page_token=u1`]);
   assert.deepEqual(rows().map((r) => r[0]),
-    ["ana@uni.edu", "ben@uni.edu", "cy@uni.edu", "dee@uni.edu", "eve@uni.edu"]);
+    ["ana@uni.edu", "ben@uni.edu", "dee@uni.edu", "eve@uni.edu"], "every page; the removed member under Removed");
+  assert.match($("rowChips").textContent, /Removed 1/);
 });
 
 // TE3-102 (ADDENDUM-2): IT may add only addresses on the licence's domain;

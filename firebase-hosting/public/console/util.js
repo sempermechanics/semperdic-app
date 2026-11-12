@@ -180,10 +180,12 @@ export function errorDetail(detail) {
  * it is `licenceSearchBody`, sent as a POST, so the address searched for is
  * never in a URL (TD-244).
  */
-export function licenceListPath({ limit, showDemo = false, showRevoked = false, pageToken = "" }) {
+export function licenceListPath({ limit, showDemo = false, showRevoked = false, showTest = false, pageToken = "" }) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (showDemo) params.set("include_demo", "true");
   if (!showRevoked) params.set("include_revoked", "false");
+  // A staff test account's licences (ADR-027) only when asked for.
+  if (showTest) params.set("include_test", "true");
   if (pageToken) params.set("page_token", pageToken);
   return `/v1/admin/licenses?${params}`;
 }
@@ -197,12 +199,13 @@ export function licenceListPath({ limit, showDemo = false, showRevoked = false, 
  * backend leaves Demo keys out of a search unless asked, so a search with
  * "Show Demo keys" ticked has to ask.
  */
-export function licenceSearchBody({ q, limit, pageToken = "", showDemo = false, showRevoked = false }) {
+export function licenceSearchBody({ q, limit, pageToken = "", showDemo = false, showRevoked = false, showTest = false }) {
   const body = { q: String(q ?? "").trim() };
   if (Number.isInteger(limit)) body.limit = limit;
   if (pageToken) body.page_token = pageToken;
   body.include_demo = Boolean(showDemo);
   body.include_revoked = Boolean(showRevoked);
+  if (showTest) body.include_test = true;
   return JSON.stringify(body);
 }
 

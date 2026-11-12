@@ -6,6 +6,7 @@
 // on the fake SDK and DOM (harness.mjs).
 import { beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
+import { detailsOf as detailsOfRow } from "./operator-desk.mjs";
 import {
   test, reset, settle, openPage, json, net, confirms, alerts, prompts, codes, sent, storage, fake,
   readyUser, FakeUser, $, loadAuth, deferred, page,
@@ -289,12 +290,21 @@ test("a failed institution check still leaves Operator | Your account", async ()
 test("each licence row says what it is and offers only what applies", async () => {
   await open();
   assert.equal($("mfaPill").textContent, "2FA on");
+  // Mode and the analyses limit left their columns: a limit set at issue
+  // is a tag beside the kind, the rest is under the key.
+  // A row is key, kind, seats and status; the term, the lock, the mode and
+  // the analyses limit are under the key. A limit set at issue is a tag.
   assert.deepEqual(rows(), [
-    ["SEMP-IND1", "individual", "Licensed", "—", `until ${day(IND.expiresAt)} +14d`, "50", "redeemed",
-      "pat@lab.org", "Edit More New phone To institution Phone history Revoke Delete"],
-    ["SEMP-UNI1", "institution · shared", "Licensed", "1/5 in use · 4 on roster", "perpetual", "default",
-      "redeemed", "uni.edu", "Edit Roster More Verify Phone history Revoke Delete"],
+    ["SEMP-IND1", "individual 50 analyses each", "—", "redeemed",
+      "Edit More New phone To institution Phone history Revoke Delete"],
+    ["SEMP-UNI1", "institution · shared", "1/5 in use · 4 on roster",
+      "redeemed", "Edit Roster More Verify Phone history Revoke Delete"],
   ]);
+  const ind = detailsOfRow(IND.id);
+  assert.equal(ind.Term, `until ${day(IND.expiresAt)} +14d`);
+  assert.equal(ind["Locked to"], "pat@lab.org");
+  assert.equal(ind["Cloud analyses per person"], "50");
+  assert.equal(detailsOfRow(UNI.id)["Locked to"], "uni.edu");
   assert.equal($("licencePaging").textContent, "2 licence(s) (revoked and Demo hidden).");
   assert.equal($("loadMore").hidden, true);
 });
@@ -310,8 +320,11 @@ test("Demo keys are fetched only when asked for, show the Demo limit, and are ne
   assert.deepEqual(sent(/admin\/licenses/).at(-1),
     "GET /v1/admin/licenses?limit=50&include_demo=true&include_revoked=false");
   const demo = rows().find((r) => r[0] === "SEMP-DEMO");
-  assert.equal(demo[5], "Demo limit (25)");
-  assert.equal(demo[8], "Edit More New phone Phone history Revoke", "no convert, no delete for a system Demo key");
+  assert.equal(demo[1], "individual Demo", "a Demo key says so beside its kind");
+  assert.equal(demo[4], "Edit More New phone Phone history Revoke", "no convert, no delete for a system Demo key");
+  $("licenceRows").querySelector(`button[data-details="${DEMO.id}"]`).click();
+  await settle();
+  assert.equal(detailsOfRow(DEMO.id)["Cloud analyses per person"], "Demo limit (25)", "its limit is in its details");
   assert.equal($("licencePaging").textContent, "2 licence(s) (revoked hidden).");
   // What "Demo limit (25)" means is text under the table, not a hover-only title
   // (AE2-011): keyboard and touch reach it, and a screen reader reads it.
@@ -332,7 +345,7 @@ test("a revoked row offers only Delete, and is shown only on request", async () 
   $("showRevoked").checked = true;
   $("showRevoked").dispatch("change");
   await settle();
-  assert.deepEqual(rows().map((r) => [r[0], r[6], r[8]]), [["SEMP-REV1", "revoked", "Delete"]]);
+  assert.deepEqual(rows().map((r) => [r[0], r[3], r[4]]), [["SEMP-REV1", "revoked", "Delete"]]);
 });
 
 test("Load more appends the next page once, and the paging line follows", async () => {
@@ -645,7 +658,7 @@ test("a later end is saved without a typed key, and the status says what the ser
   assert.deepEqual(JSON.parse(patch.body), { expiresAt: later });
   assert.equal($("editDialog").open, false);
   assert.deepEqual(status(), [`SEMP-IND1 saved — ends ${day(later)}. Everyone on it has the change.`, "muted"]);
-  assert.equal(rows()[0][4], `until ${day(later)} +14d`, "the row shows the stored term");
+  assert.equal(detailsOfRow(IND.id).Term, `until ${day(later)} +14d`, "the details show the stored term");
 });
 
 test("an earlier end must be confirmed by typing the key", async () => {

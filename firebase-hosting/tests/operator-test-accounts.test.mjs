@@ -254,18 +254,69 @@ test("a return leg declined, malformed, or without a fresh sign-in sends nothing
 
 /* ---------------------------------------------------------------- list */
 
-test("the list shows purpose, end, phones, status and note, and a row per account", async () => {
+test("the list shows end, phones and status, purpose and note under the address, and a row per account", async () => {
   await showList([QC, CI, { ...QC, uid: "uid-old", email: "old@test.example", status: "ended", note: "<b>x</b>" }]);
   assert.equal($("loadTestAccounts").textContent, "Hide list");
   assert.equal($("loadTestAccounts").getAttribute("aria-expanded"), "true");
   assert.deepEqual(accountRows(), [
-    ["qc-1@test.example", "QC", day(ENDS), "1 of 3", "active", "QC rack", "Extend New password End now"],
-    ["ci@test.example", "CI", "Never", "0 of 10", "active", "—", "Extend New password End now"],
-    ["old@test.example", "QC", day(ENDS), "1 of 3", "ended", "<b>x</b>", "Extend New password End now"],
+    ["qc-1@test.example", day(ENDS), "1 of 3", "active", "Extend More New password End now"],
+    ["ci@test.example", "Never", "0 of 10", "active", "Extend More New password End now"],
+  ], "live accounts first; the ended one is under Ended");
+  // Purpose and note open under the address, as a licence's details do from its key.
+  const toggle = () => $("testAccountRows").querySelector(`button[data-ta-details="${QC.uid}"]`);
+  assert.equal(toggle().getAttribute("aria-expanded"), "false");
+  toggle().click();
+  assert.equal(toggle().getAttribute("aria-expanded"), "true");
+  assert.equal(toggle().focused, true, "focus stays on the address");
+  const details = $(`ta-details-${QC.uid}`).textContent.replace(/\s+/g, " ").trim();
+  assert.match(details, /^PurposeQCNoteQC rackCreated.+Account iduid-qc-1$/);
+  toggle().click();
+  assert.equal($(`ta-details-${QC.uid}`), null);
+  assert.equal($("taCount").textContent, "Showing 2 of 2.");
+  $("taChips").querySelector('button[data-chip="all"]').click();
+  assert.deepEqual(accountRows(), [
+    ["qc-1@test.example", day(ENDS), "1 of 3", "active", "Extend More New password End now"],
+    ["ci@test.example", "Never", "0 of 10", "active", "Extend More New password End now"],
+    ["old@test.example", day(ENDS), "1 of 3", "ended", "Extend More New password End now"],
   ]);
+  $("testAccountRows").querySelector('button[data-ta-details="uid-old"]').click();
+  assert.match($("ta-details-uid-old").textContent, /<b>x<\/b>/, "the note, as text");
   assert.equal($("testAccountRows").querySelectorAll("b").length, 0, "a note is never markup");
-  assert.equal($("testAccountRows").querySelectorAll("span").map((s) => s.className).join(),
+  assert.equal($("testAccountRows").querySelectorAll("span.pill").map((s) => s.className).join(),
     "pill ok,pill ok,pill off");
+});
+
+test("the list's chips, filter and sort: Ended, a search over address, purpose and note, Ends soonest first", async () => {
+  const soon = new Date(Date.now() + 2 * 86400e3).toISOString();
+  await showList([QC, CI, { ...QC, uid: "uid-soon", email: "soon@test.example", expiresAt: soon, note: "Pixel 8" },
+    { ...QC, uid: "uid-old", email: "old@test.example", status: "ended" }]);
+  const chips = () => $("taChips").querySelectorAll("button").map((b) => b.textContent.replace(/\s+/g, " ").trim());
+  assert.deepEqual(chips(), ["Live 3", "Ended 1", "All 4"]);
+  $("taChips").querySelector('button[data-chip="ended"]').click();
+  assert.deepEqual(accountRows().map((r) => r[0]), ["old@test.example"]);
+  assert.equal(globalThis.document.activeElement.dataset.chip, "ended", "focus stays on the chip pressed");
+  $("taChips").querySelector('button[data-chip="live"]').click();
+  $("taFilter").value = "pixel";
+  $("taFilter").dispatch("input");
+  assert.deepEqual(accountRows().map((r) => r[0]), ["soon@test.example"], "the note is searched");
+  assert.equal($("taCount").textContent, "1 of 3 match.");
+  $("taFilter").value = "ci";
+  $("taFilter").dispatch("input");
+  assert.deepEqual(accountRows().map((r) => r[0]), ["ci@test.example"], "the purpose too");
+  $("taFilter").value = "";
+  $("taFilter").dispatch("input");
+  $("taHead").querySelector('button[data-sort="ends"]').click();
+  assert.deepEqual(accountRows().map((r) => r[0]), ["soon@test.example", "qc-1@test.example", "ci@test.example"],
+    "about to end first; one that never ends, last");
+  assert.equal($("taHead").querySelector('button[data-sort="ends"]').closest("th").getAttribute("aria-sort"), "ascending");
+  $("taFilter").value = "nobody";
+  $("taFilter").dispatch("input");
+  assert.deepEqual(accountRows(), [["No test account matches that filter."]]);
+});
+
+test("with every test account ended, the live view says where they are", async () => {
+  await showList([{ ...QC, status: "ended" }]);
+  assert.deepEqual(accountRows(), [["No live test accounts. Press Ended to see the others."]]);
 });
 
 test("an empty list says so, and a failed one offers Retry", async () => {
@@ -458,9 +509,9 @@ const releaseButton = (deviceId) => $("testAccountRows").querySelector(
 test("the list shows each active phone with its own Release", async () => {
   await showList([PHONES, CI]);
   // Model and app, the id under them (or the id alone, without a model), Release.
-  assert.deepEqual(accountRows()[0].slice(3, 4), [
+  assert.deepEqual(accountRows()[0].slice(2, 3), [
     "2 of 3 Pixel 6 semper and-phone-1 Release and-phone-<2> semper Classroom Release"]);
-  assert.deepEqual(accountRows()[1].slice(3, 4), ["0 of 10"], "no phones, no buttons");
+  assert.deepEqual(accountRows()[1].slice(2, 3), ["0 of 10"], "no phones, no buttons");
   const phones = $("testAccountRows").querySelectorAll("li");
   assert.equal(phones.length, 2, "one line per phone");
   assert.ok(releaseButton("and-phone-1"));
@@ -516,7 +567,7 @@ test("a phone registered before ADR-030 is labelled semper Classroom too", async
   await showList([{ ...QC, activeDevices: 1, devices: [
     { deviceId: "old-phone", app: "materialtesting", model: "Pixel 5", registeredAt: null },
   ] }]);
-  assert.deepEqual(accountRows()[0].slice(3, 4), ["1 of 3 Pixel 5 semper Classroom old-phone Release"]);
+  assert.deepEqual(accountRows()[0].slice(2, 3), ["1 of 3 Pixel 5 semper Classroom old-phone Release"]);
 });
 
 test("Release confirms, sends, says so and reads the list again", async () => {

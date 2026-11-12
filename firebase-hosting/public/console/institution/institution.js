@@ -24,7 +24,8 @@ const fileName = () => (keyPrefix || licenseId).replace(/[^\w.-]+/g, "_");
 
 const renderRows = wireRoster({
   rows: $("rows"), email: $("addEmail"), add: $("add"), base, report: setStatus, reload: load,
-  filter: $("rowFilter"), count: $("rowCount"), head: $("rosterHead"), domain: () => domainLock,
+  filter: $("rowFilter"), count: $("rowCount"), head: $("rosterHead"), chips: $("rowChips"),
+  domain: () => domainLock,
 });
 
 wireExport({ button: $("exportRoster"), base, name: fileName, report: setStatus });
@@ -42,6 +43,7 @@ const resetAudit = wireAuditLog({
 const phones = wirePhones({
   card: $("phonesCard"), pool: $("phonesPool"), help: $("phonesHelp"), rows: $("phoneRows"),
   licenseId: () => licenseId, report: setStatus, reload: load, domain: () => domainLock,
+  filter: $("phoneFilter"), count: $("phoneCount"), head: $("phoneHead"),
 });
 
 requireSignIn(async (user) => {

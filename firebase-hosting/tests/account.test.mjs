@@ -311,12 +311,13 @@ test("each analysis row says what is stored, not what was declared", async () =>
     { sessionId: "s4", specimen: "Nothing yet", status: "UPLOADING", totalBytes: 0 },
     { sessionId: "s5", specimen: "<img src=x>", status: "WEIRD" },
   ] } });
+  // The analysis's id is not shown under its name any more: it is searched, not read.
   assert.deepEqual(rowTexts(), [
-    ["Steel A s1", "semper", "saved", "4", "1.5 MB", "Download"],
-    ["Steel B s2", "semper", "uploading", "3 of 10", "2.0 MB when done", "Download"],
-    ["local-3 s3", "semper", "failed", "0 of 2", "—", "Download"],
-    ["Nothing yet s4", "semper", "uploading", "0 of 0", "—", "Download"],
-    ["<img src=x> s5", "semper", "WEIRD", "0 of 0", "—", "Download"],
+    ["Steel A", "semper", "saved", "4", "1.5 MB", "Download"],
+    ["Steel B", "semper", "uploading", "3 of 10", "2.0 MB when done", "Download"],
+    ["local-3", "semper", "failed", "0 of 2", "—", "Download"],
+    ["Nothing yet", "semper", "uploading", "0 of 0", "—", "Download"],
+    ["<img src=x>", "semper", "WEIRD", "0 of 0", "—", "Download"],
   ]);
   assert.equal($("rows").querySelectorAll("img").length, 0, "a specimen name is text, never markup");
   const buttons = $("rows").querySelectorAll("button");
@@ -340,6 +341,42 @@ test("every app's analyses are listed, each with the app that backed it up", asy
   assert.equal($("rows").querySelectorAll("b").length, 0, "an unknown app name is text, never markup");
 });
 
+test("the analyses search by name, specimen or id, filter by app, sort by column, and count what is loaded", async () => {
+  await open({ sessions: { quota: { used: 4, max: 25 }, page: { nextPageToken: "t1" }, sessions: [
+    { sessionId: "s1", name: "Tensile 3", specimen: "Steel A", app: "semper", status: "COMPLETED", completedCount: 4, totalBytes: 300 },
+    { sessionId: "s2", specimen: "Beam B", app: "semperclassroom", status: "UPLOADING", completedCount: 1, fileCount: 5, totalBytes: 900 },
+    { sessionId: "s3", specimen: "Rod E", app: "materialtesting", status: "COMPLETED", completedCount: 2, totalBytes: 100 },
+    { sessionId: "zz-id-77", name: "Tensile 10", app: "semper", status: "COMPLETED", completedCount: 1, totalBytes: 200 },
+  ] } });
+  assert.equal($("analysisCount").textContent, "Showing 4 of 4 loaded.", "Show more has more: it says so");
+  const search = (text) => {
+    $("analysisFilter").value = text;
+    $("analysisFilter").dispatch("input");
+  };
+  search("steel");
+  assert.deepEqual(rowTexts().map((r) => r[0]), ["Tensile 3"], "the specimen behind a named analysis is searched");
+  search("zz-id");
+  assert.deepEqual(rowTexts().map((r) => r[0]), ["Tensile 10"], "and the id support may quote");
+  assert.equal($("analysisCount").textContent, "1 of 4 loaded match.");
+  search("");
+  $("analysisApp").value = "semperclassroom";
+  $("analysisApp").dispatch("change");
+  assert.deepEqual(rowTexts().map((r) => r[0]), ["Beam B", "Rod E"], "Classroom, under either of its names");
+  $("analysisApp").value = "";
+  $("analysisApp").dispatch("change");
+  const head = (key) => $("analysisHead").querySelector(`button[data-sort="${key}"]`);
+  head("name").click();
+  assert.deepEqual(rowTexts().map((r) => r[0]), ["Beam B", "Rod E", "Tensile 3", "Tensile 10"], "as people count: 3 before 10");
+  head("size").click();
+  head("size").click();
+  assert.equal(head("size").closest("th").getAttribute("aria-sort"), "descending");
+  assert.deepEqual(rowTexts().map((r) => r[0]), ["Beam B", "Tensile 3", "Tensile 10", "Rod E"]);
+  head("state").click();
+  assert.deepEqual(rowTexts().map((r) => r[2]), ["saved", "saved", "saved", "uploading"]);
+  search("nothing like this");
+  assert.deepEqual(rowTexts(), [["No analysis matches. Clear the search, or choose Any app."]]);
+});
+
 test("no analyses says so", async () => {
   await open();
   assert.equal($("rows").textContent.trim(), "Nothing backed up yet.");
@@ -358,7 +395,7 @@ test("Show more fetches the next page and appends it", async () => {
   assert.equal($("more").hidden, false);
   $("more").click();
   await settle();
-  assert.deepEqual(rowTexts().map((r) => r[0]), ["a a", "b b"]);
+  assert.deepEqual(rowTexts().map((r) => r[0]), ["a", "b"]);
   assert.equal($("more").hidden, true);
 });
 
@@ -378,7 +415,7 @@ test("Show more is held while a page loads, so no page is listed twice", async (
     page: {}, quota: { used: 2, max: 25 },
   }));
   await settle();
-  assert.deepEqual(rowTexts().map((r) => r[0]), ["a a", "b b"]);
+  assert.deepEqual(rowTexts().map((r) => r[0]), ["a", "b"]);
 });
 
 test("the licence card and the analyses show placeholders until they load", async () => {
