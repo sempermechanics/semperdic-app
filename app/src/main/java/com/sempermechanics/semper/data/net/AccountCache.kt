@@ -30,7 +30,7 @@ object AccountCache {
 
     /**
      * Cache the signed-in identity (from the Firebase user) for offline UI.
-     * The uid is also kept as [lastSignedInUid], which [clear] leaves.
+     * The uid is also kept as [lastSignedInUid], which [clear] leaves (and writes too).
      */
     fun saveIdentity(context: Context, uid: String?, email: String?) {
         prefs(context).edit {
@@ -210,8 +210,17 @@ object AccountCache {
         prefs(context).edit { put(Session.IMPROVEMENT_CONSENT, granted.toString()) }
     }
 
-    /** Wipe the local session cache (sign-out). Keystore device key is left intact. */
+    /**
+     * Wipe the local session cache (sign-out). Keystore device key is left intact.
+     *
+     * The cached uid is first kept as [lastSignedInUid]. [saveIdentity] writes
+     * that only at sign-in, so an account signed in across the update to an
+     * owner-aware build has none; without this its sign-out left the owner ""
+     * and a run finishing afterwards was saved ownerless, for the next account
+     * to adopt.
+     */
     fun clear(context: Context) {
+        cachedUid(context)?.let { uid -> onboardingPrefs(context).edit { put(Onboarding.LAST_SIGNED_IN_UID, uid) } }
         prefs(context).edit { clear() }
         AppRemoteConfig.clear(context)
     }
