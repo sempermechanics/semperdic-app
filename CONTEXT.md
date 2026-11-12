@@ -123,6 +123,8 @@ Keep `-O3 -ffast-math` / OpenMP / LTO on release.
   app release. The recycle bin ([ADR-035](docs/adr/ADR-035-recycle-bin.md), #529 #533 #534) must not reach
   production before counsel's Privacy text (TD-277): a prod backend deploy from `main` ships it; staging is
   fine; its TTL and Scheduler are owner steps in [DEPLOY_CHECKLIST_2026-10.md](docs/ops/DEPLOY_CHECKLIST_2026-10.md).
+- **Console list tools open** (#540): filters, sorting and slimmer rows on the desk's licences and test
+  accounts, the rosters, institution phones and saved analyses; Hosting deploy after merge.
 - **Deployed.** Backend from `main` at `12a89d31` (2026-10-30; everything through #515, ADR-033
   included): staging `semper-api-staging-41004261956-1`, production `semper-api-41007741365-1`;
   gateways `v202610300446-120` (staging), `v202610300526-121` (production). Both run
