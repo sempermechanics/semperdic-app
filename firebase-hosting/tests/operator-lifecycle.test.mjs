@@ -122,7 +122,7 @@ test("with Show revoked ticked, a revoked row stays, offering only Delete, and n
   prompts.answer("SEMP-IND1");
   await click(rowButton("revoke", IND.id));
   assert.deepEqual(status(), ["SEMP-IND1 revoked — its holder is on Demo from their next request.", "muted"]);
-  assert.deepEqual(rows().map((r) => [r[0], r[6], r[8]]), [["SEMP-IND1", "revoked", "Delete"], ["SEMP-UNI1", "redeemed",
+  assert.deepEqual(rows().map((r) => [r[0], r[3], r[4]]), [["SEMP-IND1", "revoked", "Delete"], ["SEMP-UNI1", "redeemed",
     "Edit Roster More Verify Phone history Revoke Delete"]]);
 });
 

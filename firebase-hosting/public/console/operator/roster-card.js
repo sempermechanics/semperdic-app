@@ -49,6 +49,7 @@ const renderRoster = wireRoster({
   filter: $("rosterFilter"),
   count: $("rosterCount"),
   head: $("rosterHead"),
+  chips: $("rosterChips"),
 });
 
 wireExport({ button: $("rosterExport"), base: rosterBase, name: fileName, report: rosterReport });

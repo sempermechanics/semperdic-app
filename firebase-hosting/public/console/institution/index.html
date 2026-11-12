@@ -34,6 +34,7 @@
   <link rel="modulepreload" href="../roster.js" />
   <link rel="modulepreload" href="../roster-tools.js" />
   <link rel="modulepreload" href="../audit-log.js" />
+  <link rel="modulepreload" href="../list-tools.js" />
   <link rel="modulepreload" href="phones.js" />
 </head>
 <body data-auth="pending">
@@ -98,19 +99,22 @@
           <span class="spacer"></span>
           <button id="exportRoster" class="secondary">Export roster CSV</button>
         </div>
-        <!-- Narrows, sorts and pages the rows already read (roster.js). -->
+        <!-- Narrows, sorts and pages the rows already read (roster.js). The
+             chips choose whom to show, removed members apart by default. -->
         <div class="row toolbar">
           <input id="rowFilter" type="search" placeholder="Filter by address, status or phone"
                  aria-label="Filter the roster" autocomplete="off" />
           <span id="rowCount" class="muted" aria-live="polite"></span>
         </div>
+        <div class="chips" id="rowChips" role="group" aria-label="Show members"></div>
         <div class="wrap">
           <table>
             <thead id="rosterHead">
               <tr>
                 <th aria-sort="none"><button type="button" class="sort" data-sort="member">Member</button></th>
                 <th aria-sort="none"><button type="button" class="sort" data-sort="status">Status</button></th>
-                <th>Seat</th><th>Phone</th>
+                <th aria-sort="none"><button type="button" class="sort" data-sort="seat">Seat</button></th>
+                <th aria-sort="none"><button type="button" class="sort" data-sort="phone">Phone</button></th>
                 <th class="actions">Actions</th>
               </tr>
             </thead>
@@ -126,10 +130,20 @@
         <h2>Phones</h2>
         <p class="muted" id="phonesPool" aria-live="polite"></p>
         <p class="muted" id="phonesHelp"></p>
+        <div class="row toolbar">
+          <input id="phoneFilter" type="search" placeholder="Filter by member or phone"
+                 aria-label="Filter the phones" autocomplete="off" />
+          <span id="phoneCount" class="muted" aria-live="polite"></span>
+        </div>
         <div class="wrap">
           <table>
-            <thead>
-              <tr><th>Member</th><th>Phone</th><th>Activated</th><th class="actions">Actions</th></tr>
+            <thead id="phoneHead">
+              <tr>
+                <th aria-sort="none"><button type="button" class="sort" data-sort="member">Member</button></th>
+                <th aria-sort="none"><button type="button" class="sort" data-sort="phone">Phone</button></th>
+                <th aria-sort="none"><button type="button" class="sort" data-sort="activated">Activated</button></th>
+                <th class="actions">Actions</th>
+              </tr>
             </thead>
             <tbody id="phoneRows"></tbody>
           </table>

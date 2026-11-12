@@ -131,10 +131,12 @@ test("every roster action is in view at 768 px, without scrolling the table", as
 // AE2-104: at 600 px and below the table heading was clipped to 1 px, and
 // the roster's two sort buttons with it: Tab landed on controls nobody could
 // see, and a tap could not reach them. They show as a "Sort by" line.
+// Tab reaches them straight after the filter chips (the last control above
+// the table).
 test("the roster's sort buttons are on screen and sort at 360 px", async ({ browser }) => {
   const { context, page } = await open(browser, PAGES[4], WIDTHS.phone);
   const member = page.locator('#rosterHead button[data-sort="member"]');
-  await page.locator("#rowFilter").focus();
+  await page.locator("#rowChips button[data-chip]").last().focus();
   await page.keyboard.press("Tab");
   await expect(member).toBeFocused();
   const box = await member.boundingBox();

@@ -2401,9 +2401,11 @@ per account. A change refreshes only its own row, from the answer or from
 `GET /v1/admin/licenses/{id}`, instead of reloading the first page and
 dropping every page loaded after it. The filter box also searches the backend
 (`q=`) by exact email, domain or key prefix, so a licence on an unloaded page
-is found. The table has a Mode column, its status pill reads "in grace" or
-"expired" from the term rather than the stored `status`, and "Load more"
-pages past the first 50. Silence after a click is always a defect here: it is
+is found. A Demo or test key is tagged beside its kind (Mode is no longer a
+column), its status pill reads "in grace" or "expired" from the term rather
+than the stored `status`, and "Load more" pages past the first 50. Kind, App
+and State filters and sortable headings work on the rows read; "Load all"
+reads every page so they cover the whole list. Silence after a click is always a defect here: it is
 indistinguishable from a revoke that did not happen.
 
 Destructive actions confirm twice — a dialog naming who is affected, then

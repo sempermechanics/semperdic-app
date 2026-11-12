@@ -228,8 +228,11 @@ dl.facts dd { margin: 0; }
 }
 @keyframes skeleton-pulse { 50% { opacity: .25; } }
 
-/* A licence row's rarer actions (licences.js): a disclosure that opens in
-   place, under its button, so the table's own scrolling never clips it. */
+/* A row's rarer actions (licences.js, test-accounts.js): a disclosure whose
+   panel floats over the rows below rather than pushing them down. Fixed to
+   the viewport, so the table's sideways scrolling cannot clip it;
+   list-tools.js floatMenus puts it under its button and closes it on a
+   scroll. */
 details.more { display: inline-block; vertical-align: top; text-align: left; }
 details.more > summary {
   list-style: none; display: inline-flex; align-items: center; cursor: pointer;
@@ -240,9 +243,29 @@ details.more > summary::-webkit-details-marker { display: none; }
 details.more > summary::after { content: " ▾"; color: var(--muted); }
 details.more > summary:hover { background: rgba(255, 255, 255, 0.04); }
 details.more[open] > summary { border-color: var(--accent); }
-details.more .menu { display: flex; flex-direction: column; gap: .35rem; margin-top: .35rem; }
-/* Revoke and Delete, last in the menu, sit apart from what only looks. */
-details.more .menu .secondary + .danger { margin-top: .5rem; }
+/* The menu is one list, not a stack of buttons: a panel, each action a
+   plain line of text that lights up under the pointer, as a menu does. */
+details.more .menu {
+  position: fixed; z-index: 20;
+  display: flex; flex-direction: column; padding: .3rem 0; min-width: 11rem;
+  background: var(--bg-elevated); border: 1px solid var(--line-strong); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+details.more .menu button {
+  display: block; width: 100%; margin: 0; padding: .45rem .9rem; text-align: left;
+  font-size: .88rem; font-weight: 500; color: var(--ink);
+  background: transparent; border: 0; border-radius: 0;
+}
+details.more .menu button:hover { background: rgba(255, 255, 255, 0.06); color: var(--ink); }
+details.more .menu button:focus-visible { outline-offset: -2px; }
+details.more .menu button.danger { color: var(--danger); }
+details.more .menu button.danger:hover { background: rgba(242, 184, 181, 0.08); }
+/* Revoke and Delete (End now on a test account), last in the menu, sit
+   apart from what only looks or changes, under a rule. The row's own
+   button spacing (td.actions .secondary + .danger) does not reach in here. */
+details.more .menu .secondary + .danger {
+  margin: .3rem 0 0; border-top: 1px solid var(--line);
+}
 
 /* The status line sits above the first card, and the licence table is well
    below it: a result written there while the operator worked in the table was
@@ -423,15 +446,53 @@ body.desk { --max-width: 1400px; }
   .desk-pair > .card { margin-bottom: 0; }
 }
 
-/* The licence table, column by column: the term and the counts stay on one
-   line; the kind's "replaced by…" note is a smaller second line; the mode,
-   nearly always "licensed", recedes. */
-table.licences td:nth-child(2) { min-width: 7.5rem; }
-table.licences td:nth-child(2) .muted { font-size: .8rem; line-height: 1.35; }
-table.licences td:nth-child(3) { color: var(--muted); }
-table.licences td:nth-child(4) { min-width: 8.5rem; }
-table.licences td:nth-child(5), table.licences td:nth-child(6) { white-space: nowrap; }
-table.licences td:nth-child(8) { overflow-wrap: break-word; min-width: 10rem; }
+/* The licence table, column by column (Key, Kind, Seats, Status): the
+   counts stay together; the kind's "replaced by…" note and what a filter
+   matched are a smaller second line. */
+table.licences td:nth-child(2) { min-width: 7.5rem; overflow-wrap: break-word; }
+table.licences td .muted { font-size: .8rem; line-height: 1.35; }
+table.licences td:nth-child(3) { min-width: 8.5rem; }
+
+/* A licence's key opens its details under the row: the key as a quiet
+   button, its caret saying which way it goes. */
+button.row-toggle {
+  font: inherit; color: var(--ink); background: none; border: 0; padding: 0;
+  border-radius: 4px; text-align: left;
+}
+button.row-toggle::before { content: "▸ "; color: var(--muted); }
+button.row-toggle[aria-expanded="true"]::before { content: "▾ "; color: var(--accent); }
+button.row-toggle:hover { color: var(--accent); background: none; }
+/* The details are part of the row above: no rule between the two, and the
+   ground a shade darker, so the eye reads them as one licence. */
+.wrap tr:has(+ tr.row-details) > td { border-bottom-color: transparent; }
+.wrap tr.row-details > td { background: var(--bg-elevated); padding-top: .25rem; }
+.wrap tbody tr.row-details:hover > td { background: var(--bg-elevated); }
+tr.row-details dl.facts {
+  margin: 0; grid-template-columns: max-content 1fr max-content 1fr; gap: .3rem 1.25rem;
+}
+/* The row a card below is open for (Roster, Verify): edged in the accent,
+   as the card is. Opaque, like --row-hover: the pinned key cell takes it too,
+   and a see-through one showed the scrolled cells under it. */
+.wrap tr.current > td { background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+.wrap tr.current > td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* A list's filters beside its text box: each select with its name before
+   it, at the toolbar's own density. */
+.filters label { color: var(--muted); }
+.filters select { padding: .45rem .6rem; color: var(--ink); }
+
+/* Filter chips (list-tools.js drawChips): the header's segmented switch,
+   loosened into separate pills, each with its count. The pressed one is the
+   view shown. */
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .75rem; }
+.chips:empty { display: none; }
+button.chip {
+  padding: .3rem .75rem; border-radius: 999px; font-size: .85rem; font-weight: 600;
+  background: transparent; border: 1px solid var(--line-strong); color: var(--muted);
+}
+button.chip:hover { color: var(--ink); background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.35); }
+button.chip[aria-pressed="true"] { color: var(--accent); background: var(--accent-dim); border-color: var(--accent); }
+.chip-count { font-weight: 500; margin-left: .15rem; }
 
 /* Test accounts: the address on one line where it fits, and each phone on
    a line of its own with its Release at the end of that line. */
@@ -472,7 +533,7 @@ details.phones-fold > summary:hover { background: rgba(255, 255, 255, 0.04); }
     position: sticky; left: 0; z-index: 1; background: var(--card);
   }
   /* An address broken at its hyphen read as two addresses. */
-  table.test-accounts td.account, table.licences td:nth-child(8) { white-space: nowrap; }
+  table.test-accounts td.account { white-space: nowrap; }
 }
 
 /* Tablet: a row's buttons wrap inside their cell (New device over Pause and
@@ -550,9 +611,10 @@ details.phones-fold > summary:hover { background: rgba(255, 255, 255, 0.04); }
   .wrap td.actions { flex-wrap: wrap; align-items: flex-start; white-space: normal; padding-top: .5rem; gap: .5rem; }
   .wrap td.actions .secondary + .danger { margin-left: 0; }
   .wrap td[colspan] { display: block; }
-  /* The term ("until May 12, 2027 (UTC) +14d") and the analyses count wrap
-     beside their label; kept on one line they ran past a 360 px card. */
-  table.licences td:nth-child(5), table.licences td:nth-child(6) { white-space: normal; }
+  tr.row-details dl.facts { grid-template-columns: max-content 1fr; }
+  /* Each filter its own line, its select taking what the name leaves. */
+  .filters label { flex: 1 1 100%; }
+  .filters label > select { flex: 1; min-width: 0; }
   /* The kind, its app tag ("semper Classroom") and an upgrade note, as one
      wrapping line: as separate flex items the tag ran past a 360 px card. */
   table.licences td:nth-child(2) { white-space: normal; }

@@ -159,7 +159,7 @@ test("a licence for one app shows its app, Phones n/m and Issue upgrade; one fro
   await openDesk({ licenses: [APP_IND, APP_UNI, APP_FLOAT, IND, UNI, { ...DEMO, app: "" }] });
   assert.equal(row("SEMP-APP1")[1], "individual semper");
   assert.equal(row("SEMP-AUN1")[1], "institution semper Classroom");
-  assert.equal(row("SEMP-IND1")[1], "individual", "no tag on a licence from before the split");
+  assert.equal(row("SEMP-IND1")[1], "individual 50 analyses each", "no app tag on a licence from before the split");
 
   assert.equal(rowButton("phones", APP_IND.id).textContent, "Phones 1/2");
   assert.equal(rowButton("phones", APP_IND.id).getAttribute("aria-label"), "Phones on SEMP-APP1: 1 of 2 active");

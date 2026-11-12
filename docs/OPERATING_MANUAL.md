@@ -1124,8 +1124,9 @@ it. The operator desk reports the expiry the server stored.
 
 **`maxAnalyses` is per person, not per licence**, and is normally left empty:
 empty gives every holder the Licensed default (`LICENSED_MAX_SESSIONS_PER_USER`,
-999). On the operator desk it is "Cloud analyses per person", and the table's
-"Analyses / person" column shows it. A value below the Demo allowance
+999). On the operator desk it is "Cloud analyses per person"; a limit set shows
+as a tag beside the licence's kind ("200 analyses each"), and the licence's
+details (open them from its key) give it either way. A value below the Demo allowance
 (`DEMO_MAX_ANALYSES`, 25) is refused, and the backend floors any older one at
 that allowance. To remove a cap, empty "Cloud analyses per person" in the
 row's **Edit** dialog, or:
@@ -1141,7 +1142,7 @@ allowance (`DEMO_MAX_ANALYSES`, 25) whatever the key stores
 (`resolve_user_config` reads a licence cap only for a Licensed account). A
 `maxAnalyses` on a Demo key is refused with `422 cap_on_demo_key` and nothing
 changes. On the desk a Demo row's **Edit** dialog has the field disabled and its
-"Analyses / person" column reads "Demo limit (25)". To give that person more
+details read "Demo limit (25)". To give that person more
 analyses, issue them a Licensed key. `clearMaxAnalyses` is still accepted on a
 Demo key; use it to remove a cap stored before this refusal existed, which
 never applied (SEMP-8AKN, set to 100 on 2026-09-25, is one).

@@ -102,6 +102,33 @@ test("each active phone is listed: member, phone, when activated, and by whom wh
   assert.equal(deactivate("dev-ben-1").getAttribute("aria-label"), "Deactivate ben@uni.edu's phone");
 });
 
+test("the phones filter by member or model, sort by column, and say how many are shown", async () => {
+  const earlier = { ...PHONES[2], activatedAt: "2026-09-01T09:00:00Z" };
+  await open({ answer: pool([PHONES[0], PHONES[1], earlier]) });
+  assert.equal($("phoneCount").textContent, "Showing 3 of 3.");
+  $("phoneFilter").value = "galaxy";
+  $("phoneFilter").dispatch("input");
+  assert.deepEqual(rows().map((r) => r[1]), ["Galaxy S22+"]);
+  assert.equal($("phoneCount").textContent, "1 of 3 match.");
+  $("phoneFilter").value = "ben@";
+  $("phoneFilter").dispatch("input");
+  assert.deepEqual(rows().map((r) => r[0]), ["ben@uni.edu"]);
+  $("phoneFilter").value = "nobody";
+  $("phoneFilter").dispatch("input");
+  assert.deepEqual(rows(), [["No phone matches that filter."]]);
+  $("phoneFilter").value = "";
+  $("phoneFilter").dispatch("input");
+  const head = (key) => $("phoneHead").querySelector(`button[data-sort="${key}"]`);
+  head("activated").click();
+  assert.equal(rows()[0][0], "ben@uni.edu", "the earliest activation first");
+  head("phone").click();
+  assert.deepEqual(rows().map((r) => r[1]), ["Galaxy S22+", "Pixel 6", "—"], "a phone with no model, last");
+  head("member").click();
+  head("member").click();
+  assert.equal(head("member").closest("th").getAttribute("aria-sort"), "descending");
+  assert.equal(rows()[0][0], "ben@uni.edu");
+});
+
 test("no phone activated yet is said, and markup in a phone's fields is text", async () => {
   await open({ answer: pool([]) });
   assert.equal(text("phonesPool"), "0 of 10 phones activated on this licence, for semper Classroom.");

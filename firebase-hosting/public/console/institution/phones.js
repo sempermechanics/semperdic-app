@@ -12,6 +12,7 @@ import { api } from "../api.js";
 import { confirmInPage, holdFocus } from "../dialogs.js";
 import { explain } from "../messages.js";
 import { esc, when, APP_NAMES, placeholderRows, retryRow, sessionEnded } from "../util.js";
+import { wireSort, sortList, byText, byNumber, matchesText, countLine } from "../list-tools.js";
 
 /** An institution licence with neither a device count nor a seat cap: no limit (`repo.activations._UNCOUNTED`). */
 const UNCOUNTED = 1_000_000;
@@ -72,14 +73,40 @@ export function phoneRow(phone) {
  * `{ show(lic, current), hide() }`: `show` reads and draws the phones of the
  * licence just rendered, dropping an answer once `current()` is false.
  */
-export function wirePhones({ card, pool, help, rows, licenseId, report, reload, domain = () => "" }) {
+export function wirePhones({
+  card, pool, help, rows, licenseId, report, reload, domain = () => "", filter = null, count = null, head = null,
+}) {
   let showing = null; // { lic, current } of the last show, for Retry
+  let listed = []; // the active phones last read
+  let drawnFor = null; // the licence they are for: another starts the filter afresh
+
+  // Member, Phone and Activated sort the phones read; the filter narrows
+  // them by member or phone model. Both work on what was read.
+  const SORTS = {
+    member: (a, b) => byText(a.email || a.uid, b.email || b.uid),
+    phone: (a, b) => (!a.deviceModel - !b.deviceModel) || byText(a.deviceModel, b.deviceModel),
+    activated: (a, b) => byNumber(Date.parse(a.activatedAt || ""), Date.parse(b.activatedAt || "")),
+  };
+  const sort = wireSort(head, draw);
+  if (filter) filter.addEventListener("input", draw);
+
+  /** Draw the phones the filter leaves, in the sort chosen. */
+  function draw() {
+    const q = filter ? filter.value.trim().toLowerCase() : "";
+    const shown = sortList(listed.filter((p) => matchesText([p.email, p.uid, p.deviceModel], q)), sort.order(), SORTS);
+    rows.innerHTML = shown.map(phoneRow).join("") || `<tr><td colspan="4" class="muted">${listed.length
+      ? "No phone matches that filter." : "No phone is activated on this licence yet."}</td></tr>`;
+    if (count) count.textContent = countLine({ shown: shown.length, total: listed.length, filtered: Boolean(q) });
+  }
 
   function hide() {
     showing = null;
+    listed = [];
+    drawnFor = null;
     card.hidden = true;
     pool.innerHTML = "";
     rows.innerHTML = "";
+    if (count) count.textContent = "";
   }
 
   async function show(lic, current = () => true) {
@@ -108,9 +135,10 @@ export function wirePhones({ card, pool, help, rows, licenseId, report, reload, 
         return;
       }
       pool.innerHTML = poolHtml({ app: lic.app, ...answer });
-      const phones = (answer.devices || []).filter((p) => !p.status || p.status === "active");
-      rows.innerHTML = phones.map(phoneRow).join("") ||
-        '<tr><td colspan="4" class="muted">No phone is activated on this licence yet.</td></tr>';
+      if (drawnFor !== lic.id && filter) filter.value = "";
+      drawnFor = lic.id;
+      listed = (answer.devices || []).filter((p) => !p.status || p.status === "active");
+      draw();
     } catch (e) {
       if (!current()) return;
       pool.innerHTML = "";

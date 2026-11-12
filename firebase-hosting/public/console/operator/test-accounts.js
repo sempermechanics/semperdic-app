@@ -16,10 +16,11 @@ import { api } from "../api.js";
 import { askInPage, confirmInPage, confirmByTyping, ERR_CANCELLED } from "../dialogs.js";
 import { setStatus } from "../status.js";
 import {
-  esc, day, placeholderRows, retryRow, reauthFailureText,
+  esc, day, when, placeholderRows, retryRow, reauthFailureText,
   TEST_ACCOUNT, testAccountBody, testAccountEnds, extendDays, APP_NAMES,
 } from "../util.js";
 import { explain } from "../messages.js";
+import { wireSort, sortList, byText, byNumber, matchesText, drawChips, onChip, countLine } from "../list-tools.js";
 import { $ } from "./state.js";
 
 /** Sentences for the refusals particular to test accounts. */
@@ -194,20 +195,68 @@ function showList(shown) {
 export async function loadTestAccounts() {
   const ticket = ++loads;
   showList(true);
-  $("testAccountRows").innerHTML = placeholderRows(7, 2);
+  $("testAccountRows").innerHTML = placeholderRows(5, 2);
   try {
     const data = await api("/v1/admin/test-accounts");
     if (ticket !== loads) return;
     accounts = data.accounts || [];
-    $("testAccountRows").innerHTML = accounts.length
-      ? accounts.map(accountRow).join("")
-      : '<tr><td colspan="7" class="muted">No test accounts.</td></tr>';
+    drawAccounts();
   } catch (e) {
     if (ticket !== loads) return;
-    $("testAccountRows").innerHTML = retryRow(7,
+    $("testAccountRows").innerHTML = retryRow(5,
       explain(e, SENTENCES, (text) => `Could not load: ${text}`));
   }
 }
+
+/* The list's chips, filter and sort: live accounts first, an ended one
+ * (suspended, its data erased, kept for its audit rows) under Ended. */
+const VIEWS = [
+  { value: "live", label: "Live", test: (a) => a.status === "active", always: true },
+  { value: "ended", label: "Ended", test: (a) => a.status !== "active" },
+  { value: "all", label: "All", test: () => true },
+];
+let view = "live";
+const SORTS = {
+  account: (a, b) => byText(a.email || a.uid, b.email || b.uid),
+  // Soonest end first: the accounts about to be erased. One that never ends, last.
+  ends: (a, b) => byNumber(Date.parse(a.expiresAt || ""), Date.parse(b.expiresAt || "")),
+  status: (a, b) => byText(a.status, b.status),
+};
+const sort = wireSort($("taHead"), drawAccounts);
+
+$("taFilter").addEventListener("input", drawAccounts);
+onChip($("taChips"), (value) => {
+  view = value;
+  drawAccounts();
+  const pressed = $("taChips").querySelector(`button[data-chip="${value}"]`);
+  if (pressed) pressed.focus();
+});
+
+/** Draw the accounts the chip and the filter leave, in the sort chosen. */
+function drawAccounts() {
+  const q = $("taFilter").value.trim().toLowerCase();
+  const pick = VIEWS.find((v) => v.value === view) || VIEWS[0];
+  drawChips($("taChips"), accounts.length
+    ? VIEWS.map((v) => ({ ...v, count: accounts.filter(v.test).length })) : [], view);
+  const inView = accounts.filter(pick.test);
+  const shown = sortList(inView.filter((a) =>
+    matchesText([a.email, a.uid, PURPOSES[a.purpose], a.purpose, a.note, a.status], q)), sort.order(), SORTS);
+  $("testAccountRows").innerHTML = shown.length
+    ? shown.map(accountRow).join("")
+    : `<tr><td colspan="5" class="muted">${emptyText(q, inView)}</td></tr>`;
+  $("taCount").textContent = countLine({ shown: shown.length, total: inView.length, filtered: Boolean(q) });
+}
+
+/** What an empty list says: there are none, none match, or none in this chip. */
+function emptyText(q, inView) {
+  if (!accounts.length) return "No test accounts.";
+  if (q && inView.length) return "No test account matches that filter.";
+  return view === "live" ? "No live test accounts. Press Ended to see the others." : "None here.";
+}
+
+// The accounts whose details are open under their row, by uid; kept across
+// a redraw as the phones' folds are.
+const detailsOpen = new Set();
 
 // The accounts whose phones are unfolded, by uid: a reload (after a Release,
 // say) draws them unfolded again rather than closing what was being worked on.
@@ -229,20 +278,45 @@ function accountRow(a) {
           <ul class="phone-list">${phones.map((d) => phoneLine(uid, d)).join("")}</ul>
         </details>`
     : count;
-  // End now erases the account: drawn as the destructive one, apart from
-  // the two that only change it.
+  // The row is what is read most: who, when it ends, its phones, its
+  // status. Purpose and note open under it from the address, as a licence's
+  // details do from its key. Extend, done most, stays in view; New password
+  // and End now, which erases the account, are under More, the destructive
+  // one last, as on a licence row.
+  const open = detailsOpen.has(a.uid);
+  const detailsId = `ta-details-${uid}`;
   return `
     <tr>
-      <td class="account">${who}</td>
-      <td>${esc(PURPOSES[a.purpose] || a.purpose || "—")}</td>
+      <td class="account"><button type="button" class="row-toggle" data-ta-details="${uid}"
+          aria-expanded="${open}" aria-controls="${detailsId}">${who}</button></td>
       <td class="nowrap">${esc(testAccountEnds(a))}</td>
       <td class="phones">${phonesCell}</td>
       <td><span class="pill ${live ? "ok" : "off"}">${esc(a.status || "—")}</span></td>
-      <td class="muted">${esc(a.note || "—")}</td>
       <td class="actions">
         <button class="secondary" data-ta-extend="${uid}" aria-label="Extend ${who}">Extend</button>
-        <button class="secondary" data-ta-password="${uid}" aria-label="New password for ${who}">New password</button>
-        <button class="danger" data-ta-end="${uid}" aria-label="End now: ${who}">End now</button>
+        <details class="more">
+          <summary aria-label="More for ${who}">More</summary>
+          <div class="menu">
+            <button class="secondary" data-ta-password="${uid}" aria-label="New password for ${who}">New password</button>
+            <button class="danger" data-ta-end="${uid}" aria-label="End now: ${who}">End now</button>
+          </div>
+        </details>
+      </td>
+    </tr>${open ? accountDetails(a, detailsId) : ""}`;
+}
+
+/** What the row leaves out: the purpose, the note, when it was made, its uid. */
+function accountDetails(a, detailsId) {
+  const facts = [
+    ["Purpose", esc(PURPOSES[a.purpose] || a.purpose || "—")],
+    ["Note", a.note ? esc(a.note) : '<span class="muted">none</span>'],
+    a.createdAt ? ["Created", esc(when(a.createdAt))] : null,
+    ["Account id", `<span class="mono">${esc(a.uid)}</span>`],
+  ].filter(Boolean);
+  return `
+    <tr class="row-details" id="${detailsId}">
+      <td colspan="5">
+        <dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
       </td>
     </tr>`;
 }
@@ -281,12 +355,25 @@ $("testAccountRows").addEventListener("click", (ev) => {
   }
   const btn = ev.target.closest("button");
   if (!btn) return;
+  // A choice from a row's More menu closes the menu.
+  const menu = btn.closest("details.more");
+  if (menu) menu.open = false;
   if ("retry" in btn.dataset) loadTestAccounts();
+  if (btn.dataset.taDetails) toggleDetails(btn.dataset.taDetails);
   if (btn.dataset.taExtend) extend(btn.dataset.taExtend);
   if (btn.dataset.taPassword) newPassword(btn.dataset.taPassword);
   if (btn.dataset.taRelease) release(btn.dataset.taRelease, btn.dataset.taDevice);
   if (btn.dataset.taEnd) endNow(btn.dataset.taEnd);
 });
+
+/** Open or close an account's details, keeping focus on its address. */
+function toggleDetails(uid) {
+  if (detailsOpen.has(uid)) detailsOpen.delete(uid);
+  else detailsOpen.add(uid);
+  drawAccounts();
+  const again = $("testAccountRows").querySelector(`button[data-ta-details="${uid}"]`);
+  if (again) again.focus();
+}
 
 /* ------------------------------------------------------------- actions */
 

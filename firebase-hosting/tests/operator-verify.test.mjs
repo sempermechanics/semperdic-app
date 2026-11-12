@@ -37,7 +37,7 @@ const REPORT = {
 const summary = () => $("verifySummary").textContent.replace(/\s+/g, " ").trim();
 const verifyRows = () => tableRows("verifyRows");
 const pills = () => $("verifyRows").querySelectorAll(".pill").map((p) => p.className);
-const seatsCell = () => rows().find((r) => r[0] === "SEMP-UNI1")[3];
+const seatsCell = () => rows().find((r) => r[0] === "SEMP-UNI1")[2];
 
 async function click(button) {
   button.click();

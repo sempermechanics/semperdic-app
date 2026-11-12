@@ -43,11 +43,26 @@ page that does not `modulepreload` every module it runs.
 Shared beside them:
 - `roster.js` — one institution roster: the table, its actions, adding a
   member, and what each refusal says. The rows read are drawn 100 at a time
-  (Show more), narrowed by a filter box (address, status or device) and sorted
-  by Member or Status (`aria-sort` on the heading), with "Showing n of m". The institution page drives it on the IT
+  (Show more), narrowed by a filter box (address, status or device) and by
+  status chips with their counts (Current, the default, leaves removed
+  members out; Active, Paused, Invited, Removed), and sorted by Member,
+  Status, Seat (lease end) or Phone (`aria-sort` on the heading), with
+  "Showing n of m". The institution page drives it on the IT
   routes (`/v1/institutions/licenses/{id}`), the operator desk on the staff
   routes (`/v1/admin/licenses/{id}`); the backend serves both from
   `routers/roster.py`. It reads a paged roster to the end.
+- `list-tools.js` — what the other tables share with the roster's toolbar:
+  `wireSort` (each `button.sort[data-sort]` in a heading sorts its column,
+  again the other way, `aria-sort` on its `<th>`), `sortList` (a tie keeps the
+  order read), `byText` (numbers in text as numbers, case aside), `byNumber`
+  (a missing number last), `matchesText`, `drawChips` / `onChip` (filter
+  chips with counts, `aria-pressed`) and `countLine` ("Showing n of m",
+  "n of m match", "loaded" while a page is unread), and `floatMenus`, which
+  makes a row's More menu a list floating over the rows below (fixed to the
+  viewport, placed by `menuPlace` under or above its button, one open at a
+  time, closed by a click elsewhere, Escape, a scroll or a resize). DOM only
+  through the elements handed in. The desk's licence table and test accounts, the
+  institution page's phones and the account page's analyses use it.
 - `roster-tools.js` — a roster's bulk tools: the seat-count tiles from
   `GET …/summary`, read after every roster load; Export roster CSV,
   `GET …/seats/export`; and the bulk import, `POST …/seats/import`, with a
@@ -370,7 +385,28 @@ overwritten by a reload, and pages loaded with "Load more" stay loaded. The
 status line is pinned to the top of the viewport while it holds a message — it
 sits above the mint card, and the licence table is well below it. The list is
 newest first, 50 a page; Demo keys and revoked licences are left out by the
-backend unless "Show Demo keys" / "Show revoked" is ticked. A revoke that left
+backend unless "Show Demo keys" / "Show revoked" is ticked, and a staff test
+account's licences unless "Show test accounts" is (`include_test`). Kind,
+App (one from before the split names none) and State (in force, ends within
+30 days, in grace, expired, upgrade waiting) narrow the rows read, beside the
+text box, which matches what a row shows (kind, app, state, "shared"), the
+address or domain it is locked to and its note, saying under the kind which
+of those two matched; Clear filters empties the four. A row is what is read
+most: Key, Kind, Seats and Status, each heading sorting; while pages are unread the
+paging line says the sort covers only those, and Load all reads the rest 200
+at a time. The filters, toggles and sort are kept for the tab in
+`sessionStorage` (`semper.desk.licenceView`), the text typed is not: it is
+often an address. `/` jumps to the text box. Term, Locked to, Mode and Analyses /
+person are no longer columns: a Demo or test key is tagged beside its kind,
+as is a limit set at issue ("200 analyses each"); a licence's key opens its
+details under the row (term, locked to, id, mode, app, seating, phones,
+analyses limit, IT contacts, issued, claimed, grace, support date, note).
+The Test accounts list does the same: a row is the address, when it ends,
+its phones and its status, with Extend beside them and New password and End
+now under More; the address opens its purpose, note, creation time and uid.
+Live accounts show first (chips Live, Ended, All), with a search over
+address, purpose and note and sortable Account, Ends and Status. The row a Roster or Verify card
+is open for stays marked until Close. A revoke that left
 its row in place with only the pill changed read as one that had not
 happened. The filter narrows the loaded rows at once, and an email, domain or
 key prefix is also searched on the backend, so a licence on a page nobody
@@ -613,6 +649,8 @@ The other files cover `auth.js`, `api.js`, `dialogs.js`, `status.js`,
 | `auth.test.mjs` | `api()` sends `Bearer <ID token>` to `API_BASE_URL + path` and throws the backend's code; `reauth_required` leaves for Google once and never retries with the stale token; a step-up that completes retries once with a force-refreshed token; `allowStepUp: false` and `mfa_required` are handed back untouched; a cancelled code is `ERR_CANCELLED`; the 120 s redirect-loop guard and `operatorAsked`; `apiBlob()`; a resolved challenge adopts the re-authenticated user; `sessionHasSecondFactor` reads the token claim; TOTP enrolment in the page; `stepUpForRevoke`'s 90 s window and password-versus-Google choice, and `stepUpFresh` in its caller's words; `confirmByTyping`; a refusal carries its `code`, the `rest` after it, and the `status` |
 | `signin.test.mjs` | `requireSignIn`: nothing reaches `onReady` signed out or without this session's second factor; one start per account; the return leg hands `resume` over once, or marks it `reauthFailed`; declining to enrol signs out; a redirect that keeps failing stops with a message |
 | `router.test.mjs` | `/login` forwards staff, IT contacts (deep-linked to one licence) and everyone else, and offers a switcher when it cannot or should not choose |
+| `operator-list.test.mjs` | The licence table's list tools: Kind, App and State, the count and Clear filters; the text box over kind, app, state, the lock and the note (said under the kind); each heading's sort both ways, an unread page said, Load all 200 at a time and its failure part-way; a row's details and a redraw keeping them; Show test accounts in the list and the search; the view kept for the tab without the text typed, a stale one ignored; `/`; the marked row |
+| `list-tools.test.mjs` | `list-tools.js` alone: the orderings and their ties, the text match, the chips (an empty one left out, labels escaped) and the count line |
 | `operator.test.mjs` | The desk only for `role=admin`; licence rows (seats, term, cap, state, which actions apply — no Delete on a system Demo key, only Delete on a revoked row); Show revoked / Show Demo refetch; Load more without duplicates; the filter, and the backend search after a 300 ms pause (a POST with the text in its body, never in a URL); revoke and delete: who-is-affected confirmation, typed key, `stepUpForRevoke` (a stale session goes to Google carrying the licence, nothing sent), the sent request and its message, each refusal's wording; the return leg finishes a revoke or delete after one plain confirmation, once, reads a licence past the first page first, refuses a gone or already-revoked one, and says a failed leg sent nothing; Edit prefill, a later end without a typed key, an earlier one only with it, clearing the cap, a Demo key's cap locked, a Demo key's hand-off to Issue (address filled, Individual ticked, nothing sent), each `editError` code in the dialog; New device; the roster card on the staff routes, with the same actions as IT, and a refusal said in the card |
 | `account.test.mjs` | Licence pills and explanation (licensed, Demo, perpetual, expired past grace, ended in grace, shared seat held or not, a backend without `held`); Move licence hidden without a held licence; "N of M", "N analyses stored", and the inactive-licence wording, also when the analyses answer first; each analysis row's state, file count and stored size ("—" for failed or nothing, "… when done" while uploading), Download disabled until something finished, a specimen name never markup; Show more; give a seat back and move the licence (confirmation, request, the cooldown instant from `device_change_too_soon: <ISO>`, each refusal); Download saves `semper-analysis-<id>.zip`, and its refusals; the licence's facts (mode, licence, seats, end, grace end, lease; none without a licence; an unknown value as it came), the offline line only with a licence, and the delete card naming both apps |
 | `institution.test.mjs` | Nothing of the roster for an address no licence names (or an unverified one); a failed check leaves the page usable; the deep link; "N of M seats taken" / "in use right now" with invites counted apart; member rows (New device, Pause / Resume, Remove; nothing for a removed member; invites with Withdraw); not-found wording; Pause / Resume / New device bodies and reload; New device, Remove and Withdraw confirm first, naming the address; row buttons named after the member; `ACT_ERRORS`; adding a member (on now vs invited, each refusal, `claim_contended`); the licence picker; a roster longer than one page read to the end |

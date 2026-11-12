@@ -66,6 +66,19 @@ export const tableRows = (id) => $(id).querySelectorAll("tr").map((tr) =>
 
 export const rows = () => tableRows("licenceRows");
 export const labels = () => rows().map((r) => r[0]);
+/**
+ * Licence `id`'s details, opened from its key when closed, as
+ * { "Term": "perpetual", "Locked to": …, … }: what the row no longer shows.
+ */
+export function detailsOf(id) {
+  const toggle = $("licenceRows").querySelector(`button[data-details="${id}"]`);
+  if (toggle.getAttribute("aria-expanded") !== "true") toggle.click();
+  const dl = $(`licence-details-${id}`).querySelector("dl");
+  const names = dl.querySelectorAll("dt").map((dt) => dt.textContent.trim());
+  const values = dl.querySelectorAll("dd").map((dd) => dd.textContent.replace(/\s+/g, " ").trim());
+  return Object.fromEntries(names.map((n, i) => [n, values[i]]));
+}
+
 export const rowButton = (kind, id) => $("licenceRows").querySelector(`button[data-${kind}="${id}"]`);
 
 /** A request the fetch never answered: the network failed. */
